@@ -1,22 +1,28 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Stability Protocol Management API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: protocols
+    description: Stability protocol management
+  - name: lots
+    description: Protocol lot management
+  - name: results
+    description: Analysis results
+  - name: certificates
+    description: Certificate of analysis
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +30,338 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /protocols:
+    get:
+      operationId: listProtocols
+      tags: [protocols]
+      summary: List all protocols
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [rascunho, em_andamento, concluido, aprovado, reprovado]
+      responses:
+        "200":
+          description: List of protocols
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Protocol"
+    post:
+      operationId: createProtocol
+      tags: [protocols]
+      summary: Create a new protocol
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProtocolBody"
+      responses:
+        "201":
+          description: Protocol created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Protocol"
+
+  /protocols/stats:
+    get:
+      operationId: getProtocolStats
+      tags: [protocols]
+      summary: Get protocol dashboard stats
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProtocolStats"
+
+  /protocols/{id}:
+    get:
+      operationId: getProtocol
+      tags: [protocols]
+      summary: Get protocol by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Protocol
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProtocolDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateProtocol
+      tags: [protocols]
+      summary: Update a protocol
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProtocolBody"
+      responses:
+        "200":
+          description: Updated protocol
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Protocol"
+    delete:
+      operationId: deleteProtocol
+      tags: [protocols]
+      summary: Delete a protocol
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /protocols/{id}/lots:
+    get:
+      operationId: listLots
+      tags: [lots]
+      summary: List lots for a protocol
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of lots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Lot"
+    post:
+      operationId: createLot
+      tags: [lots]
+      summary: Add a lot to a protocol
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLotBody"
+      responses:
+        "201":
+          description: Lot created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lot"
+
+  /protocols/{id}/lots/{lotId}:
+    put:
+      operationId: updateLot
+      tags: [lots]
+      summary: Update a lot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: lotId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLotBody"
+      responses:
+        "200":
+          description: Updated lot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lot"
+    delete:
+      operationId: deleteLot
+      tags: [lots]
+      summary: Delete a lot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: lotId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /protocols/{id}/results:
+    get:
+      operationId: listResults
+      tags: [results]
+      summary: Get all analysis results for a protocol
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Analysis results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AnalysisResult"
+    post:
+      operationId: upsertResult
+      tags: [results]
+      summary: Create or update an analysis result
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertResultBody"
+      responses:
+        "200":
+          description: Result saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisResult"
+
+  /protocols/{id}/results/{resultId}:
+    delete:
+      operationId: deleteResult
+      tags: [results]
+      summary: Delete an analysis result
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: resultId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /protocols/{id}/kinetics:
+    get:
+      operationId: getKinetics
+      tags: [protocols]
+      summary: Get kinetic modeling calculations for a protocol
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Kinetic modeling results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KineticsResult"
+
+  /protocols/{id}/certificate:
+    get:
+      operationId: getCertificate
+      tags: [certificates]
+      summary: Get certificate of analysis data for a protocol
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Certificate data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Certificate"
+
+  /protocols/{id}/finalize:
+    post:
+      operationId: finalizeProtocol
+      tags: [protocols]
+      summary: Finalize a protocol with approval status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinalizeProtocolBody"
+      responses:
+        "200":
+          description: Protocol finalized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Protocol"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +372,530 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    Protocol:
+      type: object
+      properties:
+        id:
+          type: integer
+        certNumber:
+          type: string
+          description: e.g. CERT-AF-20241210/035
+        companyName:
+          type: string
+        cnpj:
+          type: string
+        ie:
+          type: string
+        address:
+          type: string
+        cep:
+          type: string
+        productName:
+          type: string
+        productType:
+          type: string
+        packagingType:
+          type: string
+        activeIngredients:
+          type: string
+        excipients:
+          type: string
+        capsuleComposition:
+          type: string
+        studyStartDate:
+          type: string
+        studyEndDate:
+          type: string
+        studyObjective:
+          type: string
+        storageTemp:
+          type: string
+        storageHumidity:
+          type: string
+        studyPeriodMonths:
+          type: integer
+        testIntervals:
+          type: string
+        elaboratedBy:
+          type: string
+        approvedBy:
+          type: string
+        issuedBy:
+          type: string
+        seniorAnalyst:
+          type: string
+        seniorAnalystEmail:
+          type: string
+        status:
+          type: string
+          enum: [rascunho, em_andamento, concluido, aprovado, reprovado]
+        finalStatus:
+          type: string
+          nullable: true
+          enum: [aprovado, reprovado, null]
+        conclusion:
+          type: string
+          nullable: true
+        validityMonths:
+          type: integer
+          nullable: true
+        issueDate:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - certNumber
+        - companyName
+        - cnpj
+        - productName
+        - status
+        - createdAt
+        - updatedAt
+
+    ProtocolDetail:
+      allOf:
+        - $ref: "#/components/schemas/Protocol"
+        - type: object
+          properties:
+            lots:
+              type: array
+              items:
+                $ref: "#/components/schemas/Lot"
+            results:
+              type: array
+              items:
+                $ref: "#/components/schemas/AnalysisResult"
+          required:
+            - lots
+            - results
+
+    CreateProtocolBody:
+      type: object
+      properties:
+        certNumber:
+          type: string
+        companyName:
+          type: string
+        cnpj:
+          type: string
+        ie:
+          type: string
+        address:
+          type: string
+        cep:
+          type: string
+        productName:
+          type: string
+        productType:
+          type: string
+        packagingType:
+          type: string
+        activeIngredients:
+          type: string
+        excipients:
+          type: string
+        capsuleComposition:
+          type: string
+        studyStartDate:
+          type: string
+        studyEndDate:
+          type: string
+        studyObjective:
+          type: string
+        storageTemp:
+          type: string
+        storageHumidity:
+          type: string
+        studyPeriodMonths:
+          type: integer
+        testIntervals:
+          type: string
+        elaboratedBy:
+          type: string
+        approvedBy:
+          type: string
+        issuedBy:
+          type: string
+        seniorAnalyst:
+          type: string
+        seniorAnalystEmail:
+          type: string
+      required:
+        - companyName
+        - cnpj
+        - productName
+
+    UpdateProtocolBody:
+      type: object
+      properties:
+        certNumber:
+          type: string
+        companyName:
+          type: string
+        cnpj:
+          type: string
+        ie:
+          type: string
+        address:
+          type: string
+        cep:
+          type: string
+        productName:
+          type: string
+        productType:
+          type: string
+        packagingType:
+          type: string
+        activeIngredients:
+          type: string
+        excipients:
+          type: string
+        capsuleComposition:
+          type: string
+        studyStartDate:
+          type: string
+        studyEndDate:
+          type: string
+        studyObjective:
+          type: string
+        storageTemp:
+          type: string
+        storageHumidity:
+          type: string
+        studyPeriodMonths:
+          type: integer
+        testIntervals:
+          type: string
+        elaboratedBy:
+          type: string
+        approvedBy:
+          type: string
+        issuedBy:
+          type: string
+        seniorAnalyst:
+          type: string
+        seniorAnalystEmail:
+          type: string
+        status:
+          type: string
+          enum: [rascunho, em_andamento, concluido, aprovado, reprovado]
+
+    ProtocolStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        rascunho:
+          type: integer
+        emAndamento:
+          type: integer
+        concluido:
+          type: integer
+        aprovado:
+          type: integer
+        reprovado:
+          type: integer
+        totalNonConformities:
+          type: integer
+        recentProtocols:
+          type: array
+          items:
+            $ref: "#/components/schemas/Protocol"
+      required:
+        - total
+        - rascunho
+        - emAndamento
+        - concluido
+        - aprovado
+        - reprovado
+        - totalNonConformities
+        - recentProtocols
+
+    Lot:
+      type: object
+      properties:
+        id:
+          type: integer
+        protocolId:
+          type: integer
+        lotNumber:
+          type: string
+        manufacturingDate:
+          type: string
+        quantity:
+          type: integer
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - protocolId
+        - lotNumber
+        - manufacturingDate
+        - quantity
+        - createdAt
+
+    CreateLotBody:
+      type: object
+      properties:
+        lotNumber:
+          type: string
+        manufacturingDate:
+          type: string
+        quantity:
+          type: integer
+        notes:
+          type: string
+      required:
+        - lotNumber
+        - manufacturingDate
+        - quantity
+
+    AnalysisResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        protocolId:
+          type: integer
+        lotId:
+          type: integer
+        lotNumber:
+          type: string
+        period:
+          type: integer
+          description: Period in months (0, 3, 6)
+        analysisDate:
+          type: string
+        category:
+          type: string
+          enum: [fisico_quimica, microbiologica, teor_ativo, embalagem]
+        parameter:
+          type: string
+        criterion:
+          type: string
+        result:
+          type: string
+        numericResult:
+          type: number
+          nullable: true
+        status:
+          type: string
+          enum: [conforme, nao_conforme, na]
+        observation:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - protocolId
+        - lotId
+        - lotNumber
+        - period
+        - analysisDate
+        - category
+        - parameter
+        - criterion
+        - result
+        - status
+        - createdAt
+        - updatedAt
+
+    UpsertResultBody:
+      type: object
+      properties:
+        lotId:
+          type: integer
+        period:
+          type: integer
+        analysisDate:
+          type: string
+        category:
+          type: string
+          enum: [fisico_quimica, microbiologica, teor_ativo, embalagem]
+        parameter:
+          type: string
+        criterion:
+          type: string
+        result:
+          type: string
+        numericResult:
+          type: number
+        status:
+          type: string
+          enum: [conforme, nao_conforme, na]
+        observation:
+          type: string
+      required:
+        - lotId
+        - period
+        - analysisDate
+        - category
+        - parameter
+        - criterion
+        - result
+        - status
+
+    KineticsResult:
+      type: object
+      properties:
+        protocolId:
+          type: integer
+        parameters:
+          type: array
+          items:
+            $ref: "#/components/schemas/KineticParameter"
+        limitingParameter:
+          type: string
+          nullable: true
+        estimatedShelfLifeMonths:
+          type: number
+          nullable: true
+        recommendedValidityMonths:
+          type: integer
+          nullable: true
+      required:
+        - protocolId
+        - parameters
+
+    KineticParameter:
+      type: object
+      properties:
+        parameter:
+          type: string
+        t0:
+          type: number
+          nullable: true
+        t3:
+          type: number
+          nullable: true
+        t6:
+          type: number
+          nullable: true
+        k:
+          type: number
+          nullable: true
+        estimatedShelfLifeMonths:
+          type: number
+          nullable: true
+        minThresholdPercent:
+          type: number
+      required:
+        - parameter
+        - minThresholdPercent
+
+    Certificate:
+      type: object
+      properties:
+        certNumber:
+          type: string
+        issueDate:
+          type: string
+        companyName:
+          type: string
+        cnpj:
+          type: string
+        email:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        productName:
+          type: string
+        presentation:
+          type: string
+          nullable: true
+        validityMonths:
+          type: integer
+          nullable: true
+        lotNumbers:
+          type: array
+          items:
+            type: string
+        analyses:
+          type: array
+          items:
+            $ref: "#/components/schemas/CertificateAnalysis"
+        conclusion:
+          type: string
+          nullable: true
+        finalStatus:
+          type: string
+          nullable: true
+        issuedBy:
+          type: string
+          nullable: true
+        seniorAnalyst:
+          type: string
+          nullable: true
+        seniorAnalystEmail:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+      required:
+        - certNumber
+        - issueDate
+        - companyName
+        - cnpj
+        - productName
+        - lotNumbers
+        - analyses
+
+    CertificateAnalysis:
+      type: object
+      properties:
+        parameter:
+          type: string
+        method:
+          type: string
+        specification:
+          type: string
+        result:
+          type: string
+        status:
+          type: string
+      required:
+        - parameter
+        - method
+        - specification
+        - result
+        - status
+
+    FinalizeProtocolBody:
+      type: object
+      properties:
+        finalStatus:
+          type: string
+          enum: [aprovado, reprovado]
+        conclusion:
+          type: string
+        validityMonths:
+          type: integer
+        issueDate:
+          type: string
+      required:
+        - finalStatus
+        - conclusion

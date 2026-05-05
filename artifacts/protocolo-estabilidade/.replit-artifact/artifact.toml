@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Protocolo de Estabilidade"
+version = "1.0.0"
+id = "artifacts/protocolo-estabilidade"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21362
+
+[services.development]
+run = "pnpm --filter @workspace/protocolo-estabilidade run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/protocolo-estabilidade", "run", "build" ]
+publicDir = "artifacts/protocolo-estabilidade/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21362"
+BASE_PATH = "/"

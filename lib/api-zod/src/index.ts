@@ -1,2 +1,24 @@
 export * from "./generated/api";
-export * from "./generated/types";
+export type {
+  AnalysisResult,
+  AnalysisResultCategory,
+  AnalysisResultStatus,
+  Certificate,
+  CertificateAnalysis,
+  ErrorResponse,
+  FinalizeProtocolBodyFinalStatus,
+  HealthStatus,
+  KineticParameter,
+  KineticsResult,
+  ListProtocolsParams,
+  ListProtocolsStatus,
+  Lot,
+  Protocol,
+  ProtocolDetail,
+  ProtocolFinalStatus,
+  ProtocolStats,
+  ProtocolStatus,
+  UpdateProtocolBodyStatus,
+  UpsertResultBodyCategory,
+  UpsertResultBodyStatus,
+} from "./generated/types";

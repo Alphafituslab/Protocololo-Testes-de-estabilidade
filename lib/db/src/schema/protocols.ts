@@ -1,0 +1,42 @@
+import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
+
+export const protocolsTable = pgTable("protocols", {
+  id: serial("id").primaryKey(),
+  certNumber: text("cert_number").notNull().default(""),
+  companyName: text("company_name").notNull(),
+  cnpj: text("cnpj").notNull(),
+  ie: text("ie"),
+  address: text("address"),
+  cep: text("cep"),
+  productName: text("product_name").notNull(),
+  productType: text("product_type"),
+  packagingType: text("packaging_type"),
+  activeIngredients: text("active_ingredients"),
+  excipients: text("excipients"),
+  capsuleComposition: text("capsule_composition"),
+  studyStartDate: text("study_start_date"),
+  studyEndDate: text("study_end_date"),
+  studyObjective: text("study_objective"),
+  storageTemp: text("storage_temp"),
+  storageHumidity: text("storage_humidity"),
+  studyPeriodMonths: integer("study_period_months"),
+  testIntervals: text("test_intervals"),
+  elaboratedBy: text("elaborated_by"),
+  approvedBy: text("approved_by"),
+  issuedBy: text("issued_by"),
+  seniorAnalyst: text("senior_analyst"),
+  seniorAnalystEmail: text("senior_analyst_email"),
+  status: text("status").notNull().default("rascunho"),
+  finalStatus: text("final_status"),
+  conclusion: text("conclusion"),
+  validityMonths: integer("validity_months"),
+  issueDate: text("issue_date"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export const insertProtocolSchema = createInsertSchema(protocolsTable).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertProtocol = z.infer<typeof insertProtocolSchema>;
+export type DbProtocol = typeof protocolsTable.$inferSelect;
