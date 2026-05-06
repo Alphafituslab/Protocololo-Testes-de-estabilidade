@@ -1,7 +1,7 @@
 import { useParams, Link } from "wouter";
 import { useGetCertificate, getGetCertificateQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Settings2, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Printer, Settings2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 
@@ -147,7 +147,7 @@ export default function CertificatePage() {
             ))}
           </div>
           <div className="flex items-center gap-3 pt-1 border-t border-muted">
-            <p className="text-xs text-muted-foreground flex-1">Use o botão <Eye className="inline h-3 w-3" /> em cada linha da tabela para mostrar/ocultar na impressão. Clique em Método/Especificação/Resultado para editar o texto.</p>
+            <p className="text-xs text-muted-foreground flex-1">Marque/desmarque a caixinha ☑ na coluna PDF de cada linha para incluir ou excluir da impressão. Clique em Método/Especificação/Resultado para editar o texto.</p>
             <button onClick={toggleAllRows} className="text-xs px-3 py-1 rounded border border-muted-foreground/30 hover:bg-muted text-muted-foreground whitespace-nowrap">
               {allVisible ? "Desmarcar todas" : "Marcar todas"}
             </button>
@@ -239,7 +239,7 @@ export default function CertificatePage() {
                 <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-20">Resultado</th>
                 <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-24">Status</th>
                 <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-10 print:hidden">
-                  <Eye className="h-3 w-3 mx-auto text-gray-400" />
+                  <span className="text-[9px] text-gray-400 uppercase tracking-wide">PDF</span>
                 </th>
               </tr>
             </thead>
@@ -281,17 +281,14 @@ export default function CertificatePage() {
                       {analysis.status}
                     </span>
                   </td>
-                  <td className="border border-gray-300 px-2 py-1.5 text-center align-top print:hidden">
-                    <button
-                      onClick={() => toggleRowVisibility(i)}
-                      title={analysis.visible ? "Ocultar na impressão" : "Mostrar na impressão"}
-                      className={`rounded p-0.5 transition-colors ${analysis.visible ? "text-green-600 hover:bg-green-50" : "text-gray-300 hover:bg-gray-100"}`}
-                    >
-                      {analysis.visible
-                        ? <Eye className="h-3.5 w-3.5" />
-                        : <EyeOff className="h-3.5 w-3.5" />
-                      }
-                    </button>
+                  <td className="border border-gray-300 px-2 py-1.5 text-center align-middle print:hidden">
+                    <input
+                      type="checkbox"
+                      checked={analysis.visible}
+                      onChange={() => toggleRowVisibility(i)}
+                      title={analysis.visible ? "Ocultar na impressão" : "Incluir na impressão"}
+                      className="w-4 h-4 accent-primary cursor-pointer"
+                    />
                   </td>
                 </tr>
               ))}
