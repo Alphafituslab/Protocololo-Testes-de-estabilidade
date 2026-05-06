@@ -273,6 +273,15 @@ function LotsTab({ protocolId }: { protocolId: number }) {
         </Table>
       )}
 
+      <div className="mt-4 rounded-md border border-blue-100 bg-blue-50 p-4 text-xs text-blue-800 leading-relaxed space-y-2">
+        <p>
+          Os lotes piloto foram produzidos em datas distintas, sob condições equivalentes de fabricação, visando assegurar a independência entre os lotes, a rastreabilidade do estudo e a minimização do risco de desvios operacionais ou interferências de processo.
+        </p>
+        <p>
+          Alimento está sendo testado em embalagem equivalente e sistema de fechamento nos quais será comercializado.
+        </p>
+      </div>
+
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
@@ -325,63 +334,145 @@ function LotsTab({ protocolId }: { protocolId: number }) {
   );
 }
 
-function ResultsTab({ protocolId }: { protocolId: number }) {
-  const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
-  const { data: results = [], isLoading } = useListResults(protocolId, { query: { queryKey: getListResultsQueryKey(protocolId) } });
+type ActiveCell = { lotId: number; period: number; parameter: string; category: string; criterion: string };
+
+function InlineCell({
+  lotId, period, param, result, protocolId, lots,
+}: {
+  lotId: number;
+  period: number;
+  param: { parameter: string; category: string; criterion: string };
+  result: { result: string; status: string; observation?: string | null } | undefined;
+  protocolId: number;
+  lots: { id: number; lotNumber: string }[];
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(result?.result ?? "");
+  const [status, setStatus] = useState<"conforme" | "nao_conforme" | "na">(
+    (result?.status as "conforme" | "nao_conforme" | "na") ?? "conforme"
+  );
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [editCell, setEditCell] = useState<{ lotId: number; period: number; parameter: string; category: string; criterion: string } | null>(null);
-  const [editValue, setEditValue] = useState("");
-  const [editStatus, setEditStatus] = useState("conforme");
-  const [editObs, setEditObs] = useState("");
-  const [saving, setSaving] = useState(false);
 
   const upsertResult = useUpsertResult({
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
-        setEditCell(null);
-        setSaving(false);
+        setEditing(false);
       },
       onError: () => {
-        toast({ title: "Erro ao salvar resultado", variant: "destructive" });
-        setSaving(false);
+        toast({ title: "Erro ao salvar", variant: "destructive" });
+        setEditing(false);
       },
     },
   });
 
-  const getResult = (lotId: number, period: number, parameter: string) =>
-    results.find((r) => r.lotId === lotId && r.period === period && r.parameter === parameter);
-
-  const openEdit = (lotId: number, period: number, param: { parameter: string; category: string; criterion: string }) => {
-    const existing = getResult(lotId, period, param.parameter);
-    setEditCell({ lotId, period, ...param });
-    setEditValue(existing?.result ?? "");
-    setEditStatus(existing?.status ?? "conforme");
-    setEditObs(existing?.observation ?? "");
-  };
-
-  const saveResult = () => {
-    if (!editCell) return;
-    setSaving(true);
-    const lot = lots.find((l) => l.id === editCell.lotId);
+  const save = () => {
+    if (!value.trim()) { setEditing(false); return; }
     upsertResult.mutate({
       id: protocolId,
       data: {
-        lotId: editCell.lotId,
-        period: editCell.period,
+        lotId,
+        period,
         analysisDate: new Date().toISOString().split("T")[0],
-        category: editCell.category as "fisico_quimica" | "microbiologica" | "teor_ativo" | "embalagem",
-        parameter: editCell.parameter,
-        criterion: editCell.criterion,
-        result: editValue,
-        numericResult: parseFloat(editValue) || undefined,
-        status: editStatus as "conforme" | "nao_conforme" | "na",
-        observation: editObs || undefined,
+        category: param.category as "fisico_quimica" | "microbiologica" | "teor_ativo" | "embalagem",
+        parameter: param.parameter,
+        criterion: param.criterion,
+        result: value,
+        numericResult: parseFloat(value.replace(",", ".")) || undefined,
+        status,
       },
     });
   };
+
+  const open = () => {
+    setValue(result?.result ?? "");
+    setStatus((result?.status as "conforme" | "nao_conforme" | "na") ?? "conforme");
+    setEditing(true);
+  };
+
+  const statusColors: Record<string, string> = {
+    conforme: "text-green-700 bg-green-50 border-green-200",
+    nao_conforme: "text-red-700 bg-red-50 border-red-200",
+    na: "text-slate-500 bg-slate-50 border-slate-200",
+  };
+
+  const statusBtnColors: Record<string, string> = {
+    conforme: "bg-green-100 text-green-700 border-green-300 font-bold",
+    nao_conforme: "bg-red-100 text-red-700 border-red-300 font-bold",
+    na: "bg-slate-100 text-slate-500 border-slate-300 font-bold",
+  };
+
+  if (editing) {
+    return (
+      <div className="flex flex-col gap-1 p-0.5 min-w-28" onClick={(e) => e.stopPropagation()}>
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") save();
+            if (e.key === "Escape") setEditing(false);
+          }}
+          className="w-full border border-primary rounded px-1.5 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary"
+          placeholder="valor"
+          data-testid="input-inline-result"
+        />
+        <div className="flex gap-0.5 justify-center">
+          {(["conforme", "nao_conforme", "na"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatus(s)}
+              className={`text-[9px] px-1 py-0.5 rounded border transition-all ${status === s ? statusBtnColors[s] : "bg-white text-muted-foreground border-border"}`}
+            >
+              {s === "conforme" ? "C" : s === "nao_conforme" ? "NC" : "N/A"}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-0.5 justify-center">
+          <button
+            onClick={save}
+            disabled={upsertResult.isPending}
+            className="text-[9px] px-2 py-0.5 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50"
+          >
+            {upsertResult.isPending ? "..." : "OK"}
+          </button>
+          <button
+            onClick={() => setEditing(false)}
+            className="text-[9px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={open}
+      className="cursor-pointer group flex items-center justify-center min-h-8"
+      data-testid={`cell-${param.parameter}-${lotId}-${period}`}
+      title="Clique para editar"
+    >
+      {result ? (
+        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs border font-medium group-hover:opacity-80 transition-opacity ${statusColors[result.status]}`}>
+          {result.result}
+        </span>
+      ) : (
+        <span className="text-muted-foreground/30 group-hover:text-muted-foreground/60 text-lg leading-none transition-colors">+</span>
+      )}
+    </div>
+  );
+}
+
+function ResultsTab({ protocolId }: { protocolId: number }) {
+  const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
+  const { data: results = [], isLoading } = useListResults(protocolId, { query: { queryKey: getListResultsQueryKey(protocolId) } });
+
+  const getResult = (lotId: number, period: number, parameter: string) =>
+    results.find((r) => r.lotId === lotId && r.period === period && r.parameter === parameter);
 
   if (lots.length === 0) {
     return (
@@ -404,54 +495,7 @@ function ResultsTab({ protocolId }: { protocolId: number }) {
 
   return (
     <div className="space-y-6">
-      {editCell && (
-        <Card className="border-primary/40 bg-primary/5">
-          <CardContent className="pt-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <p className="text-sm font-semibold mb-1">{editCell.parameter} — Lote {lots.find(l => l.id === editCell.lotId)?.lotNumber} — T{editCell.period}</p>
-                <p className="text-xs text-muted-foreground mb-3">Criterio: {editCell.criterion}</p>
-                <div className="flex gap-3 items-start flex-wrap">
-                  <div>
-                    <label className="text-xs font-medium block mb-1">Resultado</label>
-                    <Input
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      className="w-40"
-                      placeholder="ex: 9,21"
-                      data-testid="input-result-value"
-                      autoFocus
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium block mb-1">Status</label>
-                    <Select value={editStatus} onValueChange={setEditStatus}>
-                      <SelectTrigger className="w-36" data-testid="select-result-status">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="conforme">Conforme</SelectItem>
-                        <SelectItem value="nao_conforme">Nao Conforme</SelectItem>
-                        <SelectItem value="na">N/A</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex-1 min-w-32">
-                    <label className="text-xs font-medium block mb-1">Observacao</label>
-                    <Input value={editObs} onChange={(e) => setEditObs(e.target.value)} placeholder="Opcional" data-testid="input-result-obs" />
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-2 mt-6">
-                <Button size="sm" onClick={saveResult} disabled={saving} data-testid="button-save-result">
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditCell(null)}>Cancelar</Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <p className="text-xs text-muted-foreground">Clique em qualquer célula para digitar o resultado. Use <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">C</kbd> = Conforme · <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">NC</kbd> = Não Conforme · <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">N/A</kbd> = Não aplicável. Confirme com Enter ou OK.</p>
 
       {categories.map(({ label, key }) => {
         const params = ANALYSIS_PARAMETERS.filter((p) => p.category === key);
@@ -466,8 +510,8 @@ function ResultsTab({ protocolId }: { protocolId: number }) {
                     <TableHead className="w-40 text-xs">Criterio</TableHead>
                     {lots.map((lot) =>
                       PERIODS.map((period) => (
-                        <TableHead key={`${lot.id}-${period}`} className="text-xs text-center min-w-24">
-                          <div className="font-medium">{lot.lotNumber.split("-").slice(-1)[0]}</div>
+                        <TableHead key={`${lot.id}-${period}`} className="text-xs text-center min-w-28">
+                          <div className="font-medium">{lot.lotNumber}</div>
                           <div className="text-muted-foreground font-normal">T{period}</div>
                         </TableHead>
                       ))
@@ -477,29 +521,21 @@ function ResultsTab({ protocolId }: { protocolId: number }) {
                 <TableBody>
                   {params.map((param) => (
                     <TableRow key={param.parameter} data-testid={`row-param-${param.parameter}`}>
-                      <TableCell className="text-xs font-medium py-2">{param.parameter}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground py-2">{param.criterion}</TableCell>
+                      <TableCell className="text-xs font-medium py-1">{param.parameter}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground py-1">{param.criterion}</TableCell>
                       {lots.map((lot) =>
-                        PERIODS.map((period) => {
-                          const result = getResult(lot.id, period, param.parameter);
-                          const isActive = editCell?.lotId === lot.id && editCell?.period === period && editCell?.parameter === param.parameter;
-                          return (
-                            <TableCell
-                              key={`${lot.id}-${period}`}
-                              className={`text-xs text-center py-1 cursor-pointer transition-colors hover:bg-muted/60 ${isActive ? "ring-2 ring-primary ring-inset" : ""}`}
-                              onClick={() => openEdit(lot.id, period, param)}
-                              data-testid={`cell-${param.parameter}-${lot.id}-${period}`}
-                            >
-                              {result ? (
-                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs border font-medium ${RESULT_STATUS_COLORS[result.status]}`}>
-                                  {result.result}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground/40">—</span>
-                              )}
-                            </TableCell>
-                          );
-                        })
+                        PERIODS.map((period) => (
+                          <TableCell key={`${lot.id}-${period}`} className="py-1 text-center align-middle">
+                            <InlineCell
+                              lotId={lot.id}
+                              period={period}
+                              param={param}
+                              result={getResult(lot.id, period, param.parameter)}
+                              protocolId={protocolId}
+                              lots={lots}
+                            />
+                          </TableCell>
+                        ))
                       )}
                     </TableRow>
                   ))}
@@ -513,38 +549,135 @@ function ResultsTab({ protocolId }: { protocolId: number }) {
   );
 }
 
+type KineticOverride = {
+  t0: string; t3: string; t6: string; k: string; threshold: string; shelfLife: string;
+};
+
+function calcShelfLife(t0s: string, t3s: string, t6s: string, ks: string, thresholds: string): string {
+  const t0 = parseFloat(t0s.replace(",", "."));
+  const t3 = parseFloat(t3s.replace(",", "."));
+  const t6 = parseFloat(t6s.replace(",", "."));
+  const threshold = parseFloat(thresholds.replace(",", "."));
+  let k = parseFloat(ks.replace(",", "."));
+
+  if (!isNaN(t3) && !isNaN(t6) && t3 > 0 && t6 > 0 && isNaN(k)) {
+    k = -Math.log(t6 / t3) / 3;
+  }
+  if (isNaN(k) || k <= 0) return "";
+
+  const c0 = isNaN(t0) ? t6 : t0;
+  const tValidity = -Math.log(threshold / c0) / k;
+  if (tValidity <= 0 || isNaN(tValidity)) return "";
+  return tValidity.toFixed(1);
+}
+
+function EditableNum({
+  value, onChange, width = "w-20", placeholder = "—",
+}: { value: string; onChange: (v: string) => void; width?: string; placeholder?: string }) {
+  return (
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`${width} border border-border rounded px-1.5 py-0.5 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary bg-white`}
+      placeholder={placeholder}
+    />
+  );
+}
+
 function KineticsTab({ protocolId }: { protocolId: number }) {
   const { data: kinetics, isLoading } = useGetKinetics(protocolId, {
     query: { queryKey: getGetKineticsQueryKey(protocolId) },
   });
 
+  const [overrides, setOverrides] = useState<Record<string, KineticOverride>>({});
+  const [initialized, setInitialized] = useState(false);
+
+  if (!initialized && kinetics) {
+    const init: Record<string, KineticOverride> = {};
+    for (const p of kinetics.parameters) {
+      init[p.parameter] = {
+        t0: p.t0 != null ? p.t0.toFixed(2) : "",
+        t3: p.t3 != null ? p.t3.toFixed(2) : "",
+        t6: p.t6 != null ? p.t6.toFixed(2) : "",
+        k: p.k != null ? p.k.toFixed(6) : "",
+        threshold: p.minThresholdPercent.toString(),
+        shelfLife: p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(1) : "",
+      };
+    }
+    setOverrides(init);
+    setInitialized(true);
+  }
+
+  const setField = (param: string, field: keyof KineticOverride, val: string) => {
+    setOverrides((prev) => {
+      const updated = { ...prev, [param]: { ...prev[param], [field]: val } };
+      const ov = updated[param];
+      if (field !== "shelfLife" && field !== "k") {
+        const computed = calcShelfLife(ov.t0, ov.t3, ov.t6, ov.k, ov.threshold);
+        if (computed) updated[param] = { ...updated[param], shelfLife: computed };
+      }
+      if (field === "k" || field === "t0" || field === "t3" || field === "t6" || field === "threshold") {
+        const computed = calcShelfLife(ov.t0, ov.t3, ov.t6, val === field ? val : ov.k, ov.threshold);
+        if (computed) updated[param] = { ...updated[param], shelfLife: computed };
+      }
+      return updated;
+    });
+  };
+
+  const resetToCalculated = () => {
+    if (!kinetics) return;
+    const reset: Record<string, KineticOverride> = {};
+    for (const p of kinetics.parameters) {
+      reset[p.parameter] = {
+        t0: p.t0 != null ? p.t0.toFixed(2) : "",
+        t3: p.t3 != null ? p.t3.toFixed(2) : "",
+        t6: p.t6 != null ? p.t6.toFixed(2) : "",
+        k: p.k != null ? p.k.toFixed(6) : "",
+        threshold: p.minThresholdPercent.toString(),
+        shelfLife: p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(1) : "",
+      };
+    }
+    setOverrides(reset);
+  };
+
   if (isLoading) return <div className="text-center py-8 text-muted-foreground">Calculando...</div>;
-  if (!kinetics) return <div className="text-center py-8 text-muted-foreground">Sem dados de cinetica.</div>;
+  if (!kinetics) return <div className="text-center py-8 text-muted-foreground">Sem dados de cinetica. Insira resultados numericos na aba Resultados para Calcio e Vitamina D.</div>;
+
+  const shelfLives = Object.values(overrides)
+    .map((o) => parseFloat(o.shelfLife))
+    .filter((v) => !isNaN(v) && v > 0);
+  const minShelfLife = shelfLives.length > 0 ? Math.min(...shelfLives) : null;
+  const limitingParam = Object.entries(overrides).find(([, o]) => parseFloat(o.shelfLife) === minShelfLife)?.[0] ?? null;
 
   return (
     <div className="space-y-6">
-      {kinetics.estimatedShelfLifeMonths != null && (
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">Todos os valores são editáveis. Altere diretamente nas células — a vida útil é recalculada automaticamente.</p>
+        <Button variant="outline" size="sm" onClick={resetToCalculated}>
+          Restaurar valores calculados
+        </Button>
+      </div>
+
+      {minShelfLife != null && (
         <Card className="border-green-200 bg-green-50">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-green-700 font-medium uppercase tracking-wide">Vida Util Projetada</p>
-                <p className="text-3xl font-bold text-green-800 mt-1">{Math.floor(kinetics.estimatedShelfLifeMonths)} meses</p>
-                <p className="text-xs text-green-700 mt-1">Parametro limitante: {kinetics.limitingParameter}</p>
+                <p className="text-3xl font-bold text-green-800 mt-1">{Math.floor(minShelfLife)} meses</p>
+                {limitingParam && <p className="text-xs text-green-700 mt-1">Parametro limitante: {limitingParam}</p>}
               </div>
-              {kinetics.recommendedValidityMonths != null && (
-                <div className="text-right">
-                  <p className="text-xs text-green-700 font-medium uppercase tracking-wide">Validade Recomendada</p>
-                  <p className="text-2xl font-bold text-green-800 mt-1">{kinetics.recommendedValidityMonths} meses</p>
-                  <p className="text-xs text-green-700 mt-1">com margem conservadora</p>
-                </div>
-              )}
+              <div className="text-right">
+                <p className="text-xs text-green-700 font-medium uppercase tracking-wide">Validade Recomendada</p>
+                <p className="text-2xl font-bold text-green-800 mt-1">{Math.floor(minShelfLife * 0.67)} meses</p>
+                <p className="text-xs text-green-700 mt-1">com margem conservadora (67%)</p>
+              </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40">
@@ -553,36 +686,55 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
               <TableHead className="text-right">T3 (%)</TableHead>
               <TableHead className="text-right">T6 (%)</TableHead>
               <TableHead className="text-right">k (meses⁻¹)</TableHead>
-              <TableHead className="text-right">Vida Util Est.</TableHead>
-              <TableHead className="text-right">Limite min.</TableHead>
+              <TableHead className="text-right">Limite min. (%)</TableHead>
+              <TableHead className="text-right">Vida Util Est. (meses)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {kinetics.parameters.map((p) => (
-              <TableRow key={p.parameter}>
-                <TableCell className="font-medium">{p.parameter}</TableCell>
-                <TableCell className="text-right font-mono">{p.t0 != null ? p.t0.toFixed(2) : "—"}</TableCell>
-                <TableCell className="text-right font-mono">{p.t3 != null ? p.t3.toFixed(2) : "—"}</TableCell>
-                <TableCell className="text-right font-mono">{p.t6 != null ? p.t6.toFixed(2) : "—"}</TableCell>
-                <TableCell className="text-right font-mono text-sm">{p.k != null ? p.k.toFixed(6) : "—"}</TableCell>
-                <TableCell className="text-right">
-                  {p.estimatedShelfLifeMonths != null ? (
-                    <span className={`font-semibold ${p.parameter === kinetics.limitingParameter ? "text-amber-600" : "text-green-700"}`}>
-                      {Math.floor(p.estimatedShelfLifeMonths)} meses
-                    </span>
-                  ) : "—"}
-                </TableCell>
-                <TableCell className="text-right text-muted-foreground">{p.minThresholdPercent}%</TableCell>
-              </TableRow>
-            ))}
+            {kinetics.parameters.map((p) => {
+              const ov = overrides[p.parameter];
+              if (!ov) return null;
+              const shelfNum = parseFloat(ov.shelfLife);
+              const isLimiting = p.parameter === limitingParam;
+              return (
+                <TableRow key={p.parameter}>
+                  <TableCell className="font-medium">{p.parameter}</TableCell>
+                  <TableCell className="text-right">
+                    <EditableNum value={ov.t0} onChange={(v) => setField(p.parameter, "t0", v)} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <EditableNum value={ov.t3} onChange={(v) => setField(p.parameter, "t3", v)} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <EditableNum value={ov.t6} onChange={(v) => setField(p.parameter, "t6", v)} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <EditableNum value={ov.k} onChange={(v) => setField(p.parameter, "k", v)} width="w-28" />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <EditableNum value={ov.threshold} onChange={(v) => setField(p.parameter, "threshold", v)} width="w-16" />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <EditableNum value={ov.shelfLife} onChange={(v) => setField(p.parameter, "shelfLife", v)} width="w-20" />
+                      {!isNaN(shelfNum) && shelfNum > 0 && (
+                        <span className={`text-xs font-semibold ml-1 ${isLimiting ? "text-amber-600" : "text-green-700"}`}>
+                          = {Math.floor(shelfNum)} m
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
 
       <div className="rounded-md bg-muted/30 border p-4 text-sm text-muted-foreground space-y-2">
-        <p className="font-medium text-foreground text-xs uppercase tracking-wide">Modelo Cinetico Aplicado</p>
+        <p className="font-medium text-foreground text-xs uppercase tracking-wide">Modelo Cinetico Aplicado (Arrhenius / 1ª Ordem)</p>
         <p>C<sub>t</sub> = C<sub>0</sub> · e<sup>−kt</sup> &nbsp;|&nbsp; k = −ln(C₆/C₃) / (6−3)</p>
-        <p>Vida util = −ln(C_min / C₀) / k &nbsp;(com C_min = 80% do teor inicial)</p>
+        <p>Vida util = −ln(C_min / C₀) / k &nbsp;(C_min = Limite min. % do teor inicial)</p>
         <p>Conforme ICH Q1A(R2) e Farmacopeia Brasileira 7ª ed.</p>
       </div>
     </div>
