@@ -460,14 +460,23 @@ function InlineCell({
 
   if (editing) {
     return (
-      <div className="flex flex-col gap-1 p-0.5 min-w-28" onClick={(e) => e.stopPropagation()}>
+      <div className="flex flex-col gap-1 p-0.5 min-w-28" data-inline-cell onClick={(e) => e.stopPropagation()}>
         <input
           autoFocus
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") save();
+            if (e.key === "Enter") { e.preventDefault(); save(); }
             if (e.key === "Escape") setEditing(false);
+            if (e.key === "Tab") {
+              e.preventDefault();
+              save();
+              const allCells = Array.from(document.querySelectorAll<HTMLElement>("[data-inline-cell]"));
+              const thisCell = (e.currentTarget as HTMLElement).closest<HTMLElement>("[data-inline-cell]");
+              const idx = thisCell ? allCells.indexOf(thisCell) : -1;
+              const next = e.shiftKey ? allCells[idx - 1] : allCells[idx + 1];
+              if (next) { setEditing(false); setTimeout(() => next.focus(), 30); }
+            }
           }}
           className="w-full border border-primary rounded px-1.5 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary"
           placeholder="valor"
@@ -506,9 +515,12 @@ function InlineCell({
   return (
     <div
       onClick={open}
-      className="cursor-pointer group flex items-center justify-center min-h-8"
+      onFocus={open}
+      tabIndex={0}
+      data-inline-cell
+      className="cursor-pointer group flex items-center justify-center min-h-8 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-inset rounded"
       data-testid={`cell-${param.parameter}-${lotId}-${period}`}
-      title="Clique para editar"
+      title="Clique ou Tab para editar"
     >
       {result ? (
         <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs border font-medium group-hover:opacity-80 transition-opacity ${statusColors[result.status]}`}>
