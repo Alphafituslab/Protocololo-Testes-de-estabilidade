@@ -550,7 +550,9 @@ function ResultsTab({ protocolId }: { protocolId: number }) {
 }
 
 type KineticOverride = {
-  t0: string; t3: string; t6: string; media: string; k: string; threshold: string; shelfLife: string; validadePraticada: string;
+  t0: string; t3: string; t6: string; media: string; k: string;
+  thresholdMin: string; thresholdMax: string;
+  shelfLife: string; validadePraticada: string;
 };
 
 function calcShelfLife(t0s: string, t3s: string, t6s: string, ks: string, thresholds: string): string {
@@ -608,7 +610,8 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
         t0, t3, t6,
         media: calcMedia(t0, t3, t6),
         k: p.k != null ? p.k.toFixed(6) : "",
-        threshold: p.minThresholdPercent.toString(),
+        thresholdMin: p.minThresholdPercent.toString(),
+        thresholdMax: "",
         shelfLife: p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(1) : "",
         validadePraticada: "",
       };
@@ -624,8 +627,8 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
       if (field === "t0" || field === "t3" || field === "t6") {
         updated[param] = { ...updated[param], media: calcMedia(ov.t0, ov.t3, ov.t6) };
       }
-      if (field !== "shelfLife" && field !== "validadePraticada" && field !== "media") {
-        const computed = calcShelfLife(ov.t0, ov.t3, ov.t6, ov.k, ov.threshold);
+      if (field !== "shelfLife" && field !== "validadePraticada" && field !== "media" && field !== "thresholdMax") {
+        const computed = calcShelfLife(ov.t0, ov.t3, ov.t6, ov.k, ov.thresholdMin);
         if (computed) updated[param] = { ...updated[param], shelfLife: computed };
       }
       return updated;
@@ -643,7 +646,8 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
         t0, t3, t6,
         media: calcMedia(t0, t3, t6),
         k: p.k != null ? p.k.toFixed(6) : "",
-        threshold: p.minThresholdPercent.toString(),
+        thresholdMin: p.minThresholdPercent.toString(),
+        thresholdMax: "",
         shelfLife: p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(1) : "",
         validadePraticada: "",
       };
@@ -700,7 +704,7 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
               <TableHead className="text-right text-xs">k (meses⁻¹)</TableHead>
               <TableHead className="text-right text-xs">T validade aprox. (meses)</TableHead>
               <TableHead className="text-right text-xs">Validade praticada (meses)</TableHead>
-              <TableHead className="text-right text-xs">Limite min. (%)</TableHead>
+              <TableHead className="text-right text-xs">Range aceitável (%) mín – máx</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -741,7 +745,11 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
                     <EditableNum value={ov.validadePraticada} onChange={(v) => setField(p.parameter, "validadePraticada", v)} placeholder="ex: 24" />
                   </TableCell>
                   <TableCell className="text-right py-2">
-                    <EditableNum value={ov.threshold} onChange={(v) => setField(p.parameter, "threshold", v)} width="w-16" />
+                    <div className="flex items-center justify-end gap-1">
+                      <EditableNum value={ov.thresholdMin} onChange={(v) => setField(p.parameter, "thresholdMin", v)} width="w-14" placeholder="mín" />
+                      <span className="text-muted-foreground text-xs">–</span>
+                      <EditableNum value={ov.thresholdMax} onChange={(v) => setField(p.parameter, "thresholdMax", v)} width="w-14" placeholder="máx" />
+                    </div>
                   </TableCell>
                 </TableRow>
               );
