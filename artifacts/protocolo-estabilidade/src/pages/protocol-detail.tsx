@@ -102,8 +102,36 @@ const finalizeSchema = z.object({
   issueDate: z.string().optional(),
 });
 
+function InfoField({ label, value }: { label: string; value?: string | null }) {
+  if (!value) return null;
+  return (
+    <div className="border-b border-border pb-2">
+      <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</dt>
+      <dd className="mt-0.5 text-sm font-medium">{value}</dd>
+    </div>
+  );
+}
+
+function EditableInfoField({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <div className="border-b border-border pb-2">
+      <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">{label}</dt>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full text-sm font-medium bg-transparent border-0 border-b border-dashed border-primary/40 focus:outline-none focus:border-primary py-0.5 placeholder:text-muted-foreground/40"
+      />
+    </div>
+  );
+}
+
 function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
-  const fields = [
+  const [tempAmostragem, setTempAmostragem] = useState("22,8°C");
+  const [umidAmostragem, setUmidAmostragem] = useState("60% UR");
+  const [tempRecebimento, setTempRecebimento] = useState("22,8°C");
+
+  const fieldsTop = [
     { label: "Numero do Certificado", value: protocol.certNumber },
     { label: "Empresa", value: protocol.companyName },
     { label: "CNPJ", value: protocol.cnpj },
@@ -116,10 +144,13 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
     { label: "Ingredientes Ativos", value: protocol.activeIngredients },
     { label: "Excipientes", value: protocol.excipients },
     { label: "Composicao Capsula", value: protocol.capsuleComposition },
+  ];
+
+  const fieldsBottom = [
     { label: "Data Inicio", value: protocol.studyStartDate },
     { label: "Data Final", value: protocol.studyEndDate },
-    { label: "Temperatura", value: protocol.storageTemp },
-    { label: "Umidade", value: protocol.storageHumidity },
+    { label: "Temperatura de Estudo", value: protocol.storageTemp },
+    { label: "Umidade de Estudo", value: protocol.storageHumidity },
     { label: "Periodo (meses)", value: protocol.studyPeriodMonths?.toString() },
     { label: "Intervalos de Teste", value: protocol.testIntervals },
     { label: "Elaboracao", value: protocol.elaboratedBy },
@@ -129,15 +160,38 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-      {fields.map(({ label, value }) =>
-        value ? (
-          <div key={label} className="border-b border-border pb-2">
-            <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</dt>
-            <dd className="mt-0.5 text-sm font-medium">{value}</dd>
-          </div>
-        ) : null
-      )}
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+        {fieldsTop.map(({ label, value }) => <InfoField key={label} label={label} value={value} />)}
+      </div>
+
+      <div className="rounded-md border border-amber-200 bg-amber-50/60 p-4 space-y-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Condições Ambientais e de Recebimento</p>
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+          <EditableInfoField
+            label="Condições ambientais durante amostragem — Temperatura"
+            value={tempAmostragem}
+            onChange={setTempAmostragem}
+            placeholder="ex: 22,8°C"
+          />
+          <EditableInfoField
+            label="Condições ambientais durante amostragem — Umidade"
+            value={umidAmostragem}
+            onChange={setUmidAmostragem}
+            placeholder="ex: 60% UR"
+          />
+          <EditableInfoField
+            label="Condições de recebimento da amostra — Temperatura"
+            value={tempRecebimento}
+            onChange={setTempRecebimento}
+            placeholder="ex: 22,8°C"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+        {fieldsBottom.map(({ label, value }) => <InfoField key={label} label={label} value={value} />)}
+      </div>
     </div>
   );
 }
