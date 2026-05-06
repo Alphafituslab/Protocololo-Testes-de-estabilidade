@@ -550,7 +550,7 @@ function ResultsTab({ protocolId }: { protocolId: number }) {
 }
 
 type KineticOverride = {
-  t0: string; t3: string; t6: string; k: string; threshold: string; shelfLife: string;
+  t0: string; t3: string; t6: string; media: string; k: string; threshold: string; shelfLife: string; validadePraticada: string;
 };
 
 function calcShelfLife(t0s: string, t3s: string, t6s: string, ks: string, thresholds: string): string {
@@ -569,6 +569,12 @@ function calcShelfLife(t0s: string, t3s: string, t6s: string, ks: string, thresh
   const tValidity = -Math.log(threshold / c0) / k;
   if (tValidity <= 0 || isNaN(tValidity)) return "";
   return tValidity.toFixed(1);
+}
+
+function calcMedia(t0s: string, t3s: string, t6s: string): string {
+  const vals = [t0s, t3s, t6s].map((s) => parseFloat(s.replace(",", "."))).filter((v) => !isNaN(v));
+  if (vals.length === 0) return "";
+  return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2);
 }
 
 function EditableNum({
@@ -595,13 +601,16 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
   if (!initialized && kinetics) {
     const init: Record<string, KineticOverride> = {};
     for (const p of kinetics.parameters) {
+      const t0 = p.t0 != null ? p.t0.toFixed(2) : "";
+      const t3 = p.t3 != null ? p.t3.toFixed(2) : "";
+      const t6 = p.t6 != null ? p.t6.toFixed(2) : "";
       init[p.parameter] = {
-        t0: p.t0 != null ? p.t0.toFixed(2) : "",
-        t3: p.t3 != null ? p.t3.toFixed(2) : "",
-        t6: p.t6 != null ? p.t6.toFixed(2) : "",
+        t0, t3, t6,
+        media: calcMedia(t0, t3, t6),
         k: p.k != null ? p.k.toFixed(6) : "",
         threshold: p.minThresholdPercent.toString(),
         shelfLife: p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(1) : "",
+        validadePraticada: "",
       };
     }
     setOverrides(init);
@@ -612,12 +621,11 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
     setOverrides((prev) => {
       const updated = { ...prev, [param]: { ...prev[param], [field]: val } };
       const ov = updated[param];
-      if (field !== "shelfLife" && field !== "k") {
-        const computed = calcShelfLife(ov.t0, ov.t3, ov.t6, ov.k, ov.threshold);
-        if (computed) updated[param] = { ...updated[param], shelfLife: computed };
+      if (field === "t0" || field === "t3" || field === "t6") {
+        updated[param] = { ...updated[param], media: calcMedia(ov.t0, ov.t3, ov.t6) };
       }
-      if (field === "k" || field === "t0" || field === "t3" || field === "t6" || field === "threshold") {
-        const computed = calcShelfLife(ov.t0, ov.t3, ov.t6, val === field ? val : ov.k, ov.threshold);
+      if (field !== "shelfLife" && field !== "validadePraticada" && field !== "media") {
+        const computed = calcShelfLife(ov.t0, ov.t3, ov.t6, ov.k, ov.threshold);
         if (computed) updated[param] = { ...updated[param], shelfLife: computed };
       }
       return updated;
@@ -628,13 +636,16 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
     if (!kinetics) return;
     const reset: Record<string, KineticOverride> = {};
     for (const p of kinetics.parameters) {
+      const t0 = p.t0 != null ? p.t0.toFixed(2) : "";
+      const t3 = p.t3 != null ? p.t3.toFixed(2) : "";
+      const t6 = p.t6 != null ? p.t6.toFixed(2) : "";
       reset[p.parameter] = {
-        t0: p.t0 != null ? p.t0.toFixed(2) : "",
-        t3: p.t3 != null ? p.t3.toFixed(2) : "",
-        t6: p.t6 != null ? p.t6.toFixed(2) : "",
+        t0, t3, t6,
+        media: calcMedia(t0, t3, t6),
         k: p.k != null ? p.k.toFixed(6) : "",
         threshold: p.minThresholdPercent.toString(),
         shelfLife: p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(1) : "",
+        validadePraticada: "",
       };
     }
     setOverrides(reset);
@@ -681,13 +692,15 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40">
-              <TableHead>Parametro</TableHead>
-              <TableHead className="text-right">T0 (%)</TableHead>
-              <TableHead className="text-right">T3 (%)</TableHead>
-              <TableHead className="text-right">T6 (%)</TableHead>
-              <TableHead className="text-right">k (meses⁻¹)</TableHead>
-              <TableHead className="text-right">Limite min. (%)</TableHead>
-              <TableHead className="text-right">Vida Util Est. (meses)</TableHead>
+              <TableHead className="text-xs">Parâmetro</TableHead>
+              <TableHead className="text-right text-xs">T0 (%)</TableHead>
+              <TableHead className="text-right text-xs">T3 (%)</TableHead>
+              <TableHead className="text-right text-xs">T6 (%)</TableHead>
+              <TableHead className="text-right text-xs bg-blue-50/60">Média triplicata (%)</TableHead>
+              <TableHead className="text-right text-xs">k (meses⁻¹)</TableHead>
+              <TableHead className="text-right text-xs">T validade aprox. (meses)</TableHead>
+              <TableHead className="text-right text-xs">Validade praticada (meses)</TableHead>
+              <TableHead className="text-right text-xs">Limite min. (%)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -698,31 +711,37 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
               const isLimiting = p.parameter === limitingParam;
               return (
                 <TableRow key={p.parameter}>
-                  <TableCell className="font-medium">{p.parameter}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="font-medium text-sm">{p.parameter}</TableCell>
+                  <TableCell className="text-right py-2">
                     <EditableNum value={ov.t0} onChange={(v) => setField(p.parameter, "t0", v)} />
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right py-2">
                     <EditableNum value={ov.t3} onChange={(v) => setField(p.parameter, "t3", v)} />
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right py-2">
                     <EditableNum value={ov.t6} onChange={(v) => setField(p.parameter, "t6", v)} />
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right py-2 bg-blue-50/40">
+                    <EditableNum value={ov.media} onChange={(v) => setField(p.parameter, "media", v)} />
+                  </TableCell>
+                  <TableCell className="text-right py-2">
                     <EditableNum value={ov.k} onChange={(v) => setField(p.parameter, "k", v)} width="w-28" />
                   </TableCell>
-                  <TableCell className="text-right">
-                    <EditableNum value={ov.threshold} onChange={(v) => setField(p.parameter, "threshold", v)} width="w-16" />
-                  </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right py-2">
                     <div className="flex items-center justify-end gap-1">
                       <EditableNum value={ov.shelfLife} onChange={(v) => setField(p.parameter, "shelfLife", v)} width="w-20" />
                       {!isNaN(shelfNum) && shelfNum > 0 && (
                         <span className={`text-xs font-semibold ml-1 ${isLimiting ? "text-amber-600" : "text-green-700"}`}>
-                          = {Math.floor(shelfNum)} m
+                          ≈ {Math.floor(shelfNum)} m
                         </span>
                       )}
                     </div>
+                  </TableCell>
+                  <TableCell className="text-right py-2">
+                    <EditableNum value={ov.validadePraticada} onChange={(v) => setField(p.parameter, "validadePraticada", v)} placeholder="ex: 24" />
+                  </TableCell>
+                  <TableCell className="text-right py-2">
+                    <EditableNum value={ov.threshold} onChange={(v) => setField(p.parameter, "threshold", v)} width="w-16" />
                   </TableCell>
                 </TableRow>
               );
@@ -731,11 +750,33 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
         </Table>
       </div>
 
-      <div className="rounded-md bg-muted/30 border p-4 text-sm text-muted-foreground space-y-2">
-        <p className="font-medium text-foreground text-xs uppercase tracking-wide">Modelo Cinetico Aplicado (Arrhenius / 1ª Ordem)</p>
-        <p>C<sub>t</sub> = C<sub>0</sub> · e<sup>−kt</sup> &nbsp;|&nbsp; k = −ln(C₆/C₃) / (6−3)</p>
-        <p>Vida util = −ln(C_min / C₀) / k &nbsp;(C_min = Limite min. % do teor inicial)</p>
-        <p>Conforme ICH Q1A(R2) e Farmacopeia Brasileira 7ª ed.</p>
+      <div className="rounded-md bg-slate-50 border border-slate-200 p-5 text-sm text-slate-700 space-y-4">
+        <p className="font-semibold text-slate-800 text-sm">Fundamentação do Modelo Cinético</p>
+        <p className="leading-relaxed">
+          Para a estimativa do tempo de validade do produto, foi empregado o modelo cinético de degradação de primeira ordem, amplamente descrito na literatura para substâncias bioativas submetidas à avaliação de estabilidade sob condições de estresse controlado, como temperatura e umidade.
+          A modelagem foi conduzida a partir da equação geral de primeira ordem:
+        </p>
+        <div className="font-mono bg-white border border-slate-200 rounded px-4 py-3 inline-block text-sm">
+          C<sub>t</sub> = C<sub>0</sub> · e<sup>−kt</sup>
+        </div>
+        <div className="text-xs text-slate-600 space-y-1 pl-2 border-l-2 border-slate-300">
+          <p>C<sub>t</sub> = concentração do ativo no tempo <em>t</em></p>
+          <p>C<sub>0</sub> = concentração inicial do ativo</p>
+          <p><em>k</em> = constante de velocidade de degradação</p>
+          <p><em>t</em> = tempo de armazenamento</p>
+        </div>
+        <p className="leading-relaxed">
+          A constante de degradação (<em>k</em>) é dependente da temperatura e pode ser descrita matematicamente pela equação de Arrhenius:
+        </p>
+        <div className="font-mono bg-white border border-slate-200 rounded px-4 py-3 inline-block text-sm">
+          k = A · e<sup>−E<sub>a</sub>/RT</sup>
+        </div>
+        <div className="text-xs text-slate-600 space-y-1 pl-2 border-l-2 border-slate-300">
+          <p>A = fator pré-exponencial</p>
+          <p>E<sub>a</sub> = energia de ativação</p>
+          <p>R = constante universal dos gases</p>
+          <p>T = temperatura absoluta (Kelvin)</p>
+        </div>
       </div>
     </div>
   );
