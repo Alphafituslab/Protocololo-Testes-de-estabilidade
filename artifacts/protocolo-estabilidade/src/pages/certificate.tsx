@@ -1,7 +1,7 @@
 import { useParams, Link } from "wouter";
 import { useGetCertificate, getGetCertificateQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Settings2 } from "lucide-react";
+import { ArrowLeft, Printer, Settings2, Eye, EyeOff } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 
@@ -54,10 +54,10 @@ export default function CertificatePage() {
   const [umidAmostragem, setUmidAmostragem] = useState("60% UR");
   const [tempRecebimento, setTempRecebimento] = useState("22,8°C");
 
-  const [analyses, setAnalyses] = useState<Array<{ parameter: string; method: string; specification: string; result: string; status: string }> | null>(null);
+  const [analyses, setAnalyses] = useState<Array<{ parameter: string; method: string; specification: string; result: string; status: string; visible: boolean }> | null>(null);
 
   if (!isLoading && cert && analyses === null) {
-    setAnalyses(cert.analyses.map(a => ({ ...a })));
+    setAnalyses(cert.analyses.map(a => ({ ...a, visible: true })));
   }
 
   const toggle = (key: keyof ShowSections) => setShow(prev => ({ ...prev, [key]: !prev[key] }));
@@ -69,6 +69,20 @@ export default function CertificatePage() {
       next[i] = { ...next[i], [field]: val };
       return next;
     });
+  };
+
+  const toggleRowVisibility = (i: number) => {
+    setAnalyses(prev => {
+      if (!prev) return prev;
+      const next = [...prev];
+      next[i] = { ...next[i], visible: !next[i].visible };
+      return next;
+    });
+  };
+
+  const allVisible = analyses?.every(a => a.visible) ?? true;
+  const toggleAllRows = () => {
+    setAnalyses(prev => prev ? prev.map(a => ({ ...a, visible: !allVisible })) : prev);
   };
 
   if (isLoading) {
@@ -93,7 +107,7 @@ export default function CertificatePage() {
 
   const isApproved = cert.finalStatus === "aprovado";
   const isRepproved = cert.finalStatus === "reprovado";
-  const rows = analyses ?? cert.analyses.map(a => ({ ...a }));
+  const rows = analyses ?? cert.analyses.map(a => ({ ...a, visible: true }));
 
   const SECTIONS = [
     { key: "condicoesAmbientais" as const, label: "Condições Ambientais" },
@@ -132,7 +146,12 @@ export default function CertificatePage() {
               </label>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">Campos da tabela de análise (Método, Especificação, Resultado) são editáveis — clique diretamente para ajustar antes de imprimir.</p>
+          <div className="flex items-center gap-3 pt-1 border-t border-muted">
+            <p className="text-xs text-muted-foreground flex-1">Use o botão <Eye className="inline h-3 w-3" /> em cada linha da tabela para mostrar/ocultar na impressão. Clique em Método/Especificação/Resultado para editar o texto.</p>
+            <button onClick={toggleAllRows} className="text-xs px-3 py-1 rounded border border-muted-foreground/30 hover:bg-muted text-muted-foreground whitespace-nowrap">
+              {allVisible ? "Desmarcar todas" : "Marcar todas"}
+            </button>
+          </div>
         </div>
       )}
 
@@ -219,11 +238,21 @@ export default function CertificatePage() {
                 <th className="border border-gray-300 px-2 py-2 text-left font-semibold uppercase tracking-wide w-28">Especificacoes</th>
                 <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-20">Resultado</th>
                 <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-24">Status</th>
+                <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-10 print:hidden">
+                  <Eye className="h-3 w-3 mx-auto text-gray-400" />
+                </th>
               </tr>
             </thead>
             <tbody>
               {rows.map((analysis, i) => (
-                <tr key={i} className={i % 2 === 0 ? "" : "bg-gray-50"} data-testid={`row-analysis-${i}`}>
+                <tr
+                  key={i}
+                  className={[
+                    i % 2 === 0 ? "" : "bg-gray-50",
+                    !analysis.visible ? "opacity-30 print:hidden" : "",
+                  ].join(" ")}
+                  data-testid={`row-analysis-${i}`}
+                >
                   <td className="border border-gray-300 px-2 py-1.5 font-medium align-top">{analysis.parameter}</td>
                   <td className="border border-gray-300 px-2 py-1.5 text-gray-600 align-top">
                     <CertEditField
@@ -251,6 +280,18 @@ export default function CertificatePage() {
                     <span className={`font-semibold ${analysis.status === "Conforme" ? "text-green-700" : analysis.status === "Nao Conforme" ? "text-red-700" : "text-gray-500"}`}>
                       {analysis.status}
                     </span>
+                  </td>
+                  <td className="border border-gray-300 px-2 py-1.5 text-center align-top print:hidden">
+                    <button
+                      onClick={() => toggleRowVisibility(i)}
+                      title={analysis.visible ? "Ocultar na impressão" : "Mostrar na impressão"}
+                      className={`rounded p-0.5 transition-colors ${analysis.visible ? "text-green-600 hover:bg-green-50" : "text-gray-300 hover:bg-gray-100"}`}
+                    >
+                      {analysis.visible
+                        ? <Eye className="h-3.5 w-3.5" />
+                        : <EyeOff className="h-3.5 w-3.5" />
+                      }
+                    </button>
                   </td>
                 </tr>
               ))}
