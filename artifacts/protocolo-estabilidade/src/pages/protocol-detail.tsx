@@ -508,6 +508,35 @@ function InlineCell({
             ✕
           </button>
         </div>
+        {value.trim() && (
+          <button
+            onClick={() => {
+              for (const lot of lots) {
+                for (const p of [0, 3, 6]) {
+                  upsertResult.mutate({
+                    id: protocolId,
+                    data: {
+                      lotId: lot.id,
+                      period: p,
+                      analysisDate: new Date().toISOString().split("T")[0],
+                      category: param.category as "fisico_quimica" | "microbiologica" | "teor_ativo" | "embalagem",
+                      parameter: param.parameter,
+                      criterion: param.criterion,
+                      result: value,
+                      numericResult: parseFloat(value.replace(",", ".")) || undefined,
+                      status,
+                    },
+                  });
+                }
+              }
+              setEditing(false);
+            }}
+            className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 w-full mt-0.5"
+            title="Preenche todos os lotes e períodos com este valor"
+          >
+            ↕ replicar todos
+          </button>
+        )}
       </div>
     );
   }
