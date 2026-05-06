@@ -165,7 +165,9 @@ export default function CertificatePage() {
             <dl className="space-y-1">
               <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Empresa:</dt><dd className="font-medium">{cert.companyName}</dd></div>
               <div className="flex gap-2"><dt className="text-gray-500 min-w-20">CNPJ:</dt><dd className="font-medium">{cert.cnpj}</dd></div>
-              {cert.address && <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Endereco:</dt><dd>{cert.address}</dd></div>}
+              {(cert as any).ie && <div className="flex gap-2"><dt className="text-gray-500 min-w-20">IE:</dt><dd>{(cert as any).ie}</dd></div>}
+              {cert.address && <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Endereço:</dt><dd>{cert.address}</dd></div>}
+              {(cert as any).cep && <div className="flex gap-2"><dt className="text-gray-500 min-w-20">CEP:</dt><dd>{(cert as any).cep}</dd></div>}
               {cert.email && <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Email:</dt><dd>{cert.email}</dd></div>}
             </dl>
           </div>
