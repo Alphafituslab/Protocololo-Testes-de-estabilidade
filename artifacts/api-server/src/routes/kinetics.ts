@@ -26,7 +26,7 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
     .from(analysisResultsTable)
     .where(eq(analysisResultsTable.protocolId, params.data.id));
 
-  const activeParams = ["Cálcio", "Vitamina D"];
+  const activeParams = ["Calcio", "Vitamina D"];
   const kineticData: Record<string, { t0vals: number[]; t3vals: number[]; t6vals: number[] }> = {};
   for (const p of activeParams) {
     kineticData[p] = { t0vals: [], t3vals: [], t6vals: [] };
@@ -46,7 +46,7 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
   const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
 
   const minThresholds: Record<string, number> = {
-    "Cálcio": 80,
+    "Calcio": 80,
     "Vitamina D": 80,
   };
 

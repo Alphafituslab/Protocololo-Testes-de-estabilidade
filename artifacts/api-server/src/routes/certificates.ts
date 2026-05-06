@@ -4,7 +4,7 @@ import { db, protocolsTable, lotsTable, analysisResultsTable } from "@workspace/
 import { GetCertificateParams } from "@workspace/api-zod";
 
 const METHOD_MAP: Record<string, string> = {
-  "Cálcio": "Farmacopeia Brasileira, 7ª edição (2024), Método Geral IF077-00 – Determinação de Cálcio por Titulação Complexométrica.",
+  "Calcio": "Farmacopeia Brasileira, 7ª edição (2024), Método Geral IF077-00 – Determinação de Cálcio por Titulação Complexométrica.",
   "Vitamina D": "Japanese Pharmacopoeia (JP), 18th ed. Tokyo: Ministry of Health, Labour and Welfare (MHLW), 2021.",
   "Cinzas totais": "Métodos físico-químicos para análise de alimentos, 4. ed. São Paulo: Instituto Adolfo Lutz, 2008. Método: 018/IV.",
   "pH": "Métodos físico-químicos para análise de alimentos, 4. ed. São Paulo: Instituto Adolfo Lutz, 2008. Método: 017/IV.",

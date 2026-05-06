@@ -665,6 +665,8 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
 
   const [overrides, setOverrides] = useState<Record<string, KineticOverride>>({});
   const [initialized, setInitialized] = useState(false);
+  const [cardShelfLife, setCardShelfLife] = useState("");
+  const [cardValidity, setCardValidity] = useState("");
 
   if (!initialized && kinetics) {
     const init: Record<string, KineticOverride> = {};
@@ -683,6 +685,8 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
       };
     }
     setOverrides(init);
+    setCardShelfLife(kinetics.estimatedShelfLifeMonths != null ? String(Math.floor(kinetics.estimatedShelfLifeMonths)) : "");
+    setCardValidity(kinetics.recommendedValidityMonths != null ? String(kinetics.recommendedValidityMonths) : "");
     setInitialized(true);
   }
 
@@ -719,6 +723,8 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
       };
     }
     setOverrides(reset);
+    setCardShelfLife(kinetics.estimatedShelfLifeMonths != null ? String(Math.floor(kinetics.estimatedShelfLifeMonths)) : "");
+    setCardValidity(kinetics.recommendedValidityMonths != null ? String(kinetics.recommendedValidityMonths) : "");
   };
 
   if (isLoading) return <div className="text-center py-8 text-muted-foreground">Calculando...</div>;
@@ -739,24 +745,44 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
         </Button>
       </div>
 
-      {minShelfLife != null && (
-        <Card className="border-green-200 bg-green-50">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-green-700 font-medium uppercase tracking-wide">Vida Util Projetada</p>
-                <p className="text-3xl font-bold text-green-800 mt-1">{Math.floor(minShelfLife)} meses</p>
-                {limitingParam && <p className="text-xs text-green-700 mt-1">Parametro limitante: {limitingParam}</p>}
+      <Card className="border-green-200 bg-green-50">
+        <CardContent className="pt-4">
+          <div className="flex items-center justify-between gap-8">
+            <div className="flex-1">
+              <p className="text-xs text-green-700 font-medium uppercase tracking-wide mb-1">Vida Útil Projetada</p>
+              <div className="flex items-center gap-2">
+                <input
+                  value={cardShelfLife}
+                  onChange={(e) => setCardShelfLife(e.target.value)}
+                  className="w-24 text-3xl font-bold text-green-800 bg-green-100 border border-green-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="—"
+                />
+                <span className="text-xl font-semibold text-green-700">meses</span>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-green-700 font-medium uppercase tracking-wide">Validade Recomendada</p>
-                <p className="text-2xl font-bold text-green-800 mt-1">{Math.floor(minShelfLife * 0.67)} meses</p>
-                <p className="text-xs text-green-700 mt-1">com margem conservadora (67%)</p>
-              </div>
+              {limitingParam && <p className="text-xs text-green-700 mt-1">Parâmetro limitante: {limitingParam}</p>}
+              {minShelfLife != null && (
+                <p className="text-xs text-green-600 mt-1 opacity-70">Calculado: {Math.floor(minShelfLife)} meses</p>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div className="flex-1 text-right">
+              <p className="text-xs text-green-700 font-medium uppercase tracking-wide mb-1">Validade Recomendada</p>
+              <div className="flex items-center gap-2 justify-end">
+                <input
+                  value={cardValidity}
+                  onChange={(e) => setCardValidity(e.target.value)}
+                  className="w-20 text-2xl font-bold text-green-800 bg-green-100 border border-green-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
+                  placeholder="—"
+                />
+                <span className="text-lg font-semibold text-green-700">meses</span>
+              </div>
+              <p className="text-xs text-green-700 mt-1">com margem conservadora</p>
+              {minShelfLife != null && (
+                <p className="text-xs text-green-600 mt-1 opacity-70">Calculado: {Math.floor(minShelfLife * 0.67)} meses</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="rounded-md border overflow-x-auto">
         <Table>
