@@ -984,8 +984,14 @@ function KineticsTab({ protocolId, initialKineticsNotes, initialValidityMonths }
                 </span>
                 <span className="text-xl font-semibold text-green-700">meses</span>
               </div>
-              {limitingParam && <p className="text-xs text-green-700 mt-1">Parâmetro limitante: {limitingParam}</p>}
-              <p className="text-xs text-green-600 mt-1 opacity-60">Menor validade calculada entre os parâmetros de Teor do Ativo</p>
+              {limitingParam && (
+                <div className="mt-2 inline-flex items-center gap-1.5 bg-amber-100 border border-amber-300 rounded-md px-2.5 py-1">
+                  <span className="text-amber-600 text-xs">⚠</span>
+                  <span className="text-xs font-semibold text-amber-800">Item mais degradado:</span>
+                  <span className="text-xs font-bold text-amber-900">{limitingParam}</span>
+                </div>
+              )}
+              <p className="text-xs text-green-600 mt-1.5 opacity-60">Menor validade calculada entre os parâmetros de Teor do Ativo</p>
             </div>
             <div className="flex-1 text-right">
               <p className="text-xs text-green-700 font-medium uppercase tracking-wide mb-1">Validade Praticada</p>
