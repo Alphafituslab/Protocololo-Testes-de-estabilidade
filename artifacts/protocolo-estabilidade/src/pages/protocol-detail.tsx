@@ -1,5 +1,5 @@
 import { useParams, Link, useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -390,6 +390,91 @@ function LotsTab({ protocolId }: { protocolId: number }) {
 
 type ActiveCell = { lotId: number; period: number; parameter: string; category: string; criterion: string };
 
+function CellImages({ storageKey }: { storageKey: string }) {
+  const [images, setImages] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(storageKey) ?? "[]"); } catch { return []; }
+  });
+  const [open, setOpen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const addImage = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const src = e.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const max = 600;
+        const ratio = Math.min(max / img.width, max / img.height, 1);
+        canvas.width = img.width * ratio;
+        canvas.height = img.height * ratio;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const compressed = canvas.toDataURL("image/jpeg", 0.75);
+        const next = [...images, compressed];
+        setImages(next);
+        try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch {}
+      };
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = (i: number) => {
+    const next = images.filter((_, idx) => idx !== i);
+    setImages(next);
+    try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch {}
+  };
+
+  return (
+    <div className="relative" onClick={(e) => e.stopPropagation()}>
+      <input
+        type="file"
+        accept="image/*"
+        ref={fileRef}
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) addImage(f);
+          e.target.value = "";
+        }}
+      />
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`text-[9px] flex items-center gap-0.5 px-1 py-0.5 rounded transition-colors ${images.length > 0 ? "text-blue-600 hover:bg-blue-50" : "text-muted-foreground/20 hover:text-muted-foreground/50"}`}
+        title={images.length > 0 ? `${images.length} imagem(ns) anexada(s)` : "Anexar imagem"}
+      >
+        📎{images.length > 0 && <span className="font-semibold ml-0.5">{images.length}</span>}
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-0 z-50 bg-white border border-gray-200 rounded-lg shadow-xl p-3 min-w-56">
+          {images.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {images.map((img, i) => (
+                <div key={i} className="relative group">
+                  <img src={img} alt="" className="w-16 h-16 object-cover rounded border cursor-pointer" onClick={() => window.open(img)} />
+                  <button
+                    onClick={() => removeImage(i)}
+                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] hidden group-hover:flex items-center justify-center leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {images.length === 0 && <p className="text-xs text-muted-foreground mb-2">Nenhuma imagem ainda.</p>}
+          <button
+            onClick={() => { fileRef.current?.click(); setOpen(false); }}
+            className="text-xs text-primary hover:underline flex items-center gap-1"
+          >
+            + Anexar imagem
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InlineCell({
   lotId, period, param, result, protocolId, lots,
 }: {
@@ -541,30 +626,50 @@ function InlineCell({
     );
   }
 
+  const imgKey = `imgs_${protocolId}_${param.parameter}_${lotId}_${period}`;
   return (
-    <div
-      onClick={open}
-      onFocus={open}
-      tabIndex={0}
-      data-inline-cell
-      className="cursor-pointer group flex items-center justify-center min-h-8 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-inset rounded"
-      data-testid={`cell-${param.parameter}-${lotId}-${period}`}
-      title="Clique ou Tab para editar"
-    >
-      {result ? (
-        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs border font-medium group-hover:opacity-80 transition-opacity ${statusColors[result.status]}`}>
-          {result.result}
-        </span>
-      ) : (
-        <span className="text-muted-foreground/30 group-hover:text-muted-foreground/60 text-lg leading-none transition-colors">+</span>
-      )}
+    <div className="flex flex-col items-center gap-0.5" data-testid={`cell-${param.parameter}-${lotId}-${period}`}>
+      <div
+        onClick={open}
+        onFocus={open}
+        tabIndex={0}
+        data-inline-cell
+        className="cursor-pointer group flex items-center justify-center min-h-8 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-inset rounded w-full"
+        title="Clique ou Tab para editar"
+      >
+        {result ? (
+          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs border font-medium group-hover:opacity-80 transition-opacity ${statusColors[result.status]}`}>
+            {result.result}
+          </span>
+        ) : (
+          <span className="text-muted-foreground/30 group-hover:text-muted-foreground/60 text-lg leading-none transition-colors">+</span>
+        )}
+      </div>
+      <CellImages storageKey={imgKey} />
     </div>
   );
 }
 
+type EditableParam = { uid: string; parameter: string; category: string; criterion: string };
+
 function ResultsTab({ protocolId }: { protocolId: number }) {
   const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
   const { data: results = [], isLoading } = useListResults(protocolId, { query: { queryKey: getListResultsQueryKey(protocolId) } });
+
+  const [editableParams, setEditableParams] = useState<EditableParam[]>(() =>
+    ANALYSIS_PARAMETERS.map((p, i) => ({ ...p, uid: `${p.category}_${i}` }))
+  );
+
+  const updateParam = (uid: string, field: "parameter" | "criterion", val: string) =>
+    setEditableParams((prev) => prev.map((p) => (p.uid === uid ? { ...p, [field]: val } : p)));
+
+  const addParam = (category: string) => {
+    const uid = `${category}_${Date.now()}`;
+    setEditableParams((prev) => [...prev, { uid, parameter: "", criterion: "", category }]);
+  };
+
+  const removeParam = (uid: string) =>
+    setEditableParams((prev) => prev.filter((p) => p.uid !== uid));
 
   const getResult = (lotId: number, period: number, parameter: string) =>
     results.find((r) => r.lotId === lotId && r.period === period && r.parameter === parameter);
@@ -590,10 +695,19 @@ function ResultsTab({ protocolId }: { protocolId: number }) {
 
   return (
     <div className="space-y-6">
-      <p className="text-xs text-muted-foreground">Clique em qualquer célula para digitar o resultado. Use <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">C</kbd> = Conforme · <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">NC</kbd> = Não Conforme · <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">N/A</kbd> = Não aplicável. Confirme com Enter ou OK.</p>
+      <div className="flex items-start justify-between gap-4">
+        <p className="text-xs text-muted-foreground">
+          Clique em qualquer célula para digitar o resultado. Use{" "}
+          <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">C</kbd> = Conforme ·{" "}
+          <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">NC</kbd> = Não Conforme ·{" "}
+          <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">N/A</kbd> = Não aplicável.
+          Confirme com Enter ou OK.
+        </p>
+        <p className="text-xs text-primary/70 whitespace-nowrap shrink-0">Parâmetros e critérios são editáveis. Clique para alterar.</p>
+      </div>
 
       {categories.map(({ label, key }) => {
-        const params = ANALYSIS_PARAMETERS.filter((p) => p.category === key);
+        const catParams = editableParams.filter((p) => p.category === key);
         return (
           <div key={key}>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">{label}</h3>
@@ -601,8 +715,9 @@ function ResultsTab({ protocolId }: { protocolId: number }) {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40">
-                    <TableHead className="w-48 text-xs">Parametro</TableHead>
-                    <TableHead className="w-40 text-xs">Criterio</TableHead>
+                    <TableHead className="w-44 text-xs">Parametro</TableHead>
+                    <TableHead className="w-36 text-xs">Criterio</TableHead>
+                    <TableHead className="w-6 text-xs"></TableHead>
                     {lots.map((lot) =>
                       PERIODS.map((period) => (
                         <TableHead key={`${lot.id}-${period}`} className="text-xs text-center min-w-28">
@@ -614,10 +729,33 @@ function ResultsTab({ protocolId }: { protocolId: number }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {params.map((param) => (
-                    <TableRow key={param.parameter} data-testid={`row-param-${param.parameter}`}>
-                      <TableCell className="text-xs font-medium py-1">{param.parameter}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground py-1">{param.criterion}</TableCell>
+                  {catParams.map((param) => (
+                    <TableRow key={param.uid} data-testid={`row-param-${param.parameter}`}>
+                      <TableCell className="py-1 pr-1">
+                        <input
+                          value={param.parameter}
+                          onChange={(e) => updateParam(param.uid, "parameter", e.target.value)}
+                          className="w-full text-xs font-medium bg-transparent border-b border-dashed border-transparent hover:border-muted-foreground/30 focus:border-primary focus:outline-none py-0.5 placeholder:text-muted-foreground/40"
+                          placeholder="Nome do parâmetro"
+                        />
+                      </TableCell>
+                      <TableCell className="py-1 pr-1">
+                        <input
+                          value={param.criterion}
+                          onChange={(e) => updateParam(param.uid, "criterion", e.target.value)}
+                          className="w-full text-xs text-muted-foreground bg-transparent border-b border-dashed border-transparent hover:border-muted-foreground/30 focus:border-primary focus:outline-none py-0.5 placeholder:text-muted-foreground/40"
+                          placeholder="Critério de aceitação"
+                        />
+                      </TableCell>
+                      <TableCell className="py-1 px-1 text-center">
+                        <button
+                          onClick={() => removeParam(param.uid)}
+                          className="text-muted-foreground/20 hover:text-destructive text-base leading-none transition-colors"
+                          title="Remover parâmetro"
+                        >
+                          ×
+                        </button>
+                      </TableCell>
                       {lots.map((lot) =>
                         PERIODS.map((period) => (
                           <TableCell key={`${lot.id}-${period}`} className="py-1 text-center align-middle">
@@ -636,6 +774,14 @@ function ResultsTab({ protocolId }: { protocolId: number }) {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            <div className="flex justify-end mt-1 pr-1">
+              <button
+                onClick={() => addParam(key)}
+                className="text-xs text-muted-foreground/60 hover:text-primary flex items-center gap-1 py-1 px-2 rounded hover:bg-muted transition-colors"
+              >
+                <Plus className="h-3 w-3" /> Adicionar parâmetro
+              </button>
             </div>
           </div>
         );
@@ -696,6 +842,7 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
   const [initialized, setInitialized] = useState(false);
   const [cardShelfLife, setCardShelfLife] = useState("");
   const [cardValidity, setCardValidity] = useState("");
+  const [kineticsObs, setKineticsObs] = useState("");
 
   if (!initialized && kinetics) {
     const init: Record<string, KineticOverride> = {};
@@ -906,6 +1053,17 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
           <p>R = constante universal dos gases</p>
           <p>T = temperatura absoluta (Kelvin)</p>
         </div>
+      </div>
+
+      <div className="rounded-md border border-slate-200 bg-white p-4 space-y-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Observações</p>
+        <textarea
+          value={kineticsObs}
+          onChange={(e) => setKineticsObs(e.target.value)}
+          placeholder="Descreva observações sobre os dados cinéticos: desvios encontrados, condições especiais de armazenamento, lotes atípicos, interferências analíticas ou qualquer informação relevante para o laudo."
+          rows={5}
+          className="w-full text-sm border border-input rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary resize-y placeholder:text-muted-foreground/40"
+        />
       </div>
     </div>
   );
