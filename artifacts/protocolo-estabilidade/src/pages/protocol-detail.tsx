@@ -454,7 +454,8 @@ function CellImages({ storageKey }: { storageKey: string }) {
                   <img src={img} alt="" className="w-16 h-16 object-cover rounded border cursor-pointer" onClick={() => window.open(img)} />
                   <button
                     onClick={() => removeImage(i)}
-                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] hidden group-hover:flex items-center justify-center leading-none"
+                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center leading-none shadow-sm"
+                    title="Remover imagem"
                   >
                     ×
                   </button>

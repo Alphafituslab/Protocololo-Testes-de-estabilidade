@@ -1,9 +1,41 @@
 import { useParams, Link } from "wouter";
-import { useGetCertificate, getGetCertificateQueryKey } from "@workspace/api-client-react";
+import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Settings2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
+
+function collectProtocolImages(
+  protocolId: number,
+  lots: { id: number; lotNumber: string }[],
+): { parameter: string; lotNumber: string; period: number; images: string[] }[] {
+  const prefix = `imgs_${protocolId}_`;
+  const entries: { parameter: string; lotNumber: string; period: number; images: string[] }[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key?.startsWith(prefix)) continue;
+    const rest = key.slice(prefix.length);
+    const parts = rest.split("_");
+    if (parts.length < 3) continue;
+    const period = parseInt(parts[parts.length - 1]);
+    const lotId = parseInt(parts[parts.length - 2]);
+    const parameter = parts.slice(0, parts.length - 2).join("_");
+    if (isNaN(period) || isNaN(lotId)) continue;
+    try {
+      const images: string[] = JSON.parse(localStorage.getItem(key) ?? "[]");
+      if (!images.length) continue;
+      const lot = lots.find((l) => l.id === lotId);
+      if (!lot) continue;
+      entries.push({ parameter, lotNumber: lot.lotNumber, period, images });
+    } catch { /* skip malformed */ }
+  }
+  return entries.sort(
+    (a, b) =>
+      a.parameter.localeCompare(b.parameter) ||
+      a.lotNumber.localeCompare(b.lotNumber) ||
+      a.period - b.period,
+  );
+}
 
 function CertEditField({
   value, onChange, className = "", multiline = false,
@@ -33,6 +65,7 @@ type ShowSections = {
   infoAdicionais: boolean;
   conclusao: boolean;
   fundamentacaoCinetica: boolean;
+  registrosFotograficos: boolean;
 };
 
 export default function CertificatePage() {
@@ -48,6 +81,7 @@ export default function CertificatePage() {
     infoAdicionais: true,
     conclusao: true,
     fundamentacaoCinetica: true,
+    registrosFotograficos: false,
   });
 
   const [tempAmostragem, setTempAmostragem] = useState("22,8°C");
@@ -55,6 +89,10 @@ export default function CertificatePage() {
   const [tempRecebimento, setTempRecebimento] = useState("22,8°C");
 
   const [analyses, setAnalyses] = useState<Array<{ parameter: string; method: string; specification: string; result: string; status: string; visible: boolean }> | null>(null);
+
+  const { data: lotsRaw = [] } = useListLots(Number(id), {
+    query: { enabled: !!id, queryKey: getListLotsQueryKey(Number(id)) },
+  });
 
   if (!isLoading && cert && analyses === null) {
     setAnalyses(cert.analyses.map(a => ({ ...a, visible: true })));
@@ -109,12 +147,22 @@ export default function CertificatePage() {
   const isRepproved = cert.finalStatus === "reprovado";
   const rows = analyses ?? cert.analyses.map(a => ({ ...a, visible: true }));
 
+  const photoEntries = show.registrosFotograficos
+    ? collectProtocolImages(Number(id), lotsRaw as { id: number; lotNumber: string }[])
+    : [];
+
+  const photosByParam = photoEntries.reduce<Record<string, typeof photoEntries>>((acc, e) => {
+    (acc[e.parameter] ??= []).push(e);
+    return acc;
+  }, {});
+
   const SECTIONS = [
     { key: "condicoesAmbientais" as const, label: "Condições Ambientais" },
     { key: "textoLotes" as const, label: "Texto Lotes Piloto" },
     { key: "infoAdicionais" as const, label: "Informações Adicionais" },
     { key: "conclusao" as const, label: "Conclusão" },
     { key: "fundamentacaoCinetica" as const, label: "Fundamentação Cinética" },
+    { key: "registrosFotograficos" as const, label: "Registros Fotográficos (Anexo)" },
   ];
 
   return (
@@ -383,6 +431,52 @@ export default function CertificatePage() {
             </div>
           )}
         </div>
+
+        {show.registrosFotograficos && Object.keys(photosByParam).length > 0 && (
+          <div className="mt-8 pt-6 border-t-2 border-gray-800">
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 text-center mb-6">
+              ANEXO — REGISTROS FOTOGRÁFICOS DOS ENSAIOS
+            </p>
+            {Object.entries(photosByParam).map(([param, entries]) => (
+              <div key={param} className="mb-8 break-inside-avoid">
+                <p className="text-xs font-bold text-gray-700 border-b border-gray-300 pb-1 mb-3 uppercase tracking-wide">
+                  Parâmetro: {param}
+                </p>
+                <div className="space-y-4">
+                  {entries.map((entry, ei) => (
+                    <div key={ei}>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Lote: <span className="font-semibold text-gray-700">{entry.lotNumber}</span>
+                        &nbsp;·&nbsp;
+                        Período: <span className="font-semibold text-gray-700">T{entry.period}</span>
+                      </p>
+                      <div className="flex flex-wrap gap-3">
+                        {entry.images.map((img, ii) => (
+                          <div key={ii} className="border border-gray-200 rounded overflow-hidden">
+                            <img
+                              src={img}
+                              alt={`${param} — Lote ${entry.lotNumber} — T${entry.period} — imagem ${ii + 1}`}
+                              className="w-40 h-40 object-cover block"
+                            />
+                            <p className="text-[9px] text-center text-gray-400 py-0.5 bg-gray-50">
+                              Img {ii + 1}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {show.registrosFotograficos && Object.keys(photosByParam).length === 0 && (
+          <div className="mt-8 pt-6 border-t-2 border-gray-300 text-center text-xs text-gray-400">
+            Nenhuma imagem anexada para este protocolo.
+          </div>
+        )}
       </div>
 
       <style>{`
@@ -391,6 +485,8 @@ export default function CertificatePage() {
           #certificate-document, #certificate-document * { visibility: visible; }
           #certificate-document { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border: none; padding: 20px; }
           input, textarea { border: none !important; background: transparent !important; }
+          img { max-width: 100%; break-inside: avoid; }
+          .break-inside-avoid { break-inside: avoid; }
         }
       `}</style>
     </div>
