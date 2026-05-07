@@ -66,6 +66,11 @@ export const ListProtocolsResponseItem = zod.object({
   conclusion: zod.string().nullish(),
   validityMonths: zod.number().nullish(),
   issueDate: zod.string().nullish(),
+  kineticsNotes: zod.string().nullish().describe("Observações da aba Cinética"),
+  customParamsJson: zod
+    .string()
+    .nullish()
+    .describe("JSON com lista de parâmetros editáveis (nomes e critérios)"),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -156,6 +161,14 @@ export const GetProtocolStatsResponse = zod.object({
       conclusion: zod.string().nullish(),
       validityMonths: zod.number().nullish(),
       issueDate: zod.string().nullish(),
+      kineticsNotes: zod
+        .string()
+        .nullish()
+        .describe("Observações da aba Cinética"),
+      customParamsJson: zod
+        .string()
+        .nullish()
+        .describe("JSON com lista de parâmetros editáveis (nomes e critérios)"),
       createdAt: zod.string(),
       updatedAt: zod.string(),
     }),
@@ -213,6 +226,14 @@ export const GetProtocolResponse = zod
     conclusion: zod.string().nullish(),
     validityMonths: zod.number().nullish(),
     issueDate: zod.string().nullish(),
+    kineticsNotes: zod
+      .string()
+      .nullish()
+      .describe("Observações da aba Cinética"),
+    customParamsJson: zod
+      .string()
+      .nullish()
+      .describe("JSON com lista de parâmetros editáveis (nomes e critérios)"),
     createdAt: zod.string(),
     updatedAt: zod.string(),
   })
@@ -291,6 +312,9 @@ export const UpdateProtocolBody = zod.object({
   status: zod
     .enum(["rascunho", "em_andamento", "concluido", "aprovado", "reprovado"])
     .optional(),
+  validityMonths: zod.number().nullish(),
+  kineticsNotes: zod.string().nullish(),
+  customParamsJson: zod.string().nullish(),
 });
 
 export const UpdateProtocolResponse = zod.object({
@@ -336,6 +360,11 @@ export const UpdateProtocolResponse = zod.object({
   conclusion: zod.string().nullish(),
   validityMonths: zod.number().nullish(),
   issueDate: zod.string().nullish(),
+  kineticsNotes: zod.string().nullish().describe("Observações da aba Cinética"),
+  customParamsJson: zod
+    .string()
+    .nullish()
+    .describe("JSON com lista de parâmetros editáveis (nomes e critérios)"),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -637,6 +666,11 @@ export const FinalizeProtocolResponse = zod.object({
   conclusion: zod.string().nullish(),
   validityMonths: zod.number().nullish(),
   issueDate: zod.string().nullish(),
+  kineticsNotes: zod.string().nullish().describe("Observações da aba Cinética"),
+  customParamsJson: zod
+    .string()
+    .nullish()
+    .describe("JSON com lista de parâmetros editáveis (nomes e critérios)"),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });

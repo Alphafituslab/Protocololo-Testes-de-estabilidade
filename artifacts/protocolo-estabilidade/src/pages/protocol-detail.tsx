@@ -1,5 +1,5 @@
 import { useParams, Link, useLocation } from "wouter";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -16,6 +16,7 @@ import {
   useDeleteResult,
   useFinalizeProtocol,
   useDeleteProtocol,
+  useUpdateProtocol,
   getGetProtocolQueryKey,
   getListLotsQueryKey,
   getListResultsQueryKey,
@@ -453,8 +454,9 @@ function CellImages({ storageKey }: { storageKey: string }) {
                 <div key={i} className="relative group">
                   <img src={img} alt="" className="w-16 h-16 object-cover rounded border cursor-pointer" onClick={() => window.open(img)} />
                   <button
-                    onClick={() => removeImage(i)}
-                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center leading-none shadow-sm"
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); removeImage(i); }}
+                    className="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center leading-none shadow-md z-10 border border-white"
                     title="Remover imagem"
                   >
                     ×
@@ -653,24 +655,52 @@ function InlineCell({
 
 type EditableParam = { uid: string; parameter: string; category: string; criterion: string };
 
-function ResultsTab({ protocolId }: { protocolId: number }) {
+function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: number; initialCustomParamsJson?: string | null }) {
   const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
   const { data: results = [], isLoading } = useListResults(protocolId, { query: { queryKey: getListResultsQueryKey(protocolId) } });
 
-  const [editableParams, setEditableParams] = useState<EditableParam[]>(() =>
-    ANALYSIS_PARAMETERS.map((p, i) => ({ ...p, uid: `${p.category}_${i}` }))
-  );
+  const defaultParams = ANALYSIS_PARAMETERS.map((p, i) => ({ ...p, uid: `${p.category}_${i}` }));
+  const [editableParams, setEditableParams] = useState<EditableParam[]>(() => {
+    if (initialCustomParamsJson) {
+      try { return JSON.parse(initialCustomParamsJson) as EditableParam[]; } catch { /* fall through */ }
+    }
+    return defaultParams;
+  });
 
-  const updateParam = (uid: string, field: "parameter" | "criterion", val: string) =>
-    setEditableParams((prev) => prev.map((p) => (p.uid === uid ? { ...p, [field]: val } : p)));
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const updateProtocol = useUpdateProtocol();
+
+  const saveParams = useCallback((params: EditableParam[]) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: JSON.stringify(params) } });
+    }, 800);
+  }, [protocolId, updateProtocol]);
+
+  const updateParam = (uid: string, field: "parameter" | "criterion", val: string) => {
+    setEditableParams((prev) => {
+      const next = prev.map((p) => (p.uid === uid ? { ...p, [field]: val } : p));
+      saveParams(next);
+      return next;
+    });
+  };
 
   const addParam = (category: string) => {
     const uid = `${category}_${Date.now()}`;
-    setEditableParams((prev) => [...prev, { uid, parameter: "", criterion: "", category }]);
+    setEditableParams((prev) => {
+      const next = [...prev, { uid, parameter: "", criterion: "", category }];
+      saveParams(next);
+      return next;
+    });
   };
 
-  const removeParam = (uid: string) =>
-    setEditableParams((prev) => prev.filter((p) => p.uid !== uid));
+  const removeParam = (uid: string) => {
+    setEditableParams((prev) => {
+      const next = prev.filter((p) => p.uid !== uid);
+      saveParams(next);
+      return next;
+    });
+  };
 
   const getResult = (lotId: number, period: number, parameter: string) =>
     results.find((r) => r.lotId === lotId && r.period === period && r.parameter === parameter);
@@ -852,16 +882,30 @@ function EditableNum({
   );
 }
 
-function KineticsTab({ protocolId }: { protocolId: number }) {
+function KineticsTab({ protocolId, initialKineticsNotes, initialValidityMonths }: {
+  protocolId: number;
+  initialKineticsNotes?: string | null;
+  initialValidityMonths?: number | null;
+}) {
   const { data: kinetics, isLoading } = useGetKinetics(protocolId, {
     query: { queryKey: getGetKineticsQueryKey(protocolId) },
   });
 
+  const updateProtocol = useUpdateProtocol();
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const debouncedSave = useCallback((data: { kineticsNotes?: string; validityMonths?: number | null }) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      updateProtocol.mutate({ id: protocolId, data });
+    }, 800);
+  }, [protocolId, updateProtocol]);
+
   const [overrides, setOverrides] = useState<Record<string, KineticOverride>>({});
   const [initialized, setInitialized] = useState(false);
   const [cardShelfLife, setCardShelfLife] = useState("");
-  const [cardValidity, setCardValidity] = useState("");
-  const [kineticsObs, setKineticsObs] = useState("");
+  const [cardValidity, setCardValidity] = useState(initialValidityMonths != null ? String(initialValidityMonths) : "");
+  const [kineticsObs, setKineticsObs] = useState(initialKineticsNotes ?? "");
 
   const buildOverride = (p: { t0?: number | null; t3?: number | null; t6?: number | null; deltaLn?: number | null; k?: number | null; estimatedShelfLifeMonths?: number | null; tObserved?: number | null; minThresholdPercent: number }): KineticOverride => {
     const t0 = p.t0 != null ? p.t0.toFixed(2) : "";
@@ -886,7 +930,10 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
     }
     setOverrides(init);
     setCardShelfLife(kinetics.estimatedShelfLifeMonths != null ? String(Math.floor(kinetics.estimatedShelfLifeMonths)) : "");
-    setCardValidity(kinetics.recommendedValidityMonths != null ? String(kinetics.recommendedValidityMonths) : "");
+    // Only set cardValidity from kinetics if no value was saved in the protocol
+    if (!initialValidityMonths) {
+      setCardValidity(kinetics.recommendedValidityMonths != null ? String(kinetics.recommendedValidityMonths) : "");
+    }
     setInitialized(true);
   }
 
@@ -955,7 +1002,11 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
               <div className="flex items-center gap-2 justify-end">
                 <input
                   value={cardValidity}
-                  onChange={(e) => setCardValidity(e.target.value)}
+                  onChange={(e) => {
+                    setCardValidity(e.target.value);
+                    const num = parseInt(e.target.value, 10);
+                    debouncedSave({ validityMonths: isNaN(num) ? null : num });
+                  }}
                   className="w-20 text-2xl font-bold text-green-800 bg-green-100 border border-green-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
                   placeholder="—"
                 />
@@ -1087,7 +1138,10 @@ function KineticsTab({ protocolId }: { protocolId: number }) {
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Observações</p>
         <textarea
           value={kineticsObs}
-          onChange={(e) => setKineticsObs(e.target.value)}
+          onChange={(e) => {
+            setKineticsObs(e.target.value);
+            debouncedSave({ kineticsNotes: e.target.value });
+          }}
           placeholder="Descreva observações sobre os dados cinéticos: desvios encontrados, condições especiais de armazenamento, lotes atípicos, interferências analíticas ou qualquer informação relevante para o laudo."
           rows={5}
           className="w-full text-sm border border-input rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary resize-y placeholder:text-muted-foreground/40"
@@ -1332,14 +1386,18 @@ export default function ProtocolDetail() {
         <TabsContent value="results">
           <Card>
             <CardContent className="pt-6">
-              <ResultsTab protocolId={numId} />
+              <ResultsTab protocolId={numId} initialCustomParamsJson={protocol.customParamsJson} />
             </CardContent>
           </Card>
         </TabsContent>
         <TabsContent value="kinetics">
           <Card>
             <CardContent className="pt-6">
-              <KineticsTab protocolId={numId} />
+              <KineticsTab
+                protocolId={numId}
+                initialKineticsNotes={protocol.kineticsNotes}
+                initialValidityMonths={protocol.validityMonths}
+              />
             </CardContent>
           </Card>
         </TabsContent>

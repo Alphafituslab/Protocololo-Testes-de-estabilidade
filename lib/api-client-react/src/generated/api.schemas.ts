@@ -65,6 +65,10 @@ export interface Protocol {
   conclusion?: string | null;
   validityMonths?: number | null;
   issueDate?: string | null;
+  /** Observações da aba Cinética */
+  kineticsNotes?: string | null;
+  /** JSON com lista de parâmetros editáveis (nomes e critérios) */
+  customParamsJson?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -186,6 +190,9 @@ export interface UpdateProtocolBody {
   seniorAnalyst?: string;
   seniorAnalystEmail?: string;
   status?: UpdateProtocolBodyStatus;
+  validityMonths?: number | null;
+  kineticsNotes?: string | null;
+  customParamsJson?: string | null;
 }
 
 export interface ProtocolStats {

@@ -450,6 +450,14 @@ components:
         issueDate:
           type: string
           nullable: true
+        kineticsNotes:
+          type: string
+          nullable: true
+          description: Observações da aba Cinética
+        customParamsJson:
+          type: string
+          nullable: true
+          description: JSON com lista de parâmetros editáveis (nomes e critérios)
         createdAt:
           type: string
         updatedAt:
@@ -591,6 +599,15 @@ components:
         status:
           type: string
           enum: [rascunho, em_andamento, concluido, aprovado, reprovado]
+        validityMonths:
+          type: integer
+          nullable: true
+        kineticsNotes:
+          type: string
+          nullable: true
+        customParamsJson:
+          type: string
+          nullable: true
 
     ProtocolStats:
       type: object
