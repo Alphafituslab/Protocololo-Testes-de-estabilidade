@@ -566,6 +566,12 @@ export const GetKineticsResponse = zod.object({
         .describe(
           "Minimum acceptable concentration (same units as t0\/t3\/t6)",
         ),
+      criterion: zod
+        .string()
+        .nullish()
+        .describe(
+          "Specification criterion string from analysis results (e.g. '98,50% - 100,50%')",
+        ),
     }),
   ),
   limitingParameter: zod.string().nullish(),

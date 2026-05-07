@@ -260,6 +260,8 @@ export interface KineticParameter {
   tObserved?: number | null;
   /** Minimum acceptable concentration (same units as t0/t3/t6) */
   minThresholdPercent: number;
+  /** Specification criterion string from analysis results (e.g. '98,50% - 100,50%') */
+  criterion?: string | null;
 }
 
 export interface KineticsResult {

@@ -52,17 +52,18 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
     .where(eq(analysisResultsTable.protocolId, params.data.id));
 
   const activeParams = ["Calcio", "Vitamina D"];
-  const kineticData: Record<string, { t0vals: number[]; t3vals: number[]; t6vals: number[] }> = {};
+  const kineticData: Record<string, { t0vals: number[]; t3vals: number[]; t6vals: number[]; criterion: string | null }> = {};
   for (const p of activeParams) {
-    kineticData[p] = { t0vals: [], t3vals: [], t6vals: [] };
+    kineticData[p] = { t0vals: [], t3vals: [], t6vals: [], criterion: null };
   }
 
   for (const r of results) {
     if (!activeParams.includes(r.parameter)) continue;
-    const val = r.numericResult;
-    if (val == null) continue;
     const entry = kineticData[r.parameter];
     if (!entry) continue;
+    if (!entry.criterion && r.criterion) entry.criterion = r.criterion;
+    const val = r.numericResult;
+    if (val == null) continue;
     if (r.period === 0) entry.t0vals.push(val);
     if (r.period === 3) entry.t3vals.push(val);
     if (r.period === 6) entry.t6vals.push(val);
@@ -101,6 +102,7 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
         estimatedShelfLifeMonths,
         tObserved,
         minThresholdPercent: threshold,
+        criterion: d.criterion ?? null,
       };
     })
     .filter(Boolean);

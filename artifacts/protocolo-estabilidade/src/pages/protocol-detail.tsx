@@ -825,8 +825,16 @@ type KineticOverride = {
   t0: string; t3: string; t6: string;
   deltaLn: string; k: string;
   thresholdMin: string; thresholdMax: string;
-  shelfLife: string; tObserved: string; validadePraticada: string;
+  shelfLife: string; validadePraticada: string;
 };
+
+function parseCriterionRange(criterion: string | null | undefined): { min: string; max: string } {
+  if (!criterion) return { min: "", max: "" };
+  const normalized = criterion.replace(/,/g, ".").replace(/[–—]/g, "-").replace(/%/g, "").trim();
+  const match = normalized.match(/(\d+\.?\d*)\s*-\s*(\d+\.?\d*)/);
+  if (!match) return { min: "", max: "" };
+  return { min: match[1], max: match[2] };
+}
 
 function calcKineticOverride(
   t0s: string, t3s: string, t6s: string, thresholds: string,
@@ -851,15 +859,10 @@ function calcKineticOverride(
   const lnNum = -Math.log(threshold / c0);
   const shelfLife = lnNum > 0 ? (lnNum / k).toFixed(1) : "";
 
-  // t_observado = -ln(avgT6/avgT0) / k  [Excel Sheet2: K8=-LN(G4/G8), L8=K8/M3]
-  const lnObs = -Math.log(t6 / c0);
-  const tObserved = lnObs > 0 ? (lnObs / k).toFixed(1) : "";
-
   return {
     deltaLn: deltaLn.toFixed(6),
     k: k.toFixed(6),
     shelfLife,
-    tObserved,
   };
 }
 
@@ -903,22 +906,21 @@ function KineticsTab({ protocolId, initialKineticsNotes, initialValidityMonths }
 
   const [overrides, setOverrides] = useState<Record<string, KineticOverride>>({});
   const [initialized, setInitialized] = useState(false);
-  const [cardShelfLife, setCardShelfLife] = useState("");
-  const [cardValidity, setCardValidity] = useState(initialValidityMonths != null ? String(initialValidityMonths) : "");
+  const [cardValidity, setCardValidity] = useState("");
   const [kineticsObs, setKineticsObs] = useState(initialKineticsNotes ?? "");
 
-  const buildOverride = (p: { t0?: number | null; t3?: number | null; t6?: number | null; deltaLn?: number | null; k?: number | null; estimatedShelfLifeMonths?: number | null; tObserved?: number | null; minThresholdPercent: number }): KineticOverride => {
+  const buildOverride = (p: { t0?: number | null; t3?: number | null; t6?: number | null; deltaLn?: number | null; k?: number | null; estimatedShelfLifeMonths?: number | null; minThresholdPercent: number; criterion?: string | null }): KineticOverride => {
     const t0 = p.t0 != null ? p.t0.toFixed(2) : "";
     const t3 = p.t3 != null ? p.t3.toFixed(2) : "";
     const t6 = p.t6 != null ? p.t6.toFixed(2) : "";
+    const { min: thresholdMin, max: thresholdMax } = parseCriterionRange(p.criterion);
     return {
       t0, t3, t6,
       deltaLn: p.deltaLn != null ? p.deltaLn.toFixed(6) : "",
       k: p.k != null ? p.k.toFixed(6) : "",
-      thresholdMin: p.minThresholdPercent.toString(),
-      thresholdMax: "",
+      thresholdMin: thresholdMin || p.minThresholdPercent.toString(),
+      thresholdMax,
       shelfLife: p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(1) : "",
-      tObserved: p.tObserved != null ? p.tObserved.toFixed(1) : "",
       validadePraticada: "",
     };
   };
@@ -929,11 +931,6 @@ function KineticsTab({ protocolId, initialKineticsNotes, initialValidityMonths }
       init[p.parameter] = buildOverride(p);
     }
     setOverrides(init);
-    setCardShelfLife(kinetics.estimatedShelfLifeMonths != null ? String(Math.floor(kinetics.estimatedShelfLifeMonths)) : "");
-    // Only set cardValidity from kinetics if no value was saved in the protocol
-    if (!initialValidityMonths) {
-      setCardValidity(kinetics.recommendedValidityMonths != null ? String(kinetics.recommendedValidityMonths) : "");
-    }
     setInitialized(true);
   }
 
@@ -955,8 +952,6 @@ function KineticsTab({ protocolId, initialKineticsNotes, initialValidityMonths }
       reset[p.parameter] = buildOverride(p);
     }
     setOverrides(reset);
-    setCardShelfLife(kinetics.estimatedShelfLifeMonths != null ? String(Math.floor(kinetics.estimatedShelfLifeMonths)) : "");
-    setCardValidity(kinetics.recommendedValidityMonths != null ? String(kinetics.recommendedValidityMonths) : "");
   };
 
   if (isLoading) return <div className="text-center py-8 text-muted-foreground">Calculando...</div>;
@@ -984,18 +979,13 @@ function KineticsTab({ protocolId, initialKineticsNotes, initialValidityMonths }
             <div className="flex-1">
               <p className="text-xs text-green-700 font-medium uppercase tracking-wide mb-1">Vida Útil Estimada (t<sub>validade</sub>)</p>
               <div className="flex items-center gap-2">
-                <input
-                  value={cardShelfLife}
-                  onChange={(e) => setCardShelfLife(e.target.value)}
-                  className="w-24 text-3xl font-bold text-green-800 bg-green-100 border border-green-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="—"
-                />
+                <span className="text-3xl font-bold text-green-800 tabular-nums">
+                  {minShelfLife != null ? Math.floor(minShelfLife) : "—"}
+                </span>
                 <span className="text-xl font-semibold text-green-700">meses</span>
               </div>
               {limitingParam && <p className="text-xs text-green-700 mt-1">Parâmetro limitante: {limitingParam}</p>}
-              {minShelfLife != null && (
-                <p className="text-xs text-green-600 mt-1 opacity-70">Calculado: {Math.floor(minShelfLife)} meses</p>
-              )}
+              <p className="text-xs text-green-600 mt-1 opacity-60">Menor validade calculada entre os parâmetros de Teor do Ativo</p>
             </div>
             <div className="flex-1 text-right">
               <p className="text-xs text-green-700 font-medium uppercase tracking-wide mb-1">Validade Praticada</p>
@@ -1024,15 +1014,14 @@ function KineticsTab({ protocolId, initialKineticsNotes, initialValidityMonths }
           <TableHeader>
             <TableRow className="bg-muted/40">
               <TableHead className="text-xs">Parâmetro</TableHead>
-              <TableHead className="text-right text-xs">Média T0 (%)</TableHead>
-              <TableHead className="text-right text-xs">Média T3 (%)</TableHead>
-              <TableHead className="text-right text-xs">Média T6 (%)</TableHead>
+              <TableHead className="text-right text-xs whitespace-nowrap">Média T0 (%)</TableHead>
+              <TableHead className="text-right text-xs whitespace-nowrap">Média T3 (%)</TableHead>
+              <TableHead className="text-right text-xs whitespace-nowrap">Média T6 (%)</TableHead>
               <TableHead className="text-right text-xs bg-blue-50/60 whitespace-nowrap">Δln = −ln(T6/T3)</TableHead>
               <TableHead className="text-right text-xs bg-blue-50/60 whitespace-nowrap">k = Δln/3 (mês⁻¹)</TableHead>
-              <TableHead className="text-right text-xs bg-amber-50/60 whitespace-nowrap">t<sub>val</sub> ICH 80% (meses)</TableHead>
-              <TableHead className="text-right text-xs whitespace-nowrap">t<sub>obs</sub> −ln(T6/T0)/k (meses)</TableHead>
-              <TableHead className="text-right text-xs">Validade (meses)</TableHead>
-              <TableHead className="text-right text-xs">Lim. mín – máx (%)</TableHead>
+              <TableHead className="text-right text-xs bg-amber-50/60 whitespace-nowrap">t<sub>val</sub> ICH (meses)</TableHead>
+              <TableHead className="text-right text-xs whitespace-nowrap">Validade (meses)</TableHead>
+              <TableHead className="text-right text-xs whitespace-nowrap">Lim. mín – máx (%)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1040,19 +1029,18 @@ function KineticsTab({ protocolId, initialKineticsNotes, initialValidityMonths }
               const ov = overrides[p.parameter];
               if (!ov) return null;
               const shelfNum = parseFloat(ov.shelfLife);
-              const tObsNum = parseFloat(ov.tObserved);
               const isLimiting = p.parameter === limitingParam;
               return (
-                <TableRow key={p.parameter}>
+                <TableRow key={p.parameter} className={isLimiting ? "bg-amber-50/40" : ""}>
                   <TableCell className="font-medium text-sm">{p.parameter}</TableCell>
-                  <TableCell className="text-right py-2">
-                    <EditableNum value={ov.t0} onChange={(v) => setField(p.parameter, "t0", v)} />
+                  <TableCell className="text-right py-2 font-mono text-sm tabular-nums text-gray-700">
+                    {ov.t0 || "—"}
                   </TableCell>
-                  <TableCell className="text-right py-2">
-                    <EditableNum value={ov.t3} onChange={(v) => setField(p.parameter, "t3", v)} />
+                  <TableCell className="text-right py-2 font-mono text-sm tabular-nums text-gray-700">
+                    {ov.t3 || "—"}
                   </TableCell>
-                  <TableCell className="text-right py-2">
-                    <EditableNum value={ov.t6} onChange={(v) => setField(p.parameter, "t6", v)} />
+                  <TableCell className="text-right py-2 font-mono text-sm tabular-nums text-gray-700">
+                    {ov.t6 || "—"}
                   </TableCell>
                   <TableCell className="text-right py-2 bg-blue-50/30">
                     <EditableNum value={ov.deltaLn} onChange={(v) => setField(p.parameter, "deltaLn", v)} width="w-28" />
@@ -1067,14 +1055,6 @@ function KineticsTab({ protocolId, initialKineticsNotes, initialValidityMonths }
                         <span className={`text-xs font-semibold ml-1 ${isLimiting ? "text-amber-600" : "text-green-700"}`}>
                           ≈ {Math.floor(shelfNum)} m
                         </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right py-2">
-                    <div className="flex items-center justify-end gap-1">
-                      <EditableNum value={ov.tObserved} onChange={(v) => setField(p.parameter, "tObserved", v)} width="w-20" />
-                      {!isNaN(tObsNum) && tObsNum > 0 && (
-                        <span className="text-xs text-slate-500 ml-1">≈ {Math.floor(tObsNum)} m</span>
                       )}
                     </div>
                   </TableCell>
