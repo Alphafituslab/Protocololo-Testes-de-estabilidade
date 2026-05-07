@@ -1,16 +1,18 @@
 import { useParams, Link } from "wouter";
 import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Settings2 } from "lucide-react";
+import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+
+type PhotoEntry = { parameter: string; lotNumber: string; period: number; images: string[]; key: string };
 
 function collectProtocolImages(
   protocolId: number,
   lots: { id: number; lotNumber: string }[],
-): { parameter: string; lotNumber: string; period: number; images: string[] }[] {
+): PhotoEntry[] {
   const prefix = `imgs_${protocolId}_`;
-  const entries: { parameter: string; lotNumber: string; period: number; images: string[] }[] = [];
+  const entries: PhotoEntry[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (!key?.startsWith(prefix)) continue;
@@ -26,7 +28,7 @@ function collectProtocolImages(
       if (!images.length) continue;
       const lot = lots.find((l) => l.id === lotId);
       if (!lot) continue;
-      entries.push({ parameter, lotNumber: lot.lotNumber, period, images });
+      entries.push({ parameter, lotNumber: lot.lotNumber, period, images, key });
     } catch { /* skip malformed */ }
   }
   return entries.sort(
@@ -68,6 +70,22 @@ type ShowSections = {
   registrosFotograficos: boolean;
 };
 
+const CATEGORY_LABELS: Record<string, string> = {
+  fisico_quimica: "Análises Físico-Químicas",
+  microbiologica: "Análises Microbiológicas",
+  teor_ativo: "Teor do Ativo",
+  embalagem: "Embalagem",
+};
+
+const SECTION_LABELS: { key: keyof ShowSections; label: string }[] = [
+  { key: "condicoesAmbientais", label: "Condições Ambientais" },
+  { key: "textoLotes", label: "Texto Lotes Piloto" },
+  { key: "infoAdicionais", label: "Informações Adicionais" },
+  { key: "conclusao", label: "Conclusão" },
+  { key: "fundamentacaoCinetica", label: "Fundamentação Cinética" },
+  { key: "registrosFotograficos", label: "Registros Fotográficos (Anexo)" },
+];
+
 export default function CertificatePage() {
   const { id } = useParams<{ id: string }>();
   const { data: cert, isLoading } = useGetCertificate(Number(id), {
@@ -88,7 +106,7 @@ export default function CertificatePage() {
   const [umidAmostragem, setUmidAmostragem] = useState("60% UR");
   const [tempRecebimento, setTempRecebimento] = useState("22,8°C");
 
-  const [analyses, setAnalyses] = useState<Array<{ parameter: string; method: string; specification: string; result: string; status: string; visible: boolean }> | null>(null);
+  const [analyses, setAnalyses] = useState<Array<{ parameter: string; category: string; method: string; specification: string; result: string; status: string; visible: boolean }> | null>(null);
 
   const { data: lotsRaw = [] } = useListLots(Number(id), {
     query: { enabled: !!id, queryKey: getListLotsQueryKey(Number(id)) },
@@ -97,6 +115,30 @@ export default function CertificatePage() {
   if (!isLoading && cert && analyses === null) {
     setAnalyses(cert.analyses.map(a => ({ ...a, visible: true })));
   }
+
+  const allPhotoEntries = useMemo(() => {
+    if (!lotsRaw.length) return [] as PhotoEntry[];
+    return collectProtocolImages(Number(id), lotsRaw as { id: number; lotNumber: string }[]);
+  }, [id, lotsRaw]);
+
+  const [selectedPhotoKeys, setSelectedPhotoKeys] = useState<Set<string> | null>(null);
+
+  const activePhotoKeys = useMemo(() => {
+    if (selectedPhotoKeys !== null) return selectedPhotoKeys;
+    return new Set(allPhotoEntries.map(e => e.key));
+  }, [selectedPhotoKeys, allPhotoEntries]);
+
+  const togglePhotoKey = (key: string) => {
+    setSelectedPhotoKeys(prev => {
+      const current = prev ?? new Set(allPhotoEntries.map(e => e.key));
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const selectAllPhotos = () => setSelectedPhotoKeys(new Set(allPhotoEntries.map(e => e.key)));
+  const deselectAllPhotos = () => setSelectedPhotoKeys(new Set());
 
   const toggle = (key: keyof ShowSections) => setShow(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -147,23 +189,16 @@ export default function CertificatePage() {
   const isRepproved = cert.finalStatus === "reprovado";
   const rows = analyses ?? cert.analyses.map(a => ({ ...a, visible: true }));
 
-  const photoEntries = show.registrosFotograficos
-    ? collectProtocolImages(Number(id), lotsRaw as { id: number; lotNumber: string }[])
+  const visiblePhotoEntries = show.registrosFotograficos
+    ? allPhotoEntries.filter(e => activePhotoKeys.has(e.key))
     : [];
 
-  const photosByParam = photoEntries.reduce<Record<string, typeof photoEntries>>((acc, e) => {
+  const photosByParam = visiblePhotoEntries.reduce<Record<string, PhotoEntry[]>>((acc, e) => {
     (acc[e.parameter] ??= []).push(e);
     return acc;
   }, {});
 
-  const SECTIONS = [
-    { key: "condicoesAmbientais" as const, label: "Condições Ambientais" },
-    { key: "textoLotes" as const, label: "Texto Lotes Piloto" },
-    { key: "infoAdicionais" as const, label: "Informações Adicionais" },
-    { key: "conclusao" as const, label: "Conclusão" },
-    { key: "fundamentacaoCinetica" as const, label: "Fundamentação Cinética" },
-    { key: "registrosFotograficos" as const, label: "Registros Fotográficos (Anexo)" },
-  ];
+  const categories = Array.from(new Set(rows.map(r => r.category)));
 
   return (
     <div className="max-w-5xl mx-auto space-y-4">
@@ -175,7 +210,9 @@ export default function CertificatePage() {
         </Link>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowSettings(s => !s)}>
-            <Settings2 className="h-4 w-4 mr-2" /> Configurar Impressão
+            <Settings2 className="h-4 w-4 mr-2" />
+            Configurar Impressão
+            {showSettings ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
           </Button>
           <Button onClick={() => window.print()} data-testid="button-print">
             <Printer className="h-4 w-4 mr-2" /> Imprimir / Salvar PDF
@@ -184,21 +221,89 @@ export default function CertificatePage() {
       </div>
 
       {showSettings && (
-        <div className="print:hidden border rounded-md bg-muted/30 p-4 space-y-3">
-          <p className="text-sm font-semibold">Seções que aparecem na impressão:</p>
-          <div className="flex flex-wrap gap-5">
-            {SECTIONS.map(({ key, label }) => (
-              <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
-                <input type="checkbox" checked={show[key]} onChange={() => toggle(key)} className="w-4 h-4 accent-primary" />
-                <span className="text-sm">{label}</span>
-              </label>
-            ))}
+        <div className="print:hidden border rounded-lg bg-white shadow-sm p-5 space-y-5">
+          <p className="text-sm font-semibold text-gray-800">Configurações de Impressão / PDF</p>
+
+          {/* Section toggles */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Seções do documento</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {SECTION_LABELS.map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-2 cursor-pointer select-none p-2 rounded-md border border-gray-100 hover:bg-gray-50">
+                  <input type="checkbox" checked={show[key]} onChange={() => toggle(key)} className="w-4 h-4 accent-primary" />
+                  <span className="text-sm text-gray-700">{label}</span>
+                  {key === "registrosFotograficos" && allPhotoEntries.length > 0 && (
+                    <span className="ml-auto text-xs text-blue-600 font-semibold">{allPhotoEntries.length} imagem(ns)</span>
+                  )}
+                </label>
+              ))}
+            </div>
           </div>
-          <div className="flex items-center gap-3 pt-1 border-t border-muted">
-            <p className="text-xs text-muted-foreground flex-1">Marque/desmarque a caixinha ☑ na coluna PDF de cada linha para incluir ou excluir da impressão. Clique em Método/Especificação/Resultado para editar o texto.</p>
-            <button onClick={toggleAllRows} className="text-xs px-3 py-1 rounded border border-muted-foreground/30 hover:bg-muted text-muted-foreground whitespace-nowrap">
-              {allVisible ? "Desmarcar todas" : "Marcar todas"}
-            </button>
+
+          {/* Image selection — shown when registrosFotograficos is on */}
+          {show.registrosFotograficos && (
+            <div className="space-y-2 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4 text-blue-600" />
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Selecionar imagens para o anexo</p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={selectAllPhotos} className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 text-gray-600">Marcar todas</button>
+                  <button onClick={deselectAllPhotos} className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 text-gray-600">Desmarcar todas</button>
+                </div>
+              </div>
+              {allPhotoEntries.length === 0 ? (
+                <p className="text-xs text-gray-400 italic">Nenhuma imagem anexada a este protocolo. Anexe imagens na aba Resultados.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {allPhotoEntries.map((entry) => (
+                    <label key={entry.key} className="flex items-center gap-2 cursor-pointer select-none p-2 rounded-md border border-gray-100 hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={activePhotoKeys.has(entry.key)}
+                        onChange={() => togglePhotoKey(entry.key)}
+                        className="w-4 h-4 accent-primary"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-medium text-gray-700 block truncate">{entry.parameter}</span>
+                        <span className="text-[10px] text-gray-400">Lote {entry.lotNumber} · T{entry.period} · {entry.images.length} foto(s)</span>
+                      </div>
+                      <div className="flex gap-0.5">
+                        {entry.images.slice(0, 3).map((img, ii) => (
+                          <img key={ii} src={img} alt="" className="w-8 h-8 object-cover rounded border border-gray-200" />
+                        ))}
+                        {entry.images.length > 3 && <span className="text-[10px] text-gray-400 self-center ml-0.5">+{entry.images.length - 3}</span>}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Row visibility */}
+          <div className="space-y-2 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Linhas de análise visíveis no PDF</p>
+              <button onClick={toggleAllRows} className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 text-gray-600">
+                {allVisible ? "Desmarcar todas" : "Marcar todas"}
+              </button>
+            </div>
+            <p className="text-xs text-gray-400">Desmarque linhas que não devem aparecer na impressão.</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 max-h-48 overflow-y-auto pr-1">
+              {rows.map((row, i) => (
+                <label key={i} className="flex items-center gap-2 cursor-pointer select-none p-1.5 rounded hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={row.visible}
+                    onChange={() => toggleRowVisibility(i)}
+                    className="w-3.5 h-3.5 accent-primary"
+                  />
+                  <span className={`text-xs truncate ${row.visible ? "text-gray-700" : "text-gray-300 line-through"}`}>{row.parameter}</span>
+                </label>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -276,6 +381,7 @@ export default function CertificatePage() {
           </div>
         )}
 
+        {/* Analysis table grouped by category */}
         <div className="mb-6">
           <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1 mb-3">Resultados de Analise</h2>
           <table className="w-full text-xs border-collapse">
@@ -292,54 +398,85 @@ export default function CertificatePage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((analysis, i) => (
-                <tr
-                  key={i}
-                  className={[
-                    i % 2 === 0 ? "" : "bg-gray-50",
-                    !analysis.visible ? "opacity-30 print:hidden" : "",
-                  ].join(" ")}
-                  data-testid={`row-analysis-${i}`}
-                >
-                  <td className="border border-gray-300 px-2 py-1.5 font-medium align-top">{analysis.parameter}</td>
-                  <td className="border border-gray-300 px-2 py-1.5 text-gray-600 align-top">
-                    <CertEditField
-                      value={analysis.method}
-                      onChange={v => updateAnalysis(i, "method", v)}
-                      multiline
-                      className="text-xs leading-snug"
-                    />
-                  </td>
-                  <td className="border border-gray-300 px-2 py-1.5 font-mono align-top">
-                    <CertEditField
-                      value={analysis.specification}
-                      onChange={v => updateAnalysis(i, "specification", v)}
-                      className="text-xs w-full font-mono"
-                    />
-                  </td>
-                  <td className="border border-gray-300 px-2 py-1.5 text-center font-mono font-medium align-top">
-                    <CertEditField
-                      value={analysis.result}
-                      onChange={v => updateAnalysis(i, "result", v)}
-                      className="text-xs text-center w-16 font-mono"
-                    />
-                  </td>
-                  <td className="border border-gray-300 px-2 py-1.5 text-center align-top">
-                    <span className={`font-semibold ${analysis.status === "Conforme" ? "text-green-700" : analysis.status === "Nao Conforme" ? "text-red-700" : "text-gray-500"}`}>
-                      {analysis.status}
-                    </span>
-                  </td>
-                  <td className="border border-gray-300 px-2 py-1.5 text-center align-middle print:hidden">
-                    <input
-                      type="checkbox"
-                      checked={analysis.visible}
-                      onChange={() => toggleRowVisibility(i)}
-                      title={analysis.visible ? "Ocultar na impressão" : "Incluir na impressão"}
-                      className="w-4 h-4 accent-primary cursor-pointer"
-                    />
-                  </td>
-                </tr>
-              ))}
+              {categories.map((cat) => {
+                const catRows = rows
+                  .map((r, originalIndex) => ({ ...r, originalIndex }))
+                  .filter(r => r.category === cat);
+                if (catRows.length === 0) return null;
+                const allCatHidden = catRows.every(r => !r.visible);
+                return (
+                  <>
+                    {/* Category header row */}
+                    <tr key={`cat-${cat}`} className={allCatHidden ? "print:hidden" : ""}>
+                      <td
+                        colSpan={6}
+                        className="border border-gray-300 px-2 py-1 bg-gray-200 font-bold text-[10px] uppercase tracking-widest text-gray-600"
+                      >
+                        {CATEGORY_LABELS[cat] ?? cat}
+                      </td>
+                    </tr>
+                    {catRows.map((analysis, ci) => (
+                      <tr
+                        key={`${cat}-${ci}`}
+                        className={[
+                          ci % 2 === 0 ? "" : "bg-gray-50",
+                          !analysis.visible ? "opacity-30 print:hidden" : "",
+                        ].join(" ")}
+                        data-testid={`row-analysis-${analysis.originalIndex}`}
+                      >
+                        <td className="border border-gray-300 px-2 py-1.5 font-medium align-top">{analysis.parameter}</td>
+                        <td className="border border-gray-300 px-2 py-1.5 text-gray-600 align-top">
+                          <CertEditField
+                            value={analysis.method}
+                            onChange={v => updateAnalysis(analysis.originalIndex, "method", v)}
+                            multiline
+                            className="text-xs leading-snug"
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1.5 font-mono align-top">
+                          <CertEditField
+                            value={analysis.specification}
+                            onChange={v => updateAnalysis(analysis.originalIndex, "specification", v)}
+                            className="text-xs w-full font-mono"
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1.5 text-center font-mono font-medium align-top">
+                          <CertEditField
+                            value={analysis.result}
+                            onChange={v => updateAnalysis(analysis.originalIndex, "result", v)}
+                            className="text-xs text-center w-16 font-mono"
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1.5 text-center align-top">
+                          <span className={`font-semibold ${analysis.status === "Conforme" ? "text-green-700" : analysis.status === "Nao Conforme" ? "text-red-700" : "text-gray-500"}`}>
+                            {analysis.status}
+                          </span>
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1.5 text-center align-middle print:hidden">
+                          <input
+                            type="checkbox"
+                            checked={analysis.visible}
+                            onChange={() => toggleRowVisibility(analysis.originalIndex)}
+                            title={analysis.visible ? "Ocultar na impressão" : "Incluir na impressão"}
+                            className="w-4 h-4 accent-primary cursor-pointer"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                    {/* EMBALAGEM footnote after the last embalagem row */}
+                    {cat === "embalagem" && !allCatHidden && (
+                      <tr key="embalagem-note">
+                        <td
+                          colSpan={6}
+                          className="border border-gray-300 px-2 py-1.5 bg-amber-50 text-[10px] text-amber-800 italic"
+                        >
+                          * Os resultados de embalagem representam a média dos ensaios realizados ao longo dos 6 meses de estudo de estabilidade (T0, T3 e T6).
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -432,6 +569,7 @@ export default function CertificatePage() {
           )}
         </div>
 
+        {/* Photo appendix */}
         {show.registrosFotograficos && Object.keys(photosByParam).length > 0 && (
           <div className="mt-8 pt-6 border-t-2 border-gray-800">
             <p className="text-xs font-bold uppercase tracking-widest text-gray-500 text-center mb-6">
@@ -472,7 +610,13 @@ export default function CertificatePage() {
           </div>
         )}
 
-        {show.registrosFotograficos && Object.keys(photosByParam).length === 0 && (
+        {show.registrosFotograficos && allPhotoEntries.length > 0 && Object.keys(photosByParam).length === 0 && (
+          <div className="mt-8 pt-6 border-t-2 border-gray-300 text-center text-xs text-gray-400">
+            Nenhuma imagem selecionada para o anexo.
+          </div>
+        )}
+
+        {show.registrosFotograficos && allPhotoEntries.length === 0 && (
           <div className="mt-8 pt-6 border-t-2 border-gray-300 text-center text-xs text-gray-400">
             Nenhuma imagem anexada para este protocolo.
           </div>

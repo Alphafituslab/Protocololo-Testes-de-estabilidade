@@ -270,8 +270,19 @@ export interface KineticsResult {
   recommendedValidityMonths?: number | null;
 }
 
+export type CertificateAnalysisCategory =
+  (typeof CertificateAnalysisCategory)[keyof typeof CertificateAnalysisCategory];
+
+export const CertificateAnalysisCategory = {
+  fisico_quimica: "fisico_quimica",
+  microbiologica: "microbiologica",
+  teor_ativo: "teor_ativo",
+  embalagem: "embalagem",
+} as const;
+
 export interface CertificateAnalysis {
   parameter: string;
+  category: CertificateAnalysisCategory;
   method: string;
   specification: string;
   result: string;

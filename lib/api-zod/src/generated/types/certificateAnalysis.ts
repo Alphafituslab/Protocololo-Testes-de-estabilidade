@@ -5,9 +5,11 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
+import type { CertificateAnalysisCategory } from "./certificateAnalysisCategory";
 
 export interface CertificateAnalysis {
   parameter: string;
+  category: CertificateAnalysisCategory;
   method: string;
   specification: string;
   result: string;

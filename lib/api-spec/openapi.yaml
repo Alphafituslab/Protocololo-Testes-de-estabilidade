@@ -897,6 +897,9 @@ components:
       properties:
         parameter:
           type: string
+        category:
+          type: string
+          enum: [fisico_quimica, microbiologica, teor_ativo, embalagem]
         method:
           type: string
         specification:
@@ -907,6 +910,7 @@ components:
           type: string
       required:
         - parameter
+        - category
         - method
         - specification
         - result

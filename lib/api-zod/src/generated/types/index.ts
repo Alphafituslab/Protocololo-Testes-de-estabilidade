@@ -11,6 +11,7 @@ export * from "./analysisResultCategory";
 export * from "./analysisResultStatus";
 export * from "./certificate";
 export * from "./certificateAnalysis";
+export * from "./certificateAnalysisCategory";
 export * from "./createLotBody";
 export * from "./createProtocolBody";
 export * from "./errorResponse";

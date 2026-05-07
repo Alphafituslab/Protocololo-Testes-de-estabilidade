@@ -595,6 +595,12 @@ export const GetCertificateResponse = zod.object({
   analyses: zod.array(
     zod.object({
       parameter: zod.string(),
+      category: zod.enum([
+        "fisico_quimica",
+        "microbiologica",
+        "teor_ativo",
+        "embalagem",
+      ]),
       method: zod.string(),
       specification: zod.string(),
       result: zod.string(),

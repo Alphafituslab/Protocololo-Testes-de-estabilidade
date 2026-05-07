@@ -56,10 +56,17 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     .from(analysisResultsTable)
     .where(eq(analysisResultsTable.protocolId, params.data.id));
 
-  const avgByParam: Record<string, { sum: number; count: number; criterion: string; resultText: string; status: string }> = {};
+  const CATEGORY_ORDER: Record<string, number> = {
+    fisico_quimica: 0,
+    microbiologica: 1,
+    teor_ativo: 2,
+    embalagem: 3,
+  };
+
+  const avgByParam: Record<string, { sum: number; count: number; criterion: string; resultText: string; status: string; category: string }> = {};
   for (const r of allResults) {
     if (!avgByParam[r.parameter]) {
-      avgByParam[r.parameter] = { sum: 0, count: 0, criterion: r.criterion, resultText: r.result, status: r.status };
+      avgByParam[r.parameter] = { sum: 0, count: 0, criterion: r.criterion, resultText: r.result, status: r.status, category: r.category };
     }
     if (r.numericResult != null) {
       avgByParam[r.parameter].sum += r.numericResult;
@@ -68,16 +75,19 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     if (r.status === "nao_conforme") avgByParam[r.parameter].status = "nao_conforme";
   }
 
-  const analyses = Object.entries(avgByParam).map(([param, data]) => {
-    const avgResult = data.count > 0 ? (data.sum / data.count).toFixed(2) : data.resultText;
-    return {
-      parameter: param,
-      method: METHOD_MAP[param] ?? "Método interno.",
-      specification: data.criterion,
-      result: avgResult,
-      status: data.status === "nao_conforme" ? "Nao Conforme" : data.status === "na" ? "N/A" : "Conforme",
-    };
-  });
+  const analyses = Object.entries(avgByParam)
+    .sort(([, a], [, b]) => (CATEGORY_ORDER[a.category] ?? 9) - (CATEGORY_ORDER[b.category] ?? 9))
+    .map(([param, data]) => {
+      const avgResult = data.count > 0 ? (data.sum / data.count).toFixed(2) : data.resultText;
+      return {
+        parameter: param,
+        category: data.category,
+        method: METHOD_MAP[param] ?? "Método interno.",
+        specification: data.criterion,
+        result: avgResult,
+        status: data.status === "nao_conforme" ? "Nao Conforme" : data.status === "na" ? "N/A" : "Conforme",
+      };
+    });
 
   const cityMatch = protocol.address?.match(/([^,]+)\/([A-Z]{2})/) ?? null;
   const city = cityMatch ? `${cityMatch[1].trim()} - ${cityMatch[2]}` : null;
