@@ -61,6 +61,7 @@ const RESULT_STATUS_COLORS: Record<string, string> = {
   conforme: "text-green-700 bg-green-50 border-green-200",
   nao_conforme: "text-red-700 bg-red-50 border-red-200",
   na: "text-slate-500 bg-slate-50 border-slate-200",
+  aprovado_com_ressalva: "text-amber-700 bg-amber-50 border-amber-200",
 };
 
 const ANALYSIS_PARAMETERS = [
@@ -490,8 +491,8 @@ function InlineCell({
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(result?.result ?? "");
-  const [status, setStatus] = useState<"conforme" | "nao_conforme" | "na">(
-    (result?.status as "conforme" | "nao_conforme" | "na") ?? "conforme"
+  const [status, setStatus] = useState<"conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva">(
+    (result?.status as "conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva") ?? "conforme"
   );
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -530,7 +531,7 @@ function InlineCell({
 
   const open = () => {
     setValue(result?.result ?? "");
-    setStatus((result?.status as "conforme" | "nao_conforme" | "na") ?? "conforme");
+    setStatus((result?.status as "conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva") ?? "conforme");
     setEditing(true);
   };
 
@@ -538,12 +539,14 @@ function InlineCell({
     conforme: "text-green-700 bg-green-50 border-green-200",
     nao_conforme: "text-red-700 bg-red-50 border-red-200",
     na: "text-slate-500 bg-slate-50 border-slate-200",
+    aprovado_com_ressalva: "text-amber-700 bg-amber-50 border-amber-200",
   };
 
   const statusBtnColors: Record<string, string> = {
     conforme: "bg-green-100 text-green-700 border-green-300 font-bold",
     nao_conforme: "bg-red-100 text-red-700 border-red-300 font-bold",
     na: "bg-slate-100 text-slate-500 border-slate-300 font-bold",
+    aprovado_com_ressalva: "bg-amber-100 text-amber-700 border-amber-300 font-bold",
   };
 
   if (editing) {
@@ -570,14 +573,14 @@ function InlineCell({
           placeholder="valor"
           data-testid="input-inline-result"
         />
-        <div className="flex gap-0.5 justify-center">
-          {(["conforme", "nao_conforme", "na"] as const).map((s) => (
+        <div className="flex gap-0.5 justify-center flex-wrap">
+          {(["conforme", "nao_conforme", "na", "aprovado_com_ressalva"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setStatus(s)}
               className={`text-[9px] px-1 py-0.5 rounded border transition-all ${status === s ? statusBtnColors[s] : "bg-white text-muted-foreground border-border"}`}
             >
-              {s === "conforme" ? "C" : s === "nao_conforme" ? "NC" : "N/A"}
+              {s === "conforme" ? "C" : s === "nao_conforme" ? "NC" : s === "na" ? "N/A" : "AR"}
             </button>
           ))}
         </div>
@@ -731,7 +734,8 @@ function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: numbe
           Clique em qualquer célula para digitar o resultado. Use{" "}
           <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">C</kbd> = Conforme ·{" "}
           <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">NC</kbd> = Não Conforme ·{" "}
-          <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">N/A</kbd> = Não aplicável.
+          <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">N/A</kbd> = Não aplicável ·{" "}
+          <kbd className="px-1 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-700 text-xs">AR</kbd> = Aprovado com Ressalva.
           Confirme com Enter ou OK.
         </p>
         <p className="text-xs text-primary/70 whitespace-nowrap shrink-0">Parâmetros e critérios são editáveis. Clique para alterar.</p>

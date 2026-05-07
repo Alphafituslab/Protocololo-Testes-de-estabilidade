@@ -448,7 +448,7 @@ export default function CertificatePage() {
                           />
                         </td>
                         <td className="border border-gray-300 px-2 py-1.5 text-center align-top">
-                          <span className={`font-semibold ${analysis.status === "Conforme" ? "text-green-700" : analysis.status === "Nao Conforme" ? "text-red-700" : "text-gray-500"}`}>
+                          <span className={`font-semibold ${analysis.status === "Conforme" ? "text-green-700" : analysis.status === "Nao Conforme" ? "text-red-700" : analysis.status === "Aprovado com Ressalva" ? "text-amber-700" : "text-gray-500"}`}>
                             {analysis.status}
                           </span>
                         </td>

@@ -712,7 +712,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [conforme, nao_conforme, na]
+          enum: [conforme, nao_conforme, na, aprovado_com_ressalva]
         observation:
           type: string
           nullable: true
@@ -757,7 +757,7 @@ components:
           type: number
         status:
           type: string
-          enum: [conforme, nao_conforme, na]
+          enum: [conforme, nao_conforme, na, aprovado_com_ressalva]
         observation:
           type: string
       required:

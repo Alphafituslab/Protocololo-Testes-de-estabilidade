@@ -73,6 +73,7 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       avgByParam[r.parameter].count += 1;
     }
     if (r.status === "nao_conforme") avgByParam[r.parameter].status = "nao_conforme";
+    else if (r.status === "aprovado_com_ressalva" && avgByParam[r.parameter].status === "conforme") avgByParam[r.parameter].status = "aprovado_com_ressalva";
   }
 
   const analyses = Object.entries(avgByParam)
@@ -85,7 +86,7 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
         method: METHOD_MAP[param] ?? "Método interno.",
         specification: data.criterion,
         result: avgResult,
-        status: data.status === "nao_conforme" ? "Nao Conforme" : data.status === "na" ? "N/A" : "Conforme",
+        status: data.status === "nao_conforme" ? "Nao Conforme" : data.status === "na" ? "N/A" : data.status === "aprovado_com_ressalva" ? "Aprovado com Ressalva" : "Conforme",
       };
     });
 

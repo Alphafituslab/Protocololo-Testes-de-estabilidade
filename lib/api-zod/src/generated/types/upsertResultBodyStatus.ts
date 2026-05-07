@@ -13,4 +13,5 @@ export const UpsertResultBodyStatus = {
   conforme: "conforme",
   nao_conforme: "nao_conforme",
   na: "na",
+  aprovado_com_ressalva: "aprovado_com_ressalva",
 } as const;
