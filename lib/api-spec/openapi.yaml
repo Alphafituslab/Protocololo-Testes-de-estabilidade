@@ -789,14 +789,25 @@ components:
         t6:
           type: number
           nullable: true
+        deltaLn:
+          type: number
+          nullable: true
+          description: "-ln(avgT6/avgT3) — intermediate step, equals k * 3"
         k:
           type: number
           nullable: true
+          description: "Degradation rate constant per month = deltaLn / 3"
         estimatedShelfLifeMonths:
           type: number
           nullable: true
+          description: "t_validade = -ln(threshold/avgT0) / k (ICH Q1A method)"
+        tObserved:
+          type: number
+          nullable: true
+          description: "t_observado = -ln(avgT6/avgT0) / k (extrapolation from measured T6)"
         minThresholdPercent:
           type: number
+          description: "Minimum acceptable concentration (same units as t0/t3/t6)"
       required:
         - parameter
         - minThresholdPercent

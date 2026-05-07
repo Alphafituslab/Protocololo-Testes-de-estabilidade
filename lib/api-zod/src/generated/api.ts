@@ -514,9 +514,29 @@ export const GetKineticsResponse = zod.object({
       t0: zod.number().nullish(),
       t3: zod.number().nullish(),
       t6: zod.number().nullish(),
-      k: zod.number().nullish(),
-      estimatedShelfLifeMonths: zod.number().nullish(),
-      minThresholdPercent: zod.number(),
+      deltaLn: zod
+        .number()
+        .nullish()
+        .describe("-ln(avgT6\/avgT3) — intermediate step, equals k \* 3"),
+      k: zod
+        .number()
+        .nullish()
+        .describe("Degradation rate constant per month = deltaLn \/ 3"),
+      estimatedShelfLifeMonths: zod
+        .number()
+        .nullish()
+        .describe("t_validade = -ln(threshold\/avgT0) \/ k (ICH Q1A method)"),
+      tObserved: zod
+        .number()
+        .nullish()
+        .describe(
+          "t_observado = -ln(avgT6\/avgT0) \/ k (extrapolation from measured T6)",
+        ),
+      minThresholdPercent: zod
+        .number()
+        .describe(
+          "Minimum acceptable concentration (same units as t0\/t3\/t6)",
+        ),
     }),
   ),
   limitingParameter: zod.string().nullish(),
