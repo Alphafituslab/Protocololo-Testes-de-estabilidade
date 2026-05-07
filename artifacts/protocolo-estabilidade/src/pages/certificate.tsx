@@ -1,18 +1,36 @@
 import { useParams, Link } from "wouter";
 import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
-type PhotoEntry = { parameter: string; lotNumber: string; period: number; images: string[]; key: string };
+type PhotoEntry = {
+  parameter: string;
+  category: string;
+  lotNumber: string;
+  period: number;
+  images: string[];
+  key: string;
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  fisico_quimica: "Físico-Química",
+  microbiologica: "Microbiológica",
+  teor_ativo: "Teor do Ativo",
+  embalagem: "Embalagem",
+};
 
 function collectProtocolImages(
   protocolId: number,
   lots: { id: number; lotNumber: string }[],
+  analyses: { parameter: string; category: string }[],
 ): PhotoEntry[] {
   const prefix = `imgs_${protocolId}_`;
   const entries: PhotoEntry[] = [];
+  const categoryByParam: Record<string, string> = {};
+  for (const a of analyses) categoryByParam[a.parameter] = a.category;
+
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (!key?.startsWith(prefix)) continue;
@@ -28,11 +46,19 @@ function collectProtocolImages(
       if (!images.length) continue;
       const lot = lots.find((l) => l.id === lotId);
       if (!lot) continue;
-      entries.push({ parameter, lotNumber: lot.lotNumber, period, images, key });
-    } catch { /* skip malformed */ }
+      entries.push({
+        parameter,
+        category: categoryByParam[parameter] ?? "",
+        lotNumber: lot.lotNumber,
+        period,
+        images,
+        key,
+      });
+    } catch { /* skip */ }
   }
   return entries.sort(
     (a, b) =>
+      (a.category || "").localeCompare(b.category || "") ||
       a.parameter.localeCompare(b.parameter) ||
       a.lotNumber.localeCompare(b.lotNumber) ||
       a.period - b.period,
@@ -67,14 +93,6 @@ type ShowSections = {
   infoAdicionais: boolean;
   conclusao: boolean;
   fundamentacaoCinetica: boolean;
-  registrosFotograficos: boolean;
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  fisico_quimica: "Análises Físico-Químicas",
-  microbiologica: "Análises Microbiológicas",
-  teor_ativo: "Teor do Ativo",
-  embalagem: "Embalagem",
 };
 
 const SECTION_LABELS: { key: keyof ShowSections; label: string }[] = [
@@ -83,7 +101,6 @@ const SECTION_LABELS: { key: keyof ShowSections; label: string }[] = [
   { key: "infoAdicionais", label: "Informações Adicionais" },
   { key: "conclusao", label: "Conclusão" },
   { key: "fundamentacaoCinetica", label: "Fundamentação Cinética" },
-  { key: "registrosFotograficos", label: "Registros Fotográficos (Anexo)" },
 ];
 
 export default function CertificatePage() {
@@ -99,27 +116,38 @@ export default function CertificatePage() {
     infoAdicionais: true,
     conclusao: true,
     fundamentacaoCinetica: true,
-    registrosFotograficos: false,
   });
+
+  const [includePhotos, setIncludePhotos] = useState(true);
 
   const [tempAmostragem, setTempAmostragem] = useState("22,8°C");
   const [umidAmostragem, setUmidAmostragem] = useState("60% UR");
   const [tempRecebimento, setTempRecebimento] = useState("22,8°C");
 
-  const [analyses, setAnalyses] = useState<Array<{ parameter: string; category: string; method: string; specification: string; result: string; status: string; visible: boolean }> | null>(null);
+  const [analyses, setAnalyses] = useState<Array<{
+    parameter: string; category: string; method: string; specification: string;
+    result: string; status: string; visible: boolean;
+  }> | null>(null);
 
   const { data: lotsRaw = [] } = useListLots(Number(id), {
     query: { enabled: !!id, queryKey: getListLotsQueryKey(Number(id)) },
   });
 
-  if (!isLoading && cert && analyses === null) {
-    setAnalyses(cert.analyses.map(a => ({ ...a, visible: true })));
-  }
+  useEffect(() => {
+    if (cert && analyses === null) {
+      setAnalyses(cert.analyses.map(a => ({ ...a, visible: true })));
+    }
+  }, [cert, analyses]);
 
   const allPhotoEntries = useMemo(() => {
     if (!lotsRaw.length) return [] as PhotoEntry[];
-    return collectProtocolImages(Number(id), lotsRaw as { id: number; lotNumber: string }[]);
-  }, [id, lotsRaw]);
+    const baseAnalyses = cert?.analyses ?? [];
+    return collectProtocolImages(
+      Number(id),
+      lotsRaw as { id: number; lotNumber: string }[],
+      baseAnalyses,
+    );
+  }, [id, lotsRaw, cert]);
 
   const [selectedPhotoKeys, setSelectedPhotoKeys] = useState<Set<string> | null>(null);
 
@@ -139,24 +167,21 @@ export default function CertificatePage() {
 
   const selectAllPhotos = () => setSelectedPhotoKeys(new Set(allPhotoEntries.map(e => e.key)));
   const deselectAllPhotos = () => setSelectedPhotoKeys(new Set());
+  const selectedCount = activePhotoKeys.size;
 
   const toggle = (key: keyof ShowSections) => setShow(prev => ({ ...prev, [key]: !prev[key] }));
 
   const updateAnalysis = (i: number, field: "method" | "specification" | "result", val: string) => {
     setAnalyses(prev => {
       if (!prev) return prev;
-      const next = [...prev];
-      next[i] = { ...next[i], [field]: val };
-      return next;
+      const next = [...prev]; next[i] = { ...next[i], [field]: val }; return next;
     });
   };
 
   const toggleRowVisibility = (i: number) => {
     setAnalyses(prev => {
       if (!prev) return prev;
-      const next = [...prev];
-      next[i] = { ...next[i], visible: !next[i].visible };
-      return next;
+      const next = [...prev]; next[i] = { ...next[i], visible: !next[i].visible }; return next;
     });
   };
 
@@ -168,8 +193,7 @@ export default function CertificatePage() {
   if (isLoading) {
     return (
       <div className="max-w-4xl mx-auto space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-96 w-full" />
+        <Skeleton className="h-8 w-48" /><Skeleton className="h-96 w-full" />
       </div>
     );
   }
@@ -188,23 +212,21 @@ export default function CertificatePage() {
   const isApproved = cert.finalStatus === "aprovado";
   const isRepproved = cert.finalStatus === "reprovado";
   const rows = analyses ?? cert.analyses.map(a => ({ ...a, visible: true }));
+  const categories = Array.from(new Set(rows.map(r => r.category)));
 
-  const visiblePhotoEntries = show.registrosFotograficos
+  const visiblePhotoEntries = includePhotos
     ? allPhotoEntries.filter(e => activePhotoKeys.has(e.key))
     : [];
 
-  const photosByParam = visiblePhotoEntries.reduce<Record<string, PhotoEntry[]>>((acc, e) => {
-    (acc[e.parameter] ??= []).push(e);
-    return acc;
-  }, {});
-
-  const categories = Array.from(new Set(rows.map(r => r.category)));
+  const totalSelectedImages = visiblePhotoEntries.reduce((s, e) => s + e.images.length, 0);
 
   return (
     <div className="max-w-5xl mx-auto space-y-4">
+
+      {/* ─── Toolbar ─── */}
       <div className="flex items-center justify-between print:hidden">
         <Link href={`/protocols/${id}`}>
-          <Button variant="ghost" size="sm" data-testid="button-back">
+          <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar ao Protocolo
           </Button>
         </Link>
@@ -214,17 +236,16 @@ export default function CertificatePage() {
             Configurar Impressão
             {showSettings ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
           </Button>
-          <Button onClick={() => window.print()} data-testid="button-print">
+          <Button onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-2" /> Imprimir / Salvar PDF
           </Button>
         </div>
       </div>
 
+      {/* ─── Settings panel ─── */}
       {showSettings && (
         <div className="print:hidden border rounded-lg bg-white shadow-sm p-5 space-y-5">
           <p className="text-sm font-semibold text-gray-800">Configurações de Impressão / PDF</p>
-
-          {/* Section toggles */}
           <div className="space-y-2">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Seções do documento</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -232,74 +253,21 @@ export default function CertificatePage() {
                 <label key={key} className="flex items-center gap-2 cursor-pointer select-none p-2 rounded-md border border-gray-100 hover:bg-gray-50">
                   <input type="checkbox" checked={show[key]} onChange={() => toggle(key)} className="w-4 h-4 accent-primary" />
                   <span className="text-sm text-gray-700">{label}</span>
-                  {key === "registrosFotograficos" && allPhotoEntries.length > 0 && (
-                    <span className="ml-auto text-xs text-blue-600 font-semibold">{allPhotoEntries.length} imagem(ns)</span>
-                  )}
                 </label>
               ))}
             </div>
           </div>
-
-          {/* Image selection — shown when registrosFotograficos is on */}
-          {show.registrosFotograficos && (
-            <div className="space-y-2 border-t pt-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ImageIcon className="h-4 w-4 text-blue-600" />
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Selecionar imagens para o anexo</p>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={selectAllPhotos} className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 text-gray-600">Marcar todas</button>
-                  <button onClick={deselectAllPhotos} className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 text-gray-600">Desmarcar todas</button>
-                </div>
-              </div>
-              {allPhotoEntries.length === 0 ? (
-                <p className="text-xs text-gray-400 italic">Nenhuma imagem anexada a este protocolo. Anexe imagens na aba Resultados.</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {allPhotoEntries.map((entry) => (
-                    <label key={entry.key} className="flex items-center gap-2 cursor-pointer select-none p-2 rounded-md border border-gray-100 hover:bg-gray-50">
-                      <input
-                        type="checkbox"
-                        checked={activePhotoKeys.has(entry.key)}
-                        onChange={() => togglePhotoKey(entry.key)}
-                        className="w-4 h-4 accent-primary"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <span className="text-xs font-medium text-gray-700 block truncate">{entry.parameter}</span>
-                        <span className="text-[10px] text-gray-400">Lote {entry.lotNumber} · T{entry.period} · {entry.images.length} foto(s)</span>
-                      </div>
-                      <div className="flex gap-0.5">
-                        {entry.images.slice(0, 3).map((img, ii) => (
-                          <img key={ii} src={img} alt="" className="w-8 h-8 object-cover rounded border border-gray-200" />
-                        ))}
-                        {entry.images.length > 3 && <span className="text-[10px] text-gray-400 self-center ml-0.5">+{entry.images.length - 3}</span>}
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Row visibility */}
           <div className="space-y-2 border-t pt-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Linhas de análise visíveis no PDF</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Linhas de análise visíveis</p>
               <button onClick={toggleAllRows} className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 text-gray-600">
                 {allVisible ? "Desmarcar todas" : "Marcar todas"}
               </button>
             </div>
-            <p className="text-xs text-gray-400">Desmarque linhas que não devem aparecer na impressão.</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 max-h-48 overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 max-h-40 overflow-y-auto pr-1">
               {rows.map((row, i) => (
                 <label key={i} className="flex items-center gap-2 cursor-pointer select-none p-1.5 rounded hover:bg-gray-50">
-                  <input
-                    type="checkbox"
-                    checked={row.visible}
-                    onChange={() => toggleRowVisibility(i)}
-                    className="w-3.5 h-3.5 accent-primary"
-                  />
+                  <input type="checkbox" checked={row.visible} onChange={() => toggleRowVisibility(i)} className="w-3.5 h-3.5 accent-primary" />
                   <span className={`text-xs truncate ${row.visible ? "text-gray-700" : "text-gray-300 line-through"}`}>{row.parameter}</span>
                 </label>
               ))}
@@ -308,11 +276,119 @@ export default function CertificatePage() {
         </div>
       )}
 
+      {/* ─── PHOTO SELECTION PANEL — always visible when photos exist ─── */}
+      {allPhotoEntries.length > 0 && (
+        <div className="print:hidden rounded-lg border-2 border-blue-200 bg-blue-50 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 bg-blue-100 border-b border-blue-200">
+            <div className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5 text-blue-600" />
+              <span className="font-semibold text-blue-900 text-sm">Registros Fotográficos — Anexo de Impressão</span>
+              <span className="text-xs text-blue-600 bg-white border border-blue-200 rounded-full px-2 py-0.5 font-semibold">
+                {allPhotoEntries.length} grupo(s) · {allPhotoEntries.reduce((s, e) => s + e.images.length, 0)} foto(s) no total
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={includePhotos}
+                  onChange={e => setIncludePhotos(e.target.checked)}
+                  className="w-4 h-4 accent-blue-600"
+                />
+                <span className="text-sm font-semibold text-blue-800">
+                  Incluir no PDF
+                  {includePhotos && selectedCount > 0 && (
+                    <span className="ml-1 text-blue-600">({selectedCount} grupo(s) · {totalSelectedImages} foto(s))</span>
+                  )}
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {includePhotos && (
+            <div className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-blue-700">Selecione quais grupos incluir no anexo impresso:</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={selectAllPhotos}
+                    className="flex items-center gap-1 text-xs px-2.5 py-1 rounded border border-blue-300 hover:bg-blue-100 text-blue-700 font-medium"
+                  >
+                    <CheckSquare className="h-3 w-3" /> Marcar todas
+                  </button>
+                  <button
+                    onClick={deselectAllPhotos}
+                    className="flex items-center gap-1 text-xs px-2.5 py-1 rounded border border-blue-300 hover:bg-blue-100 text-blue-700 font-medium"
+                  >
+                    <Square className="h-3 w-3" /> Desmarcar todas
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {allPhotoEntries.map((entry) => {
+                  const isSelected = activePhotoKeys.has(entry.key);
+                  return (
+                    <label
+                      key={entry.key}
+                      className={`flex items-center gap-3 cursor-pointer select-none p-2.5 rounded-lg border-2 transition-all ${
+                        isSelected ? "border-blue-400 bg-white shadow-sm" : "border-gray-200 bg-gray-50 opacity-60"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => togglePhotoKey(entry.key)}
+                        className="w-4 h-4 accent-blue-600 shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold text-gray-800 truncate">{entry.parameter}</span>
+                          {entry.category && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200 whitespace-nowrap">
+                              {CATEGORY_LABELS[entry.category] ?? entry.category}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-gray-500 mt-0.5 block">
+                          Lote <strong>{entry.lotNumber}</strong> · Período <strong>T{entry.period}</strong> · {entry.images.length} foto(s)
+                        </span>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        {entry.images.slice(0, 4).map((img, ii) => (
+                          <img
+                            key={ii}
+                            src={img}
+                            alt=""
+                            className={`w-10 h-10 object-cover rounded border-2 transition-all ${isSelected ? "border-blue-300" : "border-gray-200"}`}
+                          />
+                        ))}
+                        {entry.images.length > 4 && (
+                          <div className="w-10 h-10 rounded border-2 border-gray-200 bg-gray-100 flex items-center justify-center text-[10px] text-gray-500 font-bold">
+                            +{entry.images.length - 4}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+              {selectedCount === 0 && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                  Nenhum grupo selecionado. O anexo fotográfico não será incluído no PDF.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── Certificate document ─── */}
       <div
         id="certificate-document"
         className="bg-white text-gray-900 border border-gray-300 shadow-lg rounded-sm p-10 font-sans text-sm leading-relaxed"
         data-testid="certificate-document"
       >
+        {/* Header */}
         <div className="flex items-start justify-between border-b-2 border-gray-800 pb-4 mb-6">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Alphafitus Laboratorio Nutraceutico</p>
@@ -331,6 +407,7 @@ export default function CertificatePage() {
           </div>
         </div>
 
+        {/* Company / product info */}
         <div className="grid grid-cols-2 gap-6 mb-6 text-sm">
           <div className="space-y-2">
             <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1">Dados do Produto</h2>
@@ -339,7 +416,6 @@ export default function CertificatePage() {
               <div className="flex gap-2"><dt className="text-gray-500 min-w-20">CNPJ:</dt><dd className="font-medium">{cert.cnpj}</dd></div>
               {(cert as any).ie && <div className="flex gap-2"><dt className="text-gray-500 min-w-20">IE:</dt><dd>{(cert as any).ie}</dd></div>}
               {cert.address && <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Endereço:</dt><dd>{cert.address}</dd></div>}
-              {(cert as any).cep && <div className="flex gap-2"><dt className="text-gray-500 min-w-20">CEP:</dt><dd>{(cert as any).cep}</dd></div>}
               {cert.email && <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Email:</dt><dd>{cert.email}</dd></div>}
             </dl>
           </div>
@@ -359,29 +435,26 @@ export default function CertificatePage() {
           </div>
         </div>
 
+        {/* Condições Ambientais */}
         {show.condicoesAmbientais && (
           <div className="mb-6 border border-gray-200 rounded p-3 bg-gray-50 text-xs space-y-2">
             <p className="font-bold uppercase tracking-widest text-gray-500">Condições Ambientais</p>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-gray-500">Amostragem — Temperatura:</span>
-                  <CertEditField value={tempAmostragem} onChange={setTempAmostragem} className="w-20 text-xs" />
-                  <span className="text-gray-500 ml-2">Umidade:</span>
-                  <CertEditField value={umidAmostragem} onChange={setUmidAmostragem} className="w-20 text-xs" />
-                </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-gray-500">Amostragem — Temp.:</span>
+                <CertEditField value={tempAmostragem} onChange={setTempAmostragem} className="w-20 text-xs" />
+                <span className="text-gray-500 ml-2">Umid.:</span>
+                <CertEditField value={umidAmostragem} onChange={setUmidAmostragem} className="w-20 text-xs" />
               </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-gray-500">Recebimento da amostra — Temperatura:</span>
-                  <CertEditField value={tempRecebimento} onChange={setTempRecebimento} className="w-20 text-xs" />
-                </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-gray-500">Recebimento — Temp.:</span>
+                <CertEditField value={tempRecebimento} onChange={setTempRecebimento} className="w-20 text-xs" />
               </div>
             </div>
           </div>
         )}
 
-        {/* Analysis table grouped by category */}
+        {/* Analysis table */}
         <div className="mb-6">
           <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1 mb-3">Resultados de Analise</h2>
           <table className="w-full text-xs border-collapse">
@@ -399,77 +472,49 @@ export default function CertificatePage() {
             </thead>
             <tbody>
               {categories.map((cat) => {
-                const catRows = rows
-                  .map((r, originalIndex) => ({ ...r, originalIndex }))
-                  .filter(r => r.category === cat);
+                const catRows = rows.map((r, originalIndex) => ({ ...r, originalIndex })).filter(r => r.category === cat);
                 if (catRows.length === 0) return null;
                 const allCatHidden = catRows.every(r => !r.visible);
                 return (
                   <>
-                    {/* Category header row */}
                     <tr key={`cat-${cat}`} className={allCatHidden ? "print:hidden" : ""}>
-                      <td
-                        colSpan={6}
-                        className="border border-gray-300 px-2 py-1 bg-gray-200 font-bold text-[10px] uppercase tracking-widest text-gray-600"
-                      >
+                      <td colSpan={6} className="border border-gray-300 px-2 py-1 bg-gray-200 font-bold text-[10px] uppercase tracking-widest text-gray-600">
                         {CATEGORY_LABELS[cat] ?? cat}
                       </td>
                     </tr>
                     {catRows.map((analysis, ci) => (
                       <tr
                         key={`${cat}-${ci}`}
-                        className={[
-                          ci % 2 === 0 ? "" : "bg-gray-50",
-                          !analysis.visible ? "opacity-30 print:hidden" : "",
-                        ].join(" ")}
-                        data-testid={`row-analysis-${analysis.originalIndex}`}
+                        className={[ci % 2 === 0 ? "" : "bg-gray-50", !analysis.visible ? "opacity-30 print:hidden" : ""].join(" ")}
                       >
                         <td className="border border-gray-300 px-2 py-1.5 font-medium align-top">{analysis.parameter}</td>
                         <td className="border border-gray-300 px-2 py-1.5 text-gray-600 align-top">
-                          <CertEditField
-                            value={analysis.method}
-                            onChange={v => updateAnalysis(analysis.originalIndex, "method", v)}
-                            multiline
-                            className="text-xs leading-snug"
-                          />
+                          <CertEditField value={analysis.method} onChange={v => updateAnalysis(analysis.originalIndex, "method", v)} multiline className="text-xs leading-snug" />
                         </td>
                         <td className="border border-gray-300 px-2 py-1.5 font-mono align-top">
-                          <CertEditField
-                            value={analysis.specification}
-                            onChange={v => updateAnalysis(analysis.originalIndex, "specification", v)}
-                            className="text-xs w-full font-mono"
-                          />
+                          <CertEditField value={analysis.specification} onChange={v => updateAnalysis(analysis.originalIndex, "specification", v)} className="text-xs w-full font-mono" />
                         </td>
                         <td className="border border-gray-300 px-2 py-1.5 text-center font-mono font-medium align-top">
-                          <CertEditField
-                            value={analysis.result}
-                            onChange={v => updateAnalysis(analysis.originalIndex, "result", v)}
-                            className="text-xs text-center w-16 font-mono"
-                          />
+                          <CertEditField value={analysis.result} onChange={v => updateAnalysis(analysis.originalIndex, "result", v)} className="text-xs text-center w-16 font-mono" />
                         </td>
                         <td className="border border-gray-300 px-2 py-1.5 text-center align-top">
-                          <span className={`font-semibold ${analysis.status === "Conforme" ? "text-green-700" : analysis.status === "Nao Conforme" ? "text-red-700" : analysis.status === "Aprovado com Ressalva" ? "text-amber-700" : "text-gray-500"}`}>
+                          <span className={`font-semibold text-xs ${
+                            analysis.status === "Conforme" ? "text-green-700"
+                            : analysis.status === "Nao Conforme" ? "text-red-700"
+                            : analysis.status === "Aprovado com Ressalva" ? "text-amber-700"
+                            : "text-gray-500"
+                          }`}>
                             {analysis.status}
                           </span>
                         </td>
                         <td className="border border-gray-300 px-2 py-1.5 text-center align-middle print:hidden">
-                          <input
-                            type="checkbox"
-                            checked={analysis.visible}
-                            onChange={() => toggleRowVisibility(analysis.originalIndex)}
-                            title={analysis.visible ? "Ocultar na impressão" : "Incluir na impressão"}
-                            className="w-4 h-4 accent-primary cursor-pointer"
-                          />
+                          <input type="checkbox" checked={analysis.visible} onChange={() => toggleRowVisibility(analysis.originalIndex)} className="w-4 h-4 accent-primary cursor-pointer" />
                         </td>
                       </tr>
                     ))}
-                    {/* EMBALAGEM footnote after the last embalagem row */}
                     {cat === "embalagem" && !allCatHidden && (
                       <tr key="embalagem-note">
-                        <td
-                          colSpan={6}
-                          className="border border-gray-300 px-2 py-1.5 bg-amber-50 text-[10px] text-amber-800 italic"
-                        >
+                        <td colSpan={6} className="border border-gray-300 px-2 py-1.5 bg-amber-50 text-[10px] text-amber-800 italic">
                           * Os resultados de embalagem representam a média dos ensaios realizados ao longo dos 6 meses de estudo de estabilidade (T0, T3 e T6).
                         </td>
                       </tr>
@@ -489,11 +534,11 @@ export default function CertificatePage() {
         )}
 
         {show.infoAdicionais && (
-          <div className="mb-6 border border-gray-200 rounded p-3 bg-gray-50">
-            <p className="text-xs text-gray-500 mb-1">Informacoes Adicionais</p>
-            <p className="text-xs">Este documento deve ser reproduzido integralmente. A reproducao parcial somente e permitida mediante autorizacao formal e escrita do laboratorio.</p>
-            <p className="text-xs mt-1">Os resultados apresentados referem-se exclusivamente as amostras recebidas e foram obtidos e reportados de acordo com as condicoes analiticas estabelecidas e metodologias aplicaveis.</p>
-            <p className="text-xs mt-1"><strong>NA</strong> = Nao se aplica &nbsp;&nbsp;<strong>ND</strong> = Nao detectado &nbsp;&nbsp;<strong>LQ</strong> = Limite de quantificacao</p>
+          <div className="mb-6 border border-gray-200 rounded p-3 bg-gray-50 text-xs space-y-1">
+            <p className="text-gray-500 font-semibold">Informacoes Adicionais</p>
+            <p>Este documento deve ser reproduzido integralmente. A reproducao parcial somente e permitida mediante autorizacao formal e escrita do laboratorio.</p>
+            <p>Os resultados apresentados referem-se exclusivamente as amostras recebidas e foram obtidos e reportados de acordo com as condicoes analiticas estabelecidas e metodologias aplicaveis.</p>
+            <p><strong>NA</strong> = Nao se aplica &nbsp;&nbsp;<strong>ND</strong> = Nao detectado &nbsp;&nbsp;<strong>LQ</strong> = Limite de quantificacao</p>
           </div>
         )}
 
@@ -516,34 +561,15 @@ export default function CertificatePage() {
             </div>
             <span className="font-medium">REPROVADO</span>
           </div>
-          {cert.issueDate && (
-            <span className="ml-auto text-gray-500 text-xs">DATA: {cert.issueDate}</span>
-          )}
+          {cert.issueDate && <span className="ml-auto text-gray-500 text-xs">DATA: {cert.issueDate}</span>}
         </div>
 
         {show.fundamentacaoCinetica && (
           <div className="mb-6 rounded border border-gray-200 bg-gray-50 p-4 text-xs text-gray-700 space-y-3">
             <p className="font-semibold text-gray-800 uppercase tracking-wide">Fundamentação do Modelo Cinético</p>
-            <p className="leading-relaxed">Para a estimativa do tempo de validade do produto, foi empregado o modelo cinético de degradação de primeira ordem, amplamente descrito na literatura para substâncias bioativas submetidas à avaliação de estabilidade sob condições de estresse controlado, como temperatura e umidade. A modelagem foi conduzida a partir da equação geral de primeira ordem:</p>
-            <p className="font-mono bg-white border border-gray-200 rounded px-3 py-1.5 inline-block">
-              C<sub>t</sub> = C<sub>0</sub> · e<sup>−kt</sup>
-            </p>
-            <div className="pl-3 border-l-2 border-gray-300 space-y-0.5 leading-relaxed">
-              <p>C<sub>t</sub> = concentração do ativo no tempo <em>t</em></p>
-              <p>C<sub>0</sub> = concentração inicial do ativo</p>
-              <p><em>k</em> = constante de velocidade de degradação</p>
-              <p><em>t</em> = tempo de armazenamento</p>
-            </div>
-            <p className="leading-relaxed">A constante de degradação (<em>k</em>) é dependente da temperatura e pode ser descrita matematicamente pela equação de Arrhenius:</p>
-            <p className="font-mono bg-white border border-gray-200 rounded px-3 py-1.5 inline-block">
-              k = A · e<sup>−E<sub>a</sub>/RT</sup>
-            </p>
-            <div className="pl-3 border-l-2 border-gray-300 space-y-0.5 leading-relaxed">
-              <p>A = fator pré-exponencial</p>
-              <p>E<sub>a</sub> = energia de ativação</p>
-              <p>R = constante universal dos gases</p>
-              <p>T = temperatura absoluta (Kelvin)</p>
-            </div>
+            <p className="leading-relaxed">Para a estimativa do tempo de validade do produto, foi empregado o modelo cinético de degradação de primeira ordem, amplamente descrito na literatura para substâncias bioativas submetidas à avaliação de estabilidade sob condições de estresse controlado, como temperatura e umidade.</p>
+            <p className="font-mono bg-white border border-gray-200 rounded px-3 py-1.5 inline-block">C<sub>t</sub> = C<sub>0</sub> · e<sup>−kt</sup></p>
+            <p className="font-mono bg-white border border-gray-200 rounded px-3 py-1.5 inline-block ml-4">k = A · e<sup>−E<sub>a</sub>/RT</sup></p>
           </div>
         )}
 
@@ -569,56 +595,105 @@ export default function CertificatePage() {
           )}
         </div>
 
-        {/* Photo appendix */}
-        {show.registrosFotograficos && Object.keys(photosByParam).length > 0 && (
-          <div className="mt-8 pt-6 border-t-2 border-gray-800">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 text-center mb-6">
-              ANEXO — REGISTROS FOTOGRÁFICOS DOS ENSAIOS
-            </p>
-            {Object.entries(photosByParam).map(([param, entries]) => (
-              <div key={param} className="mb-8 break-inside-avoid">
-                <p className="text-xs font-bold text-gray-700 border-b border-gray-300 pb-1 mb-3 uppercase tracking-wide">
-                  Parâmetro: {param}
-                </p>
-                <div className="space-y-4">
-                  {entries.map((entry, ei) => (
-                    <div key={ei}>
-                      <p className="text-xs text-gray-500 mb-2">
-                        Lote: <span className="font-semibold text-gray-700">{entry.lotNumber}</span>
-                        &nbsp;·&nbsp;
-                        Período: <span className="font-semibold text-gray-700">T{entry.period}</span>
-                      </p>
-                      <div className="flex flex-wrap gap-3">
-                        {entry.images.map((img, ii) => (
-                          <div key={ii} className="border border-gray-200 rounded overflow-hidden">
-                            <img
-                              src={img}
-                              alt={`${param} — Lote ${entry.lotNumber} — T${entry.period} — imagem ${ii + 1}`}
-                              className="w-40 h-40 object-cover block"
-                            />
-                            <p className="text-[9px] text-center text-gray-400 py-0.5 bg-gray-50">
-                              Img {ii + 1}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+        {/* ═══════════════════════════════════════════════════════
+            PHOTO APPENDIX — prints on its own page(s)
+        ═══════════════════════════════════════════════════════ */}
+        {includePhotos && visiblePhotoEntries.length > 0 && (
+          <div className="photo-appendix-section">
+            {/* Page-break header */}
+            <div className="photo-appendix-header pt-8 border-t-2 border-gray-800 mt-8">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Alphafitus Laboratorio Nutraceutico</p>
+                  <h2 className="text-lg font-bold uppercase tracking-wide mt-0.5">Anexo — Registros Fotográficos dos Ensaios</h2>
+                </div>
+                <div className="text-right text-xs text-gray-500">
+                  <p>{cert.productName}</p>
+                  <p className="font-semibold">{cert.certNumber}</p>
+                  <p>{cert.issueDate}</p>
                 </div>
               </div>
-            ))}
+              <p className="text-xs text-gray-500 border-b border-gray-300 pb-3 mb-4">
+                Este anexo apresenta os registros fotográficos obtidos durante a execução dos ensaios de estabilidade. As imagens estão organizadas por parâmetro analítico, lote piloto e período de avaliação.
+              </p>
+            </div>
+
+            {/* Photo groups */}
+            {(() => {
+              const grouped: Record<string, PhotoEntry[]> = {};
+              for (const e of visiblePhotoEntries) {
+                const groupKey = `${e.category}||${e.parameter}`;
+                (grouped[groupKey] ??= []).push(e);
+              }
+              let imgCounter = 0;
+              return Object.entries(grouped).map(([groupKey, entries]) => {
+                const [catKey, param] = groupKey.split("||");
+                const catLabel = CATEGORY_LABELS[catKey] ?? catKey;
+                return (
+                  <div key={groupKey} className="photo-param-group mb-8">
+                    {/* Group header */}
+                    <div className="flex items-baseline gap-3 mb-3 pb-1.5 border-b-2 border-gray-700">
+                      <h3 className="text-sm font-bold uppercase tracking-wide text-gray-800">{param}</h3>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-gray-200 text-gray-600 font-semibold uppercase tracking-wide border border-gray-300">
+                        {catLabel}
+                      </span>
+                    </div>
+                    {entries.map((entry, ei) => (
+                      <div key={ei} className="mb-5">
+                        {/* Sub-header per lot × period */}
+                        <p className="text-xs font-semibold text-gray-600 mb-2 bg-gray-100 px-2 py-1 rounded border border-gray-200 inline-flex items-center gap-3">
+                          <span>Lote: <strong className="text-gray-800">{entry.lotNumber}</strong></span>
+                          <span>·</span>
+                          <span>Período: <strong className="text-gray-800">T{entry.period}</strong></span>
+                          <span>·</span>
+                          <span>{entry.images.length} imagem(ns)</span>
+                        </p>
+                        {/* Photo grid */}
+                        <div className="photo-grid flex flex-wrap gap-4 mt-2">
+                          {entry.images.map((img, ii) => {
+                            imgCounter += 1;
+                            const figNum = imgCounter;
+                            return (
+                              <figure key={ii} className="photo-figure flex flex-col items-center">
+                                <div className="border-2 border-gray-300 rounded overflow-hidden shadow-sm">
+                                  <img
+                                    src={img}
+                                    alt={`${param} — Lote ${entry.lotNumber} — T${entry.period} — Imagem ${ii + 1}`}
+                                    className="photo-img block object-cover"
+                                    style={{ width: 200, height: 200 }}
+                                  />
+                                </div>
+                                <figcaption className="mt-1 text-center max-w-52">
+                                  <p className="text-[10px] font-bold text-gray-700">Fig. {figNum}</p>
+                                  <p className="text-[9px] text-gray-500 leading-tight">
+                                    {param} · Lote {entry.lotNumber} · T{entry.period}
+                                  </p>
+                                  <p className="text-[9px] text-gray-400">{catLabel}</p>
+                                </figcaption>
+                              </figure>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              });
+            })()}
+
+            {/* Appendix footer */}
+            <div className="pt-4 border-t border-gray-300 mt-6">
+              <p className="text-[9px] text-gray-400 text-center">
+                Fim do Anexo Fotográfico — {totalSelectedImages} imagem(ns) referentes a {visiblePhotoEntries.length} ensaio(s) — {cert.certNumber} — {cert.issueDate}
+              </p>
+            </div>
           </div>
         )}
 
-        {show.registrosFotograficos && allPhotoEntries.length > 0 && Object.keys(photosByParam).length === 0 && (
-          <div className="mt-8 pt-6 border-t-2 border-gray-300 text-center text-xs text-gray-400">
-            Nenhuma imagem selecionada para o anexo.
-          </div>
-        )}
-
-        {show.registrosFotograficos && allPhotoEntries.length === 0 && (
-          <div className="mt-8 pt-6 border-t-2 border-gray-300 text-center text-xs text-gray-400">
-            Nenhuma imagem anexada para este protocolo.
+        {/* Placeholder in document when photos exist but panel was found above */}
+        {includePhotos && allPhotoEntries.length > 0 && visiblePhotoEntries.length === 0 && (
+          <div className="mt-8 pt-4 border-t border-dashed border-gray-300 text-center text-xs text-gray-400 print:hidden">
+            Nenhuma imagem selecionada no painel acima. O anexo fotográfico não será incluído no PDF.
           </div>
         )}
       </div>
@@ -626,11 +701,51 @@ export default function CertificatePage() {
       <style>{`
         @media print {
           body * { visibility: hidden; }
-          #certificate-document, #certificate-document * { visibility: visible; }
-          #certificate-document { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border: none; padding: 20px; }
+          #certificate-document,
+          #certificate-document * { visibility: visible; }
+          #certificate-document {
+            position: absolute; left: 0; top: 0;
+            width: 100%; box-shadow: none; border: none;
+            padding: 15mm 20mm;
+            font-size: 10pt;
+          }
           input, textarea { border: none !important; background: transparent !important; }
-          img { max-width: 100%; break-inside: avoid; }
-          .break-inside-avoid { break-inside: avoid; }
+
+          /* Photo appendix always starts on a fresh page */
+          .photo-appendix-section {
+            page-break-before: always;
+            break-before: page;
+          }
+          .photo-appendix-header { page-break-inside: avoid; break-inside: avoid; }
+
+          /* Each parameter group tries to stay together */
+          .photo-param-group {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          /* Each photo figure stays together */
+          .photo-figure {
+            page-break-inside: avoid;
+            break-inside: avoid;
+            display: inline-flex !important;
+            flex-direction: column;
+            align-items: center;
+          }
+
+          /* Photo grid wraps naturally */
+          .photo-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+          }
+
+          /* Fixed image size for print */
+          .photo-img {
+            width: 180px !important;
+            height: 180px !important;
+            object-fit: cover;
+          }
         }
       `}</style>
     </div>
