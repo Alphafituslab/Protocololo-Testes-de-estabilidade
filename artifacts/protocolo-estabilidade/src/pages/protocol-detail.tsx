@@ -114,6 +114,14 @@ const finalizeSchema = z.object({
   validityMonths: z.coerce.number().optional(),
   issueDate: z.string().optional(),
   ressalva: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.finalStatus === "aprovado_com_ressalva" && (!data.ressalva || data.ressalva.trim().length < 10)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Obrigatorio descrever a ressalva (minimo 10 caracteres) para aprovar com ressalva.",
+      path: ["ressalva"],
+    });
+  }
 });
 
 function InfoField({ label, value }: { label: string; value?: string | null }) {
@@ -524,6 +532,7 @@ function InlineCell({
   const [status, setStatus] = useState<"conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva">(
     (result?.status as "conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva") ?? "conforme"
   );
+  const [observation, setObservation] = useState(result?.observation ?? "");
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -543,6 +552,10 @@ function InlineCell({
 
   const save = () => {
     if (!value.trim()) { setEditing(false); return; }
+    if (status === "aprovado_com_ressalva" && !observation.trim()) {
+      toast({ title: "Justificativa obrigatória", description: "Descreva o motivo para liberar com ressalva antes de salvar.", variant: "destructive" });
+      return;
+    }
     upsertResult.mutate({
       id: protocolId,
       data: {
@@ -555,6 +568,7 @@ function InlineCell({
         result: value,
         numericResult: parseFloat(value.replace(",", ".")) || undefined,
         status,
+        observation: observation.trim() || undefined,
       },
     });
   };
@@ -562,6 +576,7 @@ function InlineCell({
   const open = () => {
     setValue(result?.result ?? "");
     setStatus((result?.status as "conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva") ?? "conforme");
+    setObservation(result?.observation ?? "");
     setEditing(true);
   };
 
@@ -614,6 +629,25 @@ function InlineCell({
             </button>
           ))}
         </div>
+        {status === "aprovado_com_ressalva" && (
+          <div className="flex flex-col gap-0.5">
+            <label className="text-[9px] font-semibold text-amber-700 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+              Justificativa de liberação <span className="text-red-600">*</span>
+            </label>
+            <textarea
+              autoFocus
+              value={observation}
+              onChange={e => setObservation(e.target.value)}
+              rows={2}
+              className="w-full border border-amber-400 rounded px-1.5 py-0.5 text-[9px] focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none"
+              placeholder="Descreva o motivo para liberar com ressalva…"
+            />
+            {!observation.trim() && (
+              <p className="text-[9px] text-red-600">Campo obrigatório para liberar com ressalva.</p>
+            )}
+          </div>
+        )}
         <div className="flex gap-0.5 justify-center">
           <button
             onClick={save}
@@ -1772,18 +1806,22 @@ function FinalizeSection({
                 <FormItem>
                   <FormLabel className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-                    Texto da Ressalva
+                    Justificativa da Ressalva
+                    <span className="text-destructive ml-0.5">*</span>
+                    <span className="text-xs font-normal text-muted-foreground">(obrigatório)</span>
                   </FormLabel>
                   <FormControl>
                     <Textarea
-                      rows={3}
+                      rows={4}
                       data-testid="input-ressalva"
-                      placeholder="Descreva a ressalva encontrada. Este texto ficará salvo para fins de auditoria e NÃO será exibido no certificado."
-                      className="border-amber-300 focus-visible:ring-amber-400"
+                      placeholder="Descreva detalhadamente o motivo pelo qual o protocolo está sendo aprovado com ressalva, indicando quais parâmetros apresentaram desvio e a justificativa técnica para a liberação. Mínimo 10 caracteres."
+                      className="border-amber-400 focus-visible:ring-amber-400 bg-amber-50/50"
                       {...field}
                     />
                   </FormControl>
-                  <p className="text-xs text-muted-foreground">Salvo para auditoria — não aparece no certificado.</p>
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                    Este texto fica registrado para fins de auditoria e rastreabilidade — <strong>não aparece no certificado</strong>.
+                  </p>
                   <FormMessage />
                 </FormItem>
               )} />
