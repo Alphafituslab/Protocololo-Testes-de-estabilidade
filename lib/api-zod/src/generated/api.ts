@@ -691,3 +691,36 @@ export const FinalizeProtocolResponse = zod.object({
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
+
+/**
+ * @summary List all saved methodology references
+ */
+export const ListMethodologiesResponseItem = zod.object({
+  id: zod.number(),
+  shortName: zod.string().describe("Nome curto de exibicao (ex: JP 18, FB 7)"),
+  citation: zod.string().describe("Citacao bibliografica completa"),
+  category: zod
+    .string()
+    .nullish()
+    .describe("Categoria opcional (ex: Fisico-Quimica, Microbiologica)"),
+  createdAt: zod.string(),
+});
+export const ListMethodologiesResponse = zod.array(
+  ListMethodologiesResponseItem,
+);
+
+/**
+ * @summary Save a new methodology reference
+ */
+export const CreateMethodologyBody = zod.object({
+  shortName: zod.string(),
+  citation: zod.string(),
+  category: zod.string().nullish(),
+});
+
+/**
+ * @summary Delete a methodology reference
+ */
+export const DeleteMethodologyParams = zod.object({
+  id: zod.coerce.number(),
+});

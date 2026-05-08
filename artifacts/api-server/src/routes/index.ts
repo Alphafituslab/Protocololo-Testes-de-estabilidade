@@ -6,6 +6,7 @@ import resultsRouter from "./results";
 import kineticsRouter from "./kinetics";
 import certificatesRouter from "./certificates";
 import authRouter from "./auth";
+import methodologiesRouter from "./methodologies";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(lotsRouter);
 router.use(resultsRouter);
 router.use(kineticsRouter);
 router.use(certificatesRouter);
+router.use(methodologiesRouter);
 
 export default router;

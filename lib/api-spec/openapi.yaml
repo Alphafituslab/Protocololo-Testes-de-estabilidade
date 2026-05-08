@@ -17,6 +17,8 @@ tags:
     description: Analysis results
   - name: certificates
     description: Certificate of analysis
+  - name: methodologies
+    description: Methodology reference library
 paths:
   /healthz:
     get:
@@ -361,6 +363,59 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Protocol"
+
+  /methodologies:
+    get:
+      operationId: listMethodologies
+      tags: [methodologies]
+      summary: List all saved methodology references
+      responses:
+        "200":
+          description: List of methodologies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Methodology"
+    post:
+      operationId: createMethodology
+      tags: [methodologies]
+      summary: Save a new methodology reference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMethodologyBody"
+      responses:
+        "201":
+          description: Methodology created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Methodology"
+
+  /methodologies/{id}:
+    delete:
+      operationId: deleteMethodology
+      tags: [methodologies]
+      summary: Delete a methodology reference
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
 components:
   schemas:
@@ -919,6 +974,43 @@ components:
         - specification
         - result
         - status
+
+    Methodology:
+      type: object
+      properties:
+        id:
+          type: integer
+        shortName:
+          type: string
+          description: 'Nome curto de exibicao (ex: JP 18, FB 7)'
+        citation:
+          type: string
+          description: Citacao bibliografica completa
+        category:
+          type: string
+          nullable: true
+          description: 'Categoria opcional (ex: Fisico-Quimica, Microbiologica)'
+        createdAt:
+          type: string
+      required:
+        - id
+        - shortName
+        - citation
+        - createdAt
+
+    CreateMethodologyBody:
+      type: object
+      properties:
+        shortName:
+          type: string
+        citation:
+          type: string
+        category:
+          type: string
+          nullable: true
+      required:
+        - shortName
+        - citation
 
     FinalizeProtocolBody:
       type: object

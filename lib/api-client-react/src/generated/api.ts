@@ -20,6 +20,7 @@ import type {
   AnalysisResult,
   Certificate,
   CreateLotBody,
+  CreateMethodologyBody,
   CreateProtocolBody,
   ErrorResponse,
   FinalizeProtocolBody,
@@ -27,6 +28,7 @@ import type {
   KineticsResult,
   ListProtocolsParams,
   Lot,
+  Methodology,
   Protocol,
   ProtocolDetail,
   ProtocolStats,
@@ -1494,4 +1496,249 @@ export const useFinalizeProtocol = <
   TContext
 > => {
   return useMutation(getFinalizeProtocolMutationOptions(options));
+};
+
+/**
+ * @summary List all saved methodology references
+ */
+export const getListMethodologiesUrl = () => {
+  return `/api/methodologies`;
+};
+
+export const listMethodologies = async (
+  options?: RequestInit,
+): Promise<Methodology[]> => {
+  return customFetch<Methodology[]>(getListMethodologiesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListMethodologiesQueryKey = () => {
+  return [`/api/methodologies`] as const;
+};
+
+export const getListMethodologiesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMethodologies>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMethodologies>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMethodologiesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listMethodologies>>
+  > = ({ signal }) => listMethodologies({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMethodologies>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListMethodologiesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMethodologies>>
+>;
+export type ListMethodologiesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all saved methodology references
+ */
+
+export function useListMethodologies<
+  TData = Awaited<ReturnType<typeof listMethodologies>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMethodologies>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListMethodologiesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Save a new methodology reference
+ */
+export const getCreateMethodologyUrl = () => {
+  return `/api/methodologies`;
+};
+
+export const createMethodology = async (
+  createMethodologyBody: CreateMethodologyBody,
+  options?: RequestInit,
+): Promise<Methodology> => {
+  return customFetch<Methodology>(getCreateMethodologyUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createMethodologyBody),
+  });
+};
+
+export const getCreateMethodologyMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createMethodology>>,
+    TError,
+    { data: BodyType<CreateMethodologyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createMethodology>>,
+  TError,
+  { data: BodyType<CreateMethodologyBody> },
+  TContext
+> => {
+  const mutationKey = ["createMethodology"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createMethodology>>,
+    { data: BodyType<CreateMethodologyBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createMethodology(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateMethodologyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createMethodology>>
+>;
+export type CreateMethodologyMutationBody = BodyType<CreateMethodologyBody>;
+export type CreateMethodologyMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Save a new methodology reference
+ */
+export const useCreateMethodology = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createMethodology>>,
+    TError,
+    { data: BodyType<CreateMethodologyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createMethodology>>,
+  TError,
+  { data: BodyType<CreateMethodologyBody> },
+  TContext
+> => {
+  return useMutation(getCreateMethodologyMutationOptions(options));
+};
+
+/**
+ * @summary Delete a methodology reference
+ */
+export const getDeleteMethodologyUrl = (id: number) => {
+  return `/api/methodologies/${id}`;
+};
+
+export const deleteMethodology = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteMethodologyUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteMethodologyMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteMethodology>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteMethodology>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteMethodology"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteMethodology>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteMethodology(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteMethodologyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteMethodology>>
+>;
+
+export type DeleteMethodologyMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a methodology reference
+ */
+export const useDeleteMethodology = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteMethodology>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteMethodology>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteMethodologyMutationOptions(options));
 };

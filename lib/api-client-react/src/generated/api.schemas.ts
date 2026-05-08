@@ -314,6 +314,23 @@ export interface Certificate {
   notes?: string | null;
 }
 
+export interface Methodology {
+  id: number;
+  /** Nome curto de exibicao (ex: JP 18, FB 7) */
+  shortName: string;
+  /** Citacao bibliografica completa */
+  citation: string;
+  /** Categoria opcional (ex: Fisico-Quimica, Microbiologica) */
+  category?: string | null;
+  createdAt: string;
+}
+
+export interface CreateMethodologyBody {
+  shortName: string;
+  citation: string;
+  category?: string | null;
+}
+
 export type FinalizeProtocolBodyFinalStatus =
   (typeof FinalizeProtocolBodyFinalStatus)[keyof typeof FinalizeProtocolBodyFinalStatus];
 

@@ -26,6 +26,10 @@ import {
   getGetCertificateQueryKey,
   getListProtocolsQueryKey,
   getGetProtocolStatsQueryKey,
+  useListMethodologies,
+  useCreateMethodology,
+  useDeleteMethodology,
+  getListMethodologiesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1231,6 +1235,158 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   );
 }
 
+function MethodologiaTab() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { data: methodologies = [], isLoading } = useListMethodologies();
+
+  const [open, setOpen] = useState(false);
+  const [shortName, setShortName] = useState("");
+  const [citation, setCitation] = useState("");
+  const [category, setCategory] = useState("");
+
+  const createMutation = useCreateMethodology({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListMethodologiesQueryKey() });
+        setOpen(false);
+        setShortName("");
+        setCitation("");
+        setCategory("");
+        toast({ title: "Metodologia salva" });
+      },
+      onError: () => toast({ title: "Erro ao salvar", variant: "destructive" }),
+    },
+  });
+
+  const deleteMutation = useDeleteMethodology({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListMethodologiesQueryKey() });
+        toast({ title: "Metodologia removida" });
+      },
+      onError: () => toast({ title: "Erro ao remover", variant: "destructive" }),
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shortName.trim() || !citation.trim()) return;
+    createMutation.mutate({
+      data: {
+        shortName: shortName.trim(),
+        citation: citation.trim(),
+        category: category.trim() || null,
+      },
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold">Biblioteca de Metodologias</h3>
+          <p className="text-sm text-muted-foreground">
+            Referências bibliográficas usadas nos ensaios (ex: Farmacopeia Brasileira, AOAC, ISO).
+          </p>
+        </div>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Nova Referência</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Adicionar Referência Metodológica</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Nome curto *</label>
+                <Input
+                  placeholder='ex: FB 7ª ed., JP 18ª ed., AOAC 2019'
+                  value={shortName}
+                  onChange={(e) => setShortName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Citação completa *</label>
+                <Textarea
+                  placeholder='ex: BRASIL. Agência Nacional de Vigilância Sanitária. Farmacopeia Brasileira, 7ª edição. Brasília: ANVISA, 2019.'
+                  value={citation}
+                  onChange={(e) => setCitation(e.target.value)}
+                  rows={3}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Categoria (opcional)</label>
+                <Input
+                  placeholder='ex: Fisico-Quimica, Microbiologica, Teor do Ativo'
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button type="submit" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                  Salvar
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+          <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
+        </div>
+      ) : methodologies.length === 0 ? (
+        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+          Nenhuma referência cadastrada. Clique em "Nova Referência" para começar.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {methodologies.map((m) => (
+            <div
+              key={m.id}
+              className="flex items-start gap-3 rounded-lg border bg-muted/30 px-4 py-3"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-sm">{m.shortName}</span>
+                  {m.category && (
+                    <Badge variant="outline" className="text-xs">{m.category}</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5 break-words">{m.citation}</p>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0 text-destructive hover:text-destructive">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remover referência?</AlertDialogTitle>
+                    <AlertDialogDescription>"{m.shortName}" será removida permanentemente.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => deleteMutation.mutate({ id: m.id })}>Remover</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FinalizeSection({
   protocolId,
   status,
@@ -1575,6 +1731,7 @@ export default function ProtocolDetail() {
           <TabsTrigger value="lots" data-testid="tab-lots">Lotes</TabsTrigger>
           <TabsTrigger value="results" data-testid="tab-results">Resultados</TabsTrigger>
           <TabsTrigger value="kinetics" data-testid="tab-kinetics">Cinetica</TabsTrigger>
+          <TabsTrigger value="metodologia" data-testid="tab-metodologia">Metodologia</TabsTrigger>
         </TabsList>
         <TabsContent value="info">
           <Card>
@@ -1606,6 +1763,13 @@ export default function ProtocolDetail() {
                 initialKineticsNotes={protocol.kineticsNotes}
                 initialValidityMonths={protocol.validityMonths}
               />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="metodologia">
+          <Card>
+            <CardContent className="pt-6">
+              <MethodologiaTab />
             </CardContent>
           </Card>
         </TabsContent>
