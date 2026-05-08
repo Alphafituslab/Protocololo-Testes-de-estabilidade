@@ -159,6 +159,9 @@ export default function CertificatePage() {
   });
 
   const [includePhotos, setIncludePhotos] = useState(true);
+  const [photosExpanded, setPhotosExpanded] = useState(false);
+  const [includeHistory, setIncludeHistory] = useState(true);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
 
   // Environmental conditions — persisted in localStorage so edits survive navigation
   const ENV_KEY = `cert_env_${id}`;
@@ -412,19 +415,34 @@ export default function CertificatePage() {
         </div>
       )}
 
-      {/* ─── PHOTO SELECTION PANEL — always visible when photos exist ─── */}
+      {/* ─── PHOTO SELECTION PANEL — collapsible ─── */}
       {allPhotoEntries.length > 0 && (
         <div className="print:hidden rounded-lg border-2 border-blue-200 bg-blue-50 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 bg-blue-100 border-b border-blue-200">
+          <button
+            type="button"
+            onClick={() => setPhotosExpanded(v => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-blue-100 border-b border-blue-200 hover:bg-blue-200 transition-colors text-left"
+          >
             <div className="flex items-center gap-2">
               <ImageIcon className="h-5 w-5 text-blue-600" />
               <span className="font-semibold text-blue-900 text-sm">Registros Fotográficos — Anexo de Impressão</span>
               <span className="text-xs text-blue-600 bg-white border border-blue-200 rounded-full px-2 py-0.5 font-semibold">
                 {allPhotoEntries.length} grupo(s) · {allPhotoEntries.reduce((s, e) => s + e.images.length, 0)} foto(s) no total
               </span>
+              {!photosExpanded && (
+                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${includePhotos ? "bg-green-50 border-green-300 text-green-700" : "bg-gray-100 border-gray-300 text-gray-500"}`}>
+                  {includePhotos ? "✓ Incluído na impressão" : "✗ Não incluído"}
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
+            <div className="flex items-center gap-2 shrink-0">
+              {photosExpanded ? <ChevronUp className="h-4 w-4 text-blue-600" /> : <ChevronDown className="h-4 w-4 text-blue-600" />}
+            </div>
+          </button>
+
+          {photosExpanded && (
+            <div className="px-4 py-3 border-b border-blue-200 bg-blue-50">
+              <label className="flex items-center gap-2 cursor-pointer select-none" onClick={e => e.stopPropagation()}>
                 <input
                   type="checkbox"
                   checked={includePhotos}
@@ -432,16 +450,16 @@ export default function CertificatePage() {
                   className="w-4 h-4 accent-blue-600"
                 />
                 <span className="text-sm font-semibold text-blue-800">
-                  Incluir no PDF
+                  Incluir no PDF / Impressão
                   {includePhotos && selectedCount > 0 && (
                     <span className="ml-1 text-blue-600">({selectedCount} grupo(s) · {totalSelectedImages} foto(s))</span>
                   )}
                 </span>
               </label>
             </div>
-          </div>
+          )}
 
-          {includePhotos && (
+          {photosExpanded && includePhotos && (
             <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-xs text-blue-700">Selecione quais grupos incluir no anexo impresso:</p>
@@ -517,6 +535,51 @@ export default function CertificatePage() {
           )}
         </div>
       )}
+
+      {/* ─── HISTORY PANEL — collapsible ─── */}
+      <div className="print:hidden rounded-lg border-2 border-slate-200 bg-slate-50 shadow-sm overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setHistoryExpanded(v => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-slate-100 border-b border-slate-200 hover:bg-slate-200 transition-colors text-left"
+        >
+          <div className="flex items-center gap-2">
+            <History className="h-5 w-5 text-slate-600" />
+            <span className="font-semibold text-slate-900 text-sm">Histórico de Alterações — Anexo de Impressão</span>
+            {!historyExpanded && (
+              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${includeHistory ? "bg-green-50 border-green-300 text-green-700" : "bg-gray-100 border-gray-300 text-gray-500"}`}>
+                {includeHistory ? "✓ Incluído na impressão" : "✗ Não incluído"}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {historyExpanded ? <ChevronUp className="h-4 w-4 text-slate-600" /> : <ChevronDown className="h-4 w-4 text-slate-600" />}
+          </div>
+        </button>
+
+        {historyExpanded && (
+          <div className="px-4 py-3 border-b border-slate-200">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={includeHistory}
+                onChange={e => setIncludeHistory(e.target.checked)}
+                className="w-4 h-4 accent-slate-600"
+              />
+              <span className="text-sm font-semibold text-slate-800">Incluir no PDF / Impressão</span>
+            </label>
+          </div>
+        )}
+
+        {historyExpanded && (
+          <div className="p-4 text-xs text-slate-600 max-h-64 overflow-y-auto">
+            <div className="grid grid-cols-[7rem_6rem_7rem_1fr] gap-x-3 font-bold uppercase text-slate-500 border-b border-slate-300 pb-1 mb-1 text-[10px] tracking-wide">
+              <span>Data/Hora</span><span>Tipo</span><span>Responsável</span><span>Descrição</span>
+            </div>
+            <AuditTrail protocolId={Number(id)} printMode />
+          </div>
+        )}
+      </div>
 
       {/* ─── Certificate document ─── */}
       <div
@@ -775,32 +838,34 @@ export default function CertificatePage() {
         {/* ═══════════════════════════════════════════════════════
             AUDIT TRAIL COMPLEMENT — prints after main certificate
         ═══════════════════════════════════════════════════════ */}
-        <div className="audit-appendix-section">
-          <div className="pt-8 border-t-2 border-gray-800 mt-8">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Alphafitus Laboratorio Nutraceutico</p>
-                <h2 className="text-lg font-bold uppercase tracking-wide mt-0.5 flex items-center gap-2">
-                  Anexo — Histórico de Alterações do Protocolo
-                </h2>
+        {includeHistory && (
+          <div className="audit-appendix-section">
+            <div className="pt-8 border-t-2 border-gray-800 mt-8">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Alphafitus Laboratorio Nutraceutico</p>
+                  <h2 className="text-lg font-bold uppercase tracking-wide mt-0.5 flex items-center gap-2">
+                    Anexo — Histórico de Alterações do Protocolo
+                  </h2>
+                </div>
+                <div className="text-right text-xs text-gray-500">
+                  <p>{cert.productName}</p>
+                  <p className="font-semibold">{cert.certNumber}</p>
+                  <p>{cert.issueDate}</p>
+                </div>
               </div>
-              <div className="text-right text-xs text-gray-500">
-                <p>{cert.productName}</p>
-                <p className="font-semibold">{cert.certNumber}</p>
-                <p>{cert.issueDate}</p>
+              <p className="text-xs text-gray-500 border-b border-gray-300 pb-3 mb-4">
+                Este anexo registra todas as alterações realizadas no protocolo de estabilidade, com identificação do responsável e data/hora de cada operação, para fins de rastreabilidade e conformidade regulatória.
+              </p>
+              <div className="text-xs">
+                <div className="grid grid-cols-[7rem_6rem_7rem_1fr] gap-x-3 font-bold uppercase text-gray-600 border-b border-gray-400 pb-1 mb-1 text-[10px] tracking-wide">
+                  <span>Data/Hora</span><span>Tipo</span><span>Responsável</span><span>Descrição</span>
+                </div>
+                <AuditTrail protocolId={Number(id)} printMode />
               </div>
-            </div>
-            <p className="text-xs text-gray-500 border-b border-gray-300 pb-3 mb-4">
-              Este anexo registra todas as alterações realizadas no protocolo de estabilidade, com identificação do responsável e data/hora de cada operação, para fins de rastreabilidade e conformidade regulatória.
-            </p>
-            <div className="text-xs">
-              <div className="grid grid-cols-[7rem_6rem_7rem_1fr] gap-x-3 font-bold uppercase text-gray-600 border-b border-gray-400 pb-1 mb-1 text-[10px] tracking-wide">
-                <span>Data/Hora</span><span>Tipo</span><span>Responsável</span><span>Descrição</span>
-              </div>
-              <AuditTrail protocolId={Number(id)} printMode />
             </div>
           </div>
-        </div>
+        )}
 
         {/* ═══════════════════════════════════════════════════════
             PHOTO APPENDIX — prints on its own page(s)
