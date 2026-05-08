@@ -1,5 +1,7 @@
 import { useParams, Link, useLocation } from "wouter";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useUnlock } from "@/hooks/use-unlock";
+import { UnlockDialog } from "@/components/unlock-dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -38,7 +40,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -1224,6 +1226,7 @@ function FinalizeSection({
   currentConclusion,
   currentValidityMonths,
   currentIssueDate,
+  onNeedsUnlock,
 }: {
   protocolId: number;
   status: string;
@@ -1231,6 +1234,7 @@ function FinalizeSection({
   currentConclusion?: string | null;
   currentValidityMonths?: number | null;
   currentIssueDate?: string | null;
+  onNeedsUnlock?: () => void;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -1278,8 +1282,14 @@ function FinalizeSection({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {isAlreadyFinalized ? (
-          <Button variant="outline" size="sm" data-testid="button-reopen-finalize">
-            <Pencil className="h-4 w-4 mr-1" /> Corrigir Avaliação Final
+          <Button
+            variant="outline"
+            size="sm"
+            data-testid="button-reopen-finalize"
+            onClick={(e) => { if (onNeedsUnlock) { e.preventDefault(); onNeedsUnlock(); } }}
+          >
+            {onNeedsUnlock ? <Lock className="h-4 w-4 mr-1 text-amber-500" /> : <Pencil className="h-4 w-4 mr-1" />}
+            Corrigir Avaliação Final
           </Button>
         ) : (
           <Button variant="default" data-testid="button-finalize">
@@ -1360,10 +1370,24 @@ export default function ProtocolDetail() {
   const numId = Number(id);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { unlocked, unlock, lock } = useUnlock();
+  const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const { data: protocol, isLoading } = useGetProtocol(numId, {
     query: { enabled: !!id, queryKey: getGetProtocolQueryKey(numId) },
   });
+
+  const isFinalized = !!(protocol?.finalStatus === "aprovado" || protocol?.finalStatus === "reprovado");
+  const needsPassword = isFinalized && !unlocked;
+
+  // Guard: runs action if unlocked, otherwise opens the password dialog first
+  const guardedAction = (action: () => void) => {
+    if (!needsPassword) { action(); return; }
+    setPendingAction(() => action);
+    setUnlockDialogOpen(true);
+  };
 
   const deleteProtocol = useDeleteProtocol({
     mutation: {
@@ -1396,6 +1420,14 @@ export default function ProtocolDetail() {
 
   return (
     <div className="space-y-6">
+      {/* ── Unlock dialog ── */}
+      <UnlockDialog
+        open={unlockDialogOpen}
+        onOpenChange={setUnlockDialogOpen}
+        onUnlock={unlock}
+        onSuccess={() => { pendingAction?.(); setPendingAction(null); }}
+      />
+
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4">
           <Link href="/">
@@ -1409,6 +1441,21 @@ export default function ProtocolDetail() {
               <span className={`text-xs font-semibold px-2 py-1 rounded border ${STATUS_COLORS[protocol.status]}`} data-testid="status-protocol">
                 {STATUS_LABELS[protocol.status] ?? protocol.status}
               </span>
+              {/* Lock indicator */}
+              {isFinalized && (
+                <button
+                  onClick={() => unlocked ? lock() : setUnlockDialogOpen(true)}
+                  className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border transition-colors ${
+                    unlocked
+                      ? "bg-green-50 border-green-300 text-green-700 hover:bg-red-50 hover:border-red-300 hover:text-red-700"
+                      : "bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100"
+                  }`}
+                  title={unlocked ? "Clique para bloquear novamente" : "Clique para desbloquear edição"}
+                >
+                  {unlocked ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                  {unlocked ? "Desbloqueado" : "Protegido"}
+                </button>
+              )}
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">
               {protocol.certNumber} &bull; {protocol.companyName}
@@ -1423,23 +1470,58 @@ export default function ProtocolDetail() {
             currentConclusion={protocol.conclusion}
             currentValidityMonths={protocol.validityMonths}
             currentIssueDate={protocol.issueDate}
+            onNeedsUnlock={needsPassword ? () => { setPendingAction(null); setUnlockDialogOpen(true); } : undefined}
           />
           <Link href={`/protocols/${id}/certificate`}>
             <Button variant="outline" size="sm" data-testid="button-view-certificate">
               <Award className="h-4 w-4 mr-1" /> Certificado
             </Button>
           </Link>
-          <Link href={`/protocols/${id}/edit`}>
-            <Button variant="outline" size="sm" data-testid="button-edit-protocol">
-              <Pencil className="h-4 w-4 mr-1" /> Editar
-            </Button>
-          </Link>
+          {/* Edit — guarded */}
+          <Button
+            variant="outline"
+            size="sm"
+            data-testid="button-edit-protocol"
+            onClick={() => guardedAction(() => setLocation(`/protocols/${id}/edit`))}
+          >
+            {needsPassword ? <Lock className="h-4 w-4 mr-1 text-amber-500" /> : <Pencil className="h-4 w-4 mr-1" />}
+            Editar
+          </Button>
+          {/* Delete — guarded */}
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="outline" size="sm" data-testid="button-delete-protocol">
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="button-delete-protocol"
+                onClick={(e) => {
+                  if (needsPassword) {
+                    e.preventDefault();
+                    guardedAction(() => {
+                      // After unlock, open the alert dialog programmatically via state
+                      setDeleteConfirmOpen(true);
+                    });
+                  }
+                }}
+              >
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </AlertDialogTrigger>
+            {!needsPassword && (
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Remover protocolo?</AlertDialogTitle>
+                  <AlertDialogDescription>Esta acao e irreversivel e removera todos os lotes e resultados associados.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => deleteProtocol.mutate({ id: numId })}>Remover</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            )}
+          </AlertDialog>
+          {/* Separate delete confirm dialog (post-unlock) */}
+          <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Remover protocolo?</AlertDialogTitle>
@@ -1447,7 +1529,7 @@ export default function ProtocolDetail() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => deleteProtocol.mutate({ id: numId })}>Remover</AlertDialogAction>
+                <AlertDialogAction onClick={() => { deleteProtocol.mutate({ id: numId }); setDeleteConfirmOpen(false); }}>Remover</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

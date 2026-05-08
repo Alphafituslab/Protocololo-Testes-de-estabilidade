@@ -5,9 +5,11 @@ import lotsRouter from "./lots";
 import resultsRouter from "./results";
 import kineticsRouter from "./kinetics";
 import certificatesRouter from "./certificates";
+import authRouter from "./auth";
 
 const router: IRouter = Router();
 
+router.use(authRouter);
 router.use(healthRouter);
 router.use(protocolsRouter);
 router.use(lotsRouter);
