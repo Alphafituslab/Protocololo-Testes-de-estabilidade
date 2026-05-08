@@ -9,9 +9,12 @@ interface UnlockDialogProps {
   onOpenChange: (open: boolean) => void;
   onUnlock: (password: string) => Promise<{ ok: boolean; error?: string }>;
   onSuccess?: () => void;
+  title?: string;
+  description?: string;
+  submitLabel?: string;
 }
 
-export function UnlockDialog({ open, onOpenChange, onUnlock, onSuccess }: UnlockDialogProps) {
+export function UnlockDialog({ open, onOpenChange, onUnlock, onSuccess, title, description, submitLabel }: UnlockDialogProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -49,10 +52,10 @@ export function UnlockDialog({ open, onOpenChange, onUnlock, onSuccess }: Unlock
         <DialogHeader>
           <div className="flex items-center gap-2 mb-1">
             <Lock className="h-5 w-5 text-amber-600" />
-            <DialogTitle>Protocolo protegido</DialogTitle>
+            <DialogTitle>{title ?? "Protocolo protegido"}</DialogTitle>
           </div>
           <DialogDescription>
-            Este protocolo está aprovado ou reprovado. Digite a senha mestra para liberar a edição nesta sessão.
+            {description ?? "Este protocolo está aprovado ou reprovado. Digite a senha mestra para liberar a edição nesta sessão."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
@@ -76,7 +79,7 @@ export function UnlockDialog({ open, onOpenChange, onUnlock, onSuccess }: Unlock
             </Button>
             <Button type="submit" disabled={loading || !password.trim()}>
               {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Desbloquear
+              {submitLabel ?? "Desbloquear"}
             </Button>
           </div>
         </form>

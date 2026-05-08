@@ -1669,6 +1669,7 @@ export default function ProtocolDetail() {
   const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletePasswordOpen, setDeletePasswordOpen] = useState(false);
 
   const { data: protocol, isLoading } = useGetProtocol(numId, {
     query: { enabled: !!id, queryKey: getGetProtocolQueryKey(numId) },
@@ -1782,49 +1783,40 @@ export default function ProtocolDetail() {
             {needsPassword ? <Lock className="h-4 w-4 mr-1 text-amber-500" /> : <Pencil className="h-4 w-4 mr-1" />}
             Editar
           </Button>
-          {/* Delete — guarded */}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                data-testid="button-delete-protocol"
-                onClick={(e) => {
-                  if (needsPassword) {
-                    e.preventDefault();
-                    guardedAction(() => {
-                      // After unlock, open the alert dialog programmatically via state
-                      setDeleteConfirmOpen(true);
-                    });
-                  }
-                }}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            </AlertDialogTrigger>
-            {!needsPassword && (
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Remover protocolo?</AlertDialogTitle>
-                  <AlertDialogDescription>Esta acao e irreversivel e removera todos os lotes e resultados associados.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => deleteProtocol.mutate({ id: numId })}>Remover</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            )}
-          </AlertDialog>
-          {/* Separate delete confirm dialog (post-unlock) */}
+          {/* Delete — always requires password */}
+          <Button
+            variant="outline"
+            size="sm"
+            data-testid="button-delete-protocol"
+            onClick={() => setDeletePasswordOpen(true)}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+          {/* Step 1: password dialog for delete */}
+          <UnlockDialog
+            open={deletePasswordOpen}
+            onOpenChange={setDeletePasswordOpen}
+            onUnlock={unlock}
+            title="Confirmação de senha"
+            description="A remoção de um protocolo é irreversível. Digite a senha mestra para confirmar."
+            submitLabel="Confirmar"
+            onSuccess={() => { setDeletePasswordOpen(false); setDeleteConfirmOpen(true); }}
+          />
+          {/* Step 2: final confirmation */}
           <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Remover protocolo?</AlertDialogTitle>
-                <AlertDialogDescription>Esta acao e irreversivel e removera todos os lotes e resultados associados.</AlertDialogDescription>
+                <AlertDialogDescription>Esta ação é irreversível e removerá todos os lotes e resultados associados.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => { deleteProtocol.mutate({ id: numId }); setDeleteConfirmOpen(false); }}>Remover</AlertDialogAction>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => { deleteProtocol.mutate({ id: numId }); setDeleteConfirmOpen(false); }}
+                >
+                  Remover permanentemente
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
