@@ -935,23 +935,40 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   };
 
   if (!initialized && kinetics) {
-    // Try to load saved overrides from localStorage first
-    let init: Record<string, KineticOverride> = {};
+    // Load any manually-saved overrides from localStorage.
+    // IMPORTANT: T0, T3, T6 always come fresh from the API so that edits
+    // made in the Results tab are immediately reflected here. Only the user's
+    // manual edits to computed/display fields are preserved from localStorage.
+    type SavedPartial = Partial<Omit<KineticOverride, "t0" | "t3" | "t6">>;
+    let savedOverrides: Record<string, SavedPartial> = {};
     let savedCustomShelfLife = "";
     try {
       const raw = localStorage.getItem(LS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed.overrides) init = parsed.overrides;
+        if (parsed.overrides) savedOverrides = parsed.overrides;
         if (parsed.customShelfLife != null) savedCustomShelfLife = parsed.customShelfLife;
       }
     } catch { /* ignore */ }
 
-    // Fill in any parameters not yet in localStorage with calculated values
+    const init: Record<string, KineticOverride> = {};
     for (const p of kinetics.parameters) {
-      if (!init[p.parameter]) {
-        init[p.parameter] = buildOverride(p);
-      }
+      // Base values always come from the API (fresh from Results tab)
+      const base = buildOverride(p);
+      const saved = savedOverrides[p.parameter] ?? {};
+      init[p.parameter] = {
+        // T0, T3, T6 → always fresh from API / Results tab
+        t0: base.t0,
+        t3: base.t3,
+        t6: base.t6,
+        // Computed fields → use saved manual edit if present, else API calculation
+        deltaLn: saved.deltaLn ?? base.deltaLn,
+        k: saved.k ?? base.k,
+        shelfLife: saved.shelfLife ?? base.shelfLife,
+        validadePraticada: saved.validadePraticada ?? base.validadePraticada,
+        thresholdMin: saved.thresholdMin ?? base.thresholdMin,
+        thresholdMax: saved.thresholdMax ?? base.thresholdMax,
+      };
     }
     setOverrides(init);
     setCustomShelfLife(savedCustomShelfLife);
@@ -1102,14 +1119,14 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               return (
                 <TableRow key={p.parameter} className={isLimiting ? "bg-amber-50/40" : ""}>
                   <TableCell className="font-medium text-sm">{p.parameter}</TableCell>
-                  <TableCell className="text-right py-2 font-mono text-sm tabular-nums text-gray-700">
-                    {ov.t0 || "—"}
+                  <TableCell className="text-right py-2">
+                    <EditableNum value={ov.t0} onChange={(v) => setField(p.parameter, "t0", v)} width="w-20" placeholder="T0" />
                   </TableCell>
-                  <TableCell className="text-right py-2 font-mono text-sm tabular-nums text-gray-700">
-                    {ov.t3 || "—"}
+                  <TableCell className="text-right py-2">
+                    <EditableNum value={ov.t3} onChange={(v) => setField(p.parameter, "t3", v)} width="w-20" placeholder="T3" />
                   </TableCell>
-                  <TableCell className="text-right py-2 font-mono text-sm tabular-nums text-gray-700">
-                    {ov.t6 || "—"}
+                  <TableCell className="text-right py-2">
+                    <EditableNum value={ov.t6} onChange={(v) => setField(p.parameter, "t6", v)} width="w-20" placeholder="T6" />
                   </TableCell>
                   <TableCell className="text-right py-2 bg-blue-50/30">
                     <EditableNum value={ov.deltaLn} onChange={(v) => setField(p.parameter, "deltaLn", v)} width="w-28" />

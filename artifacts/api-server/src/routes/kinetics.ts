@@ -1,9 +1,30 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, analysisResultsTable, lotsTable } from "@workspace/db";
 import { GetKineticsParams } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+
+/**
+ * Parse the minimum acceptable threshold from a criterion string.
+ * Examples: "98.50 – 100.50" → 98.50 | "≥ 80%" → 80 | "Máx. 10³ UFC/g" → null (non-numeric range)
+ * Falls back to 80 (ICH Q1A default) when no numeric range is found.
+ */
+function parseCriterionMin(criterion: string | null | undefined): number {
+  if (!criterion) return 80;
+  const normalized = criterion
+    .replace(/,/g, ".")
+    .replace(/[–—]/g, "-")
+    .replace(/%/g, "")
+    .trim();
+  // Range like "98.50 - 100.50" → take the min (left) value
+  const rangeMatch = normalized.match(/(\d+\.?\d*)\s*-\s*(\d+\.?\d*)/);
+  if (rangeMatch) return parseFloat(rangeMatch[1]);
+  // "≥ 80" or "> 80"
+  const gteMatch = normalized.match(/[≥>]\s*(\d+\.?\d*)/);
+  if (gteMatch) return parseFloat(gteMatch[1]);
+  return 80;
+}
 
 function calcKinetics(
   t0: number | null,
@@ -81,10 +102,6 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
   const avg = (arr: number[]) =>
     arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
 
-  // ICH Q1A(R2): minimum acceptable content = 80% of declared value for all active ingredients.
-  // Applied uniformly to every teor_ativo parameter discovered.
-  const MIN_THRESHOLD_PERCENT = 80;
-
   const kineticParameters = activeParamNames
     .map((p) => {
       const d = kineticData[p];
@@ -92,11 +109,14 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
       const t0 = avg(d.t0vals);
       const t3 = avg(d.t3vals);
       const t6 = avg(d.t6vals);
+      // Use the criterion's min value as the threshold (e.g. "98.50 – 100.50" → 98.50).
+      // Falls back to 80 (ICH Q1A default) when no numeric range is defined.
+      const minThresholdPercent = parseCriterionMin(d.criterion);
       const { deltaLn, k, estimatedShelfLifeMonths, tObserved } = calcKinetics(
         t0,
         t3,
         t6,
-        MIN_THRESHOLD_PERCENT,
+        minThresholdPercent,
       );
       return {
         parameter: p,
@@ -107,7 +127,7 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
         k,
         estimatedShelfLifeMonths,
         tObserved,
-        minThresholdPercent: MIN_THRESHOLD_PERCENT,
+        minThresholdPercent,
         criterion: d.criterion ?? null,
       };
     })
