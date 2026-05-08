@@ -64,6 +64,40 @@ function UserMenu() {
   );
 }
 
+function SidebarFooter() {
+  const { user, logout, isAdmin } = useAuth();
+  const [, navigate] = useLocation();
+  if (!user) return null;
+  const initials = user.displayName.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+  return (
+    <div className="border-t border-border p-3 space-y-2">
+      <div className="flex items-center gap-2 px-2 py-1">
+        <Avatar className="h-7 w-7 shrink-0">
+          <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">{initials}</AvatarFallback>
+        </Avatar>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium truncate">{user.displayName}</p>
+          <p className="text-[10px] text-muted-foreground truncate">@{user.username} · {isAdmin ? "Admin" : "Analista"}</p>
+        </div>
+      </div>
+      {isAdmin && (
+        <button
+          onClick={() => navigate("/users")}
+          className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+        >
+          <Users className="h-3.5 w-3.5" /> Gerenciar usuários
+        </button>
+      )}
+      <button
+        onClick={async () => { await logout(); navigate("/login"); }}
+        className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-destructive hover:bg-destructive/10 transition-colors font-medium"
+      >
+        <LogOut className="h-3.5 w-3.5" /> Sair da conta
+      </button>
+    </div>
+  );
+}
+
 function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   return (
@@ -81,6 +115,7 @@ function Layout({ children }: { children: React.ReactNode }) {
             <FileText className="h-4 w-4" /> Novo Protocolo
           </Link>
         </nav>
+        <SidebarFooter />
       </aside>
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 border-b border-border bg-card flex items-center px-6 justify-between">
