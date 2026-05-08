@@ -906,6 +906,31 @@ function EditableNum({
   );
 }
 
+type KineticApiParam = {
+  t0?: number | null; t3?: number | null; t6?: number | null;
+  deltaLn?: number | null; k?: number | null;
+  estimatedShelfLifeMonths?: number | null;
+  minThresholdPercent: number;
+  criterion?: string | null;
+};
+
+function buildKineticOverride(p: KineticApiParam): KineticOverride {
+  const t0 = p.t0 != null ? p.t0.toFixed(2) : "";
+  const t3 = p.t3 != null ? p.t3.toFixed(2) : "";
+  const t6 = p.t6 != null ? p.t6.toFixed(2) : "";
+  const { min: specMin, max: specMax } = parseCriterionRange(p.criterion);
+  return {
+    t0, t3, t6,
+    deltaLn: p.deltaLn != null ? p.deltaLn.toFixed(6) : "",
+    k: p.k != null ? p.k.toFixed(6) : "",
+    ichThreshold: p.minThresholdPercent.toString(),
+    specMin,
+    specMax,
+    shelfLife: p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(1) : "",
+    validadePraticada: "",
+  };
+}
+
 function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths }: {
   protocolId: number;
   productName: string;
@@ -913,7 +938,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   initialValidityMonths?: number | null;
 }) {
   const { data: kinetics, isLoading } = useGetKinetics(protocolId, {
-    query: { queryKey: getGetKineticsQueryKey(protocolId) },
+    query: { queryKey: getGetKineticsQueryKey(protocolId), staleTime: 0 },
   });
 
   const updateProtocol = useUpdateProtocol();
@@ -929,36 +954,16 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const LS_KEY = `kinetics_overrides_${protocolId}`;
 
   const [overrides, setOverrides] = useState<Record<string, KineticOverride>>({});
-  const [initialized, setInitialized] = useState(false);
   const [cardValidity, setCardValidity] = useState("");
   const [kineticsObs, setKineticsObs] = useState(initialKineticsNotes ?? "");
-  // Custom shelf-life override — user can type their own value on the summary card
   const [customShelfLife, setCustomShelfLife] = useState<string>("");
 
-  const buildOverride = (p: { t0?: number | null; t3?: number | null; t6?: number | null; deltaLn?: number | null; k?: number | null; estimatedShelfLifeMonths?: number | null; minThresholdPercent: number; criterion?: string | null }): KineticOverride => {
-    const t0 = p.t0 != null ? p.t0.toFixed(2) : "";
-    const t3 = p.t3 != null ? p.t3.toFixed(2) : "";
-    const t6 = p.t6 != null ? p.t6.toFixed(2) : "";
-    const { min: specMin, max: specMax } = parseCriterionRange(p.criterion);
-    return {
-      t0, t3, t6,
-      deltaLn: p.deltaLn != null ? p.deltaLn.toFixed(6) : "",
-      k: p.k != null ? p.k.toFixed(6) : "",
-      // ichThreshold = ICH Q1A(R2) minimum content % for t_val calculation (always 80)
-      ichThreshold: p.minThresholdPercent.toString(),
-      // specMin/specMax = specification/criterion range — informational only, NOT used in calc
-      specMin,
-      specMax,
-      shelfLife: p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(1) : "",
-      validadePraticada: "",
-    };
-  };
+  // Re-runs every time the kinetics API data changes (i.e. after a result upsert
+  // invalidates the query). T0/T3/T6 always come fresh from the API; user-edited
+  // computed fields are preserved from localStorage.
+  useEffect(() => {
+    if (!kinetics) return;
 
-  if (!initialized && kinetics) {
-    // Load any manually-saved overrides from localStorage.
-    // IMPORTANT: T0, T3, T6 always come fresh from the API so that edits
-    // made in the Results tab are immediately reflected here. Only the user's
-    // manual edits to computed/display fields are preserved from localStorage.
     type SavedPartial = Partial<Omit<KineticOverride, "t0" | "t3" | "t6">>;
     let savedOverrides: Record<string, SavedPartial> = {};
     let savedCustomShelfLife = "";
@@ -971,32 +976,24 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       }
     } catch { /* ignore */ }
 
-    const init: Record<string, KineticOverride> = {};
+    const next: Record<string, KineticOverride> = {};
     for (const p of kinetics.parameters) {
-      // Base values always come from the API (fresh from Results tab)
-      const base = buildOverride(p);
+      const base = buildKineticOverride(p);
       const saved = savedOverrides[p.parameter] ?? {};
-      init[p.parameter] = {
-        // T0, T3, T6 → always fresh from API / Results tab
-        t0: base.t0,
-        t3: base.t3,
-        t6: base.t6,
-        // Computed fields → use saved manual edit if present, else API calculation
+      next[p.parameter] = {
+        t0: base.t0, t3: base.t3, t6: base.t6,
         deltaLn: saved.deltaLn ?? base.deltaLn,
         k: saved.k ?? base.k,
         shelfLife: saved.shelfLife ?? base.shelfLife,
         validadePraticada: saved.validadePraticada ?? base.validadePraticada,
-        // ICH threshold (80 %) — editable, used in t_val calc
         ichThreshold: saved.ichThreshold ?? base.ichThreshold,
-        // Spec range — informational only
         specMin: saved.specMin ?? base.specMin,
         specMax: saved.specMax ?? base.specMax,
       };
     }
-    setOverrides(init);
+    setOverrides(next);
     setCustomShelfLife(savedCustomShelfLife);
-    setInitialized(true);
-  }
+  }, [kinetics, LS_KEY]);
 
   const persistOverrides = (next: Record<string, KineticOverride>, shelf = customShelfLife) => {
     try {
@@ -1024,7 +1021,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     if (!kinetics) return;
     const reset: Record<string, KineticOverride> = {};
     for (const p of kinetics.parameters) {
-      reset[p.parameter] = buildOverride(p);
+      reset[p.parameter] = buildKineticOverride(p);
     }
     setOverrides(reset);
     setCustomShelfLife("");
@@ -1129,11 +1126,8 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               <TableHead className="text-right text-xs whitespace-nowrap">Média T0 (%)</TableHead>
               <TableHead className="text-right text-xs whitespace-nowrap">Média T3 (%)</TableHead>
               <TableHead className="text-right text-xs whitespace-nowrap">Média T6 (%)</TableHead>
-              <TableHead className="text-right text-xs bg-blue-50/60 whitespace-nowrap">Δln = −ln(T6/T3)</TableHead>
-              <TableHead className="text-right text-xs bg-blue-50/60 whitespace-nowrap">k = Δln/3 (mês⁻¹)</TableHead>
-              <TableHead className="text-right text-xs bg-purple-50/60 whitespace-nowrap" title="Limiar ICH Q1A(R2): conteúdo mínimo aceito para fins de estabilidade (padrão = 80 %)">Limiar ICH (%)</TableHead>
-              <TableHead className="text-right text-xs bg-amber-50/60 whitespace-nowrap">t<sub>val</sub> ICH (meses)</TableHead>
-              <TableHead className="text-right text-xs whitespace-nowrap">Validade (meses)</TableHead>
+              <TableHead className="text-right text-xs bg-amber-50/60 whitespace-nowrap">Vida Útil Calculada (meses)</TableHead>
+              <TableHead className="text-right text-xs whitespace-nowrap">Validade Adotada (meses)</TableHead>
               <TableHead className="text-right text-xs whitespace-nowrap">Espec. mín – máx (%)</TableHead>
             </TableRow>
           </TableHeader>
@@ -1155,30 +1149,18 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   <TableCell className="text-right py-2">
                     <EditableNum value={ov.t6} onChange={(v) => setField(p.parameter, "t6", v)} width="w-20" placeholder="T6" />
                   </TableCell>
-                  <TableCell className="text-right py-2 bg-blue-50/30">
-                    <EditableNum value={ov.deltaLn} onChange={(v) => setField(p.parameter, "deltaLn", v)} width="w-28" />
-                  </TableCell>
-                  <TableCell className="text-right py-2 bg-blue-50/30">
-                    <EditableNum value={ov.k} onChange={(v) => setField(p.parameter, "k", v)} width="w-28" />
-                  </TableCell>
-                  {/* Limiar ICH — used in t_val formula; default 80 per ICH Q1A(R2) */}
-                  <TableCell className="text-right py-2 bg-purple-50/30">
-                    <EditableNum value={ov.ichThreshold} onChange={(v) => setField(p.parameter, "ichThreshold", v)} width="w-16" placeholder="80" />
-                  </TableCell>
+                  {/* Vida Útil Calculada — computed via ICH Q1A(R2); Δln/k/limiar run silently */}
                   <TableCell className="text-right py-2 bg-amber-50/30">
-                    <div className="flex items-center justify-end gap-1">
-                      <EditableNum value={ov.shelfLife} onChange={(v) => setField(p.parameter, "shelfLife", v)} width="w-20" />
-                      {!isNaN(shelfNum) && shelfNum > 0 && (
-                        <span className={`text-xs font-semibold ml-1 ${isLimiting ? "text-amber-600" : "text-green-700"}`}>
-                          ≈ {Math.floor(shelfNum)} m
-                        </span>
-                      )}
+                    <div className="flex items-center justify-end gap-2">
+                      <span className={`text-sm font-bold tabular-nums ${isLimiting ? "text-amber-700" : "text-green-700"}`}>
+                        {!isNaN(shelfNum) && shelfNum > 0 ? `${shelfNum} m` : "—"}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell className="text-right py-2">
                     <EditableNum value={ov.validadePraticada} onChange={(v) => setField(p.parameter, "validadePraticada", v)} placeholder="ex: 24" />
                   </TableCell>
-                  {/* Espec. mín–máx — spec/criterion range, informational only, NOT used in t_val calc */}
+                  {/* Espec. mín–máx — spec/criterion range, informational only */}
                   <TableCell className="text-right py-2">
                     <div className="flex items-center justify-end gap-1">
                       <EditableNum value={ov.specMin} onChange={(v) => setField(p.parameter, "specMin", v)} width="w-14" placeholder="mín" />
