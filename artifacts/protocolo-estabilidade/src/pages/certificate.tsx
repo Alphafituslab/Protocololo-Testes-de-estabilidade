@@ -138,9 +138,13 @@ export default function CertificatePage() {
     if (cert && analyses === null) {
       type FieldOverride = { method?: string; specification?: string; result?: string };
       let saved: Record<string, FieldOverride> = {};
+      let paramMethods: Record<string, string> = {};
       try {
         const raw = localStorage.getItem(`cert_overrides_${id}`);
         if (raw) saved = JSON.parse(raw);
+        // Read methodology selections made in Results tab
+        const pmRaw = localStorage.getItem(`param_methods_${id}`);
+        if (pmRaw) paramMethods = JSON.parse(pmRaw);
         // Migrate old methods-only key if present
         const oldMethods = localStorage.getItem(`methods_${id}`);
         if (oldMethods) {
@@ -154,7 +158,8 @@ export default function CertificatePage() {
       } catch { /* ignore */ }
       setAnalyses(cert.analyses.map(a => ({
         ...a,
-        method: saved[a.parameter]?.method ?? a.method,
+        // Priority: manual cert override > methodology from Results tab > API default
+        method: saved[a.parameter]?.method ?? paramMethods[a.parameter] ?? a.method,
         specification: saved[a.parameter]?.specification ?? a.specification,
         result: saved[a.parameter]?.result ?? a.result,
         visible: true,

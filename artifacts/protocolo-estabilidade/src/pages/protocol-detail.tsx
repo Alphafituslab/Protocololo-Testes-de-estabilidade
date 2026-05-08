@@ -44,7 +44,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -664,9 +665,75 @@ function InlineCell({
 
 type EditableParam = { uid: string; parameter: string; category: string; criterion: string };
 
+function ParamMethodSelector({
+  paramName,
+  selected,
+  methodologies,
+  onSelect,
+}: {
+  paramName: string;
+  selected: string | null;
+  methodologies: { id: number; shortName: string; citation: string; category?: string | null }[];
+  onSelect: (shortName: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          className={`flex items-center gap-0.5 mt-0.5 text-[10px] rounded px-1 py-0 transition-colors ${
+            selected
+              ? "text-primary/80 hover:text-primary"
+              : "text-muted-foreground/40 hover:text-muted-foreground"
+          }`}
+          title={selected ? `Metodologia: ${selected}` : "Selecionar metodologia"}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <BookOpen className="h-2.5 w-2.5 flex-shrink-0" />
+          <span className="truncate max-w-[80px]">{selected ?? "método..."}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-2 z-50" side="right" align="start">
+        <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">
+          Metodologia — <span className="font-normal italic">{paramName}</span>
+        </p>
+        {methodologies.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic px-1">
+            Nenhuma metodologia cadastrada. Acesse a aba "Metodologia".
+          </p>
+        ) : (
+          <div className="space-y-0.5 max-h-60 overflow-y-auto">
+            {selected && (
+              <button
+                onClick={() => { onSelect(null); setOpen(false); }}
+                className="w-full text-left text-[10px] px-2 py-1 rounded hover:bg-destructive/10 text-destructive"
+              >
+                × Remover seleção
+              </button>
+            )}
+            {methodologies.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => { onSelect(m.shortName); setOpen(false); }}
+                className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted transition-colors ${
+                  selected === m.shortName ? "bg-primary/10 text-primary font-semibold" : ""
+                }`}
+              >
+                <div className="font-medium text-[11px]">{m.shortName}</div>
+                <div className="text-[9px] text-muted-foreground truncate leading-tight">{m.citation}</div>
+              </button>
+            ))}
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: number; initialCustomParamsJson?: string | null }) {
   const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
   const { data: results = [], isLoading } = useListResults(protocolId, { query: { queryKey: getListResultsQueryKey(protocolId) } });
+  const { data: methodologies = [] } = useListMethodologies();
 
   const defaultParams = ANALYSIS_PARAMETERS.map((p, i) => ({ ...p, uid: `${p.category}_${i}` }));
   const [editableParams, setEditableParams] = useState<EditableParam[]>(() => {
@@ -675,6 +742,23 @@ function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: numbe
     }
     return defaultParams;
   });
+
+  const [paramMethods, setParamMethods] = useState<Record<string, string>>(() => {
+    try {
+      const raw = localStorage.getItem(`param_methods_${protocolId}`);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+
+  const setParamMethod = (paramName: string, shortName: string | null) => {
+    setParamMethods((prev) => {
+      const next = { ...prev };
+      if (shortName === null) delete next[paramName];
+      else next[paramName] = shortName;
+      try { localStorage.setItem(`param_methods_${protocolId}`, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const updateProtocol = useUpdateProtocol();
@@ -778,6 +862,12 @@ function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: numbe
                           onChange={(e) => updateParam(param.uid, "parameter", e.target.value)}
                           className="w-full text-xs font-medium bg-transparent border-b border-dashed border-transparent hover:border-muted-foreground/30 focus:border-primary focus:outline-none py-0.5 placeholder:text-muted-foreground/40"
                           placeholder="Nome do parâmetro"
+                        />
+                        <ParamMethodSelector
+                          paramName={param.parameter}
+                          selected={paramMethods[param.parameter] ?? null}
+                          methodologies={methodologies}
+                          onSelect={(s) => setParamMethod(param.parameter, s)}
                         />
                       </TableCell>
                       <TableCell className="py-1 pr-1">
