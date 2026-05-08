@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db, analysisResultsTable, lotsTable } from "@workspace/db";
 import { GetKineticsParams } from "@workspace/api-zod";
 
@@ -28,11 +28,10 @@ function calcKinetics(
   const c0 = t0 ?? t6;
 
   // t_validade = -ln(threshold / avgT0) / k  [Excel: K8 = -LN(G10/G8), L8 = K8/M3]
-  // threshold and c0 must be in the same units (both % or both fraction)
   const lnNumerator = -Math.log(minThresholdPercent / c0);
   const estimatedShelfLifeMonths = lnNumerator > 0 ? lnNumerator / k : null;
 
-  // t_observado = -ln(avgT6 / avgT0) / k  [Excel Sheet 2: K8 = -LN(G4/G8), L8 = K8/M3]
+  // t_observado = -ln(avgT6 / avgT0) / k
   const lnObserved = -Math.log(t6 / c0);
   const tObserved = lnObserved > 0 && lnObserved / k > 0 ? lnObserved / k : null;
 
@@ -51,14 +50,24 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
     .from(analysisResultsTable)
     .where(eq(analysisResultsTable.protocolId, params.data.id));
 
-  const activeParams = ["Calcio", "Vitamina D"];
+  // Dynamically discover all teor_ativo parameters present in this protocol's results.
+  // This replaces the previous hardcoded ["Calcio", "Vitamina D"] list so that any
+  // active ingredient — Creatina, Magnésio, Vitamina C, etc. — is handled automatically.
+  const activeParamNames = Array.from(
+    new Set(
+      results
+        .filter((r) => r.category === "teor_ativo")
+        .map((r) => r.parameter),
+    ),
+  ).sort();
+
   const kineticData: Record<string, { t0vals: number[]; t3vals: number[]; t6vals: number[]; criterion: string | null }> = {};
-  for (const p of activeParams) {
+  for (const p of activeParamNames) {
     kineticData[p] = { t0vals: [], t3vals: [], t6vals: [], criterion: null };
   }
 
   for (const r of results) {
-    if (!activeParams.includes(r.parameter)) continue;
+    if (r.category !== "teor_ativo") continue;
     const entry = kineticData[r.parameter];
     if (!entry) continue;
     if (!entry.criterion && r.criterion) entry.criterion = r.criterion;
@@ -72,25 +81,22 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
   const avg = (arr: number[]) =>
     arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
 
-  // Thresholds in the same units as stored results (% of declared value, e.g. 80 = 80%)
-  const minThresholds: Record<string, number> = {
-    Calcio: 80,
-    "Vitamina D": 80,
-  };
+  // ICH Q1A(R2): minimum acceptable content = 80% of declared value for all active ingredients.
+  // Applied uniformly to every teor_ativo parameter discovered.
+  const MIN_THRESHOLD_PERCENT = 80;
 
-  const kineticParameters = activeParams
+  const kineticParameters = activeParamNames
     .map((p) => {
       const d = kineticData[p];
       if (!d) return null;
       const t0 = avg(d.t0vals);
       const t3 = avg(d.t3vals);
       const t6 = avg(d.t6vals);
-      const threshold = minThresholds[p] ?? 80;
       const { deltaLn, k, estimatedShelfLifeMonths, tObserved } = calcKinetics(
         t0,
         t3,
         t6,
-        threshold,
+        MIN_THRESHOLD_PERCENT,
       );
       return {
         parameter: p,
@@ -101,7 +107,7 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
         k,
         estimatedShelfLifeMonths,
         tObserved,
-        minThresholdPercent: threshold,
+        minThresholdPercent: MIN_THRESHOLD_PERCENT,
         criterion: d.criterion ?? null,
       };
     })
@@ -123,7 +129,6 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
     parameters: kineticParameters,
     limitingParameter: limitingParam?.parameter ?? null,
     estimatedShelfLifeMonths: minShelfLife,
-    // Direct shelf-life in whole months — no arbitrary safety factor
     recommendedValidityMonths: minShelfLife ? Math.floor(minShelfLife) : null,
   });
 });

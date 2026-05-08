@@ -959,7 +959,12 @@ function KineticsTab({ protocolId, initialKineticsNotes, initialValidityMonths }
   };
 
   if (isLoading) return <div className="text-center py-8 text-muted-foreground">Calculando...</div>;
-  if (!kinetics) return <div className="text-center py-8 text-muted-foreground">Sem dados de cinetica. Insira resultados numericos na aba Resultados para Calcio e Vitamina D.</div>;
+  if (!kinetics || kinetics.parameters.length === 0) return (
+    <div className="text-center py-12 text-muted-foreground space-y-2">
+      <p className="font-medium">Nenhum parâmetro de Teor do Ativo encontrado.</p>
+      <p className="text-sm">Insira resultados numéricos na aba <strong>Resultados</strong> para os parâmetros da categoria <strong>Teor do Ativo</strong> (ex: Creatina, Cálcio, Vitamina D, etc.).</p>
+    </div>
+  );
 
   const shelfLives = Object.values(overrides)
     .map((o) => parseFloat(o.shelfLife))
