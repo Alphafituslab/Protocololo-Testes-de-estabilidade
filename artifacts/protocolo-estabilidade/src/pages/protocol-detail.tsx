@@ -849,9 +849,17 @@ function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: numbe
   const removeParam = (uid: string) => {
     setEditableParams((prev) => {
       const next = prev.filter((p) => p.uid !== uid);
-      // Immediate save — no debounce. A debounced save would be lost if the
-      // user switches tabs before 800 ms (component unmounts, timer cancels).
-      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: JSON.stringify(next) } });
+      const newJson = JSON.stringify(next);
+      // Immediate save — no debounce.
+      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: newJson } });
+      // Optimistically patch the protocol query cache so that if the component
+      // remounts (e.g. tab switch) before the API response arrives, it
+      // re-initialises from the correct data and does NOT restore the deleted item.
+      queryClient.setQueryData(
+        getGetProtocolQueryKey(protocolId),
+        (old: Record<string, unknown> | undefined) =>
+          old ? { ...old, customParamsJson: newJson } : old,
+      );
       return next;
     });
   };
