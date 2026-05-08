@@ -22,14 +22,22 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const TOKEN_KEY = "alphafitus_token";
 const USER_KEY = "alphafitus_user";
 
+// Use sessionStorage so the session expires when the browser/tab closes.
+// Each new browser session requires login.
+const store = {
+  get: (key: string) => sessionStorage.getItem(key),
+  set: (key: string, value: string) => sessionStorage.setItem(key, value),
+  remove: (key: string) => sessionStorage.removeItem(key),
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem(TOKEN_KEY);
-    const storedUser = localStorage.getItem(USER_KEY);
+    const storedToken = store.get(TOKEN_KEY);
+    const storedUser = store.get(USER_KEY);
     if (storedToken && storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser) as AuthUser;
@@ -52,8 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error((data as { error?: string }).error ?? "Erro ao fazer login.");
     }
     const data = await res.json() as { token: string; user: AuthUser };
-    localStorage.setItem(TOKEN_KEY, data.token);
-    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    store.set(TOKEN_KEY, data.token);
+    store.set(USER_KEY, JSON.stringify(data.user));
     setToken(data.token);
     setUser(data.user);
     setAuthTokenGetter(() => data.token);
@@ -66,6 +74,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { "Authorization": `Bearer ${token}` },
       }).catch(() => {});
     }
+    store.remove(TOKEN_KEY);
+    store.remove(USER_KEY);
+    // Also clear any old localStorage leftovers from previous version
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     setToken(null);
