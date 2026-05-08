@@ -32,6 +32,7 @@ import type {
   Protocol,
   ProtocolDetail,
   ProtocolStats,
+  UpdateMethodologyBody,
   UpdateProtocolBody,
   UpsertResultBody,
 } from "./api.schemas";
@@ -1657,6 +1658,93 @@ export const useCreateMethodology = <
   TContext
 > => {
   return useMutation(getCreateMethodologyMutationOptions(options));
+};
+
+/**
+ * @summary Update a methodology reference
+ */
+export const getUpdateMethodologyUrl = (id: number) => {
+  return `/api/methodologies/${id}`;
+};
+
+export const updateMethodology = async (
+  id: number,
+  updateMethodologyBody: UpdateMethodologyBody,
+  options?: RequestInit,
+): Promise<Methodology> => {
+  return customFetch<Methodology>(getUpdateMethodologyUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateMethodologyBody),
+  });
+};
+
+export const getUpdateMethodologyMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMethodology>>,
+    TError,
+    { id: number; data: BodyType<UpdateMethodologyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMethodology>>,
+  TError,
+  { id: number; data: BodyType<UpdateMethodologyBody> },
+  TContext
+> => {
+  const mutationKey = ["updateMethodology"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMethodology>>,
+    { id: number; data: BodyType<UpdateMethodologyBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateMethodology(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMethodologyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateMethodology>>
+>;
+export type UpdateMethodologyMutationBody = BodyType<UpdateMethodologyBody>;
+export type UpdateMethodologyMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update a methodology reference
+ */
+export const useUpdateMethodology = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMethodology>>,
+    TError,
+    { id: number; data: BodyType<UpdateMethodologyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateMethodology>>,
+  TError,
+  { id: number; data: BodyType<UpdateMethodologyBody> },
+  TContext
+> => {
+  return useMutation(getUpdateMethodologyMutationOptions(options));
 };
 
 /**

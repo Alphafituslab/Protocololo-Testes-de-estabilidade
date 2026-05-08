@@ -331,6 +331,12 @@ export interface CreateMethodologyBody {
   category?: string | null;
 }
 
+export interface UpdateMethodologyBody {
+  shortName: string;
+  citation: string;
+  category?: string | null;
+}
+
 export type FinalizeProtocolBodyFinalStatus =
   (typeof FinalizeProtocolBodyFinalStatus)[keyof typeof FinalizeProtocolBodyFinalStatus];
 

@@ -719,6 +719,30 @@ export const CreateMethodologyBody = zod.object({
 });
 
 /**
+ * @summary Update a methodology reference
+ */
+export const UpdateMethodologyParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateMethodologyBody = zod.object({
+  shortName: zod.string(),
+  citation: zod.string(),
+  category: zod.string().nullish(),
+});
+
+export const UpdateMethodologyResponse = zod.object({
+  id: zod.number(),
+  shortName: zod.string().describe("Nome curto de exibicao (ex: JP 18, FB 7)"),
+  citation: zod.string().describe("Citacao bibliografica completa"),
+  category: zod
+    .string()
+    .nullish()
+    .describe("Categoria opcional (ex: Fisico-Quimica, Microbiologica)"),
+  createdAt: zod.string(),
+});
+
+/**
  * @summary Delete a methodology reference
  */
 export const DeleteMethodologyParams = zod.object({

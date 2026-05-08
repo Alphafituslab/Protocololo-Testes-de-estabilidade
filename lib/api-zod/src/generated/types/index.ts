@@ -30,6 +30,7 @@ export * from "./protocolDetail";
 export * from "./protocolFinalStatus";
 export * from "./protocolStats";
 export * from "./protocolStatus";
+export * from "./updateMethodologyBody";
 export * from "./updateProtocolBody";
 export * from "./updateProtocolBodyStatus";
 export * from "./upsertResultBody";

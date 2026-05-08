@@ -28,6 +28,7 @@ import {
   getGetProtocolStatsQueryKey,
   useListMethodologies,
   useCreateMethodology,
+  useUpdateMethodology,
   useDeleteMethodology,
   getListMethodologiesQueryKey,
 } from "@workspace/api-client-react";
@@ -1325,50 +1326,72 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   );
 }
 
+type MethodologyDialogState =
+  | { mode: "closed" }
+  | { mode: "create" }
+  | { mode: "edit"; id: number; shortName: string; citation: string; category: string };
+
 function MethodologiaTab() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: methodologies = [], isLoading } = useListMethodologies();
 
-  const [open, setOpen] = useState(false);
+  const [dialog, setDialog] = useState<MethodologyDialogState>({ mode: "closed" });
+  const isOpen = dialog.mode !== "closed";
+  const isEditing = dialog.mode === "edit";
+
   const [shortName, setShortName] = useState("");
   const [citation, setCitation] = useState("");
   const [category, setCategory] = useState("");
 
+  const openCreate = () => {
+    setShortName(""); setCitation(""); setCategory("");
+    setDialog({ mode: "create" });
+  };
+
+  const openEdit = (m: { id: number; shortName: string; citation: string; category?: string | null }) => {
+    setShortName(m.shortName);
+    setCitation(m.citation);
+    setCategory(m.category ?? "");
+    setDialog({ mode: "edit", id: m.id, shortName: m.shortName, citation: m.citation, category: m.category ?? "" });
+  };
+
+  const closeDialog = () => setDialog({ mode: "closed" });
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: getListMethodologiesQueryKey() });
+
   const createMutation = useCreateMethodology({
     mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListMethodologiesQueryKey() });
-        setOpen(false);
-        setShortName("");
-        setCitation("");
-        setCategory("");
-        toast({ title: "Metodologia salva" });
-      },
-      onError: () => toast({ title: "Erro ao salvar", variant: "destructive" }),
+      onSuccess: () => { invalidate(); closeDialog(); toast({ title: "Metodologia criada" }); },
+      onError: () => toast({ title: "Erro ao criar", variant: "destructive" }),
+    },
+  });
+
+  const updateMutation = useUpdateMethodology({
+    mutation: {
+      onSuccess: () => { invalidate(); closeDialog(); toast({ title: "Metodologia atualizada" }); },
+      onError: () => toast({ title: "Erro ao atualizar", variant: "destructive" }),
     },
   });
 
   const deleteMutation = useDeleteMethodology({
     mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListMethodologiesQueryKey() });
-        toast({ title: "Metodologia removida" });
-      },
+      onSuccess: () => { invalidate(); toast({ title: "Metodologia removida" }); },
       onError: () => toast({ title: "Erro ao remover", variant: "destructive" }),
     },
   });
 
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!shortName.trim() || !citation.trim()) return;
-    createMutation.mutate({
-      data: {
-        shortName: shortName.trim(),
-        citation: citation.trim(),
-        category: category.trim() || null,
-      },
-    });
+    const data = { shortName: shortName.trim(), citation: citation.trim(), category: category.trim() || null };
+    if (isEditing && dialog.mode === "edit") {
+      updateMutation.mutate({ id: dialog.id, data });
+    } else {
+      createMutation.mutate({ data });
+    }
   };
 
   return (
@@ -1380,53 +1403,56 @@ function MethodologiaTab() {
             Referências bibliográficas usadas nos ensaios (ex: Farmacopeia Brasileira, AOAC, ISO).
           </p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Nova Referência</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Adicionar Referência Metodológica</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Nome curto *</label>
-                <Input
-                  placeholder='ex: FB 7ª ed., JP 18ª ed., AOAC 2019'
-                  value={shortName}
-                  onChange={(e) => setShortName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Citação completa *</label>
-                <Textarea
-                  placeholder='ex: BRASIL. Agência Nacional de Vigilância Sanitária. Farmacopeia Brasileira, 7ª edição. Brasília: ANVISA, 2019.'
-                  value={citation}
-                  onChange={(e) => setCitation(e.target.value)}
-                  rows={3}
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Categoria (opcional)</label>
-                <Input
-                  placeholder='ex: Fisico-Quimica, Microbiologica, Teor do Ativo'
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                  Salvar
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="h-4 w-4 mr-1" /> Nova Referência
+        </Button>
       </div>
+
+      {/* Create / Edit dialog */}
+      <Dialog open={isOpen} onOpenChange={(o) => { if (!o) closeDialog(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{isEditing ? "Editar Referência" : "Adicionar Referência Metodológica"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Nome curto *</label>
+              <Input
+                placeholder='ex: FB 7ª ed., JP 18ª ed., AOAC 2019'
+                value={shortName}
+                onChange={(e) => setShortName(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Citação completa *</label>
+              <Textarea
+                placeholder='ex: BRASIL. ANVISA. Farmacopeia Brasileira, 7ª edição. Brasília: ANVISA, 2019.'
+                value={citation}
+                onChange={(e) => setCitation(e.target.value)}
+                rows={3}
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Categoria (opcional)</label>
+              <Input
+                placeholder='ex: Fisico-Quimica, Microbiologica, Teor do Ativo'
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                {isEditing ? "Salvar alterações" : "Adicionar"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {isLoading ? (
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
@@ -1452,23 +1478,34 @@ function MethodologiaTab() {
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5 break-words">{m.citation}</p>
               </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0 text-destructive hover:text-destructive">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Remover referência?</AlertDialogTitle>
-                    <AlertDialogDescription>"{m.shortName}" será removida permanentemente.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => deleteMutation.mutate({ id: m.id })}>Remover</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-primary"
+                  title="Editar"
+                  onClick={() => openEdit(m)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remover referência?</AlertDialogTitle>
+                      <AlertDialogDescription>"{m.shortName}" será removida permanentemente.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => deleteMutation.mutate({ id: m.id })}>Remover</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </div>
           ))}
         </div>

@@ -11,8 +11,14 @@ const CreateMethodologyBody = z.object({
   category: z.string().nullable().optional(),
 });
 
-const DeleteMethodologyParams = z.object({
+const MethodologyIdParams = z.object({
   id: z.coerce.number().int().positive(),
+});
+
+const UpdateMethodologyBody = z.object({
+  shortName: z.string().min(1),
+  citation: z.string().min(1),
+  category: z.string().nullable().optional(),
 });
 
 router.get("/methodologies", async (_req, res): Promise<void> => {
@@ -40,8 +46,35 @@ router.post("/methodologies", async (req, res): Promise<void> => {
   res.status(201).json(created);
 });
 
+router.put("/methodologies/:id", async (req, res): Promise<void> => {
+  const params = MethodologyIdParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = UpdateMethodologyBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const [updated] = await db
+    .update(methodologiesTable)
+    .set({
+      shortName: body.data.shortName,
+      citation: body.data.citation,
+      category: body.data.category ?? null,
+    })
+    .where(eq(methodologiesTable.id, params.data.id))
+    .returning();
+  if (!updated) {
+    res.status(404).json({ error: "Methodology not found" });
+    return;
+  }
+  res.json(updated);
+});
+
 router.delete("/methodologies/:id", async (req, res): Promise<void> => {
-  const params = DeleteMethodologyParams.safeParse(req.params);
+  const params = MethodologyIdParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
