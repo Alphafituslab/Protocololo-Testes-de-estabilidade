@@ -81,7 +81,7 @@ router.delete("/protocols/:id", requireAuth, async (req, res): Promise<void> => 
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const [deleted] = await db.delete(protocolsTable).where(eq(protocolsTable.id, params.data.id)).returning();
   if (!deleted) { res.status(404).json({ error: "Protocol not found" }); return; }
-  await logAudit(req, "EXCLUIR_PROTOCOLO", "protocolo", `Protocolo "${deleted.productName}" (ID ${deleted.id}) excluído`);
+  await logAudit(req, "EXCLUIR_PROTOCOLO", "protocolo", `Protocolo "${deleted.productName}" excluído`, { entityId: deleted.id, protocolId: deleted.id });
   // Notificação WhatsApp — não bloqueia a resposta; falhas são silenciosas para o cliente
   notifyProtocolDeleted({
     id: deleted.id,

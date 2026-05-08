@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, auditLogsTable } from "@workspace/db";
-import { eq, desc, and, isNull, or } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
 
 const router: IRouter = Router();
@@ -11,10 +11,8 @@ router.get("/audit-logs", requireAuth, async (req, res): Promise<void> => {
 
   const conditions = [];
   if (protocolId && !isNaN(protocolId)) {
-    // Include protocol-specific logs AND global logs (no protocolId)
-    conditions.push(
-      or(eq(auditLogsTable.protocolId, protocolId), isNull(auditLogsTable.protocolId)),
-    );
+    // Strict: only logs belonging to this specific protocol
+    conditions.push(eq(auditLogsTable.protocolId, protocolId));
   }
 
   const logs = await db

@@ -46,7 +46,14 @@ router.post("/protocols/:id/results", requireAuth, async (req, res): Promise<voi
 
   const [lot] = await db.select().from(lotsTable).where(eq(lotsTable.id, result!.lotId));
   const action = isUpdate ? "ATUALIZAR_RESULTADO" : "REGISTRAR_RESULTADO";
-  const desc = `${isUpdate ? "Resultado atualizado" : "Resultado registrado"}: ${result!.parameter} — Período ${result!.period} meses (Lote ${lot?.lotNumber ?? result!.lotId})`;
+  const statusLabel: Record<string, string> = {
+    conforme: "Conforme",
+    nao_conforme: "Não Conforme",
+    na: "N/A",
+    aprovado_com_ressalva: "Aprovado c/ Ressalva",
+  };
+  const statusText = statusLabel[result!.status] ?? result!.status;
+  const desc = `${result!.parameter} — T${result!.period}m — Lote ${lot?.lotNumber ?? result!.lotId}: valor="${result!.result}" [${statusText}]${result!.observation ? ` · Justificativa: ${result!.observation}` : ""}`;
   await logAudit(req, action, "resultado", desc, { entityId: result!.id, protocolId: params.data.id });
   res.json({ ...result, lotNumber: lot?.lotNumber ?? "" });
 });
