@@ -1146,20 +1146,49 @@ function KineticsTab({ protocolId, initialKineticsNotes, initialValidityMonths }
   );
 }
 
-function FinalizeSection({ protocolId, status }: { protocolId: number; status: string }) {
+function FinalizeSection({
+  protocolId,
+  status,
+  currentFinalStatus,
+  currentConclusion,
+  currentValidityMonths,
+  currentIssueDate,
+}: {
+  protocolId: number;
+  status: string;
+  currentFinalStatus?: string | null;
+  currentConclusion?: string | null;
+  currentValidityMonths?: number | null;
+  currentIssueDate?: string | null;
+}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
+  const isAlreadyFinalized = status === "aprovado" || status === "reprovado";
+
   const form = useForm<z.infer<typeof finalizeSchema>>({
     resolver: zodResolver(finalizeSchema),
     defaultValues: {
-      finalStatus: "aprovado",
-      conclusion: "Produto de acordo com os padroes legais vigentes.",
-      validityMonths: 24,
-      issueDate: new Date().toISOString().split("T")[0],
+      finalStatus: (currentFinalStatus as "aprovado" | "reprovado") ?? "aprovado",
+      conclusion: currentConclusion ?? "Produto de acordo com os padroes legais vigentes.",
+      validityMonths: currentValidityMonths ?? 24,
+      issueDate: currentIssueDate ?? new Date().toISOString().split("T")[0],
     },
   });
+
+  // When the dialog opens, re-sync form values from current protocol data
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      form.reset({
+        finalStatus: (currentFinalStatus as "aprovado" | "reprovado") ?? "aprovado",
+        conclusion: currentConclusion ?? "Produto de acordo com os padroes legais vigentes.",
+        validityMonths: currentValidityMonths ?? 24,
+        issueDate: currentIssueDate ?? new Date().toISOString().split("T")[0],
+      });
+    }
+    setOpen(next);
+  };
 
   const finalize = useFinalizeProtocol({
     mutation: {
@@ -1167,25 +1196,36 @@ function FinalizeSection({ protocolId, status }: { protocolId: number; status: s
         queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetProtocolStatsQueryKey() });
-        toast({ title: "Protocolo finalizado com sucesso" });
+        toast({ title: isAlreadyFinalized ? "Avaliação corrigida com sucesso" : "Protocolo finalizado com sucesso" });
         setOpen(false);
       },
-      onError: () => toast({ title: "Erro ao finalizar protocolo", variant: "destructive" }),
+      onError: () => toast({ title: "Erro ao salvar avaliação", variant: "destructive" }),
     },
   });
 
-  if (status === "aprovado" || status === "reprovado") return null;
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="default" data-testid="button-finalize">
-          <Award className="h-4 w-4 mr-2" /> Finalizar Protocolo
-        </Button>
+        {isAlreadyFinalized ? (
+          <Button variant="outline" size="sm" data-testid="button-reopen-finalize">
+            <Pencil className="h-4 w-4 mr-1" /> Corrigir Avaliação Final
+          </Button>
+        ) : (
+          <Button variant="default" data-testid="button-finalize">
+            <Award className="h-4 w-4 mr-2" /> Finalizar Protocolo
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Avaliacao Final do Protocolo</DialogTitle>
+          <DialogTitle>
+            {isAlreadyFinalized ? "Corrigir Avaliação Final do Protocolo" : "Avaliacao Final do Protocolo"}
+          </DialogTitle>
+          {isAlreadyFinalized && (
+            <p className="text-xs text-muted-foreground pt-1">
+              Você pode alterar o status, conclusão, validade e data de emissão. Os resultados de análise devem ser corrigidos na aba Resultados.
+            </p>
+          )}
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit((v) => finalize.mutate({ id: protocolId, data: v }))} className="space-y-4">
@@ -1233,7 +1273,7 @@ function FinalizeSection({ protocolId, status }: { protocolId: number; status: s
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
               <Button type="submit" disabled={finalize.isPending}>
                 {finalize.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Confirmar Avaliacao
+                {isAlreadyFinalized ? "Salvar Correção" : "Confirmar Avaliacao"}
               </Button>
             </div>
           </form>
@@ -1305,7 +1345,14 @@ export default function ProtocolDetail() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
-          <FinalizeSection protocolId={numId} status={protocol.status} />
+          <FinalizeSection
+            protocolId={numId}
+            status={protocol.status}
+            currentFinalStatus={protocol.finalStatus}
+            currentConclusion={protocol.conclusion}
+            currentValidityMonths={protocol.validityMonths}
+            currentIssueDate={protocol.issueDate}
+          />
           <Link href={`/protocols/${id}/certificate`}>
             <Button variant="outline" size="sm" data-testid="button-view-certificate">
               <Award className="h-4 w-4 mr-1" /> Certificado
