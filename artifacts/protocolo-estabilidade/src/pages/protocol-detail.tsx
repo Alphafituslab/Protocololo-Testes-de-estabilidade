@@ -909,10 +909,14 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     }, 800);
   }, [protocolId, updateProtocol]);
 
+  const LS_KEY = `kinetics_overrides_${protocolId}`;
+
   const [overrides, setOverrides] = useState<Record<string, KineticOverride>>({});
   const [initialized, setInitialized] = useState(false);
   const [cardValidity, setCardValidity] = useState("");
   const [kineticsObs, setKineticsObs] = useState(initialKineticsNotes ?? "");
+  // Custom shelf-life override — user can type their own value on the summary card
+  const [customShelfLife, setCustomShelfLife] = useState<string>("");
 
   const buildOverride = (p: { t0?: number | null; t3?: number | null; t6?: number | null; deltaLn?: number | null; k?: number | null; estimatedShelfLifeMonths?: number | null; minThresholdPercent: number; criterion?: string | null }): KineticOverride => {
     const t0 = p.t0 != null ? p.t0.toFixed(2) : "";
@@ -931,13 +935,34 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   };
 
   if (!initialized && kinetics) {
-    const init: Record<string, KineticOverride> = {};
+    // Try to load saved overrides from localStorage first
+    let init: Record<string, KineticOverride> = {};
+    let savedCustomShelfLife = "";
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.overrides) init = parsed.overrides;
+        if (parsed.customShelfLife != null) savedCustomShelfLife = parsed.customShelfLife;
+      }
+    } catch { /* ignore */ }
+
+    // Fill in any parameters not yet in localStorage with calculated values
     for (const p of kinetics.parameters) {
-      init[p.parameter] = buildOverride(p);
+      if (!init[p.parameter]) {
+        init[p.parameter] = buildOverride(p);
+      }
     }
     setOverrides(init);
+    setCustomShelfLife(savedCustomShelfLife);
     setInitialized(true);
   }
+
+  const persistOverrides = (next: Record<string, KineticOverride>, shelf = customShelfLife) => {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({ overrides: next, customShelfLife: shelf }));
+    } catch { /* ignore */ }
+  };
 
   const setField = (param: string, field: keyof KineticOverride, val: string) => {
     setOverrides((prev) => {
@@ -946,7 +971,9 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
         const computed = calcKineticOverride(ov.t0, ov.t3, ov.t6, ov.thresholdMin);
         Object.assign(ov, computed);
       }
-      return { ...prev, [param]: ov };
+      const next = { ...prev, [param]: ov };
+      persistOverrides(next);
+      return next;
     });
   };
 
@@ -957,6 +984,8 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       reset[p.parameter] = buildOverride(p);
     }
     setOverrides(reset);
+    setCustomShelfLife("");
+    try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
   };
 
   if (isLoading) return <div className="text-center py-8 text-muted-foreground">Calculando...</div>;
@@ -994,12 +1023,22 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       <Card className="border-green-200 bg-green-50">
         <CardContent className="pt-4">
           <div className="flex items-center justify-between gap-8">
+            {/* LEFT — Vida Útil Estimada (editable override) */}
             <div className="flex-1">
-              <p className="text-xs text-green-700 font-medium uppercase tracking-wide mb-1">Vida Útil Estimada (t<sub>validade</sub>)</p>
+              <p className="text-xs text-green-700 font-medium uppercase tracking-wide mb-1">
+                Vida Útil Estimada (t<sub>validade</sub>)
+              </p>
               <div className="flex items-center gap-2">
-                <span className="text-3xl font-bold text-green-800 tabular-nums">
-                  {minShelfLife != null ? Math.floor(minShelfLife) : "—"}
-                </span>
+                <input
+                  value={customShelfLife !== "" ? customShelfLife : (minShelfLife != null ? String(Math.floor(minShelfLife)) : "")}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomShelfLife(val);
+                    persistOverrides(overrides, val);
+                  }}
+                  className="w-24 text-3xl font-bold text-green-800 bg-green-100 border border-green-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-right tabular-nums"
+                  placeholder={minShelfLife != null ? String(Math.floor(minShelfLife)) : "—"}
+                />
                 <span className="text-xl font-semibold text-green-700">meses</span>
               </div>
               {limitingParam && (
@@ -1009,8 +1048,14 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   <span className="text-xs font-bold text-amber-900">{limitingParam}</span>
                 </div>
               )}
-              <p className="text-xs text-green-600 mt-1.5 opacity-60">Menor validade calculada entre os parâmetros de Teor do Ativo</p>
+              <p className="text-xs text-green-600 mt-1.5 opacity-60">
+                {customShelfLife !== ""
+                  ? "Valor editado manualmente — clique em \"Restaurar\" para usar o calculado"
+                  : "Menor validade calculada entre os parâmetros de Teor do Ativo"}
+              </p>
             </div>
+
+            {/* RIGHT — Validade Praticada */}
             <div className="flex-1 text-right">
               <p className="text-xs text-green-700 font-medium uppercase tracking-wide mb-1">Validade Praticada</p>
               <div className="flex items-center gap-2 justify-end">

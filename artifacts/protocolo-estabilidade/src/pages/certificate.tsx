@@ -133,17 +133,30 @@ export default function CertificatePage() {
     query: { enabled: !!id, queryKey: getListLotsQueryKey(Number(id)) },
   });
 
-  // Initialize analyses state from API, then overlay any saved method overrides from localStorage
+  // Initialize analyses from API then overlay ALL saved edits (method + specification + result) from localStorage
   useEffect(() => {
     if (cert && analyses === null) {
-      let savedMethods: Record<string, string> = {};
+      type FieldOverride = { method?: string; specification?: string; result?: string };
+      let saved: Record<string, FieldOverride> = {};
       try {
-        const raw = localStorage.getItem(`methods_${id}`);
-        if (raw) savedMethods = JSON.parse(raw);
+        const raw = localStorage.getItem(`cert_overrides_${id}`);
+        if (raw) saved = JSON.parse(raw);
+        // Migrate old methods-only key if present
+        const oldMethods = localStorage.getItem(`methods_${id}`);
+        if (oldMethods) {
+          const m: Record<string, string> = JSON.parse(oldMethods);
+          for (const [param, method] of Object.entries(m)) {
+            saved[param] = { ...saved[param], method };
+          }
+          localStorage.removeItem(`methods_${id}`);
+          localStorage.setItem(`cert_overrides_${id}`, JSON.stringify(saved));
+        }
       } catch { /* ignore */ }
       setAnalyses(cert.analyses.map(a => ({
         ...a,
-        method: savedMethods[a.parameter] ?? a.method,
+        method: saved[a.parameter]?.method ?? a.method,
+        specification: saved[a.parameter]?.specification ?? a.specification,
+        result: saved[a.parameter]?.result ?? a.result,
         visible: true,
       })));
     }
@@ -186,15 +199,15 @@ export default function CertificatePage() {
       if (!prev) return prev;
       const next = [...prev];
       next[i] = { ...next[i], [field]: val };
-      // Persist method overrides to localStorage so they survive page refreshes
-      if (field === "method") {
-        try {
-          const savedRaw = localStorage.getItem(`methods_${id}`) ?? "{}";
-          const saved: Record<string, string> = JSON.parse(savedRaw);
-          saved[next[i].parameter] = val;
-          localStorage.setItem(`methods_${id}`, JSON.stringify(saved));
-        } catch { /* ignore */ }
-      }
+      // Persist ALL field edits so they survive page refreshes
+      try {
+        const key = `cert_overrides_${id}`;
+        const savedRaw = localStorage.getItem(key) ?? "{}";
+        const saved: Record<string, Record<string, string>> = JSON.parse(savedRaw);
+        const param = next[i].parameter;
+        saved[param] = { ...saved[param], [field]: val };
+        localStorage.setItem(key, JSON.stringify(saved));
+      } catch { /* ignore */ }
       return next;
     });
   };
