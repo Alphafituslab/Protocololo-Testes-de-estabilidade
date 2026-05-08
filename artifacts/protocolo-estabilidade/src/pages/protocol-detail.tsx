@@ -1700,11 +1700,16 @@ function FinalizeSection({
 
   const isAlreadyFinalized = status === "aprovado" || status === "reprovado" || status === "aprovado_com_ressalva";
 
+  const initStatus = (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva") ?? "aprovado";
   const form = useForm<z.infer<typeof finalizeSchema>>({
     resolver: zodResolver(finalizeSchema),
     defaultValues: {
-      finalStatus: (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva") ?? "aprovado",
-      conclusion: currentConclusion ?? "Produto de acordo com os padroes legais vigentes.",
+      finalStatus: initStatus,
+      conclusion: currentConclusion ?? (initStatus === "aprovado_com_ressalva"
+        ? "Aprovado. Produto aprovado com ressalva. Atende aos critérios de especificação, com as devidas observações registradas na justificativa técnica."
+        : initStatus === "reprovado"
+          ? "Produto reprovado. Não atende aos critérios de especificação estabelecidos para o período de estabilidade avaliado."
+          : "Produto aprovado. Atende a todos os critérios de especificação estabelecidos para o período de estabilidade avaliado."),
       validityMonths: currentValidityMonths ?? 24,
       issueDate: currentIssueDate ?? new Date().toISOString().split("T")[0],
       ressalva: "",
@@ -1713,12 +1718,30 @@ function FinalizeSection({
 
   const finalStatusWatch = form.watch("finalStatus");
 
+  const CONCLUSION_DEFAULTS: Record<string, string> = {
+    aprovado: "Produto aprovado. Atende a todos os critérios de especificação estabelecidos para o período de estabilidade avaliado.",
+    aprovado_com_ressalva: "Aprovado. Produto aprovado com ressalva. Atende aos critérios de especificação, com as devidas observações registradas na justificativa técnica.",
+    reprovado: "Produto reprovado. Não atende aos critérios de especificação estabelecidos para o período de estabilidade avaliado.",
+  };
+
+  // Auto-fill conclusion when finalStatus changes (only if conclusion is empty or matches a default)
+  useEffect(() => {
+    if (!finalStatusWatch) return;
+    const current = form.getValues("conclusion")?.trim() ?? "";
+    const isDefaultOrEmpty = !current || Object.values(CONCLUSION_DEFAULTS).some(d => d === current);
+    if (isDefaultOrEmpty) {
+      form.setValue("conclusion", CONCLUSION_DEFAULTS[finalStatusWatch] ?? "");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finalStatusWatch]);
+
   // When the dialog opens, re-sync form values from current protocol data
   const handleOpenChange = (next: boolean) => {
     if (next) {
+      const savedStatus = (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva") ?? "aprovado";
       form.reset({
-        finalStatus: (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva") ?? "aprovado",
-        conclusion: currentConclusion ?? "Produto de acordo com os padroes legais vigentes.",
+        finalStatus: savedStatus,
+        conclusion: currentConclusion ?? CONCLUSION_DEFAULTS[savedStatus] ?? "",
         validityMonths: currentValidityMonths ?? 24,
         issueDate: currentIssueDate ?? new Date().toISOString().split("T")[0],
         ressalva: "",
