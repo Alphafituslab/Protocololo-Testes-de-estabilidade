@@ -777,6 +777,50 @@ function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: numbe
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const updateProtocol = useUpdateProtocol();
+  const queryClient = useQueryClient();
+
+  // Refs and hooks for parameter rename → propagate to DB results
+  const focusedOriginalName = useRef<string | null>(null);
+  const renameUpsert = useUpsertResult({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
+        queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
+      },
+    },
+  });
+  const renameDelete = useDeleteResult({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
+        queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
+      },
+    },
+  });
+
+  const renameResultParam = useCallback((oldName: string, newName: string) => {
+    if (!oldName.trim() || !newName.trim() || oldName === newName) return;
+    const oldResults = results.filter((r) => r.parameter === oldName);
+    for (const r of oldResults) {
+      // Upsert under new name first, then delete old record
+      renameUpsert.mutate({
+        id: protocolId,
+        data: {
+          lotId: r.lotId,
+          period: r.period,
+          analysisDate: r.analysisDate ?? new Date().toISOString().split("T")[0],
+          category: r.category as "fisico_quimica" | "microbiologica" | "teor_ativo" | "embalagem",
+          parameter: newName,
+          criterion: r.criterion ?? "",
+          result: r.result,
+          numericResult: r.numericResult ?? undefined,
+          status: r.status as "conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva",
+        },
+      });
+      renameDelete.mutate({ id: protocolId, resultId: r.id });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [protocolId, results]);
 
   const saveParams = useCallback((params: EditableParam[]) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -805,7 +849,9 @@ function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: numbe
   const removeParam = (uid: string) => {
     setEditableParams((prev) => {
       const next = prev.filter((p) => p.uid !== uid);
-      saveParams(next);
+      // Immediate save — no debounce. A debounced save would be lost if the
+      // user switches tabs before 800 ms (component unmounts, timer cancels).
+      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: JSON.stringify(next) } });
       return next;
     });
   };
@@ -875,6 +921,14 @@ function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: numbe
                         <input
                           value={param.parameter}
                           onChange={(e) => updateParam(param.uid, "parameter", e.target.value)}
+                          onFocus={() => { focusedOriginalName.current = param.parameter; }}
+                          onBlur={() => {
+                            const orig = focusedOriginalName.current;
+                            focusedOriginalName.current = null;
+                            if (orig !== null && orig !== param.parameter && param.parameter.trim()) {
+                              renameResultParam(orig, param.parameter);
+                            }
+                          }}
                           className="w-full text-xs font-medium bg-transparent border-b border-dashed border-transparent hover:border-muted-foreground/30 focus:border-primary focus:outline-none py-0.5 placeholder:text-muted-foreground/40"
                           placeholder="Nome do parâmetro"
                         />
