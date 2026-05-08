@@ -830,7 +830,9 @@ function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: numbe
 type KineticOverride = {
   t0: string; t3: string; t6: string;
   deltaLn: string; k: string;
-  thresholdMin: string; thresholdMax: string;
+  ichThreshold: string;   // ICH Q1A(R2) minimum content % — used in t_val formula (default: 80)
+  specMin: string;        // Specification/criterion range min — informational only, NOT used in calc
+  specMax: string;        // Specification/criterion range max — informational only
   shelfLife: string; validadePraticada: string;
 };
 
@@ -842,28 +844,41 @@ function parseCriterionRange(criterion: string | null | undefined): { min: strin
   return { min: match[1], max: match[2] };
 }
 
+/**
+ * Compute kinetic values from raw inputs.
+ *
+ * ICH Q1A(R2) formula:
+ *   Δln = −ln(T6 / T3)
+ *   k   = Δln / 3   (months⁻¹)
+ *   t_val = −ln(ichThreshold / C0) / k
+ *
+ * ichThreshold is the ICH minimum content threshold (default 80 %).
+ * It is SEPARATE from the specification/criterion range (specMin/specMax)
+ * which is purely informational and must NOT be used here.
+ */
 function calcKineticOverride(
-  t0s: string, t3s: string, t6s: string, thresholds: string,
+  t0s: string, t3s: string, t6s: string, ichThresholds: string,
 ): Partial<KineticOverride> {
   const t0 = parseFloat(t0s.replace(",", "."));
   const t3 = parseFloat(t3s.replace(",", "."));
   const t6 = parseFloat(t6s.replace(",", "."));
-  const threshold = parseFloat(thresholds.replace(",", "."));
+  const ichThreshold = parseFloat(ichThresholds.replace(",", "."));
 
   if (isNaN(t3) || isNaN(t6) || t3 <= 0 || t6 <= 0) return {};
 
-  // Δln = -ln(avgT6/avgT3)  [Excel: I3 = -LN(G4/G3)]
+  // Δln = −ln(T6/T3)
   const deltaLn = -Math.log(t6 / t3);
-  // k = Δln / 3  [Excel: L3 = K3/3]
+  // k = Δln / 3
   const k = deltaLn / 3;
 
   if (k <= 0 || isNaN(k)) return { deltaLn: deltaLn.toFixed(6), k: "" };
 
   const c0 = isNaN(t0) || t0 <= 0 ? t6 : t0;
 
-  // t_validade = -ln(threshold/avgT0) / k  [Excel: K8=-LN(G10/G8), L8=K8/M3]
-  const lnNum = -Math.log(threshold / c0);
-  const shelfLife = lnNum > 0 ? (lnNum / k).toFixed(1) : "";
+  // t_val = −ln(ichThreshold / C0) / k
+  // Uses 80 (ICH Q1A) as minimum content threshold, NOT the spec range min
+  const lnNum = isNaN(ichThreshold) || ichThreshold <= 0 ? NaN : -Math.log(ichThreshold / c0);
+  const shelfLife = !isNaN(lnNum) && lnNum > 0 ? (lnNum / k).toFixed(1) : "";
 
   return {
     deltaLn: deltaLn.toFixed(6),
@@ -924,13 +939,16 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     const t0 = p.t0 != null ? p.t0.toFixed(2) : "";
     const t3 = p.t3 != null ? p.t3.toFixed(2) : "";
     const t6 = p.t6 != null ? p.t6.toFixed(2) : "";
-    const { min: thresholdMin, max: thresholdMax } = parseCriterionRange(p.criterion);
+    const { min: specMin, max: specMax } = parseCriterionRange(p.criterion);
     return {
       t0, t3, t6,
       deltaLn: p.deltaLn != null ? p.deltaLn.toFixed(6) : "",
       k: p.k != null ? p.k.toFixed(6) : "",
-      thresholdMin: thresholdMin || p.minThresholdPercent.toString(),
-      thresholdMax,
+      // ichThreshold = ICH Q1A(R2) minimum content % for t_val calculation (always 80)
+      ichThreshold: p.minThresholdPercent.toString(),
+      // specMin/specMax = specification/criterion range — informational only, NOT used in calc
+      specMin,
+      specMax,
       shelfLife: p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(1) : "",
       validadePraticada: "",
     };
@@ -968,8 +986,11 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
         k: saved.k ?? base.k,
         shelfLife: saved.shelfLife ?? base.shelfLife,
         validadePraticada: saved.validadePraticada ?? base.validadePraticada,
-        thresholdMin: saved.thresholdMin ?? base.thresholdMin,
-        thresholdMax: saved.thresholdMax ?? base.thresholdMax,
+        // ICH threshold (80 %) — editable, used in t_val calc
+        ichThreshold: saved.ichThreshold ?? base.ichThreshold,
+        // Spec range — informational only
+        specMin: saved.specMin ?? base.specMin,
+        specMax: saved.specMax ?? base.specMax,
       };
     }
     setOverrides(init);
@@ -986,8 +1007,11 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const setField = (param: string, field: keyof KineticOverride, val: string) => {
     setOverrides((prev) => {
       const ov = { ...prev[param], [field]: val };
-      if (["t0", "t3", "t6", "thresholdMin"].includes(field)) {
-        const computed = calcKineticOverride(ov.t0, ov.t3, ov.t6, ov.thresholdMin);
+      // Recalculate Δln, k and t_val whenever inputs change.
+      // ichThreshold (ICH 80 % limit) drives the t_val calculation.
+      // specMin/specMax are informational only and do NOT trigger recalculation.
+      if (["t0", "t3", "t6", "ichThreshold"].includes(field)) {
+        const computed = calcKineticOverride(ov.t0, ov.t3, ov.t6, ov.ichThreshold);
         Object.assign(ov, computed);
       }
       const next = { ...prev, [param]: ov };
@@ -1107,9 +1131,10 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               <TableHead className="text-right text-xs whitespace-nowrap">Média T6 (%)</TableHead>
               <TableHead className="text-right text-xs bg-blue-50/60 whitespace-nowrap">Δln = −ln(T6/T3)</TableHead>
               <TableHead className="text-right text-xs bg-blue-50/60 whitespace-nowrap">k = Δln/3 (mês⁻¹)</TableHead>
+              <TableHead className="text-right text-xs bg-purple-50/60 whitespace-nowrap" title="Limiar ICH Q1A(R2): conteúdo mínimo aceito para fins de estabilidade (padrão = 80 %)">Limiar ICH (%)</TableHead>
               <TableHead className="text-right text-xs bg-amber-50/60 whitespace-nowrap">t<sub>val</sub> ICH (meses)</TableHead>
               <TableHead className="text-right text-xs whitespace-nowrap">Validade (meses)</TableHead>
-              <TableHead className="text-right text-xs whitespace-nowrap">Lim. mín – máx (%)</TableHead>
+              <TableHead className="text-right text-xs whitespace-nowrap">Espec. mín – máx (%)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1136,6 +1161,10 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   <TableCell className="text-right py-2 bg-blue-50/30">
                     <EditableNum value={ov.k} onChange={(v) => setField(p.parameter, "k", v)} width="w-28" />
                   </TableCell>
+                  {/* Limiar ICH — used in t_val formula; default 80 per ICH Q1A(R2) */}
+                  <TableCell className="text-right py-2 bg-purple-50/30">
+                    <EditableNum value={ov.ichThreshold} onChange={(v) => setField(p.parameter, "ichThreshold", v)} width="w-16" placeholder="80" />
+                  </TableCell>
                   <TableCell className="text-right py-2 bg-amber-50/30">
                     <div className="flex items-center justify-end gap-1">
                       <EditableNum value={ov.shelfLife} onChange={(v) => setField(p.parameter, "shelfLife", v)} width="w-20" />
@@ -1149,11 +1178,12 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   <TableCell className="text-right py-2">
                     <EditableNum value={ov.validadePraticada} onChange={(v) => setField(p.parameter, "validadePraticada", v)} placeholder="ex: 24" />
                   </TableCell>
+                  {/* Espec. mín–máx — spec/criterion range, informational only, NOT used in t_val calc */}
                   <TableCell className="text-right py-2">
                     <div className="flex items-center justify-end gap-1">
-                      <EditableNum value={ov.thresholdMin} onChange={(v) => setField(p.parameter, "thresholdMin", v)} width="w-14" placeholder="mín" />
+                      <EditableNum value={ov.specMin} onChange={(v) => setField(p.parameter, "specMin", v)} width="w-14" placeholder="mín" />
                       <span className="text-muted-foreground text-xs">–</span>
-                      <EditableNum value={ov.thresholdMax} onChange={(v) => setField(p.parameter, "thresholdMax", v)} width="w-14" placeholder="máx" />
+                      <EditableNum value={ov.specMax} onChange={(v) => setField(p.parameter, "specMax", v)} width="w-14" placeholder="máx" />
                     </div>
                   </TableCell>
                 </TableRow>
