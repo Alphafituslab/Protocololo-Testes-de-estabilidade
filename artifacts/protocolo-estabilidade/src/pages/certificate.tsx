@@ -122,9 +122,27 @@ export default function CertificatePage() {
 
   const [includePhotos, setIncludePhotos] = useState(true);
 
-  const [tempAmostragem, setTempAmostragem] = useState("22,8°C");
-  const [umidAmostragem, setUmidAmostragem] = useState("60% UR");
-  const [tempRecebimento, setTempRecebimento] = useState("22,8°C");
+  // Environmental conditions — persisted in localStorage so edits survive navigation
+  const ENV_KEY = `cert_env_${id}`;
+  const [tempAmostragem, setTempAmostragemRaw] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").tempAmostragem ?? "22,8°C"; } catch { return "22,8°C"; }
+  });
+  const [umidAmostragem, setUmidAmostragemRaw] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").umidAmostragem ?? "60% UR"; } catch { return "60% UR"; }
+  });
+  const [tempRecebimento, setTempRecebimentoRaw] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").tempRecebimento ?? "22,8°C"; } catch { return "22,8°C"; }
+  });
+
+  const saveEnv = (patch: Partial<{ tempAmostragem: string; umidAmostragem: string; tempRecebimento: string }>) => {
+    try {
+      const current = JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}");
+      localStorage.setItem(ENV_KEY, JSON.stringify({ ...current, ...patch }));
+    } catch { /* ignore */ }
+  };
+  const setTempAmostragem = (v: string) => { setTempAmostragemRaw(v); saveEnv({ tempAmostragem: v }); };
+  const setUmidAmostragem = (v: string) => { setUmidAmostragemRaw(v); saveEnv({ umidAmostragem: v }); };
+  const setTempRecebimento = (v: string) => { setTempRecebimentoRaw(v); saveEnv({ tempRecebimento: v }); };
 
   // Environmental conditions are password-protected
   const { unlock } = useUnlock();
