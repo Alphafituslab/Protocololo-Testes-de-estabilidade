@@ -110,10 +110,11 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       const avgResult = avg !== null ? avg.toFixed(2) : data.resultText;
 
       // Re-evaluate status based on the computed average vs criterion.
-      // If the average is numerically out of spec, escalate to nao_conforme
-      // regardless of how individual results were saved.
+      // Only escalate to nao_conforme when truly non-conforming.
+      // IMPORTANT: "aprovado_com_ressalva" is an explicit operator override —
+      // it must never be downgraded to nao_conforme by the automatic criterion check.
       let finalStatus = data.status;
-      if (avg !== null && finalStatus !== "nao_conforme") {
+      if (avg !== null && finalStatus !== "nao_conforme" && finalStatus !== "aprovado_com_ressalva") {
         const withinSpec = isWithinCriterion(avg, data.criterion);
         if (withinSpec === false) finalStatus = "nao_conforme";
       }
