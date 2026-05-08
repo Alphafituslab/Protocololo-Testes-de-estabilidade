@@ -13,6 +13,7 @@ import {
 } from "@workspace/api-zod";
 import { logAudit } from "../lib/audit";
 import { requireAuth } from "../lib/session";
+import { notifyProtocolDeleted } from "../lib/notifications";
 
 const router: IRouter = Router();
 
@@ -81,6 +82,22 @@ router.delete("/protocols/:id", requireAuth, async (req, res): Promise<void> => 
   const [deleted] = await db.delete(protocolsTable).where(eq(protocolsTable.id, params.data.id)).returning();
   if (!deleted) { res.status(404).json({ error: "Protocol not found" }); return; }
   await logAudit(req, "EXCLUIR_PROTOCOLO", "protocolo", `Protocolo "${deleted.productName}" (ID ${deleted.id}) excluído`);
+  // Notificação WhatsApp — não bloqueia a resposta; falhas são silenciosas para o cliente
+  notifyProtocolDeleted({
+    id: deleted.id,
+    productName: deleted.productName,
+    certNumber: deleted.certNumber,
+    companyName: deleted.companyName,
+    cnpj: deleted.cnpj,
+    status: deleted.status,
+    finalStatus: deleted.finalStatus,
+    conclusion: deleted.conclusion,
+    validityMonths: deleted.validityMonths,
+    issueDate: deleted.issueDate,
+    deletedByName: req.authUser?.displayName ?? "Desconhecido",
+    deletedByUsername: req.authUser?.username ?? "desconhecido",
+    deletedAt: new Date(),
+  }).catch(() => { /* já logado internamente */ });
   res.sendStatus(204);
 });
 
