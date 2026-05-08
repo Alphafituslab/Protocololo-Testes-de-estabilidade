@@ -133,39 +133,48 @@ export default function CertificatePage() {
     query: { enabled: !!id, queryKey: getListLotsQueryKey(Number(id)) },
   });
 
-  // Initialize analyses from API then overlay ALL saved edits (method + specification + result) from localStorage
+  // Sync analyses from API + localStorage every time cert (re)loads.
+  // Runs on mount and whenever cert refetches (e.g. after navigating back from
+  // the Results tab). Preserves: visibility toggles (via map), manual cert
+  // edits (via cert_overrides), and methodology selections (via param_methods).
+  // Priority: cert_overrides.method > param_methods > API default.
   useEffect(() => {
-    if (cert && analyses === null) {
-      type FieldOverride = { method?: string; specification?: string; result?: string };
-      let saved: Record<string, FieldOverride> = {};
-      let paramMethods: Record<string, string> = {};
-      try {
-        const raw = localStorage.getItem(`cert_overrides_${id}`);
-        if (raw) saved = JSON.parse(raw);
-        // Read methodology selections made in Results tab
-        const pmRaw = localStorage.getItem(`param_methods_${id}`);
-        if (pmRaw) paramMethods = JSON.parse(pmRaw);
-        // Migrate old methods-only key if present
-        const oldMethods = localStorage.getItem(`methods_${id}`);
-        if (oldMethods) {
-          const m: Record<string, string> = JSON.parse(oldMethods);
-          for (const [param, method] of Object.entries(m)) {
-            saved[param] = { ...saved[param], method };
-          }
-          localStorage.removeItem(`methods_${id}`);
-          localStorage.setItem(`cert_overrides_${id}`, JSON.stringify(saved));
+    if (!cert) return;
+    type FieldOverride = { method?: string; specification?: string; result?: string };
+    let saved: Record<string, FieldOverride> = {};
+    let paramMethods: Record<string, string> = {};
+    try {
+      const raw = localStorage.getItem(`cert_overrides_${id}`);
+      if (raw) saved = JSON.parse(raw);
+      // Read methodology selections made in Results tab
+      const pmRaw = localStorage.getItem(`param_methods_${id}`);
+      if (pmRaw) paramMethods = JSON.parse(pmRaw);
+      // Migrate old methods-only key if present
+      const oldMethods = localStorage.getItem(`methods_${id}`);
+      if (oldMethods) {
+        const m: Record<string, string> = JSON.parse(oldMethods);
+        for (const [param, method] of Object.entries(m)) {
+          saved[param] = { ...saved[param], method };
         }
-      } catch { /* ignore */ }
-      setAnalyses(cert.analyses.map(a => ({
+        localStorage.removeItem(`methods_${id}`);
+        localStorage.setItem(`cert_overrides_${id}`, JSON.stringify(saved));
+      }
+    } catch { /* ignore */ }
+    setAnalyses(prev => {
+      // Preserve per-row visibility toggled by the user
+      const visMap: Record<string, boolean> = {};
+      if (prev) for (const a of prev) visMap[a.parameter] = a.visible;
+      return cert.analyses.map(a => ({
         ...a,
-        // Priority: manual cert override > methodology from Results tab > API default
+        // cert_overrides.method stores intentional cert-page edits; they take
+        // priority. paramMethods carries the methodology chosen in Results tab.
         method: saved[a.parameter]?.method ?? paramMethods[a.parameter] ?? a.method,
         specification: saved[a.parameter]?.specification ?? a.specification,
         result: saved[a.parameter]?.result ?? a.result,
-        visible: true,
-      })));
-    }
-  }, [cert, analyses, id]);
+        visible: visMap[a.parameter] ?? true,
+      }));
+    });
+  }, [cert, id]);
 
   const allPhotoEntries = useMemo(() => {
     if (!lotsRaw.length) return [] as PhotoEntry[];
