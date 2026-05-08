@@ -16,6 +16,43 @@ type PhotoEntry = {
   key: string;
 };
 
+/** Default technical descriptions for each analysis parameter in the photo appendix. */
+const PARAM_DESCRIPTIONS: Record<string, string> = {
+  // Físico-Química
+  "pH": "Avalia a acidez ou alcalinidade do produto por medição potenciométrica. No estudo de estabilidade, variações no pH indicam reações hidrolíticas ou oxidativas que comprometem a qualidade e eficácia do produto. Os registros fotográficos documentam as leituras realizadas no pHmetro calibrado, as soluções-tampão de referência e as amostras preparadas em cada período de avaliação.",
+  "Perda por dessecação": "Determina o teor de umidade residual das cápsulas por gravimetria após secagem a 105 °C até peso constante. Valores elevados favorecem a proliferação microbiana e reações de degradação química. Os registros fotográficos documentam o processo de pesagem inicial, a secagem em estufa e a pesagem final das amostras em cada período.",
+  "Cor": "Característica organoléptica avaliada por inspeção visual e/ou colorimetria instrumental. Alterações de coloração podem indicar oxidação lipídica, degradação química ou contaminação cruzada. Os registros fotográficos evidenciam a aparência cromática das amostras sob iluminação padronizada ao longo dos períodos de avaliação, permitindo comparação visual direta.",
+  "Odor": "Parâmetro organoléptico avaliado por análise sensorial padronizada, em condições controladas de temperatura e ausência de interferências olfativas externas. Odores atípicos indicam degradação lipídica, fermentação ou contaminação. Os registros fotográficos documentam o procedimento de avaliação e as condições ambientais do ensaio.",
+  "Aparência": "Avaliação macroscópica das cápsulas quanto à integridade física, uniformidade de enchimento, ausência de deformações, cápsulas abertas ou manchas. Parâmetro crítico para a aceitabilidade pelo consumidor e rastreabilidade de lote. Os registros fotográficos documentam o estado visual das amostras, dispostas de forma padronizada, em cada período de avaliação.",
+  "Cinzas totais": "Determina o resíduo mineral fixo obtido após incineração completa da amostra a 550 °C em mufla. Indica a presença de minerais inorgânicos constitutivos e eventuais contaminantes pesados. Os registros fotográficos documentam o processo de calcinação, a aparência do resíduo obtido e a pesagem em balança analítica.",
+  "Dissolução": "Avalia a velocidade e a extensão de liberação do princípio ativo a partir da forma farmacêutica, constituindo parâmetro crítico de qualidade para garantia da biodisponibilidade. Os registros fotográficos documentam o aparato de dissolução utilizado, as condições operacionais (meio, temperatura, agitação), as amostras coletadas nos intervalos definidos e o aspecto visual das cápsulas durante o ensaio.",
+  "Massa média": "Determina a uniformidade de massa das cápsulas por pesagem individual em balança analítica. Variações fora dos limites de aceitação indicam falhas no processo de encapsulamento. Os registros fotográficos documentam a balança analítica calibrada, o procedimento de pesagem e a distribuição das massas individuais das unidades amostradas.",
+  "Kcal": "Determinação do valor calórico total, calculado a partir dos macronutrientes declarados. Os registros fotográficos documentam o procedimento analítico, os equipamentos utilizados e os resultados obtidos em cada período de avaliação.",
+  "Sódio": "Determinação do teor de sódio por espectrometria de absorção atômica em chama ou fotometria de chama, após digestão ácida assistida. Os registros fotográficos documentam o preparo das soluções-padrão, a digestão das amostras, as condições instrumentais e as leituras realizadas em cada período de avaliação.",
+  // Microbiológica
+  "Coliformes totais": "Determinação da contagem de coliformes totais como indicadores de higiene e condições sanitárias do processo produtivo. A ausência é requisito regulatório para suplementos alimentares. Os registros fotográficos documentam as placas de incubação, a morfologia das colônias típicas, a confirmação bioquímica e o resultado final de ausência ou contagem por grama.",
+  "Salmonella spp.": "Pesquisa de Salmonella spp. em 25 g de amostra por método cultural com pré-enriquecimento, enriquecimento seletivo e confirmação bioquímica e sorológica. A ausência é obrigatória pela legislação brasileira. Os registros fotográficos documentam todas as etapas metodológicas, os meios de cultivo utilizados, as colônias características e o resultado confirmatório.",
+  "Estafilococos coagulase+": "Contagem de Staphylococcus aureus e demais estafilococos coagulase positivos, indicadores de contaminação por manipulação inadequada. Os registros fotográficos documentam as placas seletivas (Baird-Parker), as colônias típicas negras com halo opaco, o teste de coagulase em tubo e o resultado final da contagem.",
+  "Bolores e leveduras": "Contagem de fungos filamentosos e leveduras como indicadores de umidade excessiva, contaminação ambiental ou falha no controle de processo. Os registros fotográficos documentam as placas de ágar dicloran-rosa bengala-cloranfenicol (DRBC) após incubação a 22–25 °C, evidenciando a morfologia colonial e a contagem total de colônias.",
+  "Escherichia coli": "Pesquisa e contagem de Escherichia coli como indicador de contaminação de origem fecal, inaceitável em produtos para consumo humano. Os registros fotográficos documentam as placas com meio seletivo, as provas confirmatórias (IMViC) e o resultado final de ausência ou contagem por grama.",
+  "Enterobacteriaceae": "Contagem de enterobactérias totais como indicadores de contaminação pós-processo e deficiências de higienização. Os registros fotográficos documentam as placas com ágar Violeta Cristal Bílis Glucose (VRBG), a morfologia das colônias típicas e o resultado das contagens nos períodos avaliados.",
+  // Teor do Ativo
+  "Cálcio": "Determinação quantitativa do teor de cálcio por complexometria (EDTA) ou espectrometria de absorção atômica após digestão ácida. O limite mínimo regulatório é 80% do valor declarado no rótulo. Os registros fotográficos documentam o processo de digestão ácida assistida, o preparo das soluções-padrão, a titulação ou a leitura instrumental e os resultados numéricos obtidos em cada período de avaliação.",
+  "Vitamina D": "Determinação do teor de vitamina D (D2 e/ou D3) por cromatografia líquida de alta eficiência (CLAE) com detecção por UV, após saponificação e extração em fase sólida. O limite mínimo regulatório é 80% do valor declarado. Os registros fotográficos documentam o preparo das amostras, as soluções-padrão de calibração, os cromatogramas representativos e as condições cromatográficas do método validado.",
+  // Embalagem
+  "Torque de tampa": "Medição da força de torque de abertura e fechamento da tampa por torquímetro calibrado, garantindo a vedação adequada do frasco e a proteção do produto contra umidade, oxidação e adulteração. Os registros fotográficos documentam o torquímetro utilizado, o procedimento de medição padronizado e os valores registrados para cada unidade amostrada em cada período.",
+  "Selagem por indução": "Verificação da integridade da membrana termoinduzida por indução eletromagnética, elemento crítico para a proteção do produto contra umidade, oxidação e violação de embalagem. Os registros fotográficos documentam a inspeção visual da membrana, o teste de selagem por pressão, a uniformidade da aderência e o estado da membrana após abertura das unidades amostradas.",
+  "Integridade selagem": "Avaliação da hermeticidade do sistema de fechamento (conjunto frasco, tampa e membrana de indução) quanto à ausência de vazamentos, deformações ou comprometimento da barreira protetora. Os registros fotográficos documentam os ensaios de integridade realizados — incluindo imersão em água corada, teste de pressão ou inspeção visual ampliada — e a condição das embalagens em cada período de avaliação.",
+};
+
+/** Returns the default description for a parameter, falling back to a generic text. */
+function getParamDescription(parameter: string): string {
+  return (
+    PARAM_DESCRIPTIONS[parameter] ??
+    `Ensaio de ${parameter} realizado conforme metodologia validada e referenciada no protocolo de estabilidade. Os registros fotográficos documentam o procedimento analítico, os equipamentos utilizados, o preparo das amostras e os resultados obtidos em cada período de avaliação, permitindo a rastreabilidade completa do ensaio.`
+  );
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   fisico_quimica: "Físico-Química",
   microbiologica: "Microbiológica",
@@ -237,6 +274,21 @@ export default function CertificatePage() {
   const selectedCount = activePhotoKeys.size;
 
   const toggle = (key: keyof ShowSections) => setShow(prev => ({ ...prev, [key]: !prev[key] }));
+
+  // Per-parameter descriptions in the photo appendix — editable, persisted to localStorage
+  const PHOTO_DESC_KEY = `cert_photo_desc_${id}`;
+  const [photoDescriptions, setPhotoDescriptions] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem(PHOTO_DESC_KEY) ?? "{}"); } catch { return {}; }
+  });
+  const setPhotoDescription = (param: string, val: string) => {
+    setPhotoDescriptions(prev => {
+      const next = { ...prev, [param]: val };
+      try { localStorage.setItem(PHOTO_DESC_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+  const getDescription = (param: string) =>
+    photoDescriptions[param] !== undefined ? photoDescriptions[param] : getParamDescription(param);
 
   const updateAnalysis = (i: number, field: "method" | "specification" | "result", val: string) => {
     setAnalyses(prev => {
@@ -742,11 +794,22 @@ export default function CertificatePage() {
                 return (
                   <div key={groupKey} className="photo-param-group mb-8">
                     {/* Group header */}
-                    <div className="flex items-baseline gap-3 mb-3 pb-1.5 border-b-2 border-gray-700">
+                    <div className="flex items-baseline gap-3 mb-2 pb-1.5 border-b-2 border-gray-700">
                       <h3 className="text-sm font-bold uppercase tracking-wide text-gray-800">{param}</h3>
                       <span className="text-[10px] px-2 py-0.5 rounded bg-gray-200 text-gray-600 font-semibold uppercase tracking-wide border border-gray-300">
                         {catLabel}
                       </span>
+                    </div>
+                    {/* Technical description — pre-filled, editable, persisted */}
+                    <div className="mb-3">
+                      <textarea
+                        value={getDescription(param)}
+                        onChange={e => setPhotoDescription(param, e.target.value)}
+                        rows={3}
+                        className="w-full text-[10px] text-gray-600 leading-relaxed bg-transparent border border-dashed border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:border-gray-500 resize-none print:border-none print:p-0"
+                        style={{ fontFamily: "inherit" }}
+                        title="Clique para editar a descrição deste ensaio"
+                      />
                     </div>
                     {entries.map((entry, ei) => (
                       <div key={ei} className="mb-5">
