@@ -713,36 +713,43 @@ export default function CertificatePage() {
                         {CATEGORY_LABELS[cat] ?? cat}
                       </td>
                     </tr>
-                    {catRows.map((analysis, ci) => (
+                    {catRows.map((analysis, ci) => {
+                      const isNC = analysis.status === "Nao Conforme";
+                      return (
                       <tr
                         key={`${cat}-${ci}`}
-                        className={[ci % 2 === 0 ? "" : "bg-gray-50", !analysis.visible ? "opacity-30 print:hidden" : ""].join(" ")}
+                        className={[
+                          isNC ? "bg-red-50" : ci % 2 === 0 ? "" : "bg-gray-50",
+                          !analysis.visible ? "opacity-30 print:hidden" : "",
+                        ].join(" ")}
                       >
-                        <td className="border border-gray-300 px-2 py-1.5 font-medium align-top">{analysis.parameter}</td>
-                        <td className="border border-gray-300 px-2 py-1.5 text-gray-600 align-top">
+                        <td className={`border px-2 py-1.5 font-medium align-top ${isNC ? "border-red-300 text-red-900" : "border-gray-300"}`}>{analysis.parameter}</td>
+                        <td className={`border px-2 py-1.5 text-gray-600 align-top ${isNC ? "border-red-300" : "border-gray-300"}`}>
                           <CertEditField value={analysis.method} onChange={v => updateAnalysis(analysis.originalIndex, "method", v)} multiline className="text-xs leading-snug" />
                         </td>
-                        <td className="border border-gray-300 px-2 py-1.5 font-mono align-top">
+                        <td className={`border px-2 py-1.5 font-mono align-top ${isNC ? "border-red-300" : "border-gray-300"}`}>
                           <CertEditField value={analysis.specification} onChange={v => updateAnalysis(analysis.originalIndex, "specification", v)} className="text-xs w-full font-mono" />
                         </td>
-                        <td className="border border-gray-300 px-2 py-1.5 text-center font-mono font-medium align-top">
+                        <td className={`border px-2 py-1.5 text-center font-mono font-medium align-top ${isNC ? "border-red-300 text-red-800" : "border-gray-300"}`}>
                           <CertEditField value={analysis.result} onChange={v => updateAnalysis(analysis.originalIndex, "result", v)} className="text-xs text-center w-16 font-mono" />
                         </td>
-                        <td className="border border-gray-300 px-2 py-1.5 text-center align-top">
-                          <span className={`font-semibold text-xs ${
-                            analysis.status === "Conforme" ? "text-green-700"
-                            : analysis.status === "Nao Conforme" ? "text-red-700"
+                        <td className={`border px-2 py-1.5 text-center align-top ${isNC ? "border-red-400 bg-red-200" : "border-gray-300"}`}>
+                          <span className={`font-bold text-xs inline-flex items-center gap-1 ${
+                            isNC ? "text-red-800"
+                            : analysis.status === "Conforme" ? "text-green-700"
                             : analysis.status === "Aprovado com Ressalva" ? "text-amber-700"
                             : "text-gray-500"
                           }`}>
+                            {isNC && <span className="inline-block w-2 h-2 rounded-full bg-red-600 shrink-0" />}
                             {analysis.status}
                           </span>
                         </td>
-                        <td className="border border-gray-300 px-2 py-1.5 text-center align-middle print:hidden">
+                        <td className={`border px-2 py-1.5 text-center align-middle print:hidden ${isNC ? "border-red-300" : "border-gray-300"}`}>
                           <input type="checkbox" checked={analysis.visible} onChange={() => toggleRowVisibility(analysis.originalIndex)} className="w-4 h-4 accent-primary cursor-pointer" />
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                     {cat === "embalagem" && !allCatHidden && (
                       <tr key="embalagem-note">
                         <td colSpan={6} className="border border-gray-300 px-2 py-1.5 bg-amber-50 text-[10px] text-amber-800 italic">
