@@ -37,6 +37,8 @@ export interface Protocol {
   seniorAnalystEmail?: string;
   status: ProtocolStatus;
   finalStatus?: ProtocolFinalStatus;
+  /** Texto da ressalva quando finalStatus é aprovado_com_ressalva */
+  ressalva?: string | null;
   conclusion?: string | null;
   validityMonths?: number | null;
   issueDate?: string | null;

@@ -89,17 +89,20 @@ router.post("/protocols/:id/finalize", requireAuth, async (req, res): Promise<vo
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = FinalizeProtocolBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const fs = parsed.data.finalStatus;
+  const workflowStatus = fs === "aprovado" ? "aprovado" : fs === "aprovado_com_ressalva" ? "aprovado_com_ressalva" : "reprovado";
   const [protocol] = await db.update(protocolsTable)
     .set({
-      status: parsed.data.finalStatus === "aprovado" ? "aprovado" : "reprovado",
-      finalStatus: parsed.data.finalStatus,
+      status: workflowStatus,
+      finalStatus: fs,
       conclusion: parsed.data.conclusion,
       validityMonths: parsed.data.validityMonths ?? null,
       issueDate: parsed.data.issueDate ?? new Date().toISOString().split("T")[0],
+      ressalva: fs === "aprovado_com_ressalva" ? (parsed.data.ressalva ?? null) : null,
     })
     .where(eq(protocolsTable.id, params.data.id)).returning();
   if (!protocol) { res.status(404).json({ error: "Protocol not found" }); return; }
-  const statusLabel = parsed.data.finalStatus === "aprovado" ? "APROVADO" : "REPROVADO";
+  const statusLabel = fs === "aprovado" ? "APROVADO" : fs === "aprovado_com_ressalva" ? "APROVADO COM RESSALVA" : "REPROVADO";
   await logAudit(req, "FINALIZAR_PROTOCOLO", "protocolo", `Protocolo "${protocol.productName}" finalizado como ${statusLabel}`, { entityId: protocol.id, protocolId: protocol.id });
   res.json(protocol);
 });

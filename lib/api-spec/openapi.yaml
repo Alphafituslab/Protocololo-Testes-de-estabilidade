@@ -520,11 +520,15 @@ components:
           type: string
         status:
           type: string
-          enum: [rascunho, em_andamento, concluido, aprovado, reprovado]
+          enum: [rascunho, em_andamento, concluido, aprovado, reprovado, aprovado_com_ressalva]
         finalStatus:
           type: string
           nullable: true
-          enum: [aprovado, reprovado, null]
+          enum: [aprovado, reprovado, aprovado_com_ressalva, null]
+        ressalva:
+          type: string
+          nullable: true
+          description: Texto da ressalva quando finalStatus é aprovado_com_ressalva
         conclusion:
           type: string
           nullable: true
@@ -1060,13 +1064,16 @@ components:
       properties:
         finalStatus:
           type: string
-          enum: [aprovado, reprovado]
+          enum: [aprovado, reprovado, aprovado_com_ressalva]
         conclusion:
           type: string
         validityMonths:
           type: integer
         issueDate:
           type: string
+        ressalva:
+          type: string
+          description: Texto da ressalva (obrigatório quando finalStatus é aprovado_com_ressalva)
       required:
         - finalStatus
         - conclusion

@@ -22,6 +22,7 @@ export const ProtocolStatus = {
   concluido: "concluido",
   aprovado: "aprovado",
   reprovado: "reprovado",
+  aprovado_com_ressalva: "aprovado_com_ressalva",
 } as const;
 
 export type ProtocolFinalStatus =
@@ -31,6 +32,7 @@ export type ProtocolFinalStatus =
 export const ProtocolFinalStatus = {
   aprovado: "aprovado",
   reprovado: "reprovado",
+  aprovado_com_ressalva: "aprovado_com_ressalva",
 } as const;
 
 export interface Protocol {
@@ -62,6 +64,8 @@ export interface Protocol {
   seniorAnalystEmail?: string;
   status: ProtocolStatus;
   finalStatus?: ProtocolFinalStatus;
+  /** Texto da ressalva quando finalStatus é aprovado_com_ressalva */
+  ressalva?: string | null;
   conclusion?: string | null;
   validityMonths?: number | null;
   issueDate?: string | null;
@@ -343,6 +347,7 @@ export type FinalizeProtocolBodyFinalStatus =
 export const FinalizeProtocolBodyFinalStatus = {
   aprovado: "aprovado",
   reprovado: "reprovado",
+  aprovado_com_ressalva: "aprovado_com_ressalva",
 } as const;
 
 export interface FinalizeProtocolBody {
@@ -350,6 +355,8 @@ export interface FinalizeProtocolBody {
   conclusion: string;
   validityMonths?: number;
   issueDate?: string;
+  /** Texto da ressalva (obrigatório quando finalStatus é aprovado_com_ressalva) */
+  ressalva?: string;
 }
 
 export type ListProtocolsParams = {

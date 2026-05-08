@@ -12,4 +12,6 @@ export interface FinalizeProtocolBody {
   conclusion: string;
   validityMonths?: number;
   issueDate?: string;
+  /** Texto da ressalva (obrigatório quando finalStatus é aprovado_com_ressalva) */
+  ressalva?: string;
 }

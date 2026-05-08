@@ -55,14 +55,20 @@ export const ListProtocolsResponseItem = zod.object({
     "concluido",
     "aprovado",
     "reprovado",
+    "aprovado_com_ressalva",
   ]),
   finalStatus: zod
     .union([
       zod.literal("aprovado"),
       zod.literal("reprovado"),
+      zod.literal("aprovado_com_ressalva"),
       zod.literal(null),
     ])
     .nullish(),
+  ressalva: zod
+    .string()
+    .nullish()
+    .describe("Texto da ressalva quando finalStatus é aprovado_com_ressalva"),
   conclusion: zod.string().nullish(),
   validityMonths: zod.number().nullish(),
   issueDate: zod.string().nullish(),
@@ -150,14 +156,22 @@ export const GetProtocolStatsResponse = zod.object({
         "concluido",
         "aprovado",
         "reprovado",
+        "aprovado_com_ressalva",
       ]),
       finalStatus: zod
         .union([
           zod.literal("aprovado"),
           zod.literal("reprovado"),
+          zod.literal("aprovado_com_ressalva"),
           zod.literal(null),
         ])
         .nullish(),
+      ressalva: zod
+        .string()
+        .nullish()
+        .describe(
+          "Texto da ressalva quando finalStatus é aprovado_com_ressalva",
+        ),
       conclusion: zod.string().nullish(),
       validityMonths: zod.number().nullish(),
       issueDate: zod.string().nullish(),
@@ -215,14 +229,20 @@ export const GetProtocolResponse = zod
       "concluido",
       "aprovado",
       "reprovado",
+      "aprovado_com_ressalva",
     ]),
     finalStatus: zod
       .union([
         zod.literal("aprovado"),
         zod.literal("reprovado"),
+        zod.literal("aprovado_com_ressalva"),
         zod.literal(null),
       ])
       .nullish(),
+    ressalva: zod
+      .string()
+      .nullish()
+      .describe("Texto da ressalva quando finalStatus é aprovado_com_ressalva"),
     conclusion: zod.string().nullish(),
     validityMonths: zod.number().nullish(),
     issueDate: zod.string().nullish(),
@@ -354,14 +374,20 @@ export const UpdateProtocolResponse = zod.object({
     "concluido",
     "aprovado",
     "reprovado",
+    "aprovado_com_ressalva",
   ]),
   finalStatus: zod
     .union([
       zod.literal("aprovado"),
       zod.literal("reprovado"),
+      zod.literal("aprovado_com_ressalva"),
       zod.literal(null),
     ])
     .nullish(),
+  ressalva: zod
+    .string()
+    .nullish()
+    .describe("Texto da ressalva quando finalStatus é aprovado_com_ressalva"),
   conclusion: zod.string().nullish(),
   validityMonths: zod.number().nullish(),
   issueDate: zod.string().nullish(),
@@ -634,10 +660,16 @@ export const FinalizeProtocolParams = zod.object({
 });
 
 export const FinalizeProtocolBody = zod.object({
-  finalStatus: zod.enum(["aprovado", "reprovado"]),
+  finalStatus: zod.enum(["aprovado", "reprovado", "aprovado_com_ressalva"]),
   conclusion: zod.string(),
   validityMonths: zod.number().optional(),
   issueDate: zod.string().optional(),
+  ressalva: zod
+    .string()
+    .optional()
+    .describe(
+      "Texto da ressalva (obrigatório quando finalStatus é aprovado_com_ressalva)",
+    ),
 });
 
 export const FinalizeProtocolResponse = zod.object({
@@ -672,14 +704,20 @@ export const FinalizeProtocolResponse = zod.object({
     "concluido",
     "aprovado",
     "reprovado",
+    "aprovado_com_ressalva",
   ]),
   finalStatus: zod
     .union([
       zod.literal("aprovado"),
       zod.literal("reprovado"),
+      zod.literal("aprovado_com_ressalva"),
       zod.literal(null),
     ])
     .nullish(),
+  ressalva: zod
+    .string()
+    .nullish()
+    .describe("Texto da ressalva quando finalStatus é aprovado_com_ressalva"),
   conclusion: zod.string().nullish(),
   validityMonths: zod.number().nullish(),
   issueDate: zod.string().nullish(),

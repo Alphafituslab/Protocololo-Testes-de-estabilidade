@@ -35,6 +35,7 @@ export const protocolsTable = pgTable("protocols", {
   issueDate: text("issue_date"),
   kineticsNotes: text("kinetics_notes"),
   customParamsJson: text("custom_params_json"),
+  ressalva: text("ressalva"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

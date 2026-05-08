@@ -56,6 +56,7 @@ const STATUS_LABELS: Record<string, string> = {
   concluido: "Concluido",
   aprovado: "Aprovado",
   reprovado: "Reprovado",
+  aprovado_com_ressalva: "Aprovado c/ Ressalva",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -64,6 +65,7 @@ const STATUS_COLORS: Record<string, string> = {
   concluido: "bg-purple-100 text-purple-700 border-purple-200",
   aprovado: "bg-green-100 text-green-700 border-green-200",
   reprovado: "bg-red-100 text-red-700 border-red-200",
+  aprovado_com_ressalva: "bg-amber-100 text-amber-700 border-amber-200",
 };
 
 const RESULT_STATUS_COLORS: Record<string, string> = {
@@ -107,10 +109,11 @@ const lotSchema = z.object({
 });
 
 const finalizeSchema = z.object({
-  finalStatus: z.enum(["aprovado", "reprovado"]),
+  finalStatus: z.enum(["aprovado", "reprovado", "aprovado_com_ressalva"]),
   conclusion: z.string().min(1, "Conclusao obrigatoria"),
   validityMonths: z.coerce.number().optional(),
   issueDate: z.string().optional(),
+  ressalva: z.string().optional(),
 });
 
 function InfoField({ label, value }: { label: string; value?: string | null }) {
@@ -942,8 +945,16 @@ function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: numbe
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {catParams.map((param) => (
-                    <TableRow key={param.uid} data-testid={`row-param-${param.parameter}`}>
+                  {catParams.map((param) => {
+                    const rowHasNonConforming = results.some(
+                      (r) => r.parameter === param.parameter && r.status === "nao_conforme",
+                    );
+                    return (
+                    <TableRow
+                      key={param.uid}
+                      data-testid={`row-param-${param.parameter}`}
+                      className={rowHasNonConforming ? "bg-red-50 hover:bg-red-100" : ""}
+                    >
                       <TableCell className="py-1 pr-1">
                         <input
                           value={param.parameter}
@@ -998,7 +1009,8 @@ function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: numbe
                         ))
                       )}
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -1637,26 +1649,30 @@ function FinalizeSection({
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
-  const isAlreadyFinalized = status === "aprovado" || status === "reprovado";
+  const isAlreadyFinalized = status === "aprovado" || status === "reprovado" || status === "aprovado_com_ressalva";
 
   const form = useForm<z.infer<typeof finalizeSchema>>({
     resolver: zodResolver(finalizeSchema),
     defaultValues: {
-      finalStatus: (currentFinalStatus as "aprovado" | "reprovado") ?? "aprovado",
+      finalStatus: (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva") ?? "aprovado",
       conclusion: currentConclusion ?? "Produto de acordo com os padroes legais vigentes.",
       validityMonths: currentValidityMonths ?? 24,
       issueDate: currentIssueDate ?? new Date().toISOString().split("T")[0],
+      ressalva: "",
     },
   });
+
+  const finalStatusWatch = form.watch("finalStatus");
 
   // When the dialog opens, re-sync form values from current protocol data
   const handleOpenChange = (next: boolean) => {
     if (next) {
       form.reset({
-        finalStatus: (currentFinalStatus as "aprovado" | "reprovado") ?? "aprovado",
+        finalStatus: (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva") ?? "aprovado",
         conclusion: currentConclusion ?? "Produto de acordo com os padroes legais vigentes.",
         validityMonths: currentValidityMonths ?? 24,
         issueDate: currentIssueDate ?? new Date().toISOString().split("T")[0],
+        ressalva: "",
       });
     }
     setOpen(next);
@@ -1717,8 +1733,21 @@ function FinalizeSection({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="aprovado">Aprovado</SelectItem>
-                    <SelectItem value="reprovado">Reprovado</SelectItem>
+                    <SelectItem value="aprovado">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Aprovado
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="aprovado_com_ressalva">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" /> Aprovado com Ressalva
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="reprovado">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> Reprovado
+                      </span>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -1731,6 +1760,27 @@ function FinalizeSection({
                 <FormMessage />
               </FormItem>
             )} />
+            {finalStatusWatch === "aprovado_com_ressalva" && (
+              <FormField control={form.control} name="ressalva" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                    Texto da Ressalva
+                  </FormLabel>
+                  <FormControl>
+                    <Textarea
+                      rows={3}
+                      data-testid="input-ressalva"
+                      placeholder="Descreva a ressalva encontrada. Este texto ficará salvo para fins de auditoria e NÃO será exibido no certificado."
+                      className="border-amber-300 focus-visible:ring-amber-400"
+                      {...field}
+                    />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">Salvo para auditoria — não aparece no certificado.</p>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            )}
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="validityMonths" render={({ field }) => (
                 <FormItem>
@@ -1777,7 +1827,7 @@ export default function ProtocolDetail() {
     query: { enabled: !!id, queryKey: getGetProtocolQueryKey(numId) },
   });
 
-  const isFinalized = !!(protocol?.finalStatus === "aprovado" || protocol?.finalStatus === "reprovado");
+  const isFinalized = !!(protocol?.finalStatus === "aprovado" || protocol?.finalStatus === "reprovado" || protocol?.finalStatus === "aprovado_com_ressalva");
   const needsPassword = isFinalized && !unlocked;
 
   // Guard: runs action if unlocked, otherwise opens the password dialog first
@@ -1925,26 +1975,43 @@ export default function ProtocolDetail() {
         </div>
       </div>
 
-      {protocol.finalStatus && (
-        <Card className={protocol.finalStatus === "aprovado" ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              {protocol.finalStatus === "aprovado" ? (
-                <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
-              ) : (
-                <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
-              )}
-              <div>
-                <p className={`font-semibold text-sm ${protocol.finalStatus === "aprovado" ? "text-green-800" : "text-red-800"}`}>
-                  STATUS: {protocol.finalStatus.toUpperCase()}
-                  {protocol.validityMonths ? ` — Validade: ${protocol.validityMonths} meses` : ""}
-                </p>
-                {protocol.conclusion && <p className="text-xs text-muted-foreground mt-0.5">{protocol.conclusion}</p>}
+      {protocol.finalStatus && (() => {
+        const fs = protocol.finalStatus;
+        const isAprovado = fs === "aprovado";
+        const isRessalva = fs === "aprovado_com_ressalva";
+        const cardClass = isAprovado
+          ? "border-green-200 bg-green-50"
+          : isRessalva
+          ? "border-amber-200 bg-amber-50"
+          : "border-red-200 bg-red-50";
+        const textClass = isAprovado
+          ? "text-green-800"
+          : isRessalva
+          ? "text-amber-800"
+          : "text-red-800";
+        const icon = isAprovado
+          ? <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
+          : isRessalva
+          ? <CheckCircle2 className="h-5 w-5 text-amber-500 flex-shrink-0" />
+          : <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />;
+        const label = isAprovado ? "APROVADO" : isRessalva ? "APROVADO COM RESSALVA" : "REPROVADO";
+        return (
+          <Card className={cardClass}>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                {icon}
+                <div>
+                  <p className={`font-semibold text-sm ${textClass}`}>
+                    STATUS: {label}
+                    {protocol.validityMonths ? ` — Validade: ${protocol.validityMonths} meses` : ""}
+                  </p>
+                  {protocol.conclusion && <p className="text-xs text-muted-foreground mt-0.5">{protocol.conclusion}</p>}
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       <Tabs defaultValue="info" className="space-y-4">
         <TabsList>
