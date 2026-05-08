@@ -63,6 +63,33 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     embalagem: 3,
   };
 
+  /**
+   * Checks whether a numeric average satisfies the criterion string.
+   * Returns true (within spec), false (out of spec), or null (qualitative — cannot determine).
+   * Handles: "8,90 – 9,40"  |  "≤ 5%"  |  "≥ 80%"  |  "< 10"  |  "> 5"
+   */
+  function isWithinCriterion(avg: number, criterion: string): boolean | null {
+    const normalized = criterion.replace(/,/g, ".").replace(/\s+/g, " ");
+
+    // Range: e.g. "8.90 – 9.40" or "8.90 - 9.40"
+    const rangeMatch = normalized.match(/^(\d+\.?\d*)\s*[–\-]\s*(\d+\.?\d*)/);
+    if (rangeMatch) {
+      const min = parseFloat(rangeMatch[1]);
+      const max = parseFloat(rangeMatch[2]);
+      return avg >= min && avg <= max;
+    }
+
+    // Max: "≤ 5%" or "< 5"
+    const maxMatch = normalized.match(/[≤<]\s*(\d+\.?\d*)/);
+    if (maxMatch) return avg <= parseFloat(maxMatch[1]);
+
+    // Min: "≥ 80%" or "> 80"
+    const minMatch = normalized.match(/[≥>]\s*(\d+\.?\d*)/);
+    if (minMatch) return avg >= parseFloat(minMatch[1]);
+
+    return null; // qualitative criterion — skip numeric check
+  }
+
   const avgByParam: Record<string, { sum: number; count: number; criterion: string; resultText: string; status: string; category: string }> = {};
   for (const r of allResults) {
     if (!avgByParam[r.parameter]) {
@@ -79,14 +106,25 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
   const analyses = Object.entries(avgByParam)
     .sort(([, a], [, b]) => (CATEGORY_ORDER[a.category] ?? 9) - (CATEGORY_ORDER[b.category] ?? 9))
     .map(([param, data]) => {
-      const avgResult = data.count > 0 ? (data.sum / data.count).toFixed(2) : data.resultText;
+      const avg = data.count > 0 ? data.sum / data.count : null;
+      const avgResult = avg !== null ? avg.toFixed(2) : data.resultText;
+
+      // Re-evaluate status based on the computed average vs criterion.
+      // If the average is numerically out of spec, escalate to nao_conforme
+      // regardless of how individual results were saved.
+      let finalStatus = data.status;
+      if (avg !== null && finalStatus !== "nao_conforme") {
+        const withinSpec = isWithinCriterion(avg, data.criterion);
+        if (withinSpec === false) finalStatus = "nao_conforme";
+      }
+
       return {
         parameter: param,
         category: data.category,
         method: METHOD_MAP[param] ?? "Método interno.",
         specification: data.criterion,
         result: avgResult,
-        status: data.status === "nao_conforme" ? "Nao Conforme" : data.status === "na" ? "N/A" : data.status === "aprovado_com_ressalva" ? "Aprovado com Ressalva" : "Conforme",
+        status: finalStatus === "nao_conforme" ? "Nao Conforme" : finalStatus === "na" ? "N/A" : finalStatus === "aprovado_com_ressalva" ? "Aprovado com Ressalva" : "Conforme",
       };
     });
 
