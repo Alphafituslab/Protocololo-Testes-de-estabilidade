@@ -1075,13 +1075,20 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     for (const p of kinetics.parameters) {
       const base = buildKineticOverride(p);
       const saved = savedOverrides[p.parameter] ?? {};
+      // User-editable preferences preserved from localStorage
+      const ichThreshold = saved.ichThreshold ?? base.ichThreshold;
+      // Always recompute derived fields (deltaLn, k, shelfLife) from fresh
+      // API values (t0/t3/t6), applying the user's saved ichThreshold.
+      // This ensures the table reacts immediately when results are updated,
+      // without stale computed values from a previous localStorage snapshot.
+      const recomputed = calcKineticOverride(base.t0, base.t3, base.t6, ichThreshold);
       next[p.parameter] = {
         t0: base.t0, t3: base.t3, t6: base.t6,
-        deltaLn: saved.deltaLn ?? base.deltaLn,
-        k: saved.k ?? base.k,
-        shelfLife: saved.shelfLife ?? base.shelfLife,
+        deltaLn: recomputed.deltaLn ?? base.deltaLn,
+        k: recomputed.k ?? base.k,
+        shelfLife: recomputed.shelfLife ?? base.shelfLife,
         validadePraticada: saved.validadePraticada ?? base.validadePraticada,
-        ichThreshold: saved.ichThreshold ?? base.ichThreshold,
+        ichThreshold,
         specMin: saved.specMin ?? base.specMin,
         specMax: saved.specMax ?? base.specMax,
       };
