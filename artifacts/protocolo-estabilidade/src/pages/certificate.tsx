@@ -345,6 +345,11 @@ export default function CertificatePage() {
   const rows = analyses ?? cert.analyses.map(a => ({ ...a, visible: true }));
   const categories = Array.from(new Set(rows.map(r => r.category)));
 
+  // Se qualquer resultado visível estiver fora do especificado, o certificado é automaticamente REPROVADO
+  const hasNonConforming = rows.some(r => r.status === "Nao Conforme" && r.visible);
+  const effectiveIsApproved = isApproved && !hasNonConforming;
+  const effectiveIsRepproved = isRepproved || hasNonConforming;
+
   const visiblePhotoEntries = includePhotos
     ? allPhotoEntries.filter(e => activePhotoKeys.has(e.key))
     : [];
@@ -711,18 +716,27 @@ export default function CertificatePage() {
           </div>
         )}
 
+        {hasNonConforming && (
+          <div className="mb-4 rounded border border-red-400 bg-red-50 px-4 py-3 print:border-red-600 print:bg-red-50">
+            <p className="text-sm font-bold text-red-700 uppercase tracking-wide">⚠ Atenção — Resultado(s) Fora do Especificado</p>
+            <p className="text-xs text-red-600 mt-1">
+              Este protocolo contém um ou mais parâmetros com resultado <strong>Não Conforme</strong>.
+              O status do certificado foi automaticamente alterado para <strong>REPROVADO</strong>.
+            </p>
+          </div>
+        )}
         <div className="mb-6 flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <div className={`w-5 h-5 border-2 flex items-center justify-center ${isApproved ? "border-gray-800 bg-gray-800" : "border-gray-400"}`}>
-              {isApproved && <span className="text-white text-xs font-bold">X</span>}
+            <div className={`w-5 h-5 border-2 flex items-center justify-center ${effectiveIsApproved ? "border-gray-800 bg-gray-800" : "border-gray-400"}`}>
+              {effectiveIsApproved && <span className="text-white text-xs font-bold">X</span>}
             </div>
             <span className="font-medium">APROVADO</span>
           </div>
           <div className="flex items-center gap-3">
-            <div className={`w-5 h-5 border-2 flex items-center justify-center ${isRepproved ? "border-gray-800 bg-gray-800" : "border-gray-400"}`}>
-              {isRepproved && <span className="text-white text-xs font-bold">X</span>}
+            <div className={`w-5 h-5 border-2 flex items-center justify-center ${effectiveIsRepproved ? "border-red-700 bg-red-700" : "border-gray-400"}`}>
+              {effectiveIsRepproved && <span className="text-white text-xs font-bold">X</span>}
             </div>
-            <span className="font-medium">REPROVADO</span>
+            <span className={`font-medium ${effectiveIsRepproved ? "text-red-700" : ""}`}>REPROVADO</span>
           </div>
           {cert.issueDate && <span className="ml-auto text-gray-500 text-xs">DATA: {cert.issueDate}</span>}
         </div>

@@ -995,18 +995,25 @@ function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: numbe
                         </button>
                       </TableCell>
                       {lots.map((lot) =>
-                        PERIODS.map((period) => (
-                          <TableCell key={`${lot.id}-${period}`} className="py-1 text-center align-middle">
-                            <InlineCell
-                              lotId={lot.id}
-                              period={period}
-                              param={param}
-                              result={getResult(lot.id, period, param.parameter)}
-                              protocolId={protocolId}
-                              lots={lots}
-                            />
-                          </TableCell>
-                        ))
+                        PERIODS.map((period) => {
+                          const cellResult = getResult(lot.id, period, param.parameter);
+                          const isNC = cellResult?.status === "nao_conforme";
+                          return (
+                            <TableCell
+                              key={`${lot.id}-${period}`}
+                              className={`py-1 text-center align-middle ${isNC ? "bg-red-200 border-x border-red-400" : ""}`}
+                            >
+                              <InlineCell
+                                lotId={lot.id}
+                                period={period}
+                                param={param}
+                                result={cellResult}
+                                protocolId={protocolId}
+                                lots={lots}
+                              />
+                            </TableCell>
+                          );
+                        })
                       )}
                     </TableRow>
                     );
