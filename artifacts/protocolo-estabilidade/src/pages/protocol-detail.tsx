@@ -675,7 +675,7 @@ function ParamMethodSelector({
   paramName: string;
   selected: string | null;
   methodologies: { id: number; shortName: string; citation: string; category?: string | null }[];
-  onSelect: (shortName: string | null) => void;
+  onSelect: (shortName: string | null, citation: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -706,7 +706,7 @@ function ParamMethodSelector({
           <div className="space-y-0.5 max-h-60 overflow-y-auto">
             {selected && (
               <button
-                onClick={() => { onSelect(null); setOpen(false); }}
+                onClick={() => { onSelect(null, null); setOpen(false); }}
                 className="w-full text-left text-[10px] px-2 py-1 rounded hover:bg-destructive/10 text-destructive"
               >
                 × Remover seleção
@@ -715,7 +715,7 @@ function ParamMethodSelector({
             {methodologies.map((m) => (
               <button
                 key={m.id}
-                onClick={() => { onSelect(m.shortName); setOpen(false); }}
+                onClick={() => { onSelect(m.shortName, m.citation); setOpen(false); }}
                 className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted transition-colors ${
                   selected === m.shortName ? "bg-primary/10 text-primary font-semibold" : ""
                 }`}
@@ -751,12 +751,26 @@ function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: numbe
     } catch { return {}; }
   });
 
-  const setParamMethod = (paramName: string, shortName: string | null) => {
+  const setParamMethod = (paramName: string, shortName: string | null, citation: string | null = null) => {
     setParamMethods((prev) => {
       const next = { ...prev };
-      if (shortName === null) delete next[paramName];
-      else next[paramName] = shortName;
-      try { localStorage.setItem(`param_methods_${protocolId}`, JSON.stringify(next)); } catch { /* ignore */ }
+      if (shortName === null) {
+        delete next[paramName];
+      } else {
+        next[paramName] = shortName;
+      }
+      try {
+        localStorage.setItem(`param_methods_${protocolId}`, JSON.stringify(next));
+        // Also persist full citation so the certificate can use it in the Método column
+        const citRaw = localStorage.getItem(`param_methods_citations_${protocolId}`);
+        const citMap: Record<string, string> = citRaw ? JSON.parse(citRaw) : {};
+        if (citation === null) {
+          delete citMap[paramName];
+        } else {
+          citMap[paramName] = citation;
+        }
+        localStorage.setItem(`param_methods_citations_${protocolId}`, JSON.stringify(citMap));
+      } catch { /* ignore */ }
       return next;
     });
   };
@@ -868,7 +882,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: numbe
                           paramName={param.parameter}
                           selected={paramMethods[param.parameter] ?? null}
                           methodologies={methodologies}
-                          onSelect={(s) => setParamMethod(param.parameter, s)}
+                          onSelect={(s, c) => setParamMethod(param.parameter, s, c)}
                         />
                       </TableCell>
                       <TableCell className="py-1 pr-1">

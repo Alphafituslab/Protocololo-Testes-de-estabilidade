@@ -1,9 +1,11 @@
 import { useParams, Link } from "wouter";
 import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square } from "lucide-react";
+import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, Lock, Unlock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useMemo, useEffect } from "react";
+import { useUnlock } from "@/hooks/use-unlock";
+import { UnlockDialog } from "@/components/unlock-dialog";
 
 type PhotoEntry = {
   parameter: string;
@@ -124,6 +126,11 @@ export default function CertificatePage() {
   const [umidAmostragem, setUmidAmostragem] = useState("60% UR");
   const [tempRecebimento, setTempRecebimento] = useState("22,8°C");
 
+  // Environmental conditions are password-protected
+  const { unlock } = useUnlock();
+  const [envUnlocked, setEnvUnlocked] = useState(false);
+  const [envUnlockOpen, setEnvUnlockOpen] = useState(false);
+
   const [analyses, setAnalyses] = useState<Array<{
     parameter: string; category: string; method: string; specification: string;
     result: string; status: string; visible: boolean;
@@ -142,11 +149,17 @@ export default function CertificatePage() {
     if (!cert) return;
     type FieldOverride = { method?: string; specification?: string; result?: string };
     let saved: Record<string, FieldOverride> = {};
+    // paramCitations: full citation text chosen in Results tab (for Método column)
+    // paramMethods: shortName (fallback if no citation stored yet)
+    let paramCitations: Record<string, string> = {};
     let paramMethods: Record<string, string> = {};
     try {
       const raw = localStorage.getItem(`cert_overrides_${id}`);
       if (raw) saved = JSON.parse(raw);
-      // Read methodology selections made in Results tab
+      // Full citation text (primary source for Método column)
+      const citRaw = localStorage.getItem(`param_methods_citations_${id}`);
+      if (citRaw) paramCitations = JSON.parse(citRaw);
+      // ShortName fallback (for protocols that selected methodology before this change)
       const pmRaw = localStorage.getItem(`param_methods_${id}`);
       if (pmRaw) paramMethods = JSON.parse(pmRaw);
       // Migrate old methods-only key if present
@@ -166,9 +179,8 @@ export default function CertificatePage() {
       if (prev) for (const a of prev) visMap[a.parameter] = a.visible;
       return cert.analyses.map(a => ({
         ...a,
-        // cert_overrides.method stores intentional cert-page edits; they take
-        // priority. paramMethods carries the methodology chosen in Results tab.
-        method: saved[a.parameter]?.method ?? paramMethods[a.parameter] ?? a.method,
+        // Priority: manual cert edit > full citation from Results tab > shortName fallback > API default
+        method: saved[a.parameter]?.method ?? paramCitations[a.parameter] ?? paramMethods[a.parameter] ?? a.method,
         specification: saved[a.parameter]?.specification ?? a.specification,
         result: saved[a.parameter]?.result ?? a.result,
         visible: visMap[a.parameter] ?? true,
@@ -483,20 +495,52 @@ export default function CertificatePage() {
           </div>
         </div>
 
-        {/* Condições Ambientais */}
+        {/* Condições Ambientais — password-protected */}
+        <UnlockDialog
+          open={envUnlockOpen}
+          onOpenChange={setEnvUnlockOpen}
+          onUnlock={unlock}
+          title="Alterar Condições Ambientais"
+          description="Digite a senha mestra para editar as condições ambientais e de recebimento."
+          submitLabel="Desbloquear"
+          onSuccess={() => { setEnvUnlockOpen(false); setEnvUnlocked(true); }}
+        />
         {show.condicoesAmbientais && (
           <div className="mb-6 border border-gray-200 rounded p-3 bg-gray-50 text-xs space-y-2">
-            <p className="font-bold uppercase tracking-widest text-gray-500">Condições Ambientais</p>
+            <div className="flex items-center justify-between">
+              <p className="font-bold uppercase tracking-widest text-gray-500">Condições Ambientais</p>
+              <button
+                onClick={() => envUnlocked ? setEnvUnlocked(false) : setEnvUnlockOpen(true)}
+                className={`print:hidden flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                  envUnlocked
+                    ? "bg-green-50 border-green-300 text-green-700 hover:bg-red-50 hover:border-red-300 hover:text-red-700"
+                    : "bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100"
+                }`}
+                title={envUnlocked ? "Clique para bloquear" : "Clique para editar"}
+              >
+                {envUnlocked ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                {envUnlocked ? "Desbloqueado" : "Protegido"}
+              </button>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-gray-500">Amostragem — Temp.:</span>
-                <CertEditField value={tempAmostragem} onChange={setTempAmostragem} className="w-20 text-xs" />
+                {envUnlocked
+                  ? <CertEditField value={tempAmostragem} onChange={setTempAmostragem} className="w-20 text-xs" />
+                  : <span className="font-medium">{tempAmostragem}</span>
+                }
                 <span className="text-gray-500 ml-2">Umid.:</span>
-                <CertEditField value={umidAmostragem} onChange={setUmidAmostragem} className="w-20 text-xs" />
+                {envUnlocked
+                  ? <CertEditField value={umidAmostragem} onChange={setUmidAmostragem} className="w-20 text-xs" />
+                  : <span className="font-medium">{umidAmostragem}</span>
+                }
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-gray-500">Recebimento — Temp.:</span>
-                <CertEditField value={tempRecebimento} onChange={setTempRecebimento} className="w-20 text-xs" />
+                {envUnlocked
+                  ? <CertEditField value={tempRecebimento} onChange={setTempRecebimento} className="w-20 text-xs" />
+                  : <span className="font-medium">{tempRecebimento}</span>
+                }
               </div>
             </div>
           </div>
@@ -586,7 +630,7 @@ export default function CertificatePage() {
             <p className="text-gray-500 font-semibold">Informacoes Adicionais</p>
             <p>Este documento deve ser reproduzido integralmente. A reproducao parcial somente e permitida mediante autorizacao formal e escrita do laboratorio.</p>
             <p>Os resultados apresentados referem-se exclusivamente as amostras recebidas e foram obtidos e reportados de acordo com as condicoes analiticas estabelecidas e metodologias aplicaveis.</p>
-            <p><strong>NA</strong> = Nao se aplica &nbsp;&nbsp;<strong>ND</strong> = Nao detectado &nbsp;&nbsp;<strong>LQ</strong> = Limite de quantificacao</p>
+            <p><strong>NA</strong> = Nao se aplica &nbsp;&nbsp;<strong>ND</strong> = Nao detectado &nbsp;&nbsp;<strong>LQ</strong> = Limite de quantificacao &nbsp;&nbsp;<strong>AR</strong> = Aprovado com Ressalva</p>
           </div>
         )}
 
