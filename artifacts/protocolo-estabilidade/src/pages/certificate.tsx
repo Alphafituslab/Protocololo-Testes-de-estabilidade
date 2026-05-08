@@ -1,11 +1,12 @@
 import { useParams, Link } from "wouter";
 import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, Lock, Unlock } from "lucide-react";
+import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, Lock, Unlock, History } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useMemo, useEffect } from "react";
 import { useUnlock } from "@/hooks/use-unlock";
 import { UnlockDialog } from "@/components/unlock-dialog";
+import { AuditTrail } from "@/components/audit-trail";
 
 type PhotoEntry = {
   parameter: string;
@@ -755,6 +756,36 @@ export default function CertificatePage() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════
+            AUDIT TRAIL COMPLEMENT — prints after main certificate
+        ═══════════════════════════════════════════════════════ */}
+        <div className="audit-appendix-section">
+          <div className="pt-8 border-t-2 border-gray-800 mt-8">
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Alphafitus Laboratorio Nutraceutico</p>
+                <h2 className="text-lg font-bold uppercase tracking-wide mt-0.5 flex items-center gap-2">
+                  Anexo — Histórico de Alterações do Protocolo
+                </h2>
+              </div>
+              <div className="text-right text-xs text-gray-500">
+                <p>{cert.productName}</p>
+                <p className="font-semibold">{cert.certNumber}</p>
+                <p>{cert.issueDate}</p>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 border-b border-gray-300 pb-3 mb-4">
+              Este anexo registra todas as alterações realizadas no protocolo de estabilidade, com identificação do responsável e data/hora de cada operação, para fins de rastreabilidade e conformidade regulatória.
+            </p>
+            <div className="text-xs">
+              <div className="grid grid-cols-[7rem_6rem_7rem_1fr] gap-x-3 font-bold uppercase text-gray-600 border-b border-gray-400 pb-1 mb-1 text-[10px] tracking-wide">
+                <span>Data/Hora</span><span>Tipo</span><span>Responsável</span><span>Descrição</span>
+              </div>
+              <AuditTrail protocolId={Number(id)} printMode />
+            </div>
+          </div>
         </div>
 
         {/* ═══════════════════════════════════════════════════════

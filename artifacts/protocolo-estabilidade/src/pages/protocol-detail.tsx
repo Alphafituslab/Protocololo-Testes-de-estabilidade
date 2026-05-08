@@ -46,7 +46,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History } from "lucide-react";
+import { AuditTrail } from "@/components/audit-trail";
 import { useToast } from "@/hooks/use-toast";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -1952,6 +1953,7 @@ export default function ProtocolDetail() {
           <TabsTrigger value="results" data-testid="tab-results">Resultados</TabsTrigger>
           <TabsTrigger value="kinetics" data-testid="tab-kinetics">Cinetica</TabsTrigger>
           <TabsTrigger value="metodologia" data-testid="tab-metodologia">Metodologia</TabsTrigger>
+          <TabsTrigger value="historico" data-testid="tab-historico"><History className="h-3.5 w-3.5 mr-1" />Histórico</TabsTrigger>
         </TabsList>
         <TabsContent value="info">
           <Card>
@@ -1990,6 +1992,18 @@ export default function ProtocolDetail() {
           <Card>
             <CardContent className="pt-6">
               <MethodologiaTab />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="historico">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <History className="h-4 w-4" /> Histórico de Alterações
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AuditTrail protocolId={numId} />
             </CardContent>
           </Card>
         </TabsContent>
