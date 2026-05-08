@@ -343,14 +343,16 @@ export default function CertificatePage() {
     );
   }
 
-  // "aprovado_com_ressalva" counts as approved — operator explicitly released the product
-  const isApproved = cert.finalStatus === "aprovado" || cert.finalStatus === "aprovado_com_ressalva";
+  const isAR = cert.finalStatus === "aprovado_com_ressalva";
+  // "aprovado_com_ressalva" is an explicit approval — treated the same as "aprovado"
+  const isApproved = cert.finalStatus === "aprovado" || isAR;
   const isRepproved = cert.finalStatus === "reprovado";
   const rows = analyses ?? cert.analyses.map(a => ({ ...a, visible: true }));
   const categories = Array.from(new Set(rows.map(r => r.category)));
 
-  // Only truly NC results (not AR) trigger auto-rejection
-  const hasNonConforming = rows.some(r => r.status === "Nao Conforme" && r.visible);
+  // When the operator finalized as AR, the protocol-level decision is sovereign:
+  // NC auto-rejection is completely bypassed — the operator already made the call.
+  const hasNonConforming = !isAR && rows.some(r => r.status === "Nao Conforme" && r.visible);
   const effectiveIsApproved = isApproved && !hasNonConforming;
   const effectiveIsRepproved = isRepproved || hasNonConforming;
 

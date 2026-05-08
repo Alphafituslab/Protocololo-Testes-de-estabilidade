@@ -90,6 +90,10 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     return null; // qualitative criterion — skip numeric check
   }
 
+  // Protocol-level decision: if operator finalized as "aprovado_com_ressalva",
+  // that override is authoritative — all NC individual results are treated as AR.
+  const protocolIsAR = protocol.finalStatus === "aprovado_com_ressalva";
+
   const avgByParam: Record<string, { sum: number; count: number; criterion: string; resultText: string; status: string; category: string }> = {};
   for (const r of allResults) {
     if (!avgByParam[r.parameter]) {
@@ -99,8 +103,12 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       avgByParam[r.parameter].sum += r.numericResult;
       avgByParam[r.parameter].count += 1;
     }
-    if (r.status === "nao_conforme") avgByParam[r.parameter].status = "nao_conforme";
-    else if (r.status === "aprovado_com_ressalva" && avgByParam[r.parameter].status === "conforme") avgByParam[r.parameter].status = "aprovado_com_ressalva";
+    // AR is an explicit operator release — it overrides NC at individual result level too
+    if (r.status === "aprovado_com_ressalva") {
+      avgByParam[r.parameter].status = "aprovado_com_ressalva";
+    } else if (r.status === "nao_conforme" && avgByParam[r.parameter].status !== "aprovado_com_ressalva") {
+      avgByParam[r.parameter].status = "nao_conforme";
+    }
   }
 
   const analyses = Object.entries(avgByParam)
@@ -110,11 +118,12 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       const avgResult = avg !== null ? avg.toFixed(2) : data.resultText;
 
       // Re-evaluate status based on the computed average vs criterion.
-      // Only escalate to nao_conforme when truly non-conforming.
-      // IMPORTANT: "aprovado_com_ressalva" is an explicit operator override —
-      // it must never be downgraded to nao_conforme by the automatic criterion check.
+      // AR (whether per-cell or protocol-level) is never downgraded automatically.
       let finalStatus = data.status;
-      if (avg !== null && finalStatus !== "nao_conforme" && finalStatus !== "aprovado_com_ressalva") {
+      if (protocolIsAR && finalStatus === "nao_conforme") {
+        // Protocol-level AR decision: operator approved this parameter with ressalva
+        finalStatus = "aprovado_com_ressalva";
+      } else if (avg !== null && finalStatus !== "nao_conforme" && finalStatus !== "aprovado_com_ressalva") {
         const withinSpec = isWithinCriterion(avg, data.criterion);
         if (withinSpec === false) finalStatus = "nao_conforme";
       }
