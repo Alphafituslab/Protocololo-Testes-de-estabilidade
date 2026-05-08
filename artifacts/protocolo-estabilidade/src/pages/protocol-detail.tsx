@@ -708,8 +708,16 @@ function InlineCell({
         title="Clique ou Tab para editar"
       >
         {result ? (
-          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs border font-medium group-hover:opacity-80 transition-opacity ${statusColors[result.status]}`}>
-            {result.result}
+          <span className={`inline-flex flex-col items-center gap-0.5 px-1.5 py-0.5 rounded text-xs border font-medium group-hover:opacity-80 transition-opacity ${statusColors[result.status]}`}>
+            <span>{result.result}</span>
+            {result.status === "aprovado_com_ressalva" && (
+              <span
+                className="text-[8px] font-bold tracking-wide text-amber-700"
+                title={result.observation ? `Justificativa: ${result.observation}` : "Aprovado com Ressalva"}
+              >
+                AR {result.observation ? "ℹ" : ""}
+              </span>
+            )}
           </span>
         ) : (
           <span className="text-muted-foreground/30 group-hover:text-muted-foreground/60 text-lg leading-none transition-colors">+</span>
@@ -1872,7 +1880,8 @@ export default function ProtocolDetail() {
     query: { enabled: !!id, queryKey: getGetProtocolQueryKey(numId) },
   });
 
-  const isFinalized = !!(protocol?.finalStatus === "aprovado" || protocol?.finalStatus === "reprovado" || protocol?.finalStatus === "aprovado_com_ressalva");
+  // "aprovado_com_ressalva" is intentionally excluded — it remains freely editable without password
+  const isFinalized = !!(protocol?.finalStatus === "aprovado" || protocol?.finalStatus === "reprovado");
   const needsPassword = isFinalized && !unlocked;
 
   // Guard: runs action if unlocked, otherwise opens the password dialog first
