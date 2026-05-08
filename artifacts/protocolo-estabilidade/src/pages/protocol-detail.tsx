@@ -889,8 +889,9 @@ function EditableNum({
   );
 }
 
-function KineticsTab({ protocolId, initialKineticsNotes, initialValidityMonths }: {
+function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths }: {
   protocolId: number;
+  productName: string;
   initialKineticsNotes?: string | null;
   initialValidityMonths?: number | null;
 }) {
@@ -974,12 +975,20 @@ function KineticsTab({ protocolId, initialKineticsNotes, initialValidityMonths }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">Todos os valores são editáveis. Altere diretamente nas células — os cálculos são atualizados automaticamente.</p>
+      {/* Product header */}
+      <div className="flex items-center justify-between gap-4 pb-3 border-b border-border">
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Produto</p>
+          <p className="text-lg font-bold text-foreground">{productName}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {kinetics.parameters.length} parâmetro(s) de Teor do Ativo analisados via cinética de 1ª ordem (ICH Q1A)
+          </p>
+        </div>
         <Button variant="outline" size="sm" onClick={resetToCalculated}>
           Restaurar valores calculados
         </Button>
       </div>
+      <p className="text-xs text-muted-foreground -mt-2">Todos os valores são editáveis diretamente nas células — os cálculos são atualizados automaticamente.</p>
 
       {/* Summary card */}
       <Card className="border-green-200 bg-green-50">
@@ -1437,6 +1446,7 @@ export default function ProtocolDetail() {
             <CardContent className="pt-6">
               <KineticsTab
                 protocolId={numId}
+                productName={protocol.productName}
                 initialKineticsNotes={protocol.kineticsNotes}
                 initialValidityMonths={protocol.validityMonths}
               />

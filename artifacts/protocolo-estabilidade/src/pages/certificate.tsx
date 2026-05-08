@@ -133,11 +133,21 @@ export default function CertificatePage() {
     query: { enabled: !!id, queryKey: getListLotsQueryKey(Number(id)) },
   });
 
+  // Initialize analyses state from API, then overlay any saved method overrides from localStorage
   useEffect(() => {
     if (cert && analyses === null) {
-      setAnalyses(cert.analyses.map(a => ({ ...a, visible: true })));
+      let savedMethods: Record<string, string> = {};
+      try {
+        const raw = localStorage.getItem(`methods_${id}`);
+        if (raw) savedMethods = JSON.parse(raw);
+      } catch { /* ignore */ }
+      setAnalyses(cert.analyses.map(a => ({
+        ...a,
+        method: savedMethods[a.parameter] ?? a.method,
+        visible: true,
+      })));
     }
-  }, [cert, analyses]);
+  }, [cert, analyses, id]);
 
   const allPhotoEntries = useMemo(() => {
     if (!lotsRaw.length) return [] as PhotoEntry[];
@@ -174,7 +184,18 @@ export default function CertificatePage() {
   const updateAnalysis = (i: number, field: "method" | "specification" | "result", val: string) => {
     setAnalyses(prev => {
       if (!prev) return prev;
-      const next = [...prev]; next[i] = { ...next[i], [field]: val }; return next;
+      const next = [...prev];
+      next[i] = { ...next[i], [field]: val };
+      // Persist method overrides to localStorage so they survive page refreshes
+      if (field === "method") {
+        try {
+          const savedRaw = localStorage.getItem(`methods_${id}`) ?? "{}";
+          const saved: Record<string, string> = JSON.parse(savedRaw);
+          saved[next[i].parameter] = val;
+          localStorage.setItem(`methods_${id}`, JSON.stringify(saved));
+        } catch { /* ignore */ }
+      }
+      return next;
     });
   };
 
@@ -709,7 +730,32 @@ export default function CertificatePage() {
             padding: 15mm 20mm;
             font-size: 10pt;
           }
-          input, textarea { border: none !important; background: transparent !important; }
+
+          /* ── Editable fields: remove ALL browser chrome ── */
+          input, textarea {
+            border: none !important;
+            border-bottom: none !important;
+            background: transparent !important;
+            outline: none !important;
+            box-shadow: none !important;
+            -webkit-appearance: none !important;
+            appearance: none !important;
+          }
+
+          /* ── Textarea-specific: kill resize handle, unconstrain height ── */
+          textarea {
+            resize: none !important;
+            overflow: visible !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            /* Force all text visible — no clipping */
+            white-space: pre-wrap !important;
+            word-break: break-word !important;
+          }
+
+          /* ── Table cells: let their height grow with content ── */
+          td, th { overflow: visible !important; }
 
           /* Photo appendix always starts on a fresh page */
           .photo-appendix-section {
