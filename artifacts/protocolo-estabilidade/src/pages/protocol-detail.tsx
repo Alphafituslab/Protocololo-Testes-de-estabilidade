@@ -795,7 +795,8 @@ function ParamMethodSelector({
   );
 }
 
-function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: number; initialCustomParamsJson?: string | null }) {
+function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }: { protocolId: number; initialCustomParamsJson?: string | null; protocolFinalStatus?: string | null }) {
+  const protocolIsAR = protocolFinalStatus === "aprovado_com_ressalva";
   const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
   const { data: results = [], isLoading } = useListResults(protocolId, { query: { queryKey: getListResultsQueryKey(protocolId) } });
   const { data: methodologies = [] } = useListMethodologies();
@@ -988,14 +989,17 @@ function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: numbe
                 </TableHeader>
                 <TableBody>
                   {catParams.map((param) => {
-                    const rowHasNonConforming = results.some(
+                    const rowHasNonConforming = !protocolIsAR && results.some(
+                      (r) => r.parameter === param.parameter && r.status === "nao_conforme",
+                    );
+                    const rowHasAR = protocolIsAR && results.some(
                       (r) => r.parameter === param.parameter && r.status === "nao_conforme",
                     );
                     return (
                     <TableRow
                       key={param.uid}
                       data-testid={`row-param-${param.parameter}`}
-                      className={rowHasNonConforming ? "bg-red-50 hover:bg-red-100" : ""}
+                      className={rowHasNonConforming ? "bg-red-50 hover:bg-red-100" : rowHasAR ? "bg-amber-50 hover:bg-amber-100" : ""}
                     >
                       <TableCell className="py-1 pr-1">
                         <input
@@ -1039,11 +1043,12 @@ function ResultsTab({ protocolId, initialCustomParamsJson }: { protocolId: numbe
                       {lots.map((lot) =>
                         PERIODS.map((period) => {
                           const cellResult = getResult(lot.id, period, param.parameter);
-                          const isNC = cellResult?.status === "nao_conforme";
+                          const isNC = !protocolIsAR && cellResult?.status === "nao_conforme";
+                          const isNCtreatedAsAR = protocolIsAR && cellResult?.status === "nao_conforme";
                           return (
                             <TableCell
                               key={`${lot.id}-${period}`}
-                              className={`py-1 text-center align-middle ${isNC ? "bg-red-200 border-x border-red-400" : ""}`}
+                              className={`py-1 text-center align-middle ${isNC ? "bg-red-200 border-x border-red-400" : isNCtreatedAsAR ? "bg-amber-100 border-x border-amber-300" : ""}`}
                             >
                               <InlineCell
                                 lotId={lot.id}
@@ -2116,7 +2121,7 @@ export default function ProtocolDetail() {
         <TabsContent value="results">
           <Card>
             <CardContent className="pt-6">
-              <ResultsTab protocolId={numId} initialCustomParamsJson={protocol.customParamsJson} />
+              <ResultsTab protocolId={numId} initialCustomParamsJson={protocol.customParamsJson} protocolFinalStatus={protocol.finalStatus} />
             </CardContent>
           </Card>
         </TabsContent>

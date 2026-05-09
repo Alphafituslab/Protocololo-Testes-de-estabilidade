@@ -146,7 +146,7 @@ const SECTION_LABELS: { key: keyof ShowSections; label: string }[] = [
 export default function CertificatePage() {
   const { id } = useParams<{ id: string }>();
   const { data: cert, isLoading } = useGetCertificate(Number(id), {
-    query: { enabled: !!id, queryKey: getGetCertificateQueryKey(Number(id)) },
+    query: { enabled: !!id, queryKey: getGetCertificateQueryKey(Number(id)), staleTime: 0 },
   });
 
   const [showSettings, setShowSettings] = useState(false);
