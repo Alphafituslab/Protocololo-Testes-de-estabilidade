@@ -461,7 +461,7 @@ function PeakEditorDialog({ peak, onSave, children }: { peak: Peak; onSave: (p: 
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-xs">
         <DialogHeader><DialogTitle style={{ fontFamily: "Courier New, monospace" }}>Editar Pico</DialogTitle></DialogHeader>
-        <div className="space-y-2 pt-1">
+        <form onSubmit={e => { e.preventDefault(); onSave(stringsToPeak(peak, draft)); setOpen(false); }} className="space-y-2 pt-1">
           {([
             ["name", "Nome (ex: B6)", "text"],
             ["retentionTime", "Ret. Time [min]", "number"],
@@ -488,8 +488,8 @@ function PeakEditorDialog({ peak, onSave, children }: { peak: Peak; onSave: (p: 
             Área = 0 → calculada automaticamente pelo modelo Gaussiano.<br />
             Área &gt; 0 → valor exato usado no relatório.
           </p>
-          <Button className="w-full" size="sm" onClick={() => { onSave(stringsToPeak(peak, draft)); setOpen(false); }}>Salvar</Button>
-        </div>
+          <Button type="submit" className="w-full" size="sm">Salvar</Button>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -559,7 +559,7 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
             {compound.name || "Novo Ativo"}
           </DialogTitle>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-1">
+        <form onSubmit={e => { e.preventDefault(); onSave(stringsToCompound(compound, draft)); setOpen(false); }} className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-1">
           {([
             ["name",         "Nome do Composto",        "text",   "col-span-2"],
             ["notes",        "Notas / Fórmula",         "text",   "col-span-2"],
@@ -581,10 +581,10 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
                 onChange={field(k)} className="h-7 text-xs font-mono" />
             </div>
           ))}
-        </div>
-        <Button className="w-full mt-2" size="sm" onClick={() => { onSave(stringsToCompound(compound, draft)); setOpen(false); }}>
-          Salvar Ativo
-        </Button>
+          <Button type="submit" className="w-full col-span-2 mt-2" size="sm">
+            Salvar Ativo
+          </Button>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -715,7 +715,7 @@ function SaveFormulaDialog({ onSave, children }: { onSave: (name: string, descri
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader><DialogTitle className="font-mono">Salvar como Fórmula</DialogTitle></DialogHeader>
-        <div className="space-y-3 pt-1">
+        <form onSubmit={e => { e.preventDefault(); if (!name.trim()) return; onSave(name.trim(), description.trim()); setOpen(false); setName(""); setDescription(""); }} className="space-y-3 pt-1">
           <div>
             <Label className="text-xs text-muted-foreground font-mono">Nome da Fórmula *</Label>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Multivitamínico V1" className="h-7 text-xs font-mono mt-1" />
@@ -724,10 +724,10 @@ function SaveFormulaDialog({ onSave, children }: { onSave: (name: string, descri
             <Label className="text-xs text-muted-foreground font-mono">Descrição (opcional)</Label>
             <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: Cápsulas 500mg — formulação padrão" className="h-7 text-xs font-mono mt-1" />
           </div>
-          <Button className="w-full" size="sm" disabled={!name.trim()} onClick={() => { onSave(name.trim(), description.trim()); setOpen(false); setName(""); setDescription(""); }}>
+          <Button type="submit" className="w-full" size="sm" disabled={!name.trim()}>
             Salvar Fórmula
           </Button>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -744,7 +744,7 @@ function AddLotDialog({ onSave, children }: { onSave: (lotNumber: string, notes:
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader><DialogTitle className="font-mono">Registrar Lote Analisado</DialogTitle></DialogHeader>
-        <div className="space-y-3 pt-1">
+        <form onSubmit={e => { e.preventDefault(); if (!lotNumber.trim()) return; onSave(lotNumber.trim(), notes.trim()); setOpen(false); setLotNumber(""); setNotes(""); }} className="space-y-3 pt-1">
           <div>
             <Label className="text-xs text-muted-foreground font-mono">Número do Lote *</Label>
             <Input value={lotNumber} onChange={e => setLotNumber(e.target.value)} placeholder="Ex: LOT-2025-001" className="h-7 text-xs font-mono mt-1" />
@@ -754,10 +754,10 @@ function AddLotDialog({ onSave, children }: { onSave: (lotNumber: string, notes:
             <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex: Amostra Pote A — 2ª corrida" className="h-7 text-xs font-mono mt-1" />
           </div>
           <p className="text-xs text-muted-foreground font-mono">O cromatograma atual (picos configurados) será salvo como resultado deste lote.</p>
-          <Button className="w-full" size="sm" disabled={!lotNumber.trim()} onClick={() => { onSave(lotNumber.trim(), notes.trim()); setOpen(false); setLotNumber(""); setNotes(""); }}>
+          <Button type="submit" className="w-full" size="sm" disabled={!lotNumber.trim()}>
             Registrar Lote
           </Button>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -783,7 +783,7 @@ function NewSessionDialog({ formulas, onSave, children }: {
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader><DialogTitle className="font-mono">Nova Sessão de Análise</DialogTitle></DialogHeader>
-        <div className="space-y-3 pt-1">
+        <form onSubmit={e => { e.preventDefault(); if (!formulaId || !name.trim()) return; onSave(formulaId, name.trim(), notes.trim()); setOpen(false); setName(""); setNotes(""); }} className="space-y-3 pt-1">
           <div>
             <Label className="text-xs text-muted-foreground font-mono">Fórmula *</Label>
             <select value={formulaId} onChange={e => setFormulaId(e.target.value)}
@@ -802,11 +802,10 @@ function NewSessionDialog({ formulas, onSave, children }: {
               placeholder="Opcional" className="h-7 text-xs font-mono mt-1" />
           </div>
           <p className="text-xs text-muted-foreground font-mono">Você poderá registrar até 5 corridas (injeções) nesta sessão.</p>
-          <Button className="w-full" size="sm" disabled={!formulaId || !name.trim()}
-            onClick={() => { onSave(formulaId, name.trim(), notes.trim()); setOpen(false); setName(""); setNotes(""); }}>
+          <Button type="submit" className="w-full" size="sm" disabled={!formulaId || !name.trim()}>
             Criar Sessão
           </Button>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -862,7 +861,7 @@ function SetStandardDialog({ compounds, existing, onSave, children }: {
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle className="font-mono">Configurar Padrão de Referência</DialogTitle></DialogHeader>
-        <div className="space-y-3 pt-1 max-h-[60vh] overflow-y-auto">
+        <form onSubmit={e => { e.preventDefault(); handleSave(); }} className="space-y-3 pt-1 max-h-[60vh] overflow-y-auto">
           <p className="text-xs text-muted-foreground font-mono">
             Para cada composto, informe a concentração nominal (declarada na fórmula) e, opcionalmente, os dados do padrão externo.
           </p>
@@ -896,8 +895,8 @@ function SetStandardDialog({ compounds, existing, onSave, children }: {
             <Label className="text-xs text-muted-foreground font-mono">Observações</Label>
             <Input value={notes} onChange={e => setNotes(e.target.value)} className="h-7 text-xs font-mono mt-1" />
           </div>
-          <Button className="w-full" size="sm" onClick={handleSave}>Salvar Padrão</Button>
-        </div>
+          <Button type="submit" className="w-full" size="sm">Salvar Padrão</Button>
+        </form>
       </DialogContent>
     </Dialog>
   );
