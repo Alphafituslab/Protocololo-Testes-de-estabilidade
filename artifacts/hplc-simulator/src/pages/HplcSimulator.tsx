@@ -106,7 +106,7 @@ function computeArea(p: Peak): number {
 
 function linearRegression(points: { x: number; y: number }[]) {
   const n = points.length;
-  if (n < 2) return { slope: 0, intercept: 0, r2: 0, rr1: 0, rr2: 0 };
+  if (n < 2) return { slope: 0, intercept: 0, r2: 0, rr1: 0, rr2: 0, rss: 0, meanRF: 0, rfsd: 0, rfrsd: 0 };
   const sumX = points.reduce((s, p) => s + p.x, 0);
   const sumY = points.reduce((s, p) => s + p.y, 0);
   const sumXY = points.reduce((s, p) => s + p.x * p.y, 0);
@@ -117,8 +117,16 @@ function linearRegression(points: { x: number; y: number }[]) {
   const ssTot = points.reduce((s, p) => s + Math.pow(p.y - meanY, 2), 0);
   const ssRes = points.reduce((s, p) => s + Math.pow(p.y - (slope * p.x + intercept), 2), 0);
   const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 1;
-  const rr1 = Math.sqrt(r2);
-  return { slope, intercept, r2, rr1, rr2: r2 };
+  const rr1 = Math.sqrt(Math.abs(r2));
+  const rr2 = r2;
+  // Response factors per point (area / conc)
+  const rfs = points.filter(p => p.x > 0).map(p => p.y / p.x);
+  const meanRF = rfs.length > 0 ? rfs.reduce((a, v) => a + v, 0) / rfs.length : 0;
+  const rfsd = rfs.length > 1
+    ? Math.sqrt(rfs.reduce((a, v) => a + Math.pow(v - meanRF, 2), 0) / (rfs.length - 1))
+    : 0;
+  const rfrsd = meanRF > 0 ? (rfsd / meanRF) * 100 : 0;
+  return { slope, intercept, r2, rr1, rr2, rss: ssRes, meanRF, rfsd, rfrsd };
 }
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
@@ -678,7 +686,8 @@ export default function HplcSimulator() {
                         ["Name", calib.name],
                         ["Quantitative Method", calib.quantMethod],
                         ["Function", `f(x)=${fmtSci(reg.slope)}*x+${Math.round(reg.intercept).toLocaleString("pt-BR")}`],
-                        ["    Rr1=" + reg.rr1.toFixed(7) + " Rr2=" + reg.rr2.toFixed(7), ""],
+                        ["    Rr1=" + reg.rr1.toFixed(7) + " Rr2=" + reg.rr2.toFixed(7) + " RSS=" + fmtSci(reg.rss), ""],
+                        ["    MeanRF: " + fmtSci(reg.meanRF) + " RFSD: " + fmtSci(reg.rfsd) + " RFRSD: " + reg.rfrsd.toFixed(6), ""],
                         ["FitType", calib.fitType],
                         ["ZeroThrough", calib.zeroThrough],
                         ["Weighted Regression", calib.weightedRegression],
