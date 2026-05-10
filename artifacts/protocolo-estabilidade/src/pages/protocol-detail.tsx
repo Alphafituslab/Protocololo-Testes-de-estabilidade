@@ -1748,6 +1748,7 @@ function FinalizeSection({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [internalOpen, setInternalOpen] = useState(false);
+  const [blockingError, setBlockingError] = useState<string | null>(null);
   const open = externalOpen !== undefined ? externalOpen : internalOpen;
   const setOpen = (v: boolean) => {
     setInternalOpen(v);
@@ -1784,8 +1785,10 @@ function FinalizeSection({
   };
 
   // Auto-fill conclusion when finalStatus changes (only if conclusion is empty or matches a default)
+  // Also clear any blocking error when the user changes the selection
   useEffect(() => {
     if (!finalStatusWatch) return;
+    setBlockingError(null);
     const current = form.getValues("conclusion")?.trim() ?? "";
     const isDefaultOrEmpty = !current || Object.values(CONCLUSION_DEFAULTS).some(d => d === current);
     if (isDefaultOrEmpty) {
@@ -1797,6 +1800,7 @@ function FinalizeSection({
   // When the dialog opens, re-sync form values from current protocol data
   const handleOpenChange = (next: boolean) => {
     if (next) {
+      setBlockingError(null);
       const savedStatus = (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento") ?? "em_andamento";
       form.reset({
         finalStatus: savedStatus,
@@ -1821,10 +1825,11 @@ function FinalizeSection({
       },
       onError: (err: unknown) => {
         const apiMsg = (err as { data?: { error?: string } })?.data?.error;
-        toast({
-          title: apiMsg ?? "Erro ao salvar avaliação",
-          variant: "destructive",
-        });
+        if (apiMsg) {
+          setBlockingError(apiMsg);
+        } else {
+          toast({ title: "Erro ao salvar avaliação", variant: "destructive" });
+        }
       },
     },
   });
@@ -1971,6 +1976,17 @@ function FinalizeSection({
                     <FormMessage />
                   </FormItem>
                 )} />
+              </div>
+            )}
+            {blockingError && (
+              <div className="flex items-start gap-2.5 rounded-md border-2 border-red-600 bg-red-50 px-4 py-3">
+                <svg className="mt-0.5 h-5 w-5 shrink-0 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-bold text-red-700 uppercase tracking-wide">Não Autorizado</p>
+                  <p className="text-sm text-red-700 mt-0.5">{blockingError}</p>
+                </div>
               </div>
             )}
             <div className="flex justify-end gap-2">
