@@ -1689,6 +1689,7 @@ function FinalizeSection({
   currentConclusion,
   currentValidityMonths,
   currentIssueDate,
+  currentRessalva,
   onNeedsUnlock,
   externalOpen,
   onExternalOpenChange,
@@ -1699,6 +1700,7 @@ function FinalizeSection({
   currentConclusion?: string | null;
   currentValidityMonths?: number | null;
   currentIssueDate?: string | null;
+  currentRessalva?: string | null;
   onNeedsUnlock?: () => void;
   externalOpen?: boolean;
   onExternalOpenChange?: (v: boolean) => void;
@@ -1726,7 +1728,7 @@ function FinalizeSection({
           : "Produto aprovado. Atende a todos os critérios de especificação estabelecidos para o período de estabilidade avaliado."),
       validityMonths: currentValidityMonths ?? 24,
       issueDate: currentIssueDate ?? new Date().toISOString().split("T")[0],
-      ressalva: "",
+      ressalva: currentRessalva ?? "",
     },
   });
 
@@ -1758,7 +1760,7 @@ function FinalizeSection({
         conclusion: currentConclusion ?? CONCLUSION_DEFAULTS[savedStatus] ?? "",
         validityMonths: currentValidityMonths ?? 24,
         issueDate: currentIssueDate ?? new Date().toISOString().split("T")[0],
-        ressalva: "",
+        ressalva: currentRessalva ?? "",
       });
     }
     setOpen(next);
@@ -2010,6 +2012,7 @@ export default function ProtocolDetail() {
             currentConclusion={protocol.conclusion}
             currentValidityMonths={protocol.validityMonths}
             currentIssueDate={protocol.issueDate}
+            currentRessalva={protocol.ressalva}
             externalOpen={finalizeDialogOpen}
             onExternalOpenChange={setFinalizeDialogOpen}
             onNeedsUnlock={needsPassword ? () => {
