@@ -1729,6 +1729,7 @@ function FinalizeSection({
   currentIssueDate,
   currentRessalva,
   currentProgressPercent,
+  hasNonConformes,
   onNeedsUnlock,
   externalOpen,
   onExternalOpenChange,
@@ -1741,6 +1742,7 @@ function FinalizeSection({
   currentIssueDate?: string | null;
   currentRessalva?: string | null;
   currentProgressPercent?: number | null;
+  hasNonConformes?: boolean;
   onNeedsUnlock?: () => void;
   externalOpen?: boolean;
   onExternalOpenChange?: (v: boolean) => void;
@@ -1787,14 +1789,21 @@ function FinalizeSection({
   // Auto-fill conclusion when finalStatus changes (only if conclusion is empty or matches a default)
   // Also clear any blocking error when the user changes the selection.
   // When switching back to em_andamento, restore progressPercent from saved value so it is never lost.
+  // When switching to aprovado/aprovado_com_ressalva with non-conformes, show error immediately.
   useEffect(() => {
     if (!finalStatusWatch) return;
-    setBlockingError(null);
     if (finalStatusWatch === "em_andamento") {
+      setBlockingError(null);
       if (currentProgressPercent != null) {
         form.setValue("progressPercent", currentProgressPercent);
       }
+    } else if ((finalStatusWatch === "aprovado" || finalStatusWatch === "aprovado_com_ressalva") && hasNonConformes) {
+      setBlockingError("Protocolo fora das especificações de liberação. Existem parâmetros não conformes na aba Resultados.");
+      const current = form.getValues("conclusion")?.trim() ?? "";
+      const isDefaultOrEmpty = !current || Object.values(CONCLUSION_DEFAULTS).some(d => d === current);
+      if (isDefaultOrEmpty) form.setValue("conclusion", CONCLUSION_DEFAULTS[finalStatusWatch] ?? "");
     } else {
+      setBlockingError(null);
       const current = form.getValues("conclusion")?.trim() ?? "";
       const isDefaultOrEmpty = !current || Object.values(CONCLUSION_DEFAULTS).some(d => d === current);
       if (isDefaultOrEmpty) {
@@ -1827,6 +1836,7 @@ function FinalizeSection({
         queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetProtocolStatsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListProtocolsQueryKey() });
         toast({ title: isAlreadyFinalized ? "Avaliação corrigida com sucesso" : "Protocolo finalizado com sucesso" });
         setOpen(false);
       },
@@ -1998,7 +2008,10 @@ function FinalizeSection({
             )}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={finalize.isPending}>
+              <Button
+                type="submit"
+                disabled={finalize.isPending || (!!blockingError && (finalStatusWatch === "aprovado" || finalStatusWatch === "aprovado_com_ressalva"))}
+              >
                 {finalize.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {isAlreadyFinalized ? "Salvar Correção" : "Confirmar Avaliacao"}
               </Button>
@@ -2121,6 +2134,7 @@ export default function ProtocolDetail() {
             currentIssueDate={protocol.issueDate}
             currentRessalva={protocol.ressalva}
             currentProgressPercent={protocol.progressPercent}
+            hasNonConformes={protocol.results?.some(r => r.status === "nao_conforme") ?? false}
             externalOpen={finalizeDialogOpen}
             onExternalOpenChange={setFinalizeDialogOpen}
             onNeedsUnlock={needsPassword ? () => {
@@ -2128,11 +2142,31 @@ export default function ProtocolDetail() {
               setUnlockDialogOpen(true);
             } : undefined}
           />
-          <Link href={`/protocols/${id}/certificate`}>
-            <Button variant="outline" size="sm" data-testid="button-view-certificate">
-              <Award className="h-4 w-4 mr-1" /> Certificado
-            </Button>
-          </Link>
+          {(() => {
+            const hasNC = protocol.results?.some(r => r.status === "nao_conforme") ?? false;
+            const isApproved = protocol.status === "aprovado" || protocol.status === "aprovado_com_ressalva" || protocol.status === "reprovado";
+            const certBlocked = hasNC && !isApproved;
+            if (certBlocked) {
+              return (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled
+                  title="Certificado bloqueado: existem parâmetros não conformes nos resultados"
+                  className="opacity-50 cursor-not-allowed"
+                >
+                  <Award className="h-4 w-4 mr-1" /> Certificado
+                </Button>
+              );
+            }
+            return (
+              <Link href={`/protocols/${id}/certificate`}>
+                <Button variant="outline" size="sm" data-testid="button-view-certificate">
+                  <Award className="h-4 w-4 mr-1" /> Certificado
+                </Button>
+              </Link>
+            );
+          })()}
           {/* Edit — guarded */}
           <Button
             variant="outline"

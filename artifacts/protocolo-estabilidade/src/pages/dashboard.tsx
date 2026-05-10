@@ -2,7 +2,7 @@ import { useGetProtocolStats } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { FileText, Plus, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { FileText, Plus, AlertCircle, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -43,10 +43,10 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Protocolos</CardTitle>
+            <CardTitle className="text-sm font-medium">Total</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -59,7 +59,7 @@ export default function Dashboard() {
             <Clock className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.emAndamento || 0}</div>
+            <div className="text-2xl font-bold text-blue-600">{stats?.emAndamento || 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -68,16 +68,25 @@ export default function Dashboard() {
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.aprovado || 0}</div>
+            <div className="text-2xl font-bold text-green-600">{stats?.aprovado || 0}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Reprovados</CardTitle>
+            <XCircle className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{stats?.reprovado || 0}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Não Conformidades</CardTitle>
-            <AlertCircle className="h-4 w-4 text-red-500" />
+            <AlertCircle className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats?.totalNonConformities || 0}</div>
+            <div className="text-2xl font-bold text-orange-600">{stats?.totalNonConformities || 0}</div>
           </CardContent>
         </Card>
       </div>
