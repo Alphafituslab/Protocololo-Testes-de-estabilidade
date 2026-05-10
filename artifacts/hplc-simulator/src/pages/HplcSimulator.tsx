@@ -1324,8 +1324,8 @@ export default function HplcSimulator() {
                     <Line
                       type="linear"
                       dataKey="signal"
-                      stroke="#111"
-                      strokeWidth={0.75}
+                      stroke="#1560bd"
+                      strokeWidth={1}
                       dot={false}
                       isAnimationActive={false}
                     />
