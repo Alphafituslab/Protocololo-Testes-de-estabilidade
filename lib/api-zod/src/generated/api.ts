@@ -21,6 +21,7 @@ export const ListProtocolsQueryParams = zod.object({
   status: zod
     .enum(["rascunho", "em_andamento", "concluido", "aprovado", "reprovado"])
     .optional(),
+  nonConformes: zod.coerce.boolean().optional(),
 });
 
 export const ListProtocolsResponseItem = zod.object({

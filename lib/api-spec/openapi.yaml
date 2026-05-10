@@ -44,6 +44,10 @@ paths:
           schema:
             type: string
             enum: [rascunho, em_andamento, concluido, aprovado, reprovado]
+        - name: nonConformes
+          in: query
+          schema:
+            type: boolean
       responses:
         "200":
           description: List of protocols

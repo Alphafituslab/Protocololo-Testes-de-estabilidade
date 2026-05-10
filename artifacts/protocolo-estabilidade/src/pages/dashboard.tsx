@@ -1,7 +1,7 @@
 import { useGetProtocolStats } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { FileText, Plus, AlertCircle, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -21,6 +21,7 @@ const STATUS_BADGE_VARIANT: Record<string, "default" | "secondary" | "destructiv
 
 export default function Dashboard() {
   const { data: stats, isLoading } = useGetProtocolStats();
+  const [, navigate] = useLocation();
 
   if (isLoading) {
     return <div className="animate-pulse space-y-4">
@@ -80,13 +81,18 @@ export default function Dashboard() {
             <div className="text-2xl font-bold text-red-600">{stats?.reprovado || 0}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className="cursor-pointer hover:ring-2 hover:ring-orange-400 transition-all"
+          onClick={() => navigate("/protocols?nonConformes=true")}
+          title="Ver protocolos com não conformidades"
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Não Conformidades</CardTitle>
             <AlertCircle className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">{stats?.totalNonConformities || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">Clique para ver</p>
           </CardContent>
         </Card>
       </div>

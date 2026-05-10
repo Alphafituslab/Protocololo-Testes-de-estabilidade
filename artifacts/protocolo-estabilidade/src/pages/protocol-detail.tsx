@@ -1897,7 +1897,11 @@ function FinalizeSection({
           )}
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((v) => finalize.mutate({ id: protocolId, data: v }))} className="space-y-4">
+          <form onSubmit={form.handleSubmit((v) => {
+            // Guarda absoluta: se há erro de bloqueio e status é aprovação, rejeita submissão
+            if (blockingError && (v.finalStatus === "aprovado" || v.finalStatus === "aprovado_com_ressalva")) return;
+            finalize.mutate({ id: protocolId, data: v });
+          })} className="space-y-4">
             <FormField control={form.control} name="finalStatus" render={({ field }) => (
               <FormItem>
                 <FormLabel>Status Final</FormLabel>
@@ -2232,10 +2236,13 @@ export default function ProtocolDetail() {
         </div>
       </div>
 
-      {protocol.finalStatus && (() => {
-        const fs = protocol.finalStatus;
-        const isAprovado = fs === "aprovado";
-        const isRessalva = fs === "aprovado_com_ressalva";
+      {(protocol.finalStatus || protocol.status === "reprovado" || protocol.status === "aprovado" || protocol.status === "aprovado_com_ressalva") && (() => {
+        // Usa protocol.status como fonte de verdade canônica — nunca mostra "APROVADO" se status é reprovado
+        const st = protocol.status;
+        const isAprovado = st === "aprovado";
+        const isRessalva = st === "aprovado_com_ressalva";
+        const isReprovado = st === "reprovado";
+        if (!isAprovado && !isRessalva && !isReprovado) return null;
         const cardClass = isAprovado
           ? "border-green-200 bg-green-50"
           : isRessalva
@@ -2252,6 +2259,8 @@ export default function ProtocolDetail() {
           ? <CheckCircle2 className="h-5 w-5 text-amber-500 flex-shrink-0" />
           : <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />;
         const label = isAprovado ? "APROVADO" : isRessalva ? "APROVADO COM RESSALVA" : "REPROVADO";
+        // Validade só é exibida para protocolos aprovados — nunca para reprovados
+        const showValidity = (isAprovado || isRessalva) && !!protocol.validityMonths;
         return (
           <Card className={cardClass}>
             <CardContent className="pt-4 pb-4">
@@ -2260,7 +2269,7 @@ export default function ProtocolDetail() {
                 <div>
                   <p className={`font-semibold text-sm ${textClass}`}>
                     STATUS: {label}
-                    {protocol.validityMonths ? ` — Validade: ${protocol.validityMonths} meses` : ""}
+                    {showValidity ? ` — Validade: ${protocol.validityMonths} meses` : ""}
                   </p>
                   {protocol.conclusion && <p className="text-xs text-muted-foreground mt-0.5">{protocol.conclusion}</p>}
                 </div>

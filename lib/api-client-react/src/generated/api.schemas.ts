@@ -372,6 +372,7 @@ export interface FinalizeProtocolBody {
 
 export type ListProtocolsParams = {
   status?: ListProtocolsStatus;
+  nonConformes?: boolean;
 };
 
 export type ListProtocolsStatus =

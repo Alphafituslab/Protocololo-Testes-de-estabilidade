@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, count, and } from "drizzle-orm";
+import { eq, desc, count, and, inArray } from "drizzle-orm";
 import { db, protocolsTable, lotsTable, analysisResultsTable } from "@workspace/db";
 import {
   CreateProtocolBody,
@@ -20,6 +20,25 @@ const router: IRouter = Router();
 router.get("/protocols", async (req, res): Promise<void> => {
   const parsed = ListProtocolsQueryParams.safeParse(req.query);
   const statusFilter = parsed.success ? parsed.data.status : undefined;
+  const nonConformesFilter = parsed.success ? parsed.data.nonConformes : undefined;
+
+  if (nonConformesFilter === true) {
+    // Retorna apenas protocolos que têm ao menos um resultado "nao_conforme"
+    const rows = await db
+      .select({ protocolId: analysisResultsTable.protocolId })
+      .from(analysisResultsTable)
+      .where(eq(analysisResultsTable.status, "nao_conforme"));
+    const ids = [...new Set(rows.map((r) => r.protocolId))];
+    if (ids.length === 0) { res.json([]); return; }
+    const protocols = await db
+      .select()
+      .from(protocolsTable)
+      .where(inArray(protocolsTable.id, ids))
+      .orderBy(desc(protocolsTable.updatedAt));
+    res.json(protocols);
+    return;
+  }
+
   let protocols;
   if (statusFilter) {
     protocols = await db.select().from(protocolsTable).where(eq(protocolsTable.status, statusFilter)).orderBy(desc(protocolsTable.updatedAt));

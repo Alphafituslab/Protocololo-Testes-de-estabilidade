@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Dashboard from "./pages/dashboard";
+import ProtocolsList from "./pages/protocols-list";
 import ProtocolForm from "./pages/protocol-form";
 import ProtocolDetail from "./pages/protocol-detail";
 import CertificatePage from "./pages/certificate";
@@ -161,6 +162,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={LoginPage} />
       <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
+      <Route path="/protocols" component={() => <ProtectedRoute component={ProtocolsList} />} />
       <Route path="/protocols/new" component={() => <ProtectedRoute component={ProtocolForm} />} />
       <Route path="/protocols/:id/edit" component={() => <ProtectedRoute component={ProtocolForm} />} />
       <Route path="/protocols/:id/certificate" component={() => <ProtectedDetailRoute component={CertificatePage} />} />

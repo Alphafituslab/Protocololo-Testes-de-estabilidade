@@ -9,4 +9,5 @@ import type { ListProtocolsStatus } from "./listProtocolsStatus";
 
 export type ListProtocolsParams = {
   status?: ListProtocolsStatus;
+  nonConformes?: boolean;
 };
