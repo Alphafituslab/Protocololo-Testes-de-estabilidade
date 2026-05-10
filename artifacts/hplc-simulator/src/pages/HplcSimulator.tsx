@@ -362,14 +362,30 @@ function PeakLabel({ viewBox, rt }: { viewBox?: { x: number; y: number }; rt: nu
 
 // ─── Peak editor ──────────────────────────────────────────────────────────────
 
+const PEAK_NUM_KEYS: (keyof Peak)[] = ["retentionTime", "height", "width", "asymmetry", "manualArea", "amtPerArea", "amount"];
+
+function peakToStrings(p: Peak): Record<keyof Peak, string> {
+  return Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v)])) as Record<keyof Peak, string>;
+}
+function stringsToPeak(base: Peak, s: Record<keyof Peak, string>): Peak {
+  const result = { ...base };
+  for (const k of PEAK_NUM_KEYS) {
+    const parsed = parseFloat(s[k]);
+    (result as Record<string, unknown>)[k] = isNaN(parsed) ? 0 : parsed;
+  }
+  result.name = s.name;
+  result.peakType = s.peakType;
+  result.grp = s.grp;
+  return result;
+}
+
 function PeakEditorDialog({ peak, onSave, children }: { peak: Peak; onSave: (p: Peak) => void; children: React.ReactNode }) {
-  const [draft, setDraft] = useState<Peak>({ ...peak });
+  const [draft, setDraft] = useState<Record<keyof Peak, string>>(() => peakToStrings(peak));
   const [open, setOpen] = useState(false);
-  const numKeys: (keyof Peak)[] = ["retentionTime", "height", "width", "asymmetry", "manualArea", "amtPerArea", "amount"];
   const field = (key: keyof Peak) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setDraft(d => ({ ...d, [key]: numKeys.includes(key) ? parseFloat(e.target.value) || 0 : e.target.value }));
+    setDraft(d => ({ ...d, [key]: e.target.value }));
   return (
-    <Dialog open={open} onOpenChange={v => { setOpen(v); if (v) setDraft({ ...peak }); }}>
+    <Dialog open={open} onOpenChange={v => { setOpen(v); if (v) setDraft(peakToStrings(peak)); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-xs">
         <DialogHeader><DialogTitle style={{ fontFamily: "Courier New, monospace" }}>Editar Pico</DialogTitle></DialogHeader>
@@ -388,14 +404,19 @@ function PeakEditorDialog({ peak, onSave, children }: { peak: Peak; onSave: (p: 
           ] as [keyof Peak, string, string][]).map(([k, label, type]) => (
             <div key={k} className="space-y-0.5">
               <Label className="text-xs text-muted-foreground">{label}</Label>
-              <Input type={type} step="0.00001" value={draft[k] as string | number} onChange={field(k)} className="h-7 text-xs font-mono" />
+              <Input
+                type={type} step="any"
+                value={draft[k]}
+                onChange={field(k)}
+                className="h-7 text-xs font-mono"
+              />
             </div>
           ))}
           <p className="text-xs text-muted-foreground pt-1">
             Área = 0 → calculada automaticamente pelo modelo Gaussiano.<br />
             Área &gt; 0 → valor exato usado no relatório.
           </p>
-          <Button className="w-full" size="sm" onClick={() => { onSave(draft); setOpen(false); }}>Salvar</Button>
+          <Button className="w-full" size="sm" onClick={() => { onSave(stringsToPeak(peak, draft)); setOpen(false); }}>Salvar</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -429,19 +450,36 @@ function SmallField({ label, value, onChange, type = "text" }: {
 
 // ─── Active Compound Dialog ────────────────────────────────────────────────────
 
+const COMPOUND_NUM_KEYS: (keyof ActiveCompound)[] = [
+  "wavelength", "waveTol", "expectedRT", "rtTol", "typicalWidth",
+  "typicalAsym", "amtPerArea", "specMin", "specMax",
+];
+
+function compoundToStrings(c: ActiveCompound): Record<keyof ActiveCompound, string> {
+  return Object.fromEntries(Object.entries(c).map(([k, v]) => [k, String(v)])) as Record<keyof ActiveCompound, string>;
+}
+function stringsToCompound(base: ActiveCompound, s: Record<keyof ActiveCompound, string>): ActiveCompound {
+  const result = { ...base };
+  for (const k of COMPOUND_NUM_KEYS) {
+    const parsed = parseFloat(s[k]);
+    (result as Record<string, unknown>)[k] = isNaN(parsed) ? 0 : parsed;
+  }
+  result.name = s.name;
+  result.units = s.units;
+  result.method = s.method;
+  result.notes = s.notes;
+  return result;
+}
+
 function ActiveCompoundDialog({ compound, onSave, children }: {
   compound: ActiveCompound; onSave: (c: ActiveCompound) => void; children: React.ReactNode;
 }) {
-  const [draft, setDraft] = useState<ActiveCompound>({ ...compound });
+  const [draft, setDraft] = useState<Record<keyof ActiveCompound, string>>(() => compoundToStrings(compound));
   const [open, setOpen] = useState(false);
-  const numKeys: (keyof ActiveCompound)[] = [
-    "wavelength", "waveTol", "expectedRT", "rtTol", "typicalWidth",
-    "typicalAsym", "amtPerArea", "specMin", "specMax",
-  ];
   const field = (key: keyof ActiveCompound) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setDraft(d => ({ ...d, [key]: numKeys.includes(key) ? parseFloat(e.target.value) || 0 : e.target.value }));
+    setDraft(d => ({ ...d, [key]: e.target.value }));
   return (
-    <Dialog open={open} onOpenChange={v => { setOpen(v); if (v) setDraft({ ...compound }); }}>
+    <Dialog open={open} onOpenChange={v => { setOpen(v); if (v) setDraft(compoundToStrings(compound)); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader>
@@ -465,14 +503,14 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
             ["specMin",      "Spec Mín (ug/ml, 0=N/A)", "number", ""],
             ["specMax",      "Spec Máx (ug/ml, 0=N/A)", "number", ""],
           ] as [keyof ActiveCompound, string, string, string][]).map(([k, label, type, cls]) => (
-            <div key={k} className={cls || "" }>
+            <div key={k} className={cls || ""}>
               <Label className="text-xs text-muted-foreground font-mono">{label}</Label>
-              <Input type={type} step="0.00001" value={draft[k] as string | number}
+              <Input type={type} step="any" value={draft[k]}
                 onChange={field(k)} className="h-7 text-xs font-mono" />
             </div>
           ))}
         </div>
-        <Button className="w-full mt-2" size="sm" onClick={() => { onSave(draft); setOpen(false); }}>
+        <Button className="w-full mt-2" size="sm" onClick={() => { onSave(stringsToCompound(compound, draft)); setOpen(false); }}>
           Salvar Ativo
         </Button>
       </DialogContent>
