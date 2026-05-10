@@ -120,12 +120,16 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       // Re-evaluate status based on the computed average vs criterion.
       // AR (whether per-cell or protocol-level) is never downgraded automatically.
       let finalStatus = data.status;
-      if (protocolIsAR && finalStatus === "nao_conforme") {
-        // Protocol-level AR decision: operator approved this parameter with ressalva
-        finalStatus = "aprovado_com_ressalva";
-      } else if (avg !== null && finalStatus !== "nao_conforme" && finalStatus !== "aprovado_com_ressalva") {
+
+      // Step 1: auto-detect NC from numeric average when status is still "conforme"
+      if (avg !== null && finalStatus !== "nao_conforme" && finalStatus !== "aprovado_com_ressalva") {
         const withinSpec = isWithinCriterion(avg, data.criterion);
         if (withinSpec === false) finalStatus = "nao_conforme";
+      }
+
+      // Step 2: if protocol was finalized as AR, override ALL NC (whether from DB or auto-detected)
+      if (protocolIsAR && finalStatus === "nao_conforme") {
+        finalStatus = "aprovado_com_ressalva";
       }
 
       return {
