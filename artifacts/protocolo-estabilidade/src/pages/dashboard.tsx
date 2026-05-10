@@ -98,10 +98,12 @@ export default function Dashboard() {
             {stats?.recentProtocols.map(protocol => (
               <div key={protocol.id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
                 <div>
-                  <Link href={`/protocols/${protocol.id}`} className="font-medium text-primary hover:underline">
-                    {protocol.certNumber || `Protocolo #${protocol.id}`}
+                  <Link href={`/protocols/${protocol.id}`} className="font-semibold text-primary hover:underline">
+                    {protocol.productName}
                   </Link>
-                  <div className="text-sm text-muted-foreground">{protocol.productName} • {protocol.companyName}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {protocol.certNumber ? `${protocol.certNumber} · ` : ""}{protocol.companyName}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={STATUS_BADGE_VARIANT[protocol.status] ?? "secondary"}>

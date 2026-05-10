@@ -1832,12 +1832,21 @@ function FinalizeSection({
 
   const finalize = useFinalizeProtocol({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetProtocolStatsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getListProtocolsQueryKey() });
-        toast({ title: isAlreadyFinalized ? "Avaliação corrigida com sucesso" : "Protocolo finalizado com sucesso" });
+        const autoReprovado = (data as unknown as Record<string, unknown>)._autoReprovado === true;
+        if (autoReprovado) {
+          toast({
+            title: "⚠️ Protocolo salvo como REPROVADO automaticamente",
+            description: "A tentativa de aprovação foi bloqueada: existem parâmetros não conformes. O protocolo foi registrado como Reprovado.",
+            variant: "destructive",
+          });
+        } else {
+          toast({ title: isAlreadyFinalized ? "Avaliação corrigida com sucesso" : "Protocolo finalizado com sucesso" });
+        }
         setOpen(false);
       },
       onError: (err: unknown) => {

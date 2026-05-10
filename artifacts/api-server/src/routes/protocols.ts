@@ -108,7 +108,8 @@ router.post("/protocols/:id/finalize", requireAuth, async (req, res): Promise<vo
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const fs = parsed.data.finalStatus;
 
-  // Bloqueia aprovação quando há resultados não conformes
+  // Medida de segurança: se tentativa de aprovação contém não conformes, força reprovado automaticamente
+  let forcedReprovado = false;
   if (fs === "aprovado" || fs === "aprovado_com_ressalva") {
     const nonConformes = await db
       .select({ cnt: count() })
@@ -118,8 +119,7 @@ router.post("/protocols/:id/finalize", requireAuth, async (req, res): Promise<vo
         eq(analysisResultsTable.status, "nao_conforme"),
       ));
     if ((nonConformes[0]?.cnt ?? 0) > 0) {
-      res.status(422).json({ error: "Protocolo fora das especificações de liberação. Existem parâmetros não conformes na aba Resultados." });
-      return;
+      forcedReprovado = true;
     }
   }
 
@@ -139,6 +139,17 @@ router.post("/protocols/:id/finalize", requireAuth, async (req, res): Promise<vo
         : (existing?.progressPercent ?? null),
     };
     statusLabel = "EM ANDAMENTO";
+  } else if (forcedReprovado) {
+    // Segurança: aprovação ignorada pois há não conformes — salva como reprovado
+    updateData = {
+      status: "reprovado",
+      finalStatus: "reprovado",
+      conclusion: "REPROVADO AUTOMATICAMENTE: protocolo contém parâmetros não conformes nas análises. " + (parsed.data.conclusion ?? ""),
+      validityMonths: null,
+      issueDate: parsed.data.issueDate ?? new Date().toISOString().split("T")[0],
+      ressalva: null,
+    };
+    statusLabel = "REPROVADO AUTOMATICAMENTE (havia não conformes)";
   } else {
     const workflowStatus = fs === "aprovado" ? "aprovado" : fs === "aprovado_com_ressalva" ? "aprovado_com_ressalva" : "reprovado";
     updateData = {
@@ -156,7 +167,7 @@ router.post("/protocols/:id/finalize", requireAuth, async (req, res): Promise<vo
     .where(eq(protocolsTable.id, params.data.id)).returning();
   if (!protocol) { res.status(404).json({ error: "Protocol not found" }); return; }
   await logAudit(req, "FINALIZAR_PROTOCOLO", "protocolo", `Protocolo "${protocol.productName}" marcado como ${statusLabel}`, { entityId: protocol.id, protocolId: protocol.id });
-  res.json(protocol);
+  res.json({ ...protocol, _autoReprovado: forcedReprovado });
 });
 
 export default router;
