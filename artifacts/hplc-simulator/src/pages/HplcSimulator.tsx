@@ -342,6 +342,26 @@ export default function HplcSimulator() {
     return Math.max(...standards.map(s => s.area)) * 1.2;
   }, [standards]);
 
+  // Merged dataset for ComposedChart: reg line (dense) + actual standard points
+  const calibChartData = useMemo(() => {
+    const sorted = [...standards].sort((a, b) => a.conc - b.conc);
+    const xMax = calibXMax;
+    // Build 80 points for the regression line from 0 to xMax
+    const regPts = Array.from({ length: 80 }, (_, i) => {
+      const x = (i / 79) * xMax;
+      return { x: parseFloat(x.toFixed(5)), reg: reg.slope * x + reg.intercept, pt: undefined as number | undefined };
+    });
+    // Overlay the actual standard values
+    sorted.forEach(s => {
+      const nearest = regPts.reduce((best, p, i) =>
+        Math.abs(p.x - s.conc) < Math.abs(regPts[best].x - s.conc) ? i : best, 0);
+      regPts[nearest].x = s.conc;
+      regPts[nearest].reg = reg.slope * s.conc + reg.intercept;
+      regPts[nearest].pt = s.area;
+    });
+    return regPts;
+  }, [standards, calibXMax, reg]);
+
   const xScaleDisplay = (v: number) => (v / calib.xScale).toFixed(1).replace(".", ",");
   const yScaleDisplay = (v: number) => (v / calib.yScale).toFixed(1).replace(".", ",");
 
@@ -716,7 +736,7 @@ export default function HplcSimulator() {
                     <div style={{ ...MONO, fontSize: 10, color: "#444", marginBottom: 2 }}>[{calib.yScaleLabel}]</div>
 
                     <ResponsiveContainer width="100%" height={240}>
-                      <ScatterChart margin={{ top: 10, right: 20, left: 10, bottom: 30 }}>
+                      <ComposedChart data={calibChartData} margin={{ top: 10, right: 20, left: 10, bottom: 30 }}>
                         <CartesianGrid strokeDasharray="2 2" stroke="#ccc" />
                         <XAxis
                           dataKey="x" type="number"
@@ -727,63 +747,60 @@ export default function HplcSimulator() {
                           label={{ value: `Conc. [${calib.xScaleLabel}]`, position: "insideBottom", offset: -14, fontFamily: "Courier New, monospace", fontSize: 10 }}
                         />
                         <YAxis
-                          dataKey="y" type="number"
+                          type="number"
                           domain={[0, calibYMax]}
                           tickFormatter={yScaleDisplay}
                           tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
                           axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }}
                           width={44}
                         />
-                        <Tooltip content={<CalibTooltip />} />
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null;
+                            const d = payload[0]?.payload as { x: number; reg: number; pt?: number };
+                            return (
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, background: "#fff", border: "1px solid #333", padding: "4px 8px" }}>
+                                <div>Conc: {(d.x / calib.xScale).toFixed(3).replace(".", ",")}</div>
+                                {d.pt !== undefined && <div>Area: {Math.round(d.pt).toLocaleString("pt-BR")}</div>}
+                              </div>
+                            );
+                          }}
+                        />
 
                         {/* Dashed crosshair lines for each standard point */}
                         {standards.map(s => (
-                          <ReferenceLine
-                            key={`vx-${s.id}`}
-                            x={s.conc}
-                            stroke="#888"
-                            strokeDasharray="4 3"
-                            strokeWidth={0.8}
-                          />
+                          <ReferenceLine key={`vx-${s.id}`} x={s.conc} stroke="#888" strokeDasharray="4 3" strokeWidth={0.8} />
                         ))}
                         {standards.map(s => (
-                          <ReferenceLine
-                            key={`hy-${s.id}`}
-                            y={s.area}
-                            stroke="#888"
-                            strokeDasharray="4 3"
-                            strokeWidth={0.8}
-                          />
+                          <ReferenceLine key={`hy-${s.id}`} y={s.area} stroke="#888" strokeDasharray="4 3" strokeWidth={0.8} />
                         ))}
 
-                        {/* Regression line */}
-                        <Scatter
-                          data={regLine}
-                          line={{ stroke: "#333", strokeWidth: 1 }}
-                          lineType="linear"
-                          shape={() => null as unknown as React.ReactElement}
+                        {/* Regression line — solid, continuous */}
+                        <Line
+                          dataKey="reg"
+                          stroke="#333"
+                          strokeWidth={1.2}
+                          dot={false}
                           isAnimationActive={false}
+                          connectNulls
                         />
 
-                        {/* Line connecting the actual data points */}
-                        <Scatter
-                          data={[...standards].sort((a, b) => a.conc - b.conc).map(s => ({ x: s.conc, y: s.area }))}
-                          line={{ stroke: "#333", strokeWidth: 1 }}
-                          lineType="linear"
+                        {/* Actual standard points — circles */}
+                        <Line
+                          dataKey="pt"
+                          stroke="#333"
+                          strokeWidth={1}
+                          dot={(props: { cx: number; cy: number; value?: number }) =>
+                            props.value !== undefined ? (
+                              <circle key={`dot-${props.cx}`} cx={props.cx} cy={props.cy} r={4} fill="#fff" stroke="#333" strokeWidth={1.5} />
+                            ) : <g key={`dot-empty-${props.cx}`} />
+                          }
+                          activeDot={false}
                           isAnimationActive={false}
-                          shape={() => null as unknown as React.ReactElement}
+                          connectNulls={false}
+                          legendType="none"
                         />
-
-                        {/* Data points (circles on top) */}
-                        <Scatter
-                          data={[...standards].sort((a, b) => a.conc - b.conc).map(s => ({ x: s.conc, y: s.area }))}
-                          fill="#333"
-                          isAnimationActive={false}
-                          shape={(props: { cx?: number; cy?: number }) => (
-                            <circle cx={props.cx} cy={props.cy} r={4} fill="#fff" stroke="#333" strokeWidth={1.5} />
-                          )}
-                        />
-                      </ScatterChart>
+                      </ComposedChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
