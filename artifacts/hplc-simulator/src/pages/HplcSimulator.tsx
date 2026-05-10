@@ -675,79 +675,304 @@ function saveSavedImages(imgs: HplcSavedImage[]) {
   try { localStorage.setItem(IMAGES_KEY, JSON.stringify(imgs)); } catch { /* ignore */ }
 }
 
-// Draws the overlay chromatogram on a canvas and returns base64 PNG dataURL
+// Generates a full Agilent ChemStation-style report PNG for the session
 function buildChromatogramPng(
   session: AnalysisSession,
   formula: Formula,
+  formulaStd: FormulaStandard | null,
 ): string | null {
-  const W = 900; const H = 380;
+  if (session.runs.length === 0) return null;
+
+  const W = 960;
+  const MAX_H = 8000;
+  const FONT = "11px 'Courier New', Courier, monospace";
+  const FONT_SM = "9px 'Courier New', Courier, monospace";
+  const FONT_BOLD = "bold 11px 'Courier New', Courier, monospace";
+  const LINE = 13.5;
+  const ML = 20;
+  const CHART_H = 210;
+  const SEP = "=".repeat(88);
+
   const canvas = document.createElement("canvas");
-  canvas.width = W; canvas.height = H;
+  canvas.width = W; canvas.height = MAX_H;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, W, H);
-  const M = { top: 38, right: 20, bottom: 44, left: 64 };
-  const cW = W - M.left - M.right;
-  const cH = H - M.top - M.bottom;
-  const runTime = formula.detector.runTime;
-  const pts = 1200;
-  const allChrom = session.runs.map(r => buildChromatogram(r.peaks, runTime, pts));
-  const maxSig = Math.max(10, ...allChrom.flat().map(p => p.signal)) * 1.12;
-  const xS = (t: number) => M.left + (t / runTime) * cW;
-  const yS = (s: number) => M.top + cH - (s / maxSig) * cH;
-  // Grid
-  ctx.strokeStyle = "#e8e8e8"; ctx.lineWidth = 0.5;
-  for (let i = 0; i <= 5; i++) {
-    const y = M.top + (i / 5) * cH;
-    ctx.beginPath(); ctx.moveTo(M.left, y); ctx.lineTo(M.left + cW, y); ctx.stroke();
-    const x = M.left + (i / 5) * cW;
-    ctx.beginPath(); ctx.moveTo(x, M.top); ctx.lineTo(x, M.top + cH); ctx.stroke();
-  }
-  // Axes
-  ctx.strokeStyle = "#222"; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(M.left, M.top); ctx.lineTo(M.left, M.top + cH); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(M.left, M.top + cH); ctx.lineTo(M.left + cW, M.top + cH); ctx.stroke();
-  // Axis ticks + labels
-  ctx.fillStyle = "#444"; ctx.font = "10px Courier New"; ctx.textAlign = "center";
-  for (let i = 0; i <= 5; i++) {
-    const x = M.left + (i / 5) * cW;
-    const t = ((i / 5) * runTime).toFixed(1);
-    ctx.fillText(t, x, M.top + cH + 14);
-  }
-  ctx.textAlign = "right";
-  for (let i = 0; i <= 5; i++) {
-    const y = M.top + (i / 5) * cH;
-    const v = (((5 - i) / 5) * maxSig).toFixed(0);
-    ctx.fillText(v, M.left - 5, y + 4);
-  }
-  ctx.textAlign = "center";
-  ctx.font = "11px Courier New"; ctx.fillStyle = "#555";
-  ctx.fillText("min", M.left + cW + 18, M.top + cH + 5);
-  ctx.save(); ctx.translate(14, M.top + cH / 2); ctx.rotate(-Math.PI / 2);
-  ctx.fillText("mAU", 0, 0); ctx.restore();
-  // Title
-  ctx.font = "bold 12px Courier New"; ctx.fillStyle = "#1d4ed8"; ctx.textAlign = "center";
-  ctx.fillText(session.name, W / 2, 18);
-  ctx.font = "10px Courier New"; ctx.fillStyle = "#666";
-  ctx.fillText(`Fórmula: ${formula.name}  ·  λ ${formula.detector.sigWavelength} nm`, W / 2, 30);
-  // Lines
-  for (let ri = 0; ri < session.runs.length; ri++) {
-    const chrom = allChrom[ri];
-    ctx.strokeStyle = session.runs[ri].color; ctx.lineWidth = 1.5;
+  ctx.fillRect(0, 0, W, MAX_H);
+
+  let y = 10;
+
+  const txt = (s: string, x = ML, color = "#000", font = FONT) => {
+    ctx.font = font; ctx.fillStyle = color;
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillText(s, x, y);
+  };
+  const nl = (n = 1) => { y += LINE * n; };
+  const sep = () => {
+    ctx.font = FONT_SM; ctx.fillStyle = "#999";
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillText(SEP, ML, y);
+    ctx.fillStyle = "#000";
+    nl();
+  };
+
+  // Draw one run's chromatogram chart
+  const drawRunChart = (run: AnalysisRun) => {
+    const chartTop = y;
+    const ML_c = ML + 46;
+    const cW = W - ML_c - 36;
+    const runTime = formula.detector.runTime;
+    const chrom = buildChromatogram(run.peaks, runTime, 1600);
+    const maxSig = Math.max(10, ...chrom.map(p => p.signal)) * 1.1;
+
+    const xS = (t: number) => ML_c + (t / runTime) * cW;
+    const yS = (s: number) => chartTop + CHART_H - (s / maxSig) * CHART_H;
+
+    // mAU label (rotated)
+    ctx.save();
+    ctx.font = FONT_SM; ctx.fillStyle = "#555";
+    ctx.translate(ML + 10, chartTop + CHART_H / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("mAU", 0, 0);
+    ctx.restore();
+
+    // Y-axis grid + tick labels
+    const ySteps = 5;
+    for (let i = 0; i <= ySteps; i++) {
+      const gy = chartTop + (i / ySteps) * CHART_H;
+      const val = (((ySteps - i) / ySteps) * maxSig).toFixed(0);
+      ctx.strokeStyle = "#e2e2e2"; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(ML_c, gy); ctx.lineTo(ML_c + cW, gy); ctx.stroke();
+      ctx.font = FONT_SM; ctx.fillStyle = "#555";
+      ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      ctx.fillText(val, ML_c - 3, gy);
+    }
+
+    // X-axis grid + tick labels
+    const xSteps = Math.min(Math.ceil(runTime), 10);
+    for (let i = 0; i <= xSteps; i++) {
+      const t = (i / xSteps) * runTime;
+      const gx = xS(t);
+      ctx.strokeStyle = "#e2e2e2"; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(gx, chartTop); ctx.lineTo(gx, chartTop + CHART_H); ctx.stroke();
+      ctx.font = FONT_SM; ctx.fillStyle = "#555";
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.fillText(t.toFixed(1), gx, chartTop + CHART_H + 2);
+    }
+
+    // "min" label
+    ctx.font = FONT_SM; ctx.fillStyle = "#555";
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillText("min", ML_c + cW + 4, chartTop + CHART_H + 2);
+
+    // Axes
+    ctx.strokeStyle = "#111"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(ML_c, chartTop); ctx.lineTo(ML_c, chartTop + CHART_H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ML_c, chartTop + CHART_H); ctx.lineTo(ML_c + cW, chartTop + CHART_H); ctx.stroke();
+
+    // Chromatogram — Agilent ChemStation blue
+    ctx.strokeStyle = "#1560bd"; ctx.lineWidth = 1;
     ctx.beginPath();
-    chrom.forEach((pt, i) => { const x = xS(pt.time); const y = yS(pt.signal); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    chrom.forEach((pt, i) => {
+      const px = xS(pt.time); const py = yS(pt.signal);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
     ctx.stroke();
+
+    // Peak labels — rotated retention time above peak apex
+    run.peaks.filter(p => p.height > 1).sort((a, b) => a.retentionTime - b.retentionTime).forEach((p) => {
+      const px = xS(p.retentionTime);
+      const py = yS(p.height);
+      ctx.save();
+      ctx.translate(px + 2, py - 3);
+      ctx.rotate(-Math.PI / 2);
+      ctx.font = "8px 'Courier New', Courier, monospace";
+      ctx.fillStyle = "#333";
+      ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+      ctx.fillText(p.retentionTime.toFixed(3), 0, 0);
+      ctx.restore();
+    });
+
+    y = chartTop + CHART_H + 16;
+  };
+
+  // ── Render each run as a full ChemStation page ──────────────────────────
+  for (let ri = 0; ri < session.runs.length; ri++) {
+    const run = session.runs[ri];
+    const det = formula.detector;
+
+    // --- Header ---
+    txt("Data File  " + run.sample.dataFile); nl();
+    txt("Sample Name: " + run.sample.sampleName); nl(2);
+
+    sep();
+
+    // --- Operator block ---
+    const pad = (s: string, n: number) => s.padEnd(n);
+    txt(`    Acq. Operator   : ${pad(run.sample.acqOperator, 28)}Seq. Line :  ${run.sample.seqLine}`); nl();
+    txt(`    Acq. Instrument : ${pad(run.sample.acqInstrument, 28)}Location  : ${run.sample.location}`); nl();
+    txt(`    Injection Date  : ${pad(run.sample.injectionDate, 36)}Inj :  ${run.sample.inj}`); nl();
+    txt(`    ${" ".repeat(55)}Inj Volume : ${run.sample.injVolume}`); nl();
+    txt(`    Acq. Method     : ${run.sample.acqMethod}`); nl();
+    txt(`    Last changed    : ${run.sample.lastChanged1}`); nl();
+    txt(`    Analysis Method : ${run.sample.analysisMethod}`); nl();
+    txt(`    Last changed    : ${run.sample.lastChanged2}`); nl();
+    txt(`                      (modified after loading)`); nl(2);
+
+    sep();
+
+    // --- Signal info ---
+    const refStr = det.refWavelength > 0
+      ? `${det.refWavelength},${det.refBandwidth}`
+      : "off";
+    txt(`Signal ${ri + 1}: ${det.signalName || "DAD1 A"}, Sig=${det.sigWavelength},${det.sigBandwidth} Ref=${refStr}`);
+    nl(1.8);
+
+    // --- Chromatogram chart ---
+    drawRunChart(run);
+
+    nl(0.5);
+    sep();
+
+    // --- Peak table ---
+    const sortedPeaks = [...run.peaks]
+      .filter(p => p.height > 0.5)
+      .sort((a, b) => a.retentionTime - b.retentionTime);
+    const totalArea = sortedPeaks.reduce((s, p) => s + (p.manualArea > 0 ? p.manualArea : computeArea(p)), 0);
+
+    txt(` ${"#".padEnd(3)} ${"RetTime".padEnd(8)} ${"Type".padEnd(5)} ${"Width".padEnd(8)} ${"Area".padEnd(13)} ${"Height".padEnd(11)} Area%`); nl();
+    txt(`     [min]     |      [min]  |  [mAU*s]      [mAU]`); nl();
+    ctx.fillStyle = "#888"; txt("-".repeat(82)); ctx.fillStyle = "#000"; nl();
+
+    sortedPeaks.forEach((p, i) => {
+      const area = p.manualArea > 0 ? p.manualArea : computeArea(p);
+      const areaPct = totalArea > 0 ? (area / totalArea) * 100 : 0;
+      txt(
+        ` ${String(i + 1).padStart(2)}  ${p.retentionTime.toFixed(3).padEnd(8)} ${p.peakType.padEnd(5)} ${p.width.toFixed(4).padEnd(8)} ${area.toFixed(5).padEnd(13)} ${p.height.toFixed(5).padEnd(11)} ${areaPct.toFixed(3)}`
+      ); nl();
+    });
+
+    ctx.fillStyle = "#888"; txt("-".repeat(82)); ctx.fillStyle = "#000"; nl();
+    txt(`Totals :                              ${totalArea.toFixed(5)}`); nl(2);
+
+    sep();
+
+    // --- Results section ---
+    txt("Results obtained with enhanced integrator!"); nl(2);
+
+    const compounds = formula.activeCompounds ?? [];
+    if (compounds.length > 0) {
+      txt(`${"Compound Name".padEnd(22)}  ${"CAS".padEnd(12)}  ${"Conc [mg/mL]".padEnd(14)}  ${"Nominal".padEnd(10)}  Teor%`); nl();
+      ctx.fillStyle = "#888"; txt("-".repeat(80)); ctx.fillStyle = "#000"; nl();
+
+      compounds.forEach(compound => {
+        const peakMatch = sortedPeaks.find(
+          p => Math.abs(p.retentionTime - compound.expectedRT) <= compound.rtTol,
+        );
+        if (peakMatch) {
+          const area = peakMatch.manualArea > 0 ? peakMatch.manualArea : computeArea(peakMatch);
+          const stdEntry = formulaStd?.entries.find(e => e.compoundId === compound.id) ?? null;
+          const { calcConc, teorPct } = calcTeorPct(area, compound, stdEntry);
+          const nominal = stdEntry?.nominalConc ?? 0;
+          txt(
+            `${compound.name.padEnd(22)}  ${"".padEnd(12)}  ${calcConc.toFixed(4).padEnd(14)}  ${nominal > 0 ? nominal.toFixed(4).padEnd(10) : "N/D".padEnd(10)}  ${teorPct !== null ? teorPct.toFixed(2) + " %" : "N/D"}`
+          );
+        } else {
+          txt(`${compound.name.padEnd(22)}  ${"".padEnd(12)}  ${"Not Found".padEnd(14)}  ${"N/D".padEnd(10)}  N/D`);
+        }
+        nl();
+      });
+      nl();
+      sep();
+    }
+
+    y += 22; // gap between runs
   }
-  // Legend
-  session.runs.forEach((r, i) => {
-    const lx = M.left + 12 + i * 90;
-    ctx.strokeStyle = r.color; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(lx, H - 12); ctx.lineTo(lx + 18, H - 12); ctx.stroke();
-    ctx.fillStyle = "#333"; ctx.font = "10px Courier New"; ctx.textAlign = "left";
-    ctx.fillText(r.label, lx + 22, H - 8);
-  });
-  return canvas.toDataURL("image/png");
+
+  // ── Multi-run summary ────────────────────────────────────────────────────
+  if (session.runs.length > 1) {
+    txt(`SUMÁRIO DA SESSÃO: ${session.name}`, ML, "#1d4ed8", FONT_BOLD); nl(2);
+    sep();
+
+    const compounds = formula.activeCompounds ?? [];
+    if (compounds.length > 0) {
+      compounds.forEach(compound => {
+        const vals = session.runs.map(run => {
+          const p = run.peaks.find(p => Math.abs(p.retentionTime - compound.expectedRT) <= compound.rtTol);
+          if (!p) return null;
+          const area = p.manualArea > 0 ? p.manualArea : computeArea(p);
+          const stdEntry = formulaStd?.entries.find(e => e.compoundId === compound.id) ?? null;
+          const { teorPct } = calcTeorPct(area, compound, stdEntry);
+          return teorPct;
+        }).filter((v): v is number => v !== null);
+
+        if (vals.length > 0) {
+          const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
+          const sd = vals.length > 1
+            ? Math.sqrt(vals.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / (vals.length - 1))
+            : 0;
+          const cv = mean > 0 ? (sd / mean) * 100 : 0;
+          txt(`${compound.name}  —  Média = ${mean.toFixed(2)} %    DP = ${sd.toFixed(3)}    %CV = ${cv.toFixed(2)} %    (n = ${vals.length})`, ML, "#000", FONT_BOLD); nl();
+
+          session.runs.forEach((run, ri) => {
+            const p = run.peaks.find(p => Math.abs(p.retentionTime - compound.expectedRT) <= compound.rtTol);
+            if (!p) return;
+            const area = p.manualArea > 0 ? p.manualArea : computeArea(p);
+            const stdEntry = formulaStd?.entries.find(e => e.compoundId === compound.id) ?? null;
+            const { calcConc, teorPct } = calcTeorPct(area, compound, stdEntry);
+            txt(
+              `   ${run.label}:  Área = ${area.toFixed(4).padEnd(12)}  Conc = ${calcConc.toFixed(4)} mg/mL  Teor = ${teorPct !== null ? teorPct.toFixed(2) + " %" : "N/D"}`
+            ); nl();
+          });
+          nl();
+        }
+      });
+      sep();
+    } else {
+      // No compounds — just list peak areas per run
+      txt(`${"Corrida".padEnd(10)}  ${"Pico".padEnd(24)}  ${"RT (min)".padEnd(10)}  ${"Área (mAU*s)".padEnd(14)}  Area%`); nl();
+      ctx.fillStyle = "#888"; txt("-".repeat(80)); ctx.fillStyle = "#000"; nl();
+      session.runs.forEach(run => {
+        const peaks = [...run.peaks].filter(p => p.height > 0.5).sort((a, b) => a.retentionTime - b.retentionTime);
+        const tot = peaks.reduce((s, p) => s + (p.manualArea > 0 ? p.manualArea : computeArea(p)), 0);
+        peaks.forEach(p => {
+          const area = p.manualArea > 0 ? p.manualArea : computeArea(p);
+          txt(`${run.label.padEnd(10)}  ${(p.name || "—").padEnd(24)}  ${p.retentionTime.toFixed(3).padEnd(10)}  ${area.toFixed(5).padEnd(14)}  ${tot > 0 ? ((area / tot) * 100).toFixed(3) : "N/D"}`); nl();
+        });
+      });
+      sep();
+    }
+  }
+
+  // ── Status footer ────────────────────────────────────────────────────────
+  nl();
+  const statusLabel: Record<string, string> = {
+    em_andamento: "EM ANÁLISE", aprovado: "APROVADO",
+    reprovado: "REPROVADO", laudo_emitido: "LAUDO EMITIDO",
+  };
+  const statusColor: Record<string, string> = {
+    em_andamento: "#1d4ed8", aprovado: "#16a34a",
+    reprovado: "#dc2626", laudo_emitido: "#7c3aed",
+  };
+  txt(
+    `Resultado da Sessão: ${statusLabel[session.status] ?? session.status}`,
+    ML, statusColor[session.status] ?? "#000", FONT_BOLD,
+  ); nl();
+  if (session.concludedAt) {
+    txt(`Concluído em: ${new Date(session.concludedAt).toLocaleString("pt-BR")}`, ML, "#666"); nl();
+  }
+  if (session.laudoEmittedAt) {
+    txt(`Laudo emitido em: ${new Date(session.laudoEmittedAt).toLocaleString("pt-BR")}`, ML, "#666"); nl();
+  }
+
+  y += 24;
+
+  // Trim canvas to actual content height
+  const out = document.createElement("canvas");
+  out.width = W; out.height = Math.min(y, MAX_H);
+  out.getContext("2d")?.drawImage(canvas, 0, 0);
+  return out.toDataURL("image/png");
 }
 
 // Applies ±2% deterministic variation to peaks so runs look slightly different
@@ -1352,7 +1577,8 @@ export default function HplcSimulator() {
     const session = analysisSessions.find(s => s.id === sessionId);
     const formula = session ? formulas.find(f => f.id === session.formulaId) ?? null : null;
     if (!session || !formula || session.runs.length === 0) return;
-    const dataUrl = buildChromatogramPng(session, formula);
+    const std = formulaStandards.find(s => s.formulaId === session.formulaId) ?? null;
+    const dataUrl = buildChromatogramPng(session, formula, std);
     if (!dataUrl) return;
     // Download
     const link = document.createElement("a");
