@@ -756,13 +756,22 @@ export default function HplcSimulator() {
                           isAnimationActive={false}
                         />
 
-                        {/* Data points */}
+                        {/* Line connecting the actual data points */}
                         <Scatter
-                          data={standards.map(s => ({ x: s.conc, y: s.area }))}
+                          data={[...standards].sort((a, b) => a.conc - b.conc).map(s => ({ x: s.conc, y: s.area }))}
+                          line={{ stroke: "#333", strokeWidth: 1 }}
+                          lineType="linear"
+                          isAnimationActive={false}
+                          shape={() => null as unknown as React.ReactElement}
+                        />
+
+                        {/* Data points (circles on top) */}
+                        <Scatter
+                          data={[...standards].sort((a, b) => a.conc - b.conc).map(s => ({ x: s.conc, y: s.area }))}
                           fill="#333"
                           isAnimationActive={false}
                           shape={(props: { cx?: number; cy?: number }) => (
-                            <circle cx={props.cx} cy={props.cy} r={4} fill="#333" stroke="#111" strokeWidth={1} />
+                            <circle cx={props.cx} cy={props.cy} r={4} fill="#fff" stroke="#333" strokeWidth={1.5} />
                           )}
                         />
                       </ScatterChart>
