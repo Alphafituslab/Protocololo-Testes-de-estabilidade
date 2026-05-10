@@ -1209,9 +1209,24 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
 
   const LS_KEY = `kinetics_overrides_${protocolId}`;
 
+  const readLs = () => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  };
+
   const [overrides, setOverrides] = useState<Record<string, KineticOverride>>({});
-  const [cardValidity, setCardValidity] = useState("");
-  const [kineticsObs, setKineticsObs] = useState(initialKineticsNotes ?? "");
+  const [cardValidity, setCardValidity] = useState<string>(() => {
+    const ls = readLs();
+    if (typeof ls.cardValidity === "string" && ls.cardValidity !== "") return ls.cardValidity;
+    return initialValidityMonths != null ? String(initialValidityMonths) : "";
+  });
+  const [kineticsObs, setKineticsObs] = useState<string>(() => {
+    const ls = readLs();
+    if (typeof ls.kineticsObs === "string") return ls.kineticsObs;
+    return initialKineticsNotes ?? "";
+  });
   const [customShelfLife, setCustomShelfLife] = useState<string>("");
 
   // Re-runs every time the kinetics API data changes (i.e. after a result upsert
@@ -1224,12 +1239,9 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     let savedOverrides: Record<string, SavedPartial> = {};
     let savedCustomShelfLife = "";
     try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed.overrides) savedOverrides = parsed.overrides;
-        if (parsed.customShelfLife != null) savedCustomShelfLife = parsed.customShelfLife;
-      }
+      const stored = readLs();
+      if (stored.overrides) savedOverrides = stored.overrides;
+      if (stored.customShelfLife != null) savedCustomShelfLife = stored.customShelfLife;
     } catch { /* ignore */ }
 
     const next: Record<string, KineticOverride> = {};
@@ -1256,11 +1268,17 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     }
     setOverrides(next);
     setCustomShelfLife(savedCustomShelfLife);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kinetics, LS_KEY]);
 
-  const persistOverrides = (next: Record<string, KineticOverride>, shelf = customShelfLife) => {
+  const persistOverrides = (
+    next: Record<string, KineticOverride>,
+    shelf = customShelfLife,
+    cv = cardValidity,
+    obs = kineticsObs,
+  ) => {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ overrides: next, customShelfLife: shelf }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ overrides: next, customShelfLife: shelf, cardValidity: cv, kineticsObs: obs }));
     } catch { /* ignore */ }
   };
 
@@ -1288,6 +1306,8 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     }
     setOverrides(reset);
     setCustomShelfLife("");
+    setCardValidity(initialValidityMonths != null ? String(initialValidityMonths) : "");
+    setKineticsObs(initialKineticsNotes ?? "");
     try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
   };
 
@@ -1365,8 +1385,13 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                 <input
                   value={cardValidity}
                   onChange={(e) => {
-                    setCardValidity(e.target.value);
-                    const num = parseInt(e.target.value, 10);
+                    const val = e.target.value;
+                    setCardValidity(val);
+                    try {
+                      const stored = readLs();
+                      localStorage.setItem(LS_KEY, JSON.stringify({ ...stored, cardValidity: val }));
+                    } catch { /* ignore */ }
+                    const num = parseInt(val, 10);
                     debouncedSave({ validityMonths: isNaN(num) ? null : num });
                   }}
                   className="w-20 text-2xl font-bold text-green-800 bg-green-100 border border-green-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
@@ -1482,8 +1507,13 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
         <textarea
           value={kineticsObs}
           onChange={(e) => {
-            setKineticsObs(e.target.value);
-            debouncedSave({ kineticsNotes: e.target.value });
+            const val = e.target.value;
+            setKineticsObs(val);
+            try {
+              const stored = readLs();
+              localStorage.setItem(LS_KEY, JSON.stringify({ ...stored, kineticsObs: val }));
+            } catch { /* ignore */ }
+            debouncedSave({ kineticsNotes: val });
           }}
           placeholder="Descreva observações sobre os dados cinéticos: desvios encontrados, condições especiais de armazenamento, lotes atípicos, interferências analíticas ou qualquer informação relevante para o laudo."
           rows={5}
