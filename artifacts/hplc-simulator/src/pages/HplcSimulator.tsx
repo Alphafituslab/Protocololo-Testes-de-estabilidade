@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText } from "lucide-react";
+import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,6 +69,23 @@ interface CalibInfo {
   curveType: string;
   origin: string;
   weight: string;
+}
+
+interface ActiveCompound {
+  id: string;
+  name: string;
+  wavelength: number;    // nm  — detector wavelength for identification
+  waveTol: number;       // nm  — ±tolerance for wavelength match
+  expectedRT: number;    // min — expected retention time
+  rtTol: number;         // min — ±tolerance for RT match
+  typicalWidth: number;  // sigma (min) — used when adding a new simulated peak
+  typicalAsym: number;
+  amtPerArea: number;    // response factor [ug/ml / mAU*s]
+  units: string;         // "ug/ml", "mg/L", etc.
+  specMin: number;       // specification lower limit (0 = N/A)
+  specMax: number;       // specification upper limit (0 = N/A)
+  method: string;        // analytical method file
+  notes: string;
 }
 
 // ─── Math ─────────────────────────────────────────────────────────────────────
@@ -225,6 +242,69 @@ const DEFAULT_CALIB: CalibInfo = {
   weight: "Equal",
 };
 
+const DEFAULT_ACTIVE_COMPOUNDS: ActiveCompound[] = [
+  {
+    id: uid(), name: "Vitamina B6", wavelength: 290, waveTol: 8,
+    expectedRT: 2.438, rtTol: 0.15, typicalWidth: 0.022, typicalAsym: 1.22,
+    amtPerArea: 0.03927, units: "ug/ml", specMin: 20, specMax: 50,
+    method: "B6.M", notes: "Piridoxina HCl — C₈H₁₁NO₃·HCl",
+  },
+  {
+    id: uid(), name: "Cafeína", wavelength: 272, waveTol: 8,
+    expectedRT: 3.52, rtTol: 0.20, typicalWidth: 0.030, typicalAsym: 1.10,
+    amtPerArea: 0.02145, units: "ug/ml", specMin: 0, specMax: 0,
+    method: "CAFF.M", notes: "Trimetilxantina — C₈H₁₀N₄O₂",
+  },
+  {
+    id: uid(), name: "Vitamina C", wavelength: 245, waveTol: 8,
+    expectedRT: 1.85, rtTol: 0.15, typicalWidth: 0.028, typicalAsym: 1.15,
+    amtPerArea: 0.04512, units: "ug/ml", specMin: 0, specMax: 0,
+    method: "VIT_C.M", notes: "Ácido ascórbico — C₆H₈O₆",
+  },
+  {
+    id: uid(), name: "Niacinamida", wavelength: 261, waveTol: 8,
+    expectedRT: 2.10, rtTol: 0.15, typicalWidth: 0.025, typicalAsym: 1.08,
+    amtPerArea: 0.03321, units: "ug/ml", specMin: 0, specMax: 0,
+    method: "B3.M", notes: "Vitamina B3 / nicotinamida — C₆H₆N₂O",
+  },
+  {
+    id: uid(), name: "Riboflavina", wavelength: 265, waveTol: 8,
+    expectedRT: 4.20, rtTol: 0.20, typicalWidth: 0.035, typicalAsym: 1.18,
+    amtPerArea: 0.01876, units: "ug/ml", specMin: 0, specMax: 0,
+    method: "B2.M", notes: "Vitamina B2 — C₁₇H₂₀N₄O₆",
+  },
+  {
+    id: uid(), name: "Ácido Fólico", wavelength: 282, waveTol: 8,
+    expectedRT: 5.50, rtTol: 0.25, typicalWidth: 0.040, typicalAsym: 1.30,
+    amtPerArea: 0.02234, units: "ug/ml", specMin: 0, specMax: 0,
+    method: "FOL.M", notes: "Vitamina B9 — C₁₉H₁₉N₇O₆",
+  },
+  {
+    id: uid(), name: "Colecalciferol D3", wavelength: 264, waveTol: 10,
+    expectedRT: 8.10, rtTol: 0.30, typicalWidth: 0.045, typicalAsym: 1.15,
+    amtPerArea: 0.00985, units: "ug/ml", specMin: 0, specMax: 0,
+    method: "VIT_D3.M", notes: "Vitamina D3 — C₂₇H₄₄O",
+  },
+  {
+    id: uid(), name: "Tiamina", wavelength: 247, waveTol: 8,
+    expectedRT: 1.50, rtTol: 0.15, typicalWidth: 0.026, typicalAsym: 1.12,
+    amtPerArea: 0.03105, units: "ug/ml", specMin: 0, specMax: 0,
+    method: "B1.M", notes: "Vitamina B1 — C₁₂H₁₇N₄OS",
+  },
+  {
+    id: uid(), name: "Biotina", wavelength: 200, waveTol: 8,
+    expectedRT: 3.80, rtTol: 0.20, typicalWidth: 0.032, typicalAsym: 1.20,
+    amtPerArea: 0.01543, units: "ug/ml", specMin: 0, specMax: 0,
+    method: "BIOT.M", notes: "Vitamina B7 — C₁₀H₁₆N₂O₃S",
+  },
+  {
+    id: uid(), name: "Pantotenato de Cálcio", wavelength: 210, waveTol: 8,
+    expectedRT: 2.70, rtTol: 0.18, typicalWidth: 0.028, typicalAsym: 1.10,
+    amtPerArea: 0.02876, units: "ug/ml", specMin: 0, specMax: 0,
+    method: "B5.M", notes: "Vitamina B5 — C₁₈H₃₂CaN₂O₁₀",
+  },
+];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const DIVIDER = "    " + "=".repeat(69);
@@ -345,9 +425,62 @@ function SmallField({ label, value, onChange, type = "text" }: {
   );
 }
 
+// ─── Active Compound Dialog ────────────────────────────────────────────────────
+
+function ActiveCompoundDialog({ compound, onSave, children }: {
+  compound: ActiveCompound; onSave: (c: ActiveCompound) => void; children: React.ReactNode;
+}) {
+  const [draft, setDraft] = useState<ActiveCompound>({ ...compound });
+  const [open, setOpen] = useState(false);
+  const numKeys: (keyof ActiveCompound)[] = [
+    "wavelength", "waveTol", "expectedRT", "rtTol", "typicalWidth",
+    "typicalAsym", "amtPerArea", "specMin", "specMax",
+  ];
+  const field = (key: keyof ActiveCompound) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setDraft(d => ({ ...d, [key]: numKeys.includes(key) ? parseFloat(e.target.value) || 0 : e.target.value }));
+  return (
+    <Dialog open={open} onOpenChange={v => { setOpen(v); if (v) setDraft({ ...compound }); }}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle style={{ fontFamily: "Courier New, monospace" }}>
+            {compound.name || "Novo Ativo"}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-1">
+          {([
+            ["name",         "Nome do Composto",        "text",   "col-span-2"],
+            ["notes",        "Notas / Fórmula",         "text",   "col-span-2"],
+            ["method",       "Método (.M)",             "text",   "col-span-2"],
+            ["wavelength",   "λ Sinal (nm)",            "number", ""],
+            ["waveTol",      "±Tol λ (nm)",             "number", ""],
+            ["expectedRT",   "TR Esperado (min)",       "number", ""],
+            ["rtTol",        "±Tol TR (min)",           "number", ""],
+            ["amtPerArea",   "Amt/Area (ug/ml/mAU*s)",  "number", "col-span-2"],
+            ["units",        "Unidades",                "text",   ""],
+            ["typicalWidth", "Largura σ (min)",         "number", ""],
+            ["typicalAsym",  "Assimetria",              "number", ""],
+            ["specMin",      "Spec Mín (ug/ml, 0=N/A)", "number", ""],
+            ["specMax",      "Spec Máx (ug/ml, 0=N/A)", "number", ""],
+          ] as [keyof ActiveCompound, string, string, string][]).map(([k, label, type, cls]) => (
+            <div key={k} className={cls || "" }>
+              <Label className="text-xs text-muted-foreground font-mono">{label}</Label>
+              <Input type={type} step="0.00001" value={draft[k] as string | number}
+                onChange={field(k)} className="h-7 text-xs font-mono" />
+            </div>
+          ))}
+        </div>
+        <Button className="w-full mt-2" size="sm" onClick={() => { onSave(draft); setOpen(false); }}>
+          Salvar Ativo
+        </Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
-type PageMode = "chromatogram" | "report";
+type PageMode = "chromatogram" | "ativos" | "report";
 
 export default function HplcSimulator() {
   const [page, setPage] = useState<PageMode>("chromatogram");
@@ -356,6 +489,8 @@ export default function HplcSimulator() {
   const [detector, setDetector] = useState<DetectorInfo>(DEFAULT_DETECTOR);
   const [standards, setStandards] = useState<CalibStandard[]>(DEFAULT_STANDARDS);
   const [calib, setCalib] = useState<CalibInfo>(DEFAULT_CALIB);
+  const [activeCompounds, setActiveCompounds] = useState<ActiveCompound[]>(DEFAULT_ACTIVE_COMPOUNDS);
+  const [lastIdentified, setLastIdentified] = useState<string[]>([]);
   const [showControls, setShowControls] = useState(true);
 
   // ── Chromatogram data ────────────────────────────────────────────────────────
@@ -457,6 +592,68 @@ export default function HplcSimulator() {
   const cField = (k: keyof CalibInfo) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setCalib(c => ({ ...c, [k]: (["expRT"] as (keyof CalibInfo)[]).includes(k) ? parseFloat(e.target.value) || 0 : e.target.value }));
 
+  // ── Active Compounds ─────────────────────────────────────────────────────────
+
+  const addActiveCompound = () =>
+    setActiveCompounds(cs => [...cs, {
+      id: uid(), name: "Novo Ativo", wavelength: detector.sigWavelength, waveTol: 8,
+      expectedRT: 2.0, rtTol: 0.15, typicalWidth: 0.030, typicalAsym: 1.15,
+      amtPerArea: 0.03, units: "ug/ml", specMin: 0, specMax: 0,
+      method: "", notes: "",
+    }]);
+
+  const saveActiveCompound = (updated: ActiveCompound) =>
+    setActiveCompounds(cs => cs.map(c => c.id === updated.id ? updated : c));
+
+  const removeActiveCompound = (id: string) =>
+    setActiveCompounds(cs => cs.filter(c => c.id !== id));
+
+  const autoIdentifyPeaks = () => {
+    const identified: string[] = [];
+    setPeaks(ps => ps.map(peak => {
+      let bestMatch: ActiveCompound | null = null;
+      let bestDeltaRT = Infinity;
+      for (const compound of activeCompounds) {
+        const wavOk = Math.abs(compound.wavelength - detector.sigWavelength) <= compound.waveTol;
+        const rtDelta = Math.abs(compound.expectedRT - peak.retentionTime);
+        const rtOk = rtDelta <= compound.rtTol;
+        if (wavOk && rtOk && rtDelta < bestDeltaRT) {
+          bestDeltaRT = rtDelta;
+          bestMatch = compound;
+        }
+      }
+      if (bestMatch) {
+        identified.push(bestMatch.name);
+        const displayArea = peak.manualArea > 0 ? peak.manualArea : computeArea(peak);
+        return {
+          ...peak,
+          name: bestMatch.name,
+          amtPerArea: bestMatch.amtPerArea,
+          amount: parseFloat((displayArea * bestMatch.amtPerArea).toFixed(4)),
+        };
+      }
+      return peak;
+    }));
+    setLastIdentified(identified);
+  };
+
+  const addCompoundAsPeak = (compound: ActiveCompound) => {
+    setPeaks(ps => [...ps, {
+      id: uid(),
+      name: compound.name,
+      peakType: "BB",
+      grp: "",
+      retentionTime: compound.expectedRT,
+      height: 200,
+      width: compound.typicalWidth,
+      asymmetry: compound.typicalAsym,
+      amtPerArea: compound.amtPerArea,
+      amount: 0,
+      manualArea: 0,
+    }]);
+    setPage("chromatogram");
+  };
+
   // ─── Render ────────────────────────────────────────────────────────────────
 
   const MONO: React.CSSProperties = { fontFamily: "Courier New, monospace" };
@@ -472,6 +669,7 @@ export default function HplcSimulator() {
         <div style={{ display: "flex", border: "1px solid #bbb", borderRadius: 4, overflow: "hidden" }}>
           {([
             ["chromatogram", "Cromatograma", BarChart3],
+            ["ativos", "Ativos", Database],
             ["report", "Relatório", FileText],
           ] as [PageMode, string, React.ElementType][]).map(([mode, label, Icon]) => (
             <button key={mode} onClick={() => setPage(mode)} style={{
@@ -612,6 +810,33 @@ export default function HplcSimulator() {
                       </Button>
                     </div>
                   ))}
+                </ControlBox>
+              </>
+            )}
+
+            {page === "ativos" && (
+              <>
+                <ControlBox title="Banco de Ativos">
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6, lineHeight: 1.5 }}>
+                    Defina compostos e propriedades HPLC. "Auto-identificar" nomeia picos cujo λ e TR coincidem.
+                  </div>
+                  <Button size="sm" className="w-full h-7 text-xs gap-1 mb-2" onClick={addActiveCompound}>
+                    <Plus className="h-3 w-3" /> Adicionar Ativo
+                  </Button>
+                  <Button size="sm" variant="outline" className="w-full h-7 text-xs gap-1" onClick={autoIdentifyPeaks}>
+                    <Zap className="h-3 w-3" /> Auto-identificar Picos
+                  </Button>
+                  {lastIdentified.length > 0 && (
+                    <div style={{ marginTop: 6, fontSize: 9, color: "#166534", fontFamily: "Courier New, monospace" }}>
+                      Identificados: {lastIdentified.join(", ")}
+                    </div>
+                  )}
+                </ControlBox>
+                <ControlBox title="Detector Atual">
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555" }}>
+                    λ sinal: <b>{detector.sigWavelength} nm</b><br />
+                    Correspondência por: λ ± tolerância E TR ± tolerância
+                  </div>
                 </ControlBox>
               </>
             )}
@@ -868,6 +1093,128 @@ export default function HplcSimulator() {
                 <SectionTitle title="*** End of Report ***" />
               </div>
             </>
+          )}
+
+          {/* ── ATIVOS PAGE ───────────────────────────────────────────────── */}
+          {page === "ativos" && (
+            <div style={{ fontFamily: "Courier New, monospace" }}>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 15, fontWeight: "bold" }}>Banco de Compostos Ativos</div>
+                <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>
+                  {activeCompounds.length} composto(s) — detector atual: λ={detector.sigWavelength} nm
+                </div>
+              </div>
+              <Div />
+              <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
+                <Button size="sm" className="h-7 text-xs gap-1" onClick={addActiveCompound}>
+                  <Plus className="h-3 w-3" /> Adicionar Ativo
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={autoIdentifyPeaks}>
+                  <Zap className="h-3 w-3" /> Auto-identificar no Cromatograma
+                </Button>
+                {lastIdentified.length > 0 && (
+                  <span style={{ fontSize: 10, color: "#166534", display: "flex", alignItems: "center", gap: 4 }}>
+                    <CheckCircle2 style={{ width: 13, height: 13 }} />
+                    {lastIdentified.length} pico(s) identificado(s): {lastIdentified.join(", ")}
+                  </span>
+                )}
+              </div>
+
+              {/* Table */}
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10.5 }}>
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid #333", background: "#f4f4f4" }}>
+                      {["Composto", "λ (nm)", "±λ", "TR (min)", "±TR", "Amt/Area", "Unid.", "Spec Mín", "Spec Máx", "Método", "Notas", ""].map(h => (
+                        <th key={h} style={{ textAlign: "left", padding: "4px 8px", fontFamily: "Courier New, monospace", fontWeight: "bold", whiteSpace: "nowrap" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeCompounds.map((c, idx) => {
+                      const wavMatch = Math.abs(c.wavelength - detector.sigWavelength) <= c.waveTol;
+                      const peakMatch = peaks.find(p => Math.abs(p.retentionTime - c.expectedRT) <= c.rtTol && wavMatch);
+                      const amount = peakMatch
+                        ? parseFloat(((peakMatch.manualArea > 0 ? peakMatch.manualArea : computeArea(peakMatch)) * c.amtPerArea).toFixed(4))
+                        : null;
+                      const inSpec = amount !== null && c.specMin > 0 && c.specMax > 0
+                        ? amount >= c.specMin && amount <= c.specMax
+                        : null;
+                      return (
+                        <tr key={c.id} style={{ borderBottom: "1px solid #ddd", background: idx % 2 === 0 ? "#fff" : "#fafafa" }}>
+                          <td style={{ padding: "5px 8px", fontWeight: "bold" }}>{c.name}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "center" }}>
+                            <span style={{
+                              background: wavMatch ? "#dcfce7" : "#f3f4f6",
+                              color: wavMatch ? "#166534" : "#555",
+                              padding: "1px 5px", borderRadius: 3, fontWeight: wavMatch ? "bold" : "normal"
+                            }}>{c.wavelength}</span>
+                          </td>
+                          <td style={{ padding: "5px 8px", textAlign: "center", color: "#888" }}>±{c.waveTol}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "center" }}>{c.expectedRT.toFixed(3)}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "center", color: "#888" }}>±{c.rtTol}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "right" }}>{c.amtPerArea.toFixed(5)}</td>
+                          <td style={{ padding: "5px 8px" }}>{c.units}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "right", color: c.specMin > 0 ? "#111" : "#bbb" }}>
+                            {c.specMin > 0 ? c.specMin.toFixed(1) : "—"}
+                          </td>
+                          <td style={{ padding: "5px 8px", textAlign: "right", color: c.specMax > 0 ? "#111" : "#bbb" }}>
+                            {c.specMax > 0 ? c.specMax.toFixed(1) : "—"}
+                          </td>
+                          <td style={{ padding: "5px 8px", color: "#666", fontSize: 10 }}>{c.method}</td>
+                          <td style={{ padding: "5px 8px", color: "#888", fontSize: 9.5, maxWidth: 180, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.notes}</td>
+                          <td style={{ padding: "5px 8px", whiteSpace: "nowrap" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                              {/* Status pill */}
+                              {peakMatch ? (
+                                <span style={{ display: "flex", alignItems: "center", gap: 2, fontSize: 9, padding: "1px 5px", borderRadius: 3, background: inSpec === null ? "#e0f2fe" : inSpec ? "#dcfce7" : "#fee2e2", color: inSpec === null ? "#0369a1" : inSpec ? "#166534" : "#b91c1c", fontWeight: "bold", whiteSpace: "nowrap" }}>
+                                  {inSpec === null
+                                    ? <><CheckCircle2 style={{ width: 10, height: 10 }} /> {amount?.toFixed(2)} {c.units}</>
+                                    : inSpec
+                                      ? <><CheckCircle2 style={{ width: 10, height: 10 }} /> {amount?.toFixed(2)} ✓</>
+                                      : <><XCircle style={{ width: 10, height: 10 }} /> {amount?.toFixed(2)} ✗</>
+                                  }
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: 9, color: "#aaa", whiteSpace: "nowrap" }}>sem pico</span>
+                              )}
+                              {/* Add to chrom button */}
+                              <Button size="sm" variant="ghost" title="Adicionar ao cromatograma"
+                                className="h-5 w-5 p-0 text-blue-600 hover:text-blue-800"
+                                onClick={() => addCompoundAsPeak(c)}>
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                              {/* Edit */}
+                              <ActiveCompoundDialog compound={c} onSave={saveActiveCompound}>
+                                <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-gray-500">
+                                  <Settings className="h-3 w-3" />
+                                </Button>
+                              </ActiveCompoundDialog>
+                              {/* Delete */}
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-red-400 hover:text-red-600"
+                                onClick={() => removeActiveCompound(c.id)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {activeCompounds.length === 0 && (
+                <div style={{ textAlign: "center", color: "#aaa", padding: "32px 0", fontSize: 12 }}>
+                  Nenhum ativo cadastrado. Clique em "Adicionar Ativo" para começar.
+                </div>
+              )}
+
+              <Div />
+              <div style={{ marginTop: 12, fontSize: 10, color: "#666" }}>
+                <b>Legenda:</b> λ destacado = detector atual dentro da tolerância · Status verde = pico encontrado e dentro da especificação · azul = pico encontrado, sem especificação · vermelho = fora da especificação · "sem pico" = nenhum pico no cromatograma corresponde (TR ± tol)
+              </div>
+            </div>
           )}
 
           {/* ── Footer ──────────────────────────────────────────────────────── */}
