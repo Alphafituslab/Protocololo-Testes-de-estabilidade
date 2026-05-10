@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut } from "lucide-react";
+import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocation } from "wouter";
 
@@ -480,6 +480,31 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
   );
 }
 
+// ─── Persistence ──────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = "hplc_simulator_state_v1";
+
+interface PersistedState {
+  peaks: Peak[];
+  sample: SampleInfo;
+  detector: DetectorInfo;
+  standards: CalibStandard[];
+  calib: CalibInfo;
+  activeCompounds: ActiveCompound[];
+}
+
+function loadState(): PersistedState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PersistedState;
+  } catch { return null; }
+}
+
+function saveState(s: PersistedState) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
 type PageMode = "chromatogram" | "ativos" | "report";
@@ -488,14 +513,25 @@ export default function HplcSimulator() {
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
   const [page, setPage] = useState<PageMode>("chromatogram");
-  const [peaks, setPeaks] = useState<Peak[]>(DEFAULT_PEAKS);
-  const [sample, setSample] = useState<SampleInfo>(DEFAULT_SAMPLE);
-  const [detector, setDetector] = useState<DetectorInfo>(DEFAULT_DETECTOR);
-  const [standards, setStandards] = useState<CalibStandard[]>(DEFAULT_STANDARDS);
-  const [calib, setCalib] = useState<CalibInfo>(DEFAULT_CALIB);
-  const [activeCompounds, setActiveCompounds] = useState<ActiveCompound[]>(DEFAULT_ACTIVE_COMPOUNDS);
+  const [isDirty, setIsDirty] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [peaks, setPeaks] = useState<Peak[]>(() => loadState()?.peaks ?? DEFAULT_PEAKS);
+  const [sample, setSample] = useState<SampleInfo>(() => loadState()?.sample ?? DEFAULT_SAMPLE);
+  const [detector, setDetector] = useState<DetectorInfo>(() => loadState()?.detector ?? DEFAULT_DETECTOR);
+  const [standards, setStandards] = useState<CalibStandard[]>(() => loadState()?.standards ?? DEFAULT_STANDARDS);
+  const [calib, setCalib] = useState<CalibInfo>(() => loadState()?.calib ?? DEFAULT_CALIB);
+  const [activeCompounds, setActiveCompounds] = useState<ActiveCompound[]>(() => loadState()?.activeCompounds ?? DEFAULT_ACTIVE_COMPOUNDS);
   const [lastIdentified, setLastIdentified] = useState<string[]>([]);
   const [showControls, setShowControls] = useState(true);
+
+  const markDirty = useCallback(() => { setIsDirty(true); setConfirmed(false); }, []);
+
+  const handleConfirm = useCallback(() => {
+    saveState({ peaks, sample, detector, standards, calib, activeCompounds });
+    setIsDirty(false);
+    setConfirmed(true);
+    setTimeout(() => setConfirmed(false), 2000);
+  }, [peaks, sample, detector, standards, calib, activeCompounds]);
 
   // ── Chromatogram data ────────────────────────────────────────────────────────
 
@@ -576,41 +612,57 @@ export default function HplcSimulator() {
       width: parseFloat((0.04 + Math.random() * 0.08).toFixed(3)),
       asymmetry: parseFloat((0.95 + Math.random() * 0.2).toFixed(2)),
     }]);
-  }, [detector.runTime]);
+    markDirty();
+  }, [detector.runTime, markDirty]);
 
-  const removePeak = (id: string) => setPeaks(ps => ps.filter(p => p.id !== id));
-  const savePeak = (updated: Peak) => setPeaks(ps => ps.map(p => p.id === updated.id ? updated : p));
+  const removePeak = (id: string) => { setPeaks(ps => ps.filter(p => p.id !== id)); markDirty(); };
+  const savePeak = (updated: Peak) => { setPeaks(ps => ps.map(p => p.id === updated.id ? updated : p)); markDirty(); };
 
   const addStandard = () => {
     const n = standards.length + 1;
     setStandards(ss => [...ss, { id: uid(), level: n, amount: 10 * n, area: Math.round(reg.slope * 10 * n + reg.intercept) }]);
+    markDirty();
   };
-  const removeStandard = (id: string) => setStandards(ss => ss.filter(s => s.id !== id));
-  const updateStandard = (id: string, key: "amount" | "area", val: number) =>
+  const removeStandard = (id: string) => { setStandards(ss => ss.filter(s => s.id !== id)); markDirty(); };
+  const updateStandard = (id: string, key: "amount" | "area", val: number) => {
     setStandards(ss => ss.map(s => s.id === id ? { ...s, [key]: val } : s));
+    markDirty();
+  };
 
-  const sField = (k: keyof SampleInfo) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const sField = (k: keyof SampleInfo) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setSample(s => ({ ...s, [k]: e.target.value }));
-  const dField = (k: keyof DetectorInfo) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    markDirty();
+  };
+  const dField = (k: keyof DetectorInfo) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setDetector(d => ({ ...d, [k]: (["runTime", "sigWavelength", "sigBandwidth", "refWavelength", "refBandwidth"] as (keyof DetectorInfo)[]).includes(k) ? parseFloat(e.target.value) || 0 : e.target.value }));
-  const cField = (k: keyof CalibInfo) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    markDirty();
+  };
+  const cField = (k: keyof CalibInfo) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setCalib(c => ({ ...c, [k]: (["expRT"] as (keyof CalibInfo)[]).includes(k) ? parseFloat(e.target.value) || 0 : e.target.value }));
+    markDirty();
+  };
 
   // ── Active Compounds ─────────────────────────────────────────────────────────
 
-  const addActiveCompound = () =>
+  const addActiveCompound = () => {
     setActiveCompounds(cs => [...cs, {
       id: uid(), name: "Novo Ativo", wavelength: detector.sigWavelength, waveTol: 8,
       expectedRT: 2.0, rtTol: 0.15, typicalWidth: 0.030, typicalAsym: 1.15,
       amtPerArea: 0.03, units: "ug/ml", specMin: 0, specMax: 0,
       method: "", notes: "",
     }]);
+    markDirty();
+  };
 
-  const saveActiveCompound = (updated: ActiveCompound) =>
+  const saveActiveCompound = (updated: ActiveCompound) => {
     setActiveCompounds(cs => cs.map(c => c.id === updated.id ? updated : c));
+    markDirty();
+  };
 
-  const removeActiveCompound = (id: string) =>
+  const removeActiveCompound = (id: string) => {
     setActiveCompounds(cs => cs.filter(c => c.id !== id));
+    markDirty();
+  };
 
   const autoIdentifyPeaks = () => {
     const identified: string[] = [];
@@ -639,6 +691,7 @@ export default function HplcSimulator() {
       return peak;
     }));
     setLastIdentified(identified);
+    markDirty();
   };
 
   const addCompoundAsPeak = (compound: ActiveCompound) => {
@@ -656,6 +709,7 @@ export default function HplcSimulator() {
       manualArea: 0,
     }]);
     setPage("chromatogram");
+    markDirty();
   };
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -690,6 +744,23 @@ export default function HplcSimulator() {
         <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => setShowControls(v => !v)}>
           <Settings className="h-3.5 w-3.5" /> {showControls ? "Ocultar" : "Controles"}
         </Button>
+
+        {/* ── Confirm / saved feedback ──────────────────────────────────── */}
+        {isDirty && (
+          <Button
+            size="sm"
+            className="h-8 text-xs gap-1.5 bg-amber-500 hover:bg-amber-600 text-white shadow-md"
+            onClick={handleConfirm}
+          >
+            <Check className="h-3.5 w-3.5" /> Confirmar alterações
+          </Button>
+        )}
+        {confirmed && !isDirty && (
+          <span className="flex items-center gap-1 text-xs text-green-700 font-medium px-2">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Salvo
+          </span>
+        )}
+
         <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => window.print()}>
           <Printer className="h-3.5 w-3.5" /> Imprimir / PDF
         </Button>
