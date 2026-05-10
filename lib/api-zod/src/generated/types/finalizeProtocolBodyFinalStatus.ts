@@ -13,4 +13,5 @@ export const FinalizeProtocolBodyFinalStatus = {
   aprovado: "aprovado",
   reprovado: "reprovado",
   aprovado_com_ressalva: "aprovado_com_ressalva",
+  em_andamento: "em_andamento",
 } as const;

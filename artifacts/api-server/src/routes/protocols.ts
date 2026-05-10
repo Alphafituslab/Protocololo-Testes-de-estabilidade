@@ -48,7 +48,7 @@ router.get("/protocols/stats", async (req, res): Promise<void> => {
 router.post("/protocols", requireAuth, async (req, res): Promise<void> => {
   const parsed = CreateProtocolBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-  const [protocol] = await db.insert(protocolsTable).values({ ...parsed.data, status: "rascunho" }).returning();
+  const [protocol] = await db.insert(protocolsTable).values({ ...parsed.data, status: "em_andamento" }).returning();
   await logAudit(req, "CRIAR_PROTOCOLO", "protocolo", `Protocolo "${protocol.productName}" criado`, { entityId: protocol.id, protocolId: protocol.id });
   res.status(201).json(protocol);
 });
@@ -107,20 +107,32 @@ router.post("/protocols/:id/finalize", requireAuth, async (req, res): Promise<vo
   const parsed = FinalizeProtocolBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const fs = parsed.data.finalStatus;
-  const workflowStatus = fs === "aprovado" ? "aprovado" : fs === "aprovado_com_ressalva" ? "aprovado_com_ressalva" : "reprovado";
-  const [protocol] = await db.update(protocolsTable)
-    .set({
+  let updateData: Record<string, unknown>;
+  let statusLabel: string;
+  if (fs === "em_andamento") {
+    updateData = {
+      status: "em_andamento",
+      finalStatus: null,
+      progressPercent: parsed.data.progressPercent ?? null,
+    };
+    statusLabel = "EM ANDAMENTO";
+  } else {
+    const workflowStatus = fs === "aprovado" ? "aprovado" : fs === "aprovado_com_ressalva" ? "aprovado_com_ressalva" : "reprovado";
+    updateData = {
       status: workflowStatus,
       finalStatus: fs,
-      conclusion: parsed.data.conclusion,
+      conclusion: parsed.data.conclusion ?? null,
       validityMonths: parsed.data.validityMonths ?? null,
       issueDate: parsed.data.issueDate ?? new Date().toISOString().split("T")[0],
       ressalva: fs === "aprovado_com_ressalva" ? (parsed.data.ressalva ?? null) : null,
-    })
+    };
+    statusLabel = fs === "aprovado" ? "APROVADO" : fs === "aprovado_com_ressalva" ? "APROVADO COM RESSALVA" : "REPROVADO";
+  }
+  const [protocol] = await db.update(protocolsTable)
+    .set(updateData)
     .where(eq(protocolsTable.id, params.data.id)).returning();
   if (!protocol) { res.status(404).json({ error: "Protocol not found" }); return; }
-  const statusLabel = fs === "aprovado" ? "APROVADO" : fs === "aprovado_com_ressalva" ? "APROVADO COM RESSALVA" : "REPROVADO";
-  await logAudit(req, "FINALIZAR_PROTOCOLO", "protocolo", `Protocolo "${protocol.productName}" finalizado como ${statusLabel}`, { entityId: protocol.id, protocolId: protocol.id });
+  await logAudit(req, "FINALIZAR_PROTOCOLO", "protocolo", `Protocolo "${protocol.productName}" marcado como ${statusLabel}`, { entityId: protocol.id, protocolId: protocol.id });
   res.json(protocol);
 });
 

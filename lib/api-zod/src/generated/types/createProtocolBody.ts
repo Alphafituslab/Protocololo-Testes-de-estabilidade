@@ -32,4 +32,5 @@ export interface CreateProtocolBody {
   seniorAnalyst?: string;
   seniorAnalystEmail?: string;
   issuedByEmail?: string;
+  progressPercent?: number | null;
 }

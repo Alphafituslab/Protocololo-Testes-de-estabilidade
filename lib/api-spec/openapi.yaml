@@ -520,6 +520,10 @@ components:
           type: string
         issuedByEmail:
           type: string
+        progressPercent:
+          type: integer
+          nullable: true
+          description: Progresso das análises em % (0-100), opcional
         status:
           type: string
           enum: [rascunho, em_andamento, concluido, aprovado, reprovado, aprovado_com_ressalva]
@@ -632,6 +636,9 @@ components:
           type: string
         issuedByEmail:
           type: string
+        progressPercent:
+          type: integer
+          nullable: true
       required:
         - companyName
         - cnpj
@@ -690,6 +697,9 @@ components:
           type: string
         issuedByEmail:
           type: string
+        progressPercent:
+          type: integer
+          nullable: true
         status:
           type: string
           enum: [rascunho, em_andamento, concluido, aprovado, reprovado]
@@ -1073,16 +1083,23 @@ components:
       properties:
         finalStatus:
           type: string
-          enum: [aprovado, reprovado, aprovado_com_ressalva]
+          enum: [aprovado, reprovado, aprovado_com_ressalva, em_andamento]
         conclusion:
           type: string
+          nullable: true
         validityMonths:
           type: integer
+          nullable: true
         issueDate:
           type: string
+          nullable: true
         ressalva:
           type: string
+          nullable: true
           description: Texto da ressalva (obrigatório quando finalStatus é aprovado_com_ressalva)
+        progressPercent:
+          type: integer
+          nullable: true
+          description: Progresso em % quando em_andamento (0-100)
       required:
         - finalStatus
-        - conclusion

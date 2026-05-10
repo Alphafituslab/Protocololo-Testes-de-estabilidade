@@ -33,6 +33,7 @@ export interface UpdateProtocolBody {
   seniorAnalyst?: string;
   seniorAnalystEmail?: string;
   issuedByEmail?: string;
+  progressPercent?: number | null;
   status?: UpdateProtocolBodyStatus;
   validityMonths?: number | null;
   kineticsNotes?: string | null;

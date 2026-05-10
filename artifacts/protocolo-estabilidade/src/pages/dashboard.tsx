@@ -94,10 +94,15 @@ export default function Dashboard() {
                   </Link>
                   <div className="text-sm text-muted-foreground">{protocol.productName} • {protocol.companyName}</div>
                 </div>
-                <div>
+                <div className="flex items-center gap-2">
                   <Badge variant={STATUS_BADGE_VARIANT[protocol.status] ?? "secondary"}>
                     {STATUS_LABELS[protocol.status] ?? protocol.status}
                   </Badge>
+                  {protocol.status === "em_andamento" && protocol.progressPercent != null && (
+                    <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5">
+                      {protocol.progressPercent}%
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

@@ -109,12 +109,20 @@ const lotSchema = z.object({
 });
 
 const finalizeSchema = z.object({
-  finalStatus: z.enum(["aprovado", "reprovado", "aprovado_com_ressalva"]),
-  conclusion: z.string().min(1, "Conclusao obrigatoria"),
+  finalStatus: z.enum(["aprovado", "reprovado", "aprovado_com_ressalva", "em_andamento"]),
+  conclusion: z.string().optional(),
   validityMonths: z.coerce.number().optional(),
   issueDate: z.string().optional(),
   ressalva: z.string().optional(),
+  progressPercent: z.coerce.number().min(0).max(100).optional(),
 }).superRefine((data, ctx) => {
+  if (data.finalStatus !== "em_andamento" && (!data.conclusion || data.conclusion.trim().length < 1)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Conclusao obrigatoria",
+      path: ["conclusion"],
+    });
+  }
   if (data.finalStatus === "aprovado_com_ressalva" && (!data.ressalva || data.ressalva.trim().length < 10)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -1720,6 +1728,7 @@ function FinalizeSection({
   currentValidityMonths,
   currentIssueDate,
   currentRessalva,
+  currentProgressPercent,
   onNeedsUnlock,
   externalOpen,
   onExternalOpenChange,
@@ -1731,6 +1740,7 @@ function FinalizeSection({
   currentValidityMonths?: number | null;
   currentIssueDate?: string | null;
   currentRessalva?: string | null;
+  currentProgressPercent?: number | null;
   onNeedsUnlock?: () => void;
   externalOpen?: boolean;
   onExternalOpenChange?: (v: boolean) => void;
@@ -1746,7 +1756,7 @@ function FinalizeSection({
 
   const isAlreadyFinalized = status === "aprovado" || status === "reprovado" || status === "aprovado_com_ressalva";
 
-  const initStatus = (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva") ?? "aprovado";
+  const initStatus = (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento") ?? "em_andamento";
   const form = useForm<z.infer<typeof finalizeSchema>>({
     resolver: zodResolver(finalizeSchema),
     defaultValues: {
@@ -1755,10 +1765,13 @@ function FinalizeSection({
         ? "Aprovado. Produto aprovado com ressalva. Atende aos critérios de especificação, com as devidas observações registradas na justificativa técnica."
         : initStatus === "reprovado"
           ? "Produto reprovado. Não atende aos critérios de especificação estabelecidos para o período de estabilidade avaliado."
-          : "Produto aprovado. Atende a todos os critérios de especificação estabelecidos para o período de estabilidade avaliado."),
+          : initStatus === "em_andamento"
+            ? ""
+            : "Produto aprovado. Atende a todos os critérios de especificação estabelecidos para o período de estabilidade avaliado."),
       validityMonths: currentValidityMonths ?? 24,
       issueDate: currentIssueDate ?? new Date().toISOString().split("T")[0],
       ressalva: currentRessalva ?? "",
+      progressPercent: currentProgressPercent ?? undefined,
     },
   });
 
@@ -1784,13 +1797,14 @@ function FinalizeSection({
   // When the dialog opens, re-sync form values from current protocol data
   const handleOpenChange = (next: boolean) => {
     if (next) {
-      const savedStatus = (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva") ?? "aprovado";
+      const savedStatus = (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento") ?? "em_andamento";
       form.reset({
         finalStatus: savedStatus,
         conclusion: currentConclusion ?? CONCLUSION_DEFAULTS[savedStatus] ?? "",
         validityMonths: currentValidityMonths ?? 24,
         issueDate: currentIssueDate ?? new Date().toISOString().split("T")[0],
         ressalva: currentRessalva ?? "",
+        progressPercent: currentProgressPercent ?? undefined,
       });
     }
     setOpen(next);
@@ -1851,6 +1865,11 @@ function FinalizeSection({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
+                    <SelectItem value="em_andamento">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> Análises em Andamento
+                      </span>
+                    </SelectItem>
                     <SelectItem value="aprovado">
                       <span className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Aprovado
@@ -1871,13 +1890,40 @@ function FinalizeSection({
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField control={form.control} name="conclusion" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Conclusao</FormLabel>
-                <FormControl><Textarea rows={3} data-testid="input-conclusion" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
+            {finalStatusWatch === "em_andamento" && (
+              <FormField control={form.control} name="progressPercent" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+                    Progresso das Análises (%)
+                    <span className="text-xs font-normal text-muted-foreground ml-1">opcional</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      placeholder="Ex: 50"
+                      data-testid="input-progressPercent"
+                      {...field}
+                    />
+                  </FormControl>
+                  <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-1">
+                    O protocolo voltará para a fila <strong>Em Andamento</strong> no painel.
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            )}
+            {finalStatusWatch !== "em_andamento" && (
+              <FormField control={form.control} name="conclusion" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Conclusao</FormLabel>
+                  <FormControl><Textarea rows={3} data-testid="input-conclusion" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            )}
             {finalStatusWatch === "aprovado_com_ressalva" && (
               <FormField control={form.control} name="ressalva" render={({ field }) => (
                 <FormItem>
@@ -1903,22 +1949,24 @@ function FinalizeSection({
                 </FormItem>
               )} />
             )}
-            <div className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="validityMonths" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Validade (meses)</FormLabel>
-                  <FormControl><Input type="number" data-testid="input-validityMonths" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="issueDate" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Data de Emissao</FormLabel>
-                  <FormControl><Input type="date" data-testid="input-issueDate" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-            </div>
+            {finalStatusWatch !== "em_andamento" && (
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="validityMonths" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Validade (meses)</FormLabel>
+                    <FormControl><Input type="number" data-testid="input-validityMonths" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="issueDate" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data de Emissao</FormLabel>
+                    <FormControl><Input type="date" data-testid="input-issueDate" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
               <Button type="submit" disabled={finalize.isPending}>
@@ -2043,6 +2091,7 @@ export default function ProtocolDetail() {
             currentValidityMonths={protocol.validityMonths}
             currentIssueDate={protocol.issueDate}
             currentRessalva={protocol.ressalva}
+            currentProgressPercent={protocol.progressPercent}
             externalOpen={finalizeDialogOpen}
             onExternalOpenChange={setFinalizeDialogOpen}
             onNeedsUnlock={needsPassword ? () => {

@@ -63,6 +63,8 @@ export interface Protocol {
   seniorAnalyst?: string;
   seniorAnalystEmail?: string;
   issuedByEmail?: string;
+  /** Progresso das análises em % (0-100), opcional */
+  progressPercent?: number | null;
   status: ProtocolStatus;
   finalStatus?: ProtocolFinalStatus;
   /** Texto da ressalva quando finalStatus é aprovado_com_ressalva */
@@ -158,6 +160,7 @@ export interface CreateProtocolBody {
   seniorAnalyst?: string;
   seniorAnalystEmail?: string;
   issuedByEmail?: string;
+  progressPercent?: number | null;
 }
 
 export type UpdateProtocolBodyStatus =
@@ -197,6 +200,7 @@ export interface UpdateProtocolBody {
   seniorAnalyst?: string;
   seniorAnalystEmail?: string;
   issuedByEmail?: string;
+  progressPercent?: number | null;
   status?: UpdateProtocolBodyStatus;
   validityMonths?: number | null;
   kineticsNotes?: string | null;
@@ -352,15 +356,18 @@ export const FinalizeProtocolBodyFinalStatus = {
   aprovado: "aprovado",
   reprovado: "reprovado",
   aprovado_com_ressalva: "aprovado_com_ressalva",
+  em_andamento: "em_andamento",
 } as const;
 
 export interface FinalizeProtocolBody {
   finalStatus: FinalizeProtocolBodyFinalStatus;
-  conclusion: string;
-  validityMonths?: number;
-  issueDate?: string;
+  conclusion?: string | null;
+  validityMonths?: number | null;
+  issueDate?: string | null;
   /** Texto da ressalva (obrigatório quando finalStatus é aprovado_com_ressalva) */
-  ressalva?: string;
+  ressalva?: string | null;
+  /** Progresso em % quando em_andamento (0-100) */
+  progressPercent?: number | null;
 }
 
 export type ListProtocolsParams = {

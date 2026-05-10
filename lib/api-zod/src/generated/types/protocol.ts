@@ -36,6 +36,8 @@ export interface Protocol {
   seniorAnalyst?: string;
   seniorAnalystEmail?: string;
   issuedByEmail?: string;
+  /** Progresso das análises em % (0-100), opcional */
+  progressPercent?: number | null;
   status: ProtocolStatus;
   finalStatus?: ProtocolFinalStatus;
   /** Texto da ressalva quando finalStatus é aprovado_com_ressalva */

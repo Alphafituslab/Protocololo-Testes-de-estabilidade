@@ -50,6 +50,10 @@ export const ListProtocolsResponseItem = zod.object({
   seniorAnalyst: zod.string().optional(),
   seniorAnalystEmail: zod.string().optional(),
   issuedByEmail: zod.string().optional(),
+  progressPercent: zod
+    .number()
+    .nullish()
+    .describe("Progresso das análises em % (0-100), opcional"),
   status: zod.enum([
     "rascunho",
     "em_andamento",
@@ -112,6 +116,7 @@ export const CreateProtocolBody = zod.object({
   seniorAnalyst: zod.string().optional(),
   seniorAnalystEmail: zod.string().optional(),
   issuedByEmail: zod.string().optional(),
+  progressPercent: zod.number().nullish(),
 });
 
 /**
@@ -153,6 +158,10 @@ export const GetProtocolStatsResponse = zod.object({
       seniorAnalyst: zod.string().optional(),
       seniorAnalystEmail: zod.string().optional(),
       issuedByEmail: zod.string().optional(),
+      progressPercent: zod
+        .number()
+        .nullish()
+        .describe("Progresso das análises em % (0-100), opcional"),
       status: zod.enum([
         "rascunho",
         "em_andamento",
@@ -227,6 +236,10 @@ export const GetProtocolResponse = zod
     seniorAnalyst: zod.string().optional(),
     seniorAnalystEmail: zod.string().optional(),
     issuedByEmail: zod.string().optional(),
+    progressPercent: zod
+      .number()
+      .nullish()
+      .describe("Progresso das análises em % (0-100), opcional"),
     status: zod.enum([
       "rascunho",
       "em_andamento",
@@ -339,6 +352,7 @@ export const UpdateProtocolBody = zod.object({
   seniorAnalyst: zod.string().optional(),
   seniorAnalystEmail: zod.string().optional(),
   issuedByEmail: zod.string().optional(),
+  progressPercent: zod.number().nullish(),
   status: zod
     .enum(["rascunho", "em_andamento", "concluido", "aprovado", "reprovado"])
     .optional(),
@@ -374,6 +388,10 @@ export const UpdateProtocolResponse = zod.object({
   seniorAnalyst: zod.string().optional(),
   seniorAnalystEmail: zod.string().optional(),
   issuedByEmail: zod.string().optional(),
+  progressPercent: zod
+    .number()
+    .nullish()
+    .describe("Progresso das análises em % (0-100), opcional"),
   status: zod.enum([
     "rascunho",
     "em_andamento",
@@ -667,16 +685,25 @@ export const FinalizeProtocolParams = zod.object({
 });
 
 export const FinalizeProtocolBody = zod.object({
-  finalStatus: zod.enum(["aprovado", "reprovado", "aprovado_com_ressalva"]),
-  conclusion: zod.string(),
-  validityMonths: zod.number().optional(),
-  issueDate: zod.string().optional(),
+  finalStatus: zod.enum([
+    "aprovado",
+    "reprovado",
+    "aprovado_com_ressalva",
+    "em_andamento",
+  ]),
+  conclusion: zod.string().nullish(),
+  validityMonths: zod.number().nullish(),
+  issueDate: zod.string().nullish(),
   ressalva: zod
     .string()
-    .optional()
+    .nullish()
     .describe(
       "Texto da ressalva (obrigatório quando finalStatus é aprovado_com_ressalva)",
     ),
+  progressPercent: zod
+    .number()
+    .nullish()
+    .describe("Progresso em % quando em_andamento (0-100)"),
 });
 
 export const FinalizeProtocolResponse = zod.object({
@@ -706,6 +733,10 @@ export const FinalizeProtocolResponse = zod.object({
   seniorAnalyst: zod.string().optional(),
   seniorAnalystEmail: zod.string().optional(),
   issuedByEmail: zod.string().optional(),
+  progressPercent: zod
+    .number()
+    .nullish()
+    .describe("Progresso das análises em % (0-100), opcional"),
   status: zod.enum([
     "rascunho",
     "em_andamento",

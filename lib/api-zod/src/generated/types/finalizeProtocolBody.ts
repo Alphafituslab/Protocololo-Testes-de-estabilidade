@@ -9,9 +9,11 @@ import type { FinalizeProtocolBodyFinalStatus } from "./finalizeProtocolBodyFina
 
 export interface FinalizeProtocolBody {
   finalStatus: FinalizeProtocolBodyFinalStatus;
-  conclusion: string;
-  validityMonths?: number;
-  issueDate?: string;
+  conclusion?: string | null;
+  validityMonths?: number | null;
+  issueDate?: string | null;
   /** Texto da ressalva (obrigatório quando finalStatus é aprovado_com_ressalva) */
-  ressalva?: string;
+  ressalva?: string | null;
+  /** Progresso em % quando em_andamento (0-100) */
+  progressPercent?: number | null;
 }
