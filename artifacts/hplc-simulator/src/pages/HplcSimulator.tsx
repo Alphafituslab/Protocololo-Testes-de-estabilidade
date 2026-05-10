@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check } from "lucide-react";
+import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocation } from "wouter";
 
@@ -88,6 +88,39 @@ interface ActiveCompound {
   specMax: number;       // specification upper limit (0 = N/A)
   method: string;        // analytical method file
   notes: string;
+}
+
+interface LotResult {
+  compoundId: string;
+  compoundName: string;
+  found: boolean;
+  concentration: number;   // ug/ml
+  retentionTime: number;   // min
+  area: number;            // mAU*s
+  inSpec: boolean | null;  // null = no spec defined
+}
+
+interface Lot {
+  id: string;
+  formulaId: string;
+  lotNumber: string;
+  createdAt: string;
+  sample: SampleInfo;
+  observedPeaks: Peak[];
+  results: LotResult[];
+  notes: string;
+}
+
+interface Formula {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+  detector: DetectorInfo;
+  activeCompounds: ActiveCompound[];
+  standards: CalibStandard[];
+  calib: CalibInfo;
 }
 
 // ─── Math ─────────────────────────────────────────────────────────────────────
@@ -543,9 +576,110 @@ function saveState(s: PersistedState) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
 }
 
+// ─── Formula / Lot persistence ────────────────────────────────────────────────
+
+const FORMULAS_KEY = "hplc_formulas_v1";
+const LOTS_KEY = "hplc_lots_v1";
+
+function loadFormulas(): Formula[] {
+  try { return JSON.parse(localStorage.getItem(FORMULAS_KEY) ?? "[]") as Formula[]; }
+  catch { return []; }
+}
+function saveFormulas(f: Formula[]) {
+  try { localStorage.setItem(FORMULAS_KEY, JSON.stringify(f)); } catch { /* ignore */ }
+}
+function loadLots(): Lot[] {
+  try { return JSON.parse(localStorage.getItem(LOTS_KEY) ?? "[]") as Lot[]; }
+  catch { return []; }
+}
+function saveLots(l: Lot[]) {
+  try { localStorage.setItem(LOTS_KEY, JSON.stringify(l)); } catch { /* ignore */ }
+}
+
+function computeLotResults(
+  peaks: Peak[],
+  compounds: ActiveCompound[],
+  detectorWavelength: number,
+): LotResult[] {
+  return compounds.map(compound => {
+    const wavMatch = Math.abs(compound.wavelength - detectorWavelength) <= compound.waveTol;
+    const peakMatch = peaks.find(p =>
+      wavMatch && Math.abs(p.retentionTime - compound.expectedRT) <= compound.rtTol,
+    );
+    if (!peakMatch) {
+      return { compoundId: compound.id, compoundName: compound.name, found: false, concentration: 0, retentionTime: 0, area: 0, inSpec: null };
+    }
+    const area = peakMatch.manualArea > 0 ? peakMatch.manualArea : computeArea(peakMatch);
+    const conc = parseFloat((area * compound.amtPerArea).toFixed(4));
+    const inSpec = compound.specMin > 0 && compound.specMax > 0
+      ? conc >= compound.specMin && conc <= compound.specMax
+      : null;
+    return { compoundId: compound.id, compoundName: compound.name, found: true, concentration: conc, retentionTime: peakMatch.retentionTime, area: parseFloat(area.toFixed(4)), inSpec };
+  });
+}
+
+// ─── Save Formula Dialog ──────────────────────────────────────────────────────
+
+function SaveFormulaDialog({ onSave, children }: { onSave: (name: string, description: string) => void; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle className="font-mono">Salvar como Fórmula</DialogTitle></DialogHeader>
+        <div className="space-y-3 pt-1">
+          <div>
+            <Label className="text-xs text-muted-foreground font-mono">Nome da Fórmula *</Label>
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Multivitamínico V1" className="h-7 text-xs font-mono mt-1" />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground font-mono">Descrição (opcional)</Label>
+            <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: Cápsulas 500mg — formulação padrão" className="h-7 text-xs font-mono mt-1" />
+          </div>
+          <Button className="w-full" size="sm" disabled={!name.trim()} onClick={() => { onSave(name.trim(), description.trim()); setOpen(false); setName(""); setDescription(""); }}>
+            Salvar Fórmula
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Add Lot Dialog ───────────────────────────────────────────────────────────
+
+function AddLotDialog({ onSave, children }: { onSave: (lotNumber: string, notes: string) => void; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [lotNumber, setLotNumber] = useState("");
+  const [notes, setNotes] = useState("");
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle className="font-mono">Registrar Lote Analisado</DialogTitle></DialogHeader>
+        <div className="space-y-3 pt-1">
+          <div>
+            <Label className="text-xs text-muted-foreground font-mono">Número do Lote *</Label>
+            <Input value={lotNumber} onChange={e => setLotNumber(e.target.value)} placeholder="Ex: LOT-2025-001" className="h-7 text-xs font-mono mt-1" />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground font-mono">Observações (opcional)</Label>
+            <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex: Amostra Pote A — 2ª corrida" className="h-7 text-xs font-mono mt-1" />
+          </div>
+          <p className="text-xs text-muted-foreground font-mono">O cromatograma atual (picos configurados) será salvo como resultado deste lote.</p>
+          <Button className="w-full" size="sm" disabled={!lotNumber.trim()} onClick={() => { onSave(lotNumber.trim(), notes.trim()); setOpen(false); setLotNumber(""); setNotes(""); }}>
+            Registrar Lote
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
-type PageMode = "chromatogram" | "ativos" | "report";
+type PageMode = "chromatogram" | "ativos" | "lotes" | "report";
 
 export default function HplcSimulator() {
   const { user, logout } = useAuth();
@@ -561,6 +695,9 @@ export default function HplcSimulator() {
   const [activeCompounds, setActiveCompounds] = useState<ActiveCompound[]>(() => loadState()?.activeCompounds ?? DEFAULT_ACTIVE_COMPOUNDS);
   const [lastIdentified, setLastIdentified] = useState<string[]>([]);
   const [showControls, setShowControls] = useState(true);
+  const [formulas, setFormulas] = useState<Formula[]>(() => loadFormulas());
+  const [lots, setLots] = useState<Lot[]>(() => loadLots());
+  const [selectedFormulaId, setSelectedFormulaId] = useState<string | null>(null);
 
   const markDirty = useCallback(() => { setIsDirty(true); setConfirmed(false); }, []);
 
@@ -732,6 +869,50 @@ export default function HplcSimulator() {
     markDirty();
   };
 
+  // ── Formula / Lot handlers ──────────────────────────────────────────────────
+
+  const handleSaveFormula = (name: string, description: string) => {
+    const formula: Formula = {
+      id: uid(), name, description,
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      detector, activeCompounds, standards, calib,
+    };
+    setFormulas(fs => { const updated = [...fs, formula]; saveFormulas(updated); return updated; });
+    setSelectedFormulaId(formula.id);
+    setPage("lotes");
+  };
+
+  const handleDeleteFormula = (id: string) => {
+    setFormulas(fs => { const updated = fs.filter(f => f.id !== id); saveFormulas(updated); return updated; });
+    setLots(ls => { const updated = ls.filter(l => l.formulaId !== id); saveLots(updated); return updated; });
+    if (selectedFormulaId === id) setSelectedFormulaId(null);
+  };
+
+  const handleLoadFormula = (formula: Formula) => {
+    setDetector(formula.detector);
+    setActiveCompounds(formula.activeCompounds);
+    setStandards(formula.standards);
+    setCalib(formula.calib);
+    setPage("chromatogram");
+    markDirty();
+  };
+
+  const handleAddLot = (lotNumber: string, notes: string) => {
+    if (!selectedFormulaId) return;
+    const formula = formulas.find(f => f.id === selectedFormulaId);
+    if (!formula) return;
+    const results = computeLotResults(peaks, formula.activeCompounds, formula.detector.sigWavelength);
+    const lot: Lot = {
+      id: uid(), formulaId: selectedFormulaId, lotNumber,
+      createdAt: new Date().toISOString(), sample, observedPeaks: [...peaks], results, notes,
+    };
+    setLots(ls => { const updated = [...ls, lot]; saveLots(updated); return updated; });
+  };
+
+  const handleDeleteLot = (id: string) => {
+    setLots(ls => { const updated = ls.filter(l => l.id !== id); saveLots(updated); return updated; });
+  };
+
   const addCompoundAsPeak = (compound: ActiveCompound) => {
     setPeaks(ps => [...ps, {
       id: uid(),
@@ -766,6 +947,7 @@ export default function HplcSimulator() {
           {([
             ["chromatogram", "Cromatograma", BarChart3],
             ["ativos", "Ativos", Database],
+            ["lotes", "Lotes", Layers],
             ["report", "Relatório", FileText],
           ] as [PageMode, string, React.ElementType][]).map(([mode, label, Icon]) => (
             <button key={mode} onClick={() => setPage(mode)} style={{
@@ -958,6 +1140,55 @@ export default function HplcSimulator() {
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555" }}>
                     λ sinal: <b>{detector.sigWavelength} nm</b><br />
                     Correspondência por: λ ± tolerância E TR ± tolerância
+                  </div>
+                </ControlBox>
+              </>
+            )}
+
+            {page === "lotes" && (
+              <>
+                <ControlBox title="Fórmulas Salvas">
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6, lineHeight: 1.5 }}>
+                    Salve o método atual como fórmula. Depois registre lotes analisados para comparar resultados.
+                  </div>
+                  <SaveFormulaDialog onSave={handleSaveFormula}>
+                    <Button size="sm" className="w-full h-7 text-xs gap-1 mb-2">
+                      <Plus className="h-3 w-3" /> Salvar Fórmula Atual
+                    </Button>
+                  </SaveFormulaDialog>
+                  <div className="space-y-1.5 mt-1">
+                    {formulas.length === 0 && (
+                      <div style={{ fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace", textAlign: "center", padding: "8px 0" }}>
+                        Nenhuma fórmula salva
+                      </div>
+                    )}
+                    {formulas.map(f => {
+                      const lotCount = lots.filter(l => l.formulaId === f.id).length;
+                      const isSelected = selectedFormulaId === f.id;
+                      return (
+                        <div key={f.id} onClick={() => setSelectedFormulaId(f.id)} style={{
+                          border: isSelected ? "1px solid #1d4ed8" : "1px solid #ddd",
+                          borderRadius: 4, padding: "5px 7px", cursor: "pointer",
+                          background: isSelected ? "#eff6ff" : "#fafafa",
+                        }}>
+                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, fontWeight: "bold", color: isSelected ? "#1d4ed8" : "#333" }}>{f.name}</div>
+                          {f.description && <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", marginTop: 1 }}>{f.description}</div>}
+                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#999", marginTop: 2 }}>
+                            {lotCount} lote{lotCount !== 1 ? "s" : ""} · {new Date(f.createdAt).toLocaleDateString("pt-BR")}
+                          </div>
+                          <div className="flex gap-1 mt-1.5">
+                            <Button size="sm" variant="outline" className="h-5 text-xs px-1.5 flex-1"
+                              onClick={e => { e.stopPropagation(); handleLoadFormula(f); }}>
+                              <Download className="h-2.5 w-2.5 mr-0.5" /> Carregar
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-red-400 hover:text-red-600"
+                              onClick={e => { e.stopPropagation(); handleDeleteFormula(f.id); }}>
+                              <Trash2 className="h-2.5 w-2.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </ControlBox>
               </>
@@ -1338,6 +1569,144 @@ export default function HplcSimulator() {
               </div>
             </div>
           )}
+
+          {/* ── LOTES PAGE ────────────────────────────────────────────────── */}
+          {page === "lotes" && (() => {
+            const formula = formulas.find(f => f.id === selectedFormulaId) ?? null;
+            const formulaLots = formula ? lots.filter(l => l.formulaId === formula.id) : [];
+            const compounds = formula?.activeCompounds ?? [];
+
+            if (!formula) {
+              return (
+                <div style={{ textAlign: "center", color: "#aaa", padding: "60px 0" }}>
+                  <Layers style={{ width: 40, height: 40, margin: "0 auto 12px", opacity: 0.3 }} />
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 13, fontWeight: "bold", marginBottom: 6 }}>Nenhuma fórmula selecionada</div>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#bbb" }}>
+                    No painel esquerdo, salve a configuração atual como fórmula<br />ou selecione uma fórmula já existente.
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div>
+                {/* Formula header */}
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 14, fontWeight: "bold", fontFamily: "Courier New, monospace" }}>
+                    {formula.name}
+                  </div>
+                  {formula.description && (
+                    <div style={{ fontSize: 11, color: "#666", fontFamily: "Courier New, monospace" }}>{formula.description}</div>
+                  )}
+                  <div style={{ fontSize: 10, color: "#999", fontFamily: "Courier New, monospace", marginTop: 2 }}>
+                    Criado em {new Date(formula.createdAt).toLocaleDateString("pt-BR")} · λ {formula.detector.sigWavelength} nm · {compounds.length} composto{compounds.length !== 1 ? "s" : ""}
+                  </div>
+                </div>
+
+                <Div />
+
+                {/* Compounds in this formula */}
+                <div style={{ marginTop: 10, marginBottom: 14 }}>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, fontWeight: "bold", marginBottom: 4 }}>
+                    Ativos monitorados nesta fórmula:
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {compounds.map(c => (
+                      <span key={c.id} style={{
+                        fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 7px",
+                        border: "1px solid #bfdbfe", borderRadius: 3, background: "#eff6ff", color: "#1d4ed8",
+                      }}>
+                        {c.name} · TR {c.expectedRT.toFixed(2)} min{c.specMin > 0 && c.specMax > 0 ? ` · spec ${c.specMin}–${c.specMax} ${c.units}` : ""}
+                      </span>
+                    ))}
+                    {compounds.length === 0 && <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa" }}>Nenhum ativo definido nesta fórmula.</span>}
+                  </div>
+                </div>
+
+                {/* Add lot button */}
+                <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+                  <AddLotDialog onSave={handleAddLot}>
+                    <Button size="sm" className="h-7 text-xs gap-1">
+                      <Plus className="h-3 w-3" /> Registrar Lote Atual
+                    </Button>
+                  </AddLotDialog>
+                  <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888" }}>
+                    Salva o cromatograma atual como um novo lote desta fórmula.
+                  </span>
+                </div>
+
+                {/* Lots results table */}
+                {formulaLots.length === 0 ? (
+                  <div style={{ textAlign: "center", color: "#bbb", padding: "24px 0", fontFamily: "Courier New, monospace", fontSize: 11 }}>
+                    Nenhum lote registrado ainda. Configure o cromatograma e clique em "Registrar Lote Atual".
+                  </div>
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 10 }}>
+                      <thead>
+                        <tr style={{ background: "#f1f5f9" }}>
+                          <th style={{ padding: "5px 8px", textAlign: "left", borderBottom: "1px solid #ddd", whiteSpace: "nowrap" }}>Lote</th>
+                          <th style={{ padding: "5px 8px", textAlign: "left", borderBottom: "1px solid #ddd", whiteSpace: "nowrap" }}>Data</th>
+                          <th style={{ padding: "5px 8px", textAlign: "left", borderBottom: "1px solid #ddd", whiteSpace: "nowrap" }}>Amostra</th>
+                          {compounds.map(c => (
+                            <th key={c.id} style={{ padding: "5px 8px", textAlign: "center", borderBottom: "1px solid #ddd", whiteSpace: "nowrap" }}>
+                              {c.name}<br /><span style={{ fontWeight: "normal", fontSize: 9, color: "#888" }}>{c.units}</span>
+                            </th>
+                          ))}
+                          <th style={{ padding: "5px 8px", borderBottom: "1px solid #ddd" }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...formulaLots].sort((a, b) => a.createdAt.localeCompare(b.createdAt)).map((lot, rowIdx) => (
+                          <tr key={lot.id} style={{ background: rowIdx % 2 === 0 ? "#fff" : "#f9fafb", borderBottom: "1px solid #f0f0f0" }}>
+                            <td style={{ padding: "5px 8px", fontWeight: "bold", whiteSpace: "nowrap" }}>{lot.lotNumber}</td>
+                            <td style={{ padding: "5px 8px", color: "#666", whiteSpace: "nowrap" }}>{new Date(lot.createdAt).toLocaleDateString("pt-BR")}</td>
+                            <td style={{ padding: "5px 8px", color: "#555", whiteSpace: "nowrap", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }} title={lot.sample.sampleName}>
+                              {lot.sample.sampleName || "—"}
+                            </td>
+                            {compounds.map(c => {
+                              const r = lot.results.find(res => res.compoundId === c.id);
+                              if (!r || !r.found) {
+                                return (
+                                  <td key={c.id} style={{ padding: "5px 8px", textAlign: "center" }}>
+                                    <span style={{ fontSize: 9, color: "#dc2626", padding: "1px 5px", borderRadius: 3, background: "#fee2e2" }}>NÃO DETECTADO</span>
+                                  </td>
+                                );
+                              }
+                              const bg = r.inSpec === null ? "#eff6ff" : r.inSpec ? "#dcfce7" : "#fee2e2";
+                              const color = r.inSpec === null ? "#1d4ed8" : r.inSpec ? "#166534" : "#b91c1c";
+                              const badge = r.inSpec === null ? "" : r.inSpec ? " ✓" : " ✗";
+                              return (
+                                <td key={c.id} style={{ padding: "5px 8px", textAlign: "center" }}>
+                                  <span style={{ fontSize: 9.5, padding: "2px 6px", borderRadius: 3, background: bg, color, fontWeight: "bold", whiteSpace: "nowrap" }}>
+                                    {r.concentration.toFixed(3)}{badge}
+                                  </span>
+                                  <div style={{ fontSize: 8, color: "#aaa", marginTop: 1 }}>Área: {r.area.toFixed(0)}</div>
+                                </td>
+                              );
+                            })}
+                            <td style={{ padding: "4px 6px", whiteSpace: "nowrap" }}>
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-red-400 hover:text-red-600"
+                                title="Excluir lote"
+                                onClick={() => handleDeleteLot(lot.id)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {formulaLots.length > 0 && (
+                  <div style={{ marginTop: 10, fontSize: 9, color: "#888", fontFamily: "Courier New, monospace" }}>
+                    Verde = dentro da especificação · Vermelho = fora da especificação ou não detectado · Azul = detectado, sem especificação definida
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ── Footer ──────────────────────────────────────────────────────── */}
           <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between", fontSize: 10, color: "#444" }}>
