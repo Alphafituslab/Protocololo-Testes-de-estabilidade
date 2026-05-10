@@ -518,6 +518,8 @@ components:
           type: string
         seniorAnalystEmail:
           type: string
+        issuedByEmail:
+          type: string
         status:
           type: string
           enum: [rascunho, em_andamento, concluido, aprovado, reprovado, aprovado_com_ressalva]
@@ -628,6 +630,8 @@ components:
           type: string
         seniorAnalystEmail:
           type: string
+        issuedByEmail:
+          type: string
       required:
         - companyName
         - cnpj
@@ -683,6 +687,8 @@ components:
         seniorAnalyst:
           type: string
         seniorAnalystEmail:
+          type: string
+        issuedByEmail:
           type: string
         status:
           type: string
@@ -970,6 +976,9 @@ components:
           type: string
           nullable: true
         seniorAnalystEmail:
+          type: string
+          nullable: true
+        issuedByEmail:
           type: string
           nullable: true
         notes:

@@ -35,6 +35,7 @@ export interface Protocol {
   issuedBy?: string;
   seniorAnalyst?: string;
   seniorAnalystEmail?: string;
+  issuedByEmail?: string;
   status: ProtocolStatus;
   finalStatus?: ProtocolFinalStatus;
   /** Texto da ressalva quando finalStatus é aprovado_com_ressalva */

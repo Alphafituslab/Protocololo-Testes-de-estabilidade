@@ -62,6 +62,7 @@ export interface Protocol {
   issuedBy?: string;
   seniorAnalyst?: string;
   seniorAnalystEmail?: string;
+  issuedByEmail?: string;
   status: ProtocolStatus;
   finalStatus?: ProtocolFinalStatus;
   /** Texto da ressalva quando finalStatus é aprovado_com_ressalva */
@@ -156,6 +157,7 @@ export interface CreateProtocolBody {
   issuedBy?: string;
   seniorAnalyst?: string;
   seniorAnalystEmail?: string;
+  issuedByEmail?: string;
 }
 
 export type UpdateProtocolBodyStatus =
@@ -194,6 +196,7 @@ export interface UpdateProtocolBody {
   issuedBy?: string;
   seniorAnalyst?: string;
   seniorAnalystEmail?: string;
+  issuedByEmail?: string;
   status?: UpdateProtocolBodyStatus;
   validityMonths?: number | null;
   kineticsNotes?: string | null;
@@ -315,6 +318,7 @@ export interface Certificate {
   issuedBy?: string | null;
   seniorAnalyst?: string | null;
   seniorAnalystEmail?: string | null;
+  issuedByEmail?: string | null;
   notes?: string | null;
 }
 

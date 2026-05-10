@@ -25,5 +25,6 @@ export interface Certificate {
   issuedBy?: string | null;
   seniorAnalyst?: string | null;
   seniorAnalystEmail?: string | null;
+  issuedByEmail?: string | null;
   notes?: string | null;
 }

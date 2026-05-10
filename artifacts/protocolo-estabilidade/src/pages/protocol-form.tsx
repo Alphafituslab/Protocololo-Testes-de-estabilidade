@@ -46,6 +46,7 @@ const formSchema = z.object({
   issuedBy: z.string().optional(),
   seniorAnalyst: z.string().optional(),
   seniorAnalystEmail: z.string().optional(),
+  issuedByEmail: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -89,6 +90,7 @@ export default function ProtocolForm() {
           issuedBy: existing.issuedBy ?? "",
           seniorAnalyst: existing.seniorAnalyst ?? "",
           seniorAnalystEmail: existing.seniorAnalystEmail ?? "",
+          issuedByEmail: existing.issuedByEmail ?? "",
         }
       : {
           certNumber: "",
@@ -114,7 +116,8 @@ export default function ProtocolForm() {
           approvedBy: "Clayton Borges da Silva — Representante Legal CRF: 18580",
           issuedBy: "Caroline Batista Pacheco — Responsável Técnica CRF: 7698",
           seniorAnalyst: "Clayton Borges da Silva — Representante Legal CRF: 18580",
-          seniorAnalystEmail: "",
+          seniorAnalystEmail: "claytonborges@alphafitus.com",
+          issuedByEmail: "carolinepacheco@alphafitus.com.br",
         },
   });
 
@@ -364,9 +367,16 @@ export default function ProtocolForm() {
                   <FormMessage />
                 </FormItem>
               )} />
+              <FormField control={form.control} name="issuedByEmail" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email — Responsável Técnico</FormLabel>
+                  <FormControl><Input type="email" data-testid="input-issuedByEmail" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
               <FormField control={form.control} name="seniorAnalystEmail" render={({ field }) => (
-                <FormItem className="col-span-2">
-                  <FormLabel>Email do Analista Senior</FormLabel>
+                <FormItem>
+                  <FormLabel>Email — Analista Sênior</FormLabel>
                   <FormControl><Input type="email" data-testid="input-seniorAnalystEmail" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>

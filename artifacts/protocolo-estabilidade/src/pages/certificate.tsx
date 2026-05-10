@@ -833,7 +833,7 @@ export default function CertificatePage() {
             <div>
               <p className="font-semibold text-sm">{cert.issuedBy}</p>
               <p className="text-xs text-gray-500">Responsavel Tecnico</p>
-              {cert.seniorAnalystEmail && <p className="text-xs text-gray-500">{cert.seniorAnalystEmail}</p>}
+              {cert.issuedByEmail && <p className="text-xs text-gray-500">{cert.issuedByEmail}</p>}
               <div className="mt-8 border-t border-gray-400 w-64">
                 <p className="text-xs text-gray-400 mt-1">Assinatura</p>
               </div>
@@ -843,6 +843,7 @@ export default function CertificatePage() {
             <div>
               <p className="font-semibold text-sm">{cert.seniorAnalyst}</p>
               <p className="text-xs text-gray-500">Analista Senior / Representante Legal</p>
+              {cert.seniorAnalystEmail && <p className="text-xs text-gray-500">{cert.seniorAnalystEmail}</p>}
               <div className="mt-8 border-t border-gray-400 w-64">
                 <p className="text-xs text-gray-400 mt-1">Assinatura</p>
               </div>

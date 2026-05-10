@@ -31,4 +31,5 @@ export interface CreateProtocolBody {
   issuedBy?: string;
   seniorAnalyst?: string;
   seniorAnalystEmail?: string;
+  issuedByEmail?: string;
 }

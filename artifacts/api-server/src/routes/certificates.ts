@@ -163,6 +163,7 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     conclusion: protocol.conclusion ?? null,
     finalStatus: protocol.finalStatus ?? null,
     issuedBy: protocol.issuedBy ?? null,
+    issuedByEmail: protocol.issuedByEmail ?? null,
     seniorAnalyst: protocol.seniorAnalyst ?? null,
     seniorAnalystEmail: protocol.seniorAnalystEmail ?? null,
     notes: "Os resultados obtidos nos tempos T0, T3 e T6 (40 °C / 75% UR) demonstraram estabilidade do componente, com variações atribuídas exclusivamente à variabilidade analítica.",

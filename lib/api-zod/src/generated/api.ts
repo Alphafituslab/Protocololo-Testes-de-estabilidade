@@ -49,6 +49,7 @@ export const ListProtocolsResponseItem = zod.object({
   issuedBy: zod.string().optional(),
   seniorAnalyst: zod.string().optional(),
   seniorAnalystEmail: zod.string().optional(),
+  issuedByEmail: zod.string().optional(),
   status: zod.enum([
     "rascunho",
     "em_andamento",
@@ -110,6 +111,7 @@ export const CreateProtocolBody = zod.object({
   issuedBy: zod.string().optional(),
   seniorAnalyst: zod.string().optional(),
   seniorAnalystEmail: zod.string().optional(),
+  issuedByEmail: zod.string().optional(),
 });
 
 /**
@@ -150,6 +152,7 @@ export const GetProtocolStatsResponse = zod.object({
       issuedBy: zod.string().optional(),
       seniorAnalyst: zod.string().optional(),
       seniorAnalystEmail: zod.string().optional(),
+      issuedByEmail: zod.string().optional(),
       status: zod.enum([
         "rascunho",
         "em_andamento",
@@ -223,6 +226,7 @@ export const GetProtocolResponse = zod
     issuedBy: zod.string().optional(),
     seniorAnalyst: zod.string().optional(),
     seniorAnalystEmail: zod.string().optional(),
+    issuedByEmail: zod.string().optional(),
     status: zod.enum([
       "rascunho",
       "em_andamento",
@@ -334,6 +338,7 @@ export const UpdateProtocolBody = zod.object({
   issuedBy: zod.string().optional(),
   seniorAnalyst: zod.string().optional(),
   seniorAnalystEmail: zod.string().optional(),
+  issuedByEmail: zod.string().optional(),
   status: zod
     .enum(["rascunho", "em_andamento", "concluido", "aprovado", "reprovado"])
     .optional(),
@@ -368,6 +373,7 @@ export const UpdateProtocolResponse = zod.object({
   issuedBy: zod.string().optional(),
   seniorAnalyst: zod.string().optional(),
   seniorAnalystEmail: zod.string().optional(),
+  issuedByEmail: zod.string().optional(),
   status: zod.enum([
     "rascunho",
     "em_andamento",
@@ -649,6 +655,7 @@ export const GetCertificateResponse = zod.object({
   issuedBy: zod.string().nullish(),
   seniorAnalyst: zod.string().nullish(),
   seniorAnalystEmail: zod.string().nullish(),
+  issuedByEmail: zod.string().nullish(),
   notes: zod.string().nullish(),
 });
 
@@ -698,6 +705,7 @@ export const FinalizeProtocolResponse = zod.object({
   issuedBy: zod.string().optional(),
   seniorAnalyst: zod.string().optional(),
   seniorAnalystEmail: zod.string().optional(),
+  issuedByEmail: zod.string().optional(),
   status: zod.enum([
     "rascunho",
     "em_andamento",

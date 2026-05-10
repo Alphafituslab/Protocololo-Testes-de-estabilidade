@@ -28,6 +28,7 @@ export const protocolsTable = pgTable("protocols", {
   issuedBy: text("issued_by"),
   seniorAnalyst: text("senior_analyst"),
   seniorAnalystEmail: text("senior_analyst_email"),
+  issuedByEmail: text("issued_by_email"),
   status: text("status").notNull().default("rascunho"),
   finalStatus: text("final_status"),
   conclusion: text("conclusion"),
