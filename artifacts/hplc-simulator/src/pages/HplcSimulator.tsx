@@ -1,180 +1,203 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ReferenceLine, ResponsiveContainer,
+  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid,
+  ResponsiveContainer, Tooltip, ReferenceLine,
 } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
-  Printer, Plus, Trash2, FlaskConical, Settings, BarChart3, Download,
+  Printer, Plus, Trash2, Settings, FlaskConical,
 } from "lucide-react";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Peak {
   id: string;
   name: string;
-  retentionTime: number; // minutes
-  height: number;        // mAU
-  width: number;         // minutes (sigma)
-  asymmetry: number;     // tailing factor (1 = symmetric)
-}
-
-interface MethodParams {
-  column: string;
-  mobilePhaseA: string;
-  mobilePhaseB: string;
-  flowRate: string;
-  wavelength: string;
-  temperature: string;
-  injectionVolume: string;
-  runTime: number;
+  retentionTime: number; // min
+  height: number;        // mV
+  width: number;         // sigma (min)
+  asymmetry: number;     // tailing factor
+  conc: number;          // mg/L (0 = not quantified)
+  unit: string;
+  mark: string;          // '', 'V', 'SV', 'T'
 }
 
 interface SampleInfo {
+  sampleName: string;
   sampleId: string;
-  lotNumber: string;
-  operator: string;
-  analysisDate: string;
-  instrument: string;
-  method: string;
+  dataFilename: string;
+  methodFilename: string;
+  batchFilename: string;
+  vialNo: string;
+  sampleType: string;
+  injectionVolume: string;
+  dateAcquired: string;
+  acquiredBy: string;
+  dateProcessed: string;
+  processedBy: string;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function gaussian(t: number, rt: number, sigma: number, height: number, asym: number): number {
-  const delta = t - rt;
-  const s = delta < 0 ? sigma : sigma * asym;
-  return height * Math.exp(-(delta * delta) / (2 * s * s));
+interface DetectorInfo {
+  detectorName: string;
+  wavelength: string;
+  runTime: number;
 }
 
-function buildChromatogram(peaks: Peak[], runTime: number, points = 1200) {
-  const data: { time: number; signal: number }[] = [];
-  const dt = runTime / points;
-  for (let i = 0; i <= points; i++) {
+// ─── Math helpers ──────────────────────────────────────────────────────────────
+
+function gaussian(t: number, rt: number, sigma: number, h: number, asym: number): number {
+  const d = t - rt;
+  const s = d < 0 ? sigma : sigma * asym;
+  return h * Math.exp(-(d * d) / (2 * s * s));
+}
+
+function buildChromatogram(peaks: Peak[], runTime: number, pts = 2000) {
+  const dt = runTime / pts;
+  return Array.from({ length: pts + 1 }, (_, i) => {
     const t = parseFloat((i * dt).toFixed(4));
-    const baseline = 0.3 + 0.02 * Math.sin(t * 0.8); // subtle baseline drift
-    let signal = baseline;
-    for (const p of peaks) {
-      signal += gaussian(t, p.retentionTime, p.width, p.height, p.asymmetry);
-    }
-    data.push({ time: t, signal: parseFloat(signal.toFixed(3)) });
-  }
-  return data;
+    let signal = 0;
+    for (const p of peaks) signal += gaussian(t, p.retentionTime, p.width, p.height, p.asymmetry);
+    return { time: t, signal: Math.max(0, parseFloat(signal.toFixed(2))) };
+  });
 }
 
-function computeArea(peak: Peak): number {
-  // Numerical integration (trapezoidal) over ±4σ
-  const steps = 400;
-  const lo = peak.retentionTime - 4 * peak.width;
-  const hi = peak.retentionTime + 4 * peak.width * peak.asymmetry;
+function computeArea(p: Peak): number {
+  const steps = 600;
+  const lo = p.retentionTime - 5 * p.width;
+  const hi = p.retentionTime + 5 * p.width * p.asymmetry;
   const dt = (hi - lo) / steps;
   let area = 0;
   for (let i = 0; i < steps; i++) {
-    const t1 = lo + i * dt;
-    const t2 = lo + (i + 1) * dt;
+    const t1 = lo + i * dt, t2 = lo + (i + 1) * dt;
     area += 0.5 * dt * (
-      gaussian(t1, peak.retentionTime, peak.width, peak.height, peak.asymmetry) +
-      gaussian(t2, peak.retentionTime, peak.width, peak.height, peak.asymmetry)
+      gaussian(t1, p.retentionTime, p.width, p.height, p.asymmetry) +
+      gaussian(t2, p.retentionTime, p.width, p.height, p.asymmetry)
     );
   }
   return area;
 }
 
-function theoreticalPlates(rt: number, w: number): number {
-  return Math.round(16 * Math.pow(rt / (4 * w), 2));
-}
-
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
-// ─── Default data ─────────────────────────────────────────────────────────────
+function fmtNum(n: number, dec = 3) {
+  return n.toFixed(dec).replace(".", ",");
+}
+
+// ─── Defaults ─────────────────────────────────────────────────────────────────
 
 const DEFAULT_PEAKS: Peak[] = [
-  { id: uid(), name: "Vitamina D3",   retentionTime: 3.42, height: 820, width: 0.12, asymmetry: 1.05 },
-  { id: uid(), name: "Colecalciferol",retentionTime: 5.18, height: 1250, width: 0.15, asymmetry: 1.10 },
-  { id: uid(), name: "Impureza A",    retentionTime: 7.64, height: 180, width: 0.10, asymmetry: 1.20 },
-  { id: uid(), name: "Cálcio (std)", retentionTime:10.31, height: 960, width: 0.18, asymmetry: 1.02 },
+  { id: uid(), name: "",        retentionTime: 2.089, height: 280,  width: 0.08, asymmetry: 1.20, conc: 0, unit: "", mark: "" },
+  { id: uid(), name: "",        retentionTime: 2.604, height: 520,  width: 0.10, asymmetry: 1.15, conc: 0, unit: "", mark: "V" },
+  { id: uid(), name: "",        retentionTime: 5.302, height: 1980, width: 0.20, asymmetry: 1.02, conc: 0, unit: "", mark: "V" },
+  { id: uid(), name: "",        retentionTime: 6.920, height: 195,  width: 0.25, asymmetry: 1.10, conc: 0, unit: "", mark: "V" },
+  { id: uid(), name: "Cafeina", retentionTime:10.417, height: 2511, width: 0.22, asymmetry: 1.01, conc: 0.382, unit: "mg/L", mark: "" },
 ];
 
-const DEFAULT_METHOD: MethodParams = {
-  column: "C18 Hypersil GOLD (150 × 4.6 mm, 5 µm)",
-  mobilePhaseA: "Acetonitrila : Metanol (90:10)",
-  mobilePhaseB: "Água : Metanol (80:20)",
-  flowRate: "1.0 mL/min",
-  wavelength: "265 nm",
-  temperature: "30°C",
-  injectionVolume: "20 µL",
+const DEFAULT_SAMPLE: SampleInfo = {
+  sampleName: "Amostra_4",
+  sampleId: "010",
+  dataFilename: "Cafeina_MEOH_H2O_29042025_010.lcd",
+  methodFilename: "Cafeina_28042025.lcm",
+  batchFilename: "Cafeina_MEOH_H2O.lcb",
+  vialNo: "1-10",
+  sampleType: "Unknown",
+  injectionVolume: "10 uL",
+  dateAcquired: "29/04/2025 15:48:44",
+  acquiredBy: "System Administrator",
+  dateProcessed: "30/04/2025 10:40:59",
+  processedBy: "System Administrator",
+};
+
+const DEFAULT_DETECTOR: DetectorInfo = {
+  detectorName: "Detector A",
+  wavelength: "272nm",
   runTime: 15,
 };
 
-const DEFAULT_SAMPLE: SampleInfo = {
-  sampleId: "AF-2026-001",
-  lotNumber: "LOT-001/26",
-  operator: "Analista 1",
-  analysisDate: new Date().toISOString().slice(0, 10),
-  instrument: "HPLC-UV Shimadzu LC-2030",
-  method: "Met-HPLC-VitD-001",
-};
-
-// ─── Custom tooltip ────────────────────────────────────────────────────────────
+// ─── Custom chromatogram tooltip ───────────────────────────────────────────────
 
 function ChromTooltip({ active, payload }: { active?: boolean; payload?: { payload: { time: number; signal: number } }[] }) {
   if (!active || !payload?.length) return null;
   const { time, signal } = payload[0].payload;
   return (
-    <div className="bg-card border border-border rounded px-3 py-2 text-xs shadow-md font-mono">
-      <div className="text-muted-foreground">TR: <span className="text-foreground font-semibold">{time.toFixed(3)} min</span></div>
-      <div className="text-muted-foreground">sinal: <span className="text-foreground font-semibold">{signal.toFixed(1)} mAU</span></div>
+    <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, background: "#fff", border: "1px solid #333", padding: "4px 8px" }}>
+      <div>{fmtNum(time, 3)} min</div>
+      <div>{signal.toFixed(0)} mV</div>
     </div>
+  );
+}
+
+// ─── Vertical retention-time label rendered on the chart ──────────────────────
+
+function PeakLabel({ viewBox, rt }: { viewBox?: { x: number; y: number }; rt: number }) {
+  if (!viewBox) return null;
+  const { x, y } = viewBox;
+  return (
+    <text
+      x={x + 4}
+      y={y - 4}
+      textAnchor="start"
+      transform={`rotate(-90, ${x + 4}, ${y - 4})`}
+      style={{ fontFamily: "Courier New, monospace", fontSize: 10, fill: "#111", userSelect: "none" }}
+    >
+      {fmtNum(rt, 3)}
+    </text>
   );
 }
 
 // ─── Peak editor dialog ────────────────────────────────────────────────────────
 
-function PeakEditorDialog({ peak, onSave }: { peak: Peak; onSave: (p: Peak) => void }) {
+function PeakEditorDialog({ peak, onSave, children }: { peak: Peak; onSave: (p: Peak) => void; children: React.ReactNode }) {
   const [draft, setDraft] = useState<Peak>({ ...peak });
-  const field = (key: keyof Peak) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = key === "name" || key === "id" ? e.target.value : parseFloat(e.target.value) || 0;
-    setDraft(d => ({ ...d, [key]: val }));
-  };
+  const [open, setOpen] = useState(false);
+
+  function field<K extends keyof Peak>(key: K) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = e.target.value;
+      const numericKeys: (keyof Peak)[] = ["retentionTime", "height", "width", "asymmetry", "conc"];
+      setDraft(d => ({ ...d, [key]: numericKeys.includes(key) ? parseFloat(raw) || 0 : raw }));
+    };
+  }
+
   return (
-    <DialogContent className="max-w-sm">
-      <DialogHeader><DialogTitle>Editar Pico</DialogTitle></DialogHeader>
-      <div className="space-y-3 pt-2">
-        {([
-          ["name", "Nome do Pico", "text"],
-          ["retentionTime", "Tempo de Retenção (min)", "number"],
-          ["height", "Altura (mAU)", "number"],
-          ["width", "Largura σ (min)", "number"],
-          ["asymmetry", "Fator de Assimetria (T)", "number"],
-        ] as [keyof Peak, string, string][]).map(([k, label, type]) => (
-          <div key={k} className="space-y-1">
-            <Label className="text-xs">{label}</Label>
-            <Input
-              type={type}
-              step={type === "number" ? "0.01" : undefined}
-              value={draft[k] as string | number}
-              onChange={field(k)}
-              className="h-8 text-sm font-mono"
-            />
-          </div>
-        ))}
-        <Button className="w-full mt-2" size="sm" onClick={() => onSave(draft)}>
-          Salvar
-        </Button>
-      </div>
-    </DialogContent>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild onClick={() => setDraft({ ...peak })}>{children}</DialogTrigger>
+      <DialogContent className="max-w-xs">
+        <DialogHeader><DialogTitle style={{ fontFamily: "Courier New, monospace" }}>Editar Pico</DialogTitle></DialogHeader>
+        <div className="space-y-2.5 pt-1">
+          {([
+            ["name", "Nome (ex: Cafeina)", "text"],
+            ["retentionTime", "Ret. Time (min)", "number"],
+            ["height", "Altura (mV)", "number"],
+            ["width", "Largura σ (min)", "number"],
+            ["asymmetry", "Assimetria", "number"],
+            ["conc", "Conc.", "number"],
+            ["unit", "Unidade (ex: mg/L)", "text"],
+            ["mark", "Mark (V/SV/T/em branco)", "text"],
+          ] as [keyof Peak, string, string][]).map(([k, label, type]) => (
+            <div key={k} className="space-y-0.5">
+              <Label className="text-xs text-muted-foreground">{label}</Label>
+              <Input
+                type={type}
+                step={type === "number" ? "0.001" : undefined}
+                value={draft[k] as string | number}
+                onChange={field(k)}
+                className="h-7 text-xs font-mono"
+              />
+            </div>
+          ))}
+          <Button className="w-full mt-1" size="sm" onClick={() => { onSave(draft); setOpen(false); }}>
+            Salvar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -182,428 +205,333 @@ function PeakEditorDialog({ peak, onSave }: { peak: Peak; onSave: (p: Peak) => v
 
 export default function HplcSimulator() {
   const [peaks, setPeaks] = useState<Peak[]>(DEFAULT_PEAKS);
-  const [method, setMethod] = useState<MethodParams>(DEFAULT_METHOD);
   const [sample, setSample] = useState<SampleInfo>(DEFAULT_SAMPLE);
-  const [editingPeak, setEditingPeak] = useState<Peak | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [detector, setDetector] = useState<DetectorInfo>(DEFAULT_DETECTOR);
+  const [showControls, setShowControls] = useState(true);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const chromatogram = useMemo(
-    () => buildChromatogram(peaks, method.runTime),
-    [peaks, method.runTime]
+    () => buildChromatogram(peaks, detector.runTime),
+    [peaks, detector.runTime]
   );
 
   const peakStats = useMemo(() => {
-    const areas = peaks.map(p => computeArea(p));
-    const totalArea = areas.reduce((a, b) => a + b, 0);
-    return peaks.map((p, i) => ({
+    const sorted = [...peaks].sort((a, b) => a.retentionTime - b.retentionTime);
+    const totalArea = sorted.reduce((s, p) => s + computeArea(p), 0);
+    const totalHeight = sorted.reduce((s, p) => s + p.height, 0);
+    return sorted.map((p, i) => ({
       ...p,
-      area: areas[i],
-      pctArea: totalArea > 0 ? (areas[i] / totalArea) * 100 : 0,
-      plates: theoreticalPlates(p.retentionTime, p.width),
-      tailing: p.asymmetry,
+      peakNum: i + 1,
+      area: Math.round(computeArea(p)),
+      totalArea,
+      totalHeight,
     }));
   }, [peaks]);
 
+  const totalArea = peakStats.reduce((s, p) => s + p.area, 0);
+  const totalHeight = peakStats.reduce((s, p) => s + p.height, 0);
+
   const yMax = useMemo(() => {
-    const max = Math.max(...chromatogram.map(d => d.signal));
-    return Math.ceil(max * 1.15 / 50) * 50;
+    const max = Math.max(...chromatogram.map(d => d.signal), 100);
+    return Math.ceil(max * 1.12 / 500) * 500;
   }, [chromatogram]);
 
+  const xTicks = useMemo(() => {
+    const ticks: number[] = [];
+    for (let t = 0; t <= detector.runTime; t += 2.5) ticks.push(parseFloat(t.toFixed(1)));
+    return ticks;
+  }, [detector.runTime]);
+
+  const yTicks = useMemo(() => {
+    const ticks: number[] = [];
+    const step = yMax <= 2000 ? 500 : yMax <= 5000 ? 1000 : 2000;
+    for (let v = 0; v <= yMax; v += step) ticks.push(v);
+    return ticks;
+  }, [yMax]);
+
   const addPeak = useCallback(() => {
-    const newPeak: Peak = {
-      id: uid(),
-      name: `Pico ${peaks.length + 1}`,
-      retentionTime: parseFloat((Math.random() * (method.runTime - 2) + 1).toFixed(2)),
-      height: Math.round(200 + Math.random() * 800),
-      width: parseFloat((0.08 + Math.random() * 0.12).toFixed(3)),
-      asymmetry: parseFloat((0.95 + Math.random() * 0.3).toFixed(2)),
+    const p: Peak = {
+      id: uid(), name: "", mark: "V", unit: "", conc: 0,
+      retentionTime: parseFloat((1 + Math.random() * (detector.runTime - 2)).toFixed(3)),
+      height: Math.round(200 + Math.random() * 500),
+      width: parseFloat((0.08 + Math.random() * 0.15).toFixed(3)),
+      asymmetry: parseFloat((0.95 + Math.random() * 0.25).toFixed(2)),
     };
-    setPeaks(ps => [...ps, newPeak]);
-  }, [peaks.length, method.runTime]);
+    setPeaks(ps => [...ps, p]);
+  }, [detector.runTime]);
 
-  const removePeak = useCallback((id: string) => {
-    setPeaks(ps => ps.filter(p => p.id !== id));
-  }, []);
+  const removePeak = useCallback((id: string) => setPeaks(ps => ps.filter(p => p.id !== id)), []);
+  const savePeak = useCallback((updated: Peak) => setPeaks(ps => ps.map(p => p.id === updated.id ? updated : p)), []);
 
-  const savePeak = useCallback((updated: Peak) => {
-    setPeaks(ps => ps.map(p => p.id === updated.id ? updated : p));
-    setDialogOpen(false);
-    setEditingPeak(null);
-  }, []);
+  const sField = (k: keyof SampleInfo) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setSample(s => ({ ...s, [k]: e.target.value }));
+  const dField = (k: keyof DetectorInfo) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setDetector(d => ({ ...d, [k]: k === "runTime" ? parseFloat(e.target.value) || 15 : e.target.value }));
 
-  const methodField = (key: keyof MethodParams) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = key === "runTime" ? parseFloat(e.target.value) || 15 : e.target.value;
-    setMethod(m => ({ ...m, [key]: val }));
-  };
+  // ─── Render ────────────────────────────────────────────────────────────────
 
-  const sampleField = (key: keyof SampleInfo) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSample(s => ({ ...s, [key]: e.target.value }));
-  };
+  const MONO: React.CSSProperties = { fontFamily: "Courier New, monospace" };
+  const FIELD_COL = "#000";
 
-  const handlePrint = () => window.print();
-
-  const PEAK_COLORS = ["#2563eb","#16a34a","#d97706","#9333ea","#dc2626","#0891b2","#db2777"];
+  const now = new Date().toLocaleDateString("pt-BR") + " " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card px-6 py-3 flex items-center justify-between no-print">
-        <div className="flex items-center gap-3">
-          <FlaskConical className="h-6 w-6 text-primary" />
-          <div>
-            <h1 className="text-base font-bold leading-tight">Simulador HPLC</h1>
-            <p className="text-xs text-muted-foreground">Alphafitus Laboratório Nutracêutico</p>
-          </div>
-        </div>
+    <div style={{ minHeight: "100vh", background: "#e8e8e8", padding: "16px 8px" }}>
+      {/* ── Controls bar (screen only) ───────────────────────────────────────── */}
+      <div className="no-print max-w-[1100px] mx-auto mb-3 flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5">
-            <Printer className="h-3.5 w-3.5" /> Imprimir / PDF
-          </Button>
+          <FlaskConical className="h-5 w-5 text-blue-700" />
+          <span style={{ ...MONO, fontWeight: "bold", fontSize: 13 }}>Simulador HPLC — Shimadzu LabSolutions</span>
         </div>
-      </header>
+        <div className="flex-1" />
+        <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => setShowControls(v => !v)}>
+          <Settings className="h-3.5 w-3.5" />
+          {showControls ? "Ocultar Controles" : "Controles"}
+        </Button>
+        <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => window.print()}>
+          <Printer className="h-3.5 w-3.5" /> Imprimir / PDF
+        </Button>
+      </div>
 
-      <div className="max-w-[1400px] mx-auto p-4 space-y-4">
-        {/* Sample info bar */}
-        <Card className="no-print">
-          <CardContent className="pt-4 pb-4">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className={`max-w-[1100px] mx-auto flex gap-3 items-start ${showControls ? "" : "justify-center"}`}>
+
+        {/* ── LEFT PANEL: controls (screen only) ───────────────────────────── */}
+        {showControls && (
+          <div className="no-print w-64 flex-shrink-0 space-y-3">
+
+            {/* Sample info editor */}
+            <div style={{ background: "#fff", border: "1px solid #ccc", padding: 12, borderRadius: 4 }}>
+              <p style={{ ...MONO, fontSize: 11, fontWeight: "bold", marginBottom: 8 }}>Sample Information</p>
               {([
-                ["sampleId", "ID da Amostra"],
-                ["lotNumber", "Número do Lote"],
-                ["operator", "Operador"],
-                ["analysisDate", "Data da Análise"],
-                ["instrument", "Instrumento"],
-                ["method", "Método"],
+                ["sampleName", "Sample Name"],
+                ["sampleId", "Sample ID"],
+                ["dataFilename", "Data Filename"],
+                ["methodFilename", "Method Filename"],
+                ["batchFilename", "Batch Filename"],
+                ["vialNo", "Vial #"],
+                ["sampleType", "Sample Type"],
+                ["injectionVolume", "Injection Volume"],
+                ["dateAcquired", "Date Acquired"],
+                ["acquiredBy", "Acquired by"],
+                ["dateProcessed", "Date Processed"],
+                ["processedBy", "Processed by"],
               ] as [keyof SampleInfo, string][]).map(([k, label]) => (
-                <div key={k} className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">{label}</Label>
-                  <Input
-                    value={sample[k]}
-                    onChange={sampleField(k)}
-                    className="h-7 text-xs font-mono"
-                  />
+                <div key={k} className="mb-1.5">
+                  <Label style={{ ...MONO, fontSize: 9, color: "#666" }}>{label}</Label>
+                  <Input value={sample[k]} onChange={sField(k)} className="h-6 text-xs font-mono" style={{ fontSize: 10 }} />
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Print header (visible only when printing) */}
-        <div className="hidden print:block mb-4">
-          <h2 className="text-xl font-bold">Relatório HPLC — {sample.sampleId}</h2>
-          <div className="grid grid-cols-3 gap-2 text-sm mt-2">
-            <div><b>Lote:</b> {sample.lotNumber}</div>
-            <div><b>Operador:</b> {sample.operator}</div>
-            <div><b>Data:</b> {sample.analysisDate}</div>
-            <div><b>Instrumento:</b> {sample.instrument}</div>
-            <div><b>Método:</b> {sample.method}</div>
-          </div>
-          <Separator className="mt-3" />
-        </div>
-
-        <Tabs defaultValue="chromatogram" className="space-y-4">
-          <TabsList className="no-print">
-            <TabsTrigger value="chromatogram" className="gap-1.5">
-              <BarChart3 className="h-3.5 w-3.5" /> Cromatograma
-            </TabsTrigger>
-            <TabsTrigger value="method" className="gap-1.5">
-              <Settings className="h-3.5 w-3.5" /> Parâmetros do Método
-            </TabsTrigger>
-          </TabsList>
-
-          {/* ── CHROMATOGRAM TAB ── */}
-          <TabsContent value="chromatogram" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-
-              {/* Chromatogram plot */}
-              <Card className="lg:col-span-3">
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-semibold">
-                      Cromatograma — UV {method.wavelength}
-                    </CardTitle>
-                    <span className="text-xs text-muted-foreground font-mono">
-                      {sample.instrument}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent className="px-2 pb-4">
-                  <ResponsiveContainer width="100%" height={340}>
-                    <AreaChart data={chromatogram} margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>
-                      <defs>
-                        <linearGradient id="chromGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#2563eb" stopOpacity={0.18} />
-                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0.03} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(215 15% 88%)" vertical={false} />
-                      <XAxis
-                        dataKey="time"
-                        type="number"
-                        domain={[0, method.runTime]}
-                        tickCount={Math.min(method.runTime + 1, 16)}
-                        tickFormatter={v => v.toFixed(1)}
-                        label={{ value: "Tempo (min)", position: "insideBottom", offset: -10, fontSize: 11 }}
-                        tick={{ fontSize: 10, fontFamily: "monospace" }}
-                      />
-                      <YAxis
-                        domain={[0, yMax]}
-                        tickFormatter={v => `${v}`}
-                        label={{ value: "mAU", angle: -90, position: "insideLeft", offset: 12, fontSize: 11 }}
-                        tick={{ fontSize: 10, fontFamily: "monospace" }}
-                        width={52}
-                      />
-                      <Tooltip content={<ChromTooltip />} />
-                      {peaks.map((p, i) => (
-                        <ReferenceLine
-                          key={p.id}
-                          x={p.retentionTime}
-                          stroke={PEAK_COLORS[i % PEAK_COLORS.length]}
-                          strokeDasharray="4 3"
-                          strokeWidth={1.5}
-                          label={{
-                            value: p.name,
-                            position: "top",
-                            fontSize: 9,
-                            fill: PEAK_COLORS[i % PEAK_COLORS.length],
-                            fontFamily: "monospace",
-                          }}
-                        />
-                      ))}
-                      <Area
-                        type="monotone"
-                        dataKey="signal"
-                        stroke="#2563eb"
-                        strokeWidth={2}
-                        fill="url(#chromGrad)"
-                        dot={false}
-                        isAnimationActive={false}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              {/* Peaks panel */}
-              <Card className="no-print">
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm">Picos</CardTitle>
-                    <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={addPeak}>
-                      <Plus className="h-3 w-3" /> Adicionar
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="px-3 pb-3 space-y-2">
-                  <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    {peaks.map((p, i) => (
-                      <div
-                        key={p.id}
-                        className="flex items-center gap-2 rounded-md border px-2 py-1.5 bg-muted/30 group"
-                      >
-                        <div
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ background: PEAK_COLORS[i % PEAK_COLORS.length] }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium truncate">{p.name}</p>
-                          <p className="text-xs text-muted-foreground font-mono">{p.retentionTime.toFixed(2)} min</p>
-                        </div>
-                        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <DialogTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                              onClick={() => { setEditingPeak(p); setDialogOpen(true); }}
-                            >
-                              <Settings className="h-3 w-3" />
-                            </Button>
-                          </DialogTrigger>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                            onClick={() => removePeak(p.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    {peaks.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-4">Nenhum pico. Clique em Adicionar.</p>
-                    )}
-                    {editingPeak && (
-                      <PeakEditorDialog peak={editingPeak} onSave={savePeak} />
-                    )}
-                  </Dialog>
-                </CardContent>
-              </Card>
+            {/* Detector editor */}
+            <div style={{ background: "#fff", border: "1px solid #ccc", padding: 12, borderRadius: 4 }}>
+              <p style={{ ...MONO, fontSize: 11, fontWeight: "bold", marginBottom: 8 }}>Detector</p>
+              {([
+                ["detectorName", "Detector Name"],
+                ["wavelength", "Wavelength"],
+              ] as [keyof DetectorInfo, string][]).map(([k, label]) => (
+                <div key={k} className="mb-1.5">
+                  <Label style={{ ...MONO, fontSize: 9, color: "#666" }}>{label}</Label>
+                  <Input value={detector[k] as string} onChange={dField(k)} className="h-6 text-xs font-mono" style={{ fontSize: 10 }} />
+                </div>
+              ))}
+              <div className="mb-1.5">
+                <Label style={{ ...MONO, fontSize: 9, color: "#666" }}>Run Time (min)</Label>
+                <Input type="number" min={5} max={60} step={1} value={detector.runTime} onChange={dField("runTime")} className="h-6 text-xs font-mono" style={{ fontSize: 10 }} />
+              </div>
             </div>
 
-            {/* Peak results table */}
-            <Card>
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm">Tabela de Picos</CardTitle>
-              </CardHeader>
-              <CardContent className="px-0 pb-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b bg-muted/40">
-                        {["#", "Nome do Pico", "TR (min)", "Área (mAU·min)", "Altura (mAU)", "Área %", "Pratos N", "Fator T"].map(h => (
-                          <th key={h} className="px-4 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {peakStats.map((p, i) => (
-                        <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                          <td className="px-4 py-2">
-                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold"
-                              style={{ background: PEAK_COLORS[i % PEAK_COLORS.length] }}>
-                              {i + 1}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2 font-medium">{p.name}</td>
-                          <td className="px-4 py-2 font-mono">{p.retentionTime.toFixed(3)}</td>
-                          <td className="px-4 py-2 font-mono">{p.area.toFixed(1)}</td>
-                          <td className="px-4 py-2 font-mono">{p.height.toFixed(0)}</td>
-                          <td className="px-4 py-2">
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 max-w-[80px] h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div
-                                  className="h-full rounded-full"
-                                  style={{
-                                    width: `${p.pctArea}%`,
-                                    background: PEAK_COLORS[i % PEAK_COLORS.length],
-                                  }}
-                                />
-                              </div>
-                              <span className="font-mono">{p.pctArea.toFixed(2)}%</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-2 font-mono">{p.plates.toLocaleString("pt-BR")}</td>
-                          <td className="px-4 py-2 font-mono">
-                            <Badge
-                              variant="outline"
-                              className={p.tailing >= 0.8 && p.tailing <= 1.5
-                                ? "border-green-400 text-green-700 bg-green-50"
-                                : "border-red-400 text-red-700 bg-red-50"
-                              }
-                            >
-                              {p.tailing.toFixed(2)}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                      {peaks.length === 0 && (
-                        <tr>
-                          <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
-                            Nenhum pico cadastrado.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                    {peaks.length > 0 && (
-                      <tfoot>
-                        <tr className="bg-muted/40 border-t">
-                          <td colSpan={3} className="px-4 py-2 font-semibold text-xs">Total</td>
-                          <td className="px-4 py-2 font-mono font-semibold">
-                            {peakStats.reduce((s, p) => s + p.area, 0).toFixed(1)}
-                          </td>
-                          <td className="px-4 py-2 font-mono font-semibold">
-                            {peakStats.reduce((s, p) => s + p.height, 0).toFixed(0)}
-                          </td>
-                          <td className="px-4 py-2 font-mono font-semibold">100.00%</td>
-                          <td colSpan={2} />
-                        </tr>
-                      </tfoot>
-                    )}
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* ── METHOD TAB ── */}
-          <TabsContent value="method">
-            <Card>
-              <CardHeader className="pb-3 pt-4 px-6">
-                <CardTitle className="text-sm">Parâmetros Cromatográficos</CardTitle>
-              </CardHeader>
-              <CardContent className="px-6 pb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {([
-                    ["column", "Coluna"],
-                    ["mobilePhaseA", "Fase Móvel A"],
-                    ["mobilePhaseB", "Fase Móvel B"],
-                    ["flowRate", "Vazão"],
-                    ["wavelength", "Comprimento de Onda"],
-                    ["temperature", "Temperatura"],
-                    ["injectionVolume", "Volume de Injeção"],
-                  ] as [keyof MethodParams, string][]).map(([k, label]) => (
-                    <div key={k} className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">{label}</Label>
-                      <Input
-                        value={method[k] as string}
-                        onChange={methodField(k)}
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                  ))}
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Tempo de Corrida (min)</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={60}
-                      value={method.runTime}
-                      onChange={methodField("runTime")}
-                      className="h-8 text-sm font-mono"
-                    />
+            {/* Peaks editor */}
+            <div style={{ background: "#fff", border: "1px solid #ccc", padding: 12, borderRadius: 4 }}>
+              <div className="flex items-center justify-between mb-2">
+                <p style={{ ...MONO, fontSize: 11, fontWeight: "bold" }}>Picos</p>
+                <Button size="sm" variant="outline" className="h-6 gap-1 text-xs px-2" onClick={addPeak}>
+                  <Plus className="h-3 w-3" /> Add
+                </Button>
+              </div>
+              <div className="space-y-1">
+                {[...peaks].sort((a, b) => a.retentionTime - b.retentionTime).map((p, i) => (
+                  <div key={p.id} className="flex items-center gap-1 group rounded px-1 py-0.5 hover:bg-gray-50">
+                    <span style={{ ...MONO, fontSize: 10, width: 16, color: "#666" }}>{i + 1}</span>
+                    <span style={{ ...MONO, fontSize: 10, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {fmtNum(p.retentionTime, 3)} {p.name ? `(${p.name})` : ""}
+                    </span>
+                    <PeakEditorDialog peak={p} onSave={savePeak}>
+                      <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
+                        <Settings className="h-3 w-3" />
+                      </Button>
+                    </PeakEditorDialog>
+                    <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 hover:text-red-500"
+                      onClick={() => removePeak(p.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
-                </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
-                <Separator className="my-5" />
+        {/* ── RIGHT: Shimadzu-style report ─────────────────────────────────── */}
+        <div ref={reportRef} style={{ flex: 1, background: "#fff", border: "1px solid #bbb", boxShadow: "0 2px 8px rgba(0,0,0,.18)", padding: "28px 32px", minWidth: 0 }}>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[
-                    ["Coluna", method.column.split(" ")[0]],
-                    ["Vazão", method.flowRate],
-                    ["λ detecção", method.wavelength],
-                    ["Temp. coluna", method.temperature],
-                  ].map(([label, val]) => (
-                    <div key={label} className="rounded-lg bg-muted/50 border px-3 py-2.5">
-                      <p className="text-xs text-muted-foreground">{label}</p>
-                      <p className="text-sm font-semibold font-mono mt-0.5">{val}</p>
-                    </div>
+          {/* ── REPORT HEADER ──────────────────────────────────────────────── */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 2 }}>
+            <div />
+            <div style={{ ...MONO, fontSize: 10, color: "#333", textAlign: "right" }}>
+              {now} Page 1 / 1
+            </div>
+          </div>
+
+          <div style={{ textAlign: "center", marginBottom: 14 }}>
+            <span style={{ ...MONO, fontSize: 16, fontWeight: "bold" }}>Analysis Report</span>
+          </div>
+
+          {/* ── SAMPLE INFORMATION ─────────────────────────────────────────── */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ ...MONO, fontSize: 11, fontWeight: "bold", marginBottom: 4 }}>&lt;Sample Information&gt;</div>
+            <table style={{ ...MONO, fontSize: 11, borderCollapse: "collapse", width: "100%" }}>
+              <tbody>
+                {([
+                  [["Sample Name", sample.sampleName], ["Sample ID", sample.sampleId]],
+                  [["Data Filename", sample.dataFilename], ["", ""]],
+                  [["Method Filename", sample.methodFilename], ["", ""]],
+                  [["Batch Filename", sample.batchFilename], ["", ""]],
+                  [["Vial #", sample.vialNo], ["Sample Type", sample.sampleType]],
+                  [["Injection Volume", sample.injectionVolume], ["", ""]],
+                  [["Date Acquired", sample.dateAcquired], ["Acquired by", sample.acquiredBy]],
+                  [["Date Processed", sample.dateProcessed], ["Processed by", sample.processedBy]],
+                ] as [[string, string], [string, string]][]).map((row, ri) => (
+                  <tr key={ri}>
+                    {row.map(([label, val], ci) => label ? (
+                      <td key={ci} style={{ padding: "0 8px 1px 0", whiteSpace: "nowrap", verticalAlign: "top", width: ci === 0 ? "50%" : "50%" }}>
+                        <span style={{ display: "inline-block", minWidth: 140 }}>{label}</span>
+                        <span style={{ color: FIELD_COL }}>: {val}</span>
+                      </td>
+                    ) : <td key={ci} />)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <Separator style={{ borderColor: "#aaa", marginBottom: 12 }} />
+
+          {/* ── CHROMATOGRAM ───────────────────────────────────────────────── */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ ...MONO, fontSize: 11, fontWeight: "bold", marginBottom: 4 }}>&lt;Chromatogram&gt;</div>
+
+            <div style={{ position: "relative" }}>
+              {/* mV label top-left */}
+              <div style={{ ...MONO, fontSize: 11, position: "absolute", top: 0, left: 0, zIndex: 2 }}>mV</div>
+              {/* Detector label top-right */}
+              <div style={{ ...MONO, fontSize: 11, position: "absolute", top: 0, right: 0, zIndex: 2 }}>
+                {detector.detectorName} {detector.wavelength}
+              </div>
+
+              <ResponsiveContainer width="100%" height={300}>
+                <ComposedChart data={chromatogram} margin={{ top: 28, right: 16, left: 8, bottom: 28 }}>
+                  <CartesianGrid strokeDasharray="2 2" stroke="#ccc" />
+                  <XAxis
+                    dataKey="time"
+                    type="number"
+                    domain={[0, detector.runTime]}
+                    ticks={xTicks}
+                    tickFormatter={v => fmtNum(v, 1)}
+                    tick={{ fontFamily: "Courier New, monospace", fontSize: 10, fill: "#222" }}
+                    label={{ value: "min", position: "right", offset: 8, fontFamily: "Courier New, monospace", fontSize: 11 }}
+                    axisLine={{ stroke: "#444" }}
+                    tickLine={{ stroke: "#444" }}
+                  />
+                  <YAxis
+                    domain={[0, yMax]}
+                    ticks={yTicks}
+                    tickFormatter={v => String(v)}
+                    tick={{ fontFamily: "Courier New, monospace", fontSize: 10, fill: "#222" }}
+                    axisLine={{ stroke: "#444" }}
+                    tickLine={{ stroke: "#444" }}
+                    width={48}
+                  />
+                  <Tooltip content={<ChromTooltip />} />
+
+                  {/* Retention time reference lines with vertical labels */}
+                  {[...peaks].sort((a, b) => a.retentionTime - b.retentionTime).map(p => (
+                    <ReferenceLine
+                      key={p.id}
+                      x={p.retentionTime}
+                      stroke="none"
+                      label={(props: { viewBox?: { x: number; y: number } }) => (
+                        <PeakLabel viewBox={props.viewBox} rt={p.retentionTime} />
+                      )}
+                    />
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
 
-        {/* Print-only method section */}
-        <div className="hidden print:block print-break">
-          <h3 className="font-bold text-sm mb-2">Parâmetros do Método</h3>
-          <div className="grid grid-cols-2 gap-1 text-xs">
-            <div><b>Coluna:</b> {method.column}</div>
-            <div><b>Fase Móvel A:</b> {method.mobilePhaseA}</div>
-            <div><b>Fase Móvel B:</b> {method.mobilePhaseB}</div>
-            <div><b>Vazão:</b> {method.flowRate}</div>
-            <div><b>λ:</b> {method.wavelength}</div>
-            <div><b>Temperatura:</b> {method.temperature}</div>
-            <div><b>Volume de injeção:</b> {method.injectionVolume}</div>
-            <div><b>Tempo de corrida:</b> {method.runTime} min</div>
+                  {/* Chromatogram line — black, no fill */}
+                  <Line
+                    type="monotone"
+                    dataKey="signal"
+                    stroke="#111"
+                    strokeWidth={1.5}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <Separator style={{ borderColor: "#aaa", marginBottom: 12 }} />
+
+          {/* ── PEAK TABLE ─────────────────────────────────────────────────── */}
+          <div>
+            <div style={{ ...MONO, fontSize: 11, fontWeight: "bold", marginBottom: 4 }}>&lt;Peak Table&gt;</div>
+            <div style={{ ...MONO, fontSize: 10.5, marginBottom: 4, color: "#333" }}>
+              {detector.detectorName} {detector.wavelength}
+            </div>
+
+            <table style={{ ...MONO, fontSize: 10.5, borderCollapse: "collapse", width: "100%" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #555" }}>
+                  {["Peak#", "Ret. Time", "Area", "Height", "Conc.", "Unit", "Mark", "Name"].map(h => (
+                    <th key={h} style={{ textAlign: "right", padding: "2px 10px 2px 0", fontWeight: "bold", whiteSpace: "nowrap" }}
+                      className={h === "Name" || h === "Mark" || h === "Unit" ? "!text-left" : ""}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {peakStats.map(p => (
+                  <tr key={p.id} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ textAlign: "right", padding: "1.5px 10px 1.5px 0" }}>{p.peakNum}</td>
+                    <td style={{ textAlign: "right", padding: "1.5px 10px 1.5px 0" }}>{fmtNum(p.retentionTime, 3)}</td>
+                    <td style={{ textAlign: "right", padding: "1.5px 10px 1.5px 0" }}>{p.area.toLocaleString("pt-BR")}</td>
+                    <td style={{ textAlign: "right", padding: "1.5px 10px 1.5px 0" }}>{p.height.toLocaleString("pt-BR")}</td>
+                    <td style={{ textAlign: "right", padding: "1.5px 10px 1.5px 0" }}>
+                      {p.conc > 0 ? fmtNum(p.conc, 3) : "0,000"}
+                    </td>
+                    <td style={{ textAlign: "left", padding: "1.5px 10px 1.5px 0" }}>{p.unit || ""}</td>
+                    <td style={{ textAlign: "left", padding: "1.5px 10px 1.5px 0" }}>{p.mark || ""}</td>
+                    <td style={{ textAlign: "left", padding: "1.5px 0" }}>{p.name || ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ borderTop: "1px solid #555" }}>
+                  <td colSpan={2} style={{ padding: "2px 10px 2px 0", fontWeight: "bold" }}>Total</td>
+                  <td style={{ textAlign: "right", padding: "2px 10px 2px 0", fontWeight: "bold" }}>{totalArea.toLocaleString("pt-BR")}</td>
+                  <td style={{ textAlign: "right", padding: "2px 10px 2px 0", fontWeight: "bold" }}>{totalHeight.toLocaleString("pt-BR")}</td>
+                  <td colSpan={4} />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {/* ── FOOTER ─────────────────────────────────────────────────────── */}
+          <div style={{ ...MONO, fontSize: 9, color: "#555", marginTop: 20, textAlign: "center" }}>
+            C:\LabSolutions\Data\{sample.dataFilename}
           </div>
         </div>
-
-        <p className="text-xs text-muted-foreground text-center pb-4 no-print">
-          Simulador HPLC — Alphafitus Laboratório Nutracêutico · {new Date().getFullYear()}
-        </p>
       </div>
     </div>
   );
