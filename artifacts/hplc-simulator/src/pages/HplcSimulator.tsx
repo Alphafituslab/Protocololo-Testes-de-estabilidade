@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download } from "lucide-react";
+import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download, Users, ShieldCheck, ShieldOff, ToggleLeft, ToggleRight } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocation } from "wouter";
 
@@ -679,10 +679,20 @@ function AddLotDialog({ onSave, children }: { onSave: (lotNumber: string, notes:
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-type PageMode = "chromatogram" | "ativos" | "lotes" | "report";
+type PageMode = "chromatogram" | "ativos" | "lotes" | "report" | "usuarios";
+
+interface UserRecord {
+  id: number;
+  username: string;
+  displayName: string;
+  role: string;
+  active: boolean;
+  hplcAccess: boolean;
+  createdAt: string;
+}
 
 export default function HplcSimulator() {
-  const { user, logout } = useAuth();
+  const { user, token, logout, isAdmin } = useAuth();
   const [, navigate] = useLocation();
   const [page, setPage] = useState<PageMode>("chromatogram");
   const [isDirty, setIsDirty] = useState(false);
@@ -698,6 +708,10 @@ export default function HplcSimulator() {
   const [formulas, setFormulas] = useState<Formula[]>(() => loadFormulas());
   const [lots, setLots] = useState<Lot[]>(() => loadLots());
   const [selectedFormulaId, setSelectedFormulaId] = useState<string | null>(null);
+  const [userList, setUserList] = useState<UserRecord[]>([]);
+  const [userListLoading, setUserListLoading] = useState(false);
+  const [userListError, setUserListError] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const markDirty = useCallback(() => { setIsDirty(true); setConfirmed(false); }, []);
 
@@ -869,6 +883,40 @@ export default function HplcSimulator() {
     markDirty();
   };
 
+  // ── User management handlers (admin only) ────────────────────────────────────
+
+  const fetchUsers = useCallback(async () => {
+    if (!token) return;
+    setUserListLoading(true);
+    setUserListError(null);
+    try {
+      const res = await fetch("/api/users", { headers: { "Authorization": `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Erro ao carregar usuários.");
+      setUserList(await res.json() as UserRecord[]);
+    } catch (e) {
+      setUserListError((e as Error).message);
+    } finally {
+      setUserListLoading(false);
+    }
+  }, [token]);
+
+  const toggleHplcAccess = async (userId: number, current: boolean) => {
+    if (!token || togglingId) return;
+    setTogglingId(userId);
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: "PUT",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ hplcAccess: !current }),
+      });
+      if (!res.ok) throw new Error("Erro ao atualizar acesso.");
+      const updated = await res.json() as UserRecord;
+      setUserList(ul => ul.map(u => u.id === userId ? { ...u, hplcAccess: updated.hplcAccess } : u));
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   // ── Formula / Lot handlers ──────────────────────────────────────────────────
 
   const handleSaveFormula = (name: string, description: string) => {
@@ -944,17 +992,21 @@ export default function HplcSimulator() {
         <span style={{ ...MONO, fontWeight: "bold", fontSize: 13 }}>Simulador HPLC — Agilent ChemStation</span>
         <div className="flex-1" />
         <div style={{ display: "flex", border: "1px solid #bbb", borderRadius: 4, overflow: "hidden" }}>
-          {([
-            ["chromatogram", "Cromatograma", BarChart3],
-            ["ativos", "Ativos", Database],
-            ["lotes", "Lotes", Layers],
-            ["report", "Relatório", FileText],
-          ] as [PageMode, string, React.ElementType][]).map(([mode, label, Icon]) => (
-            <button key={mode} onClick={() => setPage(mode)} style={{
+          {(([
+            ["chromatogram", "Cromatograma", BarChart3, false],
+            ["ativos", "Ativos", Database, false],
+            ["lotes", "Lotes", Layers, false],
+            ["report", "Relatório", FileText, false],
+            ["usuarios", "Usuários", Users, true],
+          ] as [PageMode, string, React.ElementType, boolean][]).filter(([,, , adminOnly]) => !adminOnly || isAdmin)).map(([mode, label, Icon], idx) => (
+            <button key={mode} onClick={() => {
+              setPage(mode);
+              if (mode === "usuarios") fetchUsers();
+            }} style={{
               ...MONO, fontSize: 11, padding: "4px 12px", cursor: "pointer",
               background: page === mode ? "#1d4ed8" : "#fff",
               color: page === mode ? "#fff" : "#333",
-              border: "none", borderLeft: mode !== "chromatogram" ? "1px solid #bbb" : "none",
+              border: "none", borderLeft: idx !== 0 ? "1px solid #bbb" : "none",
               display: "flex", alignItems: "center", gap: 4,
             }}>
               <Icon style={{ width: 13, height: 13 }} /> {label}
@@ -1567,6 +1619,109 @@ export default function HplcSimulator() {
               <div style={{ marginTop: 12, fontSize: 10, color: "#666" }}>
                 <b>Legenda:</b> λ destacado = detector atual dentro da tolerância · Status verde = pico encontrado e dentro da especificação · azul = pico encontrado, sem especificação · vermelho = fora da especificação · "sem pico" = nenhum pico no cromatograma corresponde (TR ± tol)
               </div>
+            </div>
+          )}
+
+          {/* ── USUÁRIOS PAGE (admin only) ───────────────────────────────── */}
+          {page === "usuarios" && (
+            <div>
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 14, fontWeight: "bold", fontFamily: "Courier New, monospace", display: "flex", alignItems: "center", gap: 6 }}>
+                  <Users style={{ width: 16, height: 16 }} /> Gerenciamento de Usuários
+                </div>
+                <div style={{ fontSize: 10, color: "#999", fontFamily: "Courier New, monospace", marginTop: 2 }}>
+                  Controle de acesso ao Simulador HPLC. Todos os usuários compartilham login com o Protocolo de Estabilidade.
+                </div>
+              </div>
+              <Div />
+              <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+                <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={fetchUsers} disabled={userListLoading}>
+                  {userListLoading ? "Carregando…" : "↻ Atualizar"}
+                </Button>
+              </div>
+              {userListError && (
+                <div style={{ color: "#dc2626", fontFamily: "Courier New, monospace", fontSize: 11, marginBottom: 10 }}>{userListError}</div>
+              )}
+              {userList.length === 0 && !userListLoading && !userListError && (
+                <div style={{ textAlign: "center", color: "#aaa", padding: "32px 0", fontFamily: "Courier New, monospace", fontSize: 11 }}>
+                  Clique em "Atualizar" para carregar os usuários.
+                </div>
+              )}
+              {userList.length > 0 && (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 10 }}>
+                    <thead>
+                      <tr style={{ background: "#f1f5f9" }}>
+                        <th style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Usuário</th>
+                        <th style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Nome</th>
+                        <th style={{ padding: "6px 10px", textAlign: "center", borderBottom: "1px solid #ddd" }}>Perfil</th>
+                        <th style={{ padding: "6px 10px", textAlign: "center", borderBottom: "1px solid #ddd" }}>Ativo</th>
+                        <th style={{ padding: "6px 10px", textAlign: "center", borderBottom: "1px solid #ddd" }}>Acesso HPLC</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {userList.map((u, i) => {
+                        const isSelf = u.id === user?.id;
+                        const isToggling = togglingId === u.id;
+                        return (
+                          <tr key={u.id} style={{ background: i % 2 === 0 ? "#fff" : "#f9fafb", borderBottom: "1px solid #f0f0f0" }}>
+                            <td style={{ padding: "6px 10px", fontWeight: "bold" }}>{u.username}</td>
+                            <td style={{ padding: "6px 10px", color: "#555" }}>{u.displayName}</td>
+                            <td style={{ padding: "6px 10px", textAlign: "center" }}>
+                              <span style={{
+                                fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: "bold",
+                                background: u.role === "admin" ? "#fef3c7" : "#f1f5f9",
+                                color: u.role === "admin" ? "#92400e" : "#475569",
+                              }}>
+                                {u.role === "admin" ? "Admin" : "Analista"}
+                              </span>
+                            </td>
+                            <td style={{ padding: "6px 10px", textAlign: "center" }}>
+                              <span style={{ fontSize: 9, color: u.active ? "#166534" : "#dc2626" }}>
+                                {u.active ? "✓ Ativo" : "✗ Inativo"}
+                              </span>
+                            </td>
+                            <td style={{ padding: "6px 10px", textAlign: "center" }}>
+                              {isSelf ? (
+                                <span style={{ fontSize: 9, color: "#94a3b8", fontStyle: "italic" }}>você</span>
+                              ) : (
+                                <button
+                                  disabled={isToggling}
+                                  onClick={() => toggleHplcAccess(u.id, u.hplcAccess)}
+                                  title={u.hplcAccess ? "Clique para revogar acesso ao HPLC" : "Clique para conceder acesso ao HPLC"}
+                                  style={{
+                                    display: "inline-flex", alignItems: "center", gap: 4, cursor: isToggling ? "wait" : "pointer",
+                                    background: "none", border: "none", padding: "2px 4px", borderRadius: 4,
+                                    opacity: isToggling ? 0.5 : 1,
+                                  }}
+                                >
+                                  {u.hplcAccess ? (
+                                    <>
+                                      <ToggleRight style={{ width: 20, height: 20, color: "#16a34a" }} />
+                                      <ShieldCheck style={{ width: 12, height: 12, color: "#16a34a" }} />
+                                      <span style={{ fontSize: 9, color: "#16a34a", fontWeight: "bold" }}>Com acesso</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ToggleLeft style={{ width: 20, height: 20, color: "#dc2626" }} />
+                                      <ShieldOff style={{ width: 12, height: 12, color: "#dc2626" }} />
+                                      <span style={{ fontSize: 9, color: "#dc2626", fontWeight: "bold" }}>Sem acesso</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div style={{ marginTop: 10, fontSize: 9, color: "#888", fontFamily: "Courier New, monospace" }}>
+                    Clique no toggle da coluna "Acesso HPLC" para liberar ou revogar o acesso de um usuário ao simulador.
+                    Usuários sem acesso verão uma mensagem de erro ao tentar entrar.
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

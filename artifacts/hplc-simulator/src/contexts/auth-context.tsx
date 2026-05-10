@@ -5,6 +5,7 @@ export type AuthUser = {
   username: string;
   displayName: string;
   role: string;
+  hplcAccess: boolean;
 };
 
 type AuthContextValue = {
@@ -56,6 +57,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error((data as { error?: string }).error ?? "Erro ao fazer login.");
     }
     const data = await res.json() as { token: string; user: AuthUser };
+    if (!data.user.hplcAccess) {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${data.token}` },
+      }).catch(() => {});
+      throw new Error("Seu usuário não tem acesso ao Simulador HPLC. Contate o administrador.");
+    }
     store.set(TOKEN_KEY, data.token);
     store.set(USER_KEY, JSON.stringify(data.user));
     setToken(data.token);

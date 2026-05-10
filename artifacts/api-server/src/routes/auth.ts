@@ -49,7 +49,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   await db.insert(sessionsTable).values({ token, userId: user.id, expiresAt });
-  res.json({ token, user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role } });
+  res.json({ token, user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, hplcAccess: user.hplcAccess } });
 });
 
 // Logout
