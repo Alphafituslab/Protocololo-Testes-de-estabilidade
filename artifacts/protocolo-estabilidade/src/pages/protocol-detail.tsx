@@ -1816,7 +1816,6 @@ function FinalizeSection({
   // When the dialog opens, re-sync form values from current protocol data
   const handleOpenChange = (next: boolean) => {
     if (next) {
-      setBlockingError(null);
       const savedStatus = (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento") ?? "em_andamento";
       form.reset({
         finalStatus: savedStatus,
@@ -1826,6 +1825,13 @@ function FinalizeSection({
         ressalva: currentRessalva ?? "",
         progressPercent: currentProgressPercent ?? undefined,
       });
+      // Verifica imediatamente ao abrir: se status já era aprovado e há não conformes, mostra erro
+      // (o useEffect de finalStatusWatch não dispara quando o valor não muda)
+      if ((savedStatus === "aprovado" || savedStatus === "aprovado_com_ressalva") && hasNonConformes) {
+        setBlockingError("Protocolo fora das especificações de liberação. Existem parâmetros não conformes na aba Resultados.");
+      } else {
+        setBlockingError(null);
+      }
     }
     setOpen(next);
   };
