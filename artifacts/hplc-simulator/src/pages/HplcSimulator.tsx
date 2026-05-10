@@ -2,16 +2,14 @@ import { useState, useMemo, useCallback } from "react";
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
   ResponsiveContainer, Tooltip, ReferenceLine,
-  ScatterChart, Scatter, LineChart,
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Printer, Plus, Trash2, Settings, FlaskConical, TrendingUp, BarChart3 } from "lucide-react";
+import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,55 +17,57 @@ interface Peak {
   id: string;
   name: string;
   retentionTime: number;
-  height: number;  // mV
-  width: number;
+  height: number;      // mAU
+  width: number;       // sigma (min)
   asymmetry: number;
-  conc: number;
-  unit: string;
-  mark: string;
+  peakType: string;    // VB, BB, BV, VV...
+  amtPerArea: number;  // response factor (Amount/Area)
+  amount: number;      // ug/ml
+  grp: string;
 }
 
 interface SampleInfo {
+  dataFile: string;
   sampleName: string;
-  sampleId: string;
-  dataFilename: string;
-  methodFilename: string;
-  batchFilename: string;
-  vialNo: string;
-  sampleType: string;
-  injectionVolume: string;
-  dateAcquired: string;
-  acquiredBy: string;
-  dateProcessed: string;
-  processedBy: string;
+  acqOperator: string;
+  seqLine: string;
+  acqInstrument: string;
+  location: string;
+  injectionDate: string;
+  inj: string;
+  injVolume: string;
+  acqMethod: string;
+  lastChanged1: string;
+  analysisMethod: string;
+  lastChanged2: string;
 }
 
 interface DetectorInfo {
-  detectorName: string;
-  wavelength: string;
-  runTime: number;
+  signalName: string;   // "DAD1 A"
+  sigWavelength: number;
+  sigBandwidth: number;
+  refWavelength: number;
+  refBandwidth: number;
+  runTime: number;      // min
 }
 
 interface CalibStandard {
   id: string;
-  num: number;
-  conc: number;   // actual concentration
-  area: number;   // mean area
+  level: number;
+  amount: number;  // ug/ml
+  area: number;    // mAU*s
 }
 
 interface CalibInfo {
-  idNum: string;
-  name: string;
-  quantMethod: string;
-  fitType: string;
-  zeroThrough: string;
-  weightedRegression: string;
-  offsetCorrection: string;
-  detectorName: string;
-  xScale: number;  // e.g. 1e-1
-  xScaleLabel: string;  // e.g. "*10^-1"
-  yScale: number;  // e.g. 1e7
-  yScaleLabel: string;  // e.g. "*10^7"
+  compoundName: string;
+  expRT: number;
+  calibDataModified: string;
+  multiplier: string;
+  dilution: string;
+  sortedBy: string;
+  curveType: string;
+  origin: string;
+  weight: string;
 }
 
 // ─── Math ─────────────────────────────────────────────────────────────────────
@@ -84,7 +84,7 @@ function buildChromatogram(peaks: Peak[], runTime: number, pts = 2000) {
     const t = parseFloat((i * dt).toFixed(4));
     let signal = 0;
     for (const p of peaks) signal += gaussian(t, p.retentionTime, p.width, p.height, p.asymmetry);
-    return { time: t, signal: Math.max(0, parseFloat(signal.toFixed(2))) };
+    return { time: t, signal: Math.max(0, parseFloat(signal.toFixed(3))) };
   });
 }
 
@@ -96,140 +96,149 @@ function computeArea(p: Peak): number {
   let area = 0;
   for (let i = 0; i < steps; i++) {
     const t1 = lo + i * dt, t2 = lo + (i + 1) * dt;
-    area += 0.5 * dt * (
-      gaussian(t1, p.retentionTime, p.width, p.height, p.asymmetry) +
-      gaussian(t2, p.retentionTime, p.width, p.height, p.asymmetry)
-    );
+    area += 0.5 * dt * (gaussian(t1, p.retentionTime, p.width, p.height, p.asymmetry) +
+      gaussian(t2, p.retentionTime, p.width, p.height, p.asymmetry));
   }
-  return area;
+  return area * 60; // convert mAU·min → mAU·s
 }
 
-function linearRegression(points: { x: number; y: number }[]) {
-  const n = points.length;
-  if (n < 2) return { slope: 0, intercept: 0, r2: 0, rr1: 0, rr2: 0, rss: 0, meanRF: 0, rfsd: 0, rfrsd: 0 };
-  const sumX = points.reduce((s, p) => s + p.x, 0);
-  const sumY = points.reduce((s, p) => s + p.y, 0);
-  const sumXY = points.reduce((s, p) => s + p.x * p.y, 0);
-  const sumX2 = points.reduce((s, p) => s + p.x * p.x, 0);
+function linearRegression(pts: { x: number; y: number }[]) {
+  const n = pts.length;
+  if (n < 2) return { slope: 0, intercept: 0, r: 0, residStdDev: 0 };
+  const sumX = pts.reduce((s, p) => s + p.x, 0);
+  const sumY = pts.reduce((s, p) => s + p.y, 0);
+  const sumXY = pts.reduce((s, p) => s + p.x * p.y, 0);
+  const sumX2 = pts.reduce((s, p) => s + p.x * p.x, 0);
   const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
   const intercept = (sumY - slope * sumX) / n;
   const meanY = sumY / n;
-  const ssTot = points.reduce((s, p) => s + Math.pow(p.y - meanY, 2), 0);
-  const ssRes = points.reduce((s, p) => s + Math.pow(p.y - (slope * p.x + intercept), 2), 0);
+  const ssTot = pts.reduce((s, p) => s + Math.pow(p.y - meanY, 2), 0);
+  const ssRes = pts.reduce((s, p) => s + Math.pow(p.y - (slope * p.x + intercept), 2), 0);
   const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 1;
-  const rr1 = Math.sqrt(Math.abs(r2));
-  const rr2 = r2;
-  // Response factors per point (area / conc)
-  const rfs = points.filter(p => p.x > 0).map(p => p.y / p.x);
-  const meanRF = rfs.length > 0 ? rfs.reduce((a, v) => a + v, 0) / rfs.length : 0;
-  const rfsd = rfs.length > 1
-    ? Math.sqrt(rfs.reduce((a, v) => a + Math.pow(v - meanRF, 2), 0) / (rfs.length - 1))
-    : 0;
-  const rfrsd = meanRF > 0 ? (rfsd / meanRF) * 100 : 0;
-  return { slope, intercept, r2, rr1, rr2, rss: ssRes, meanRF, rfsd, rfrsd };
+  const r = Math.sqrt(Math.abs(r2));
+  const residStdDev = n > 2 ? Math.sqrt(ssRes / (n - 2)) : 0;
+  return { slope, intercept, r, residStdDev };
 }
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
-function fmtNum(n: number, dec = 3) { return n.toFixed(dec).replace(".", ","); }
-function fmtSci(n: number) {
-  if (n === 0) return "0";
-  const exp = Math.floor(Math.log10(Math.abs(n)));
+
+function fmtSci2(n: number, exp: number) {
+  // format as e.g. "3.92764e-2"
   const man = n / Math.pow(10, exp);
-  return `${man.toFixed(5)}e+${String(exp).padStart(3, "0")}`;
+  const sign = exp < 0 ? "-" : "+";
+  return `${man.toFixed(5)}e${sign}${Math.abs(exp)}`;
 }
+
+function fmtAmt(n: number) { return n.toFixed(5); }
+function fmtArea(n: number) { return n.toFixed(5); }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 
 const DEFAULT_PEAKS: Peak[] = [
-  { id: uid(), name: "",        retentionTime: 2.055, height: 280,  width: 0.09, asymmetry: 1.20, conc: 0, unit: "", mark: "" },
-  { id: uid(), name: "",        retentionTime: 2.545, height: 210,  width: 0.07, asymmetry: 1.10, conc: 0, unit: "", mark: "V" },
-  { id: uid(), name: "",        retentionTime: 2.661, height: 230,  width: 0.06, asymmetry: 1.18, conc: 0, unit: "", mark: "V" },
-  { id: uid(), name: "",        retentionTime: 5.302, height: 1970, width: 0.20, asymmetry: 1.02, conc: 0, unit: "", mark: "V" },
-  { id: uid(), name: "",        retentionTime: 6.920, height: 185,  width: 0.26, asymmetry: 1.12, conc: 0, unit: "", mark: "V" },
-  { id: uid(), name: "Cafeina", retentionTime:10.417, height: 2511, width: 0.22, asymmetry: 1.01, conc: 0.382, unit: "mg/L", mark: "" },
+  {
+    id: uid(), name: "B6", retentionTime: 2.401, height: 87, width: 0.048,
+    asymmetry: 1.05, peakType: "VB", amtPerArea: 0.0392764, amount: 34.25311, grp: "",
+  },
+  {
+    id: uid(), name: "", retentionTime: 1.05, height: 12, width: 0.06,
+    asymmetry: 1.20, peakType: "BB", amtPerArea: 0, amount: 0, grp: "",
+  },
 ];
 
 const DEFAULT_SAMPLE: SampleInfo = {
-  sampleName: "Amostra_4",
-  sampleId: "010",
-  dataFilename: "Cafeina_MEOH_H2O_29042025_010.lcd",
-  methodFilename: "Cafeina_28042025.lcm",
-  batchFilename: "Cafeina_MEOH_H2O.lcb",
-  vialNo: "1-10",
-  sampleType: "Unknown",
-  injectionVolume: "10 uL",
-  dateAcquired: "29/04/2025 15:48:44",
-  acquiredBy: "System Administrator",
-  dateProcessed: "30/04/2025 10:40:59",
-  processedBy: "System Administrator",
+  dataFile: "C:\\CHEM32\\1\\DATA\\TESTE B6-290 POTE 2 AMOSTRAS 15G 2025-04-26 12-14-15\\024-2401.D",
+  sampleName: "amostra A.p",
+  acqOperator: "EDSON",
+  seqLine: "24",
+  acqInstrument: "Instrument 1",
+  location: "Vial 24",
+  injectionDate: "4/30/2025 11:53:34 AM",
+  inj: "1",
+  injVolume: "10.0 µl",
+  acqMethod: "C:\\CHEM32\\1\\DATA\\TESTE B6-290 POTE 2 AMOSTRAS 15G 2025-04-26 12-14-15\\B6 TESTE 290.M",
+  lastChanged1: "4/25/2025 2:36:55 PM by EDSON",
+  analysisMethod: "C:\\CHEM32\\1\\METHODS\\B6.M",
+  lastChanged2: "4/30/2025 1:05:09 PM by EDSON",
 };
 
 const DEFAULT_DETECTOR: DetectorInfo = {
-  detectorName: "Detector A",
-  wavelength: "272nm",
-  runTime: 15,
+  signalName: "DAD1 A",
+  sigWavelength: 290,
+  sigBandwidth: 4,
+  refWavelength: 360,
+  refBandwidth: 100,
+  runTime: 10,
 };
 
 const DEFAULT_STANDARDS: CalibStandard[] = [
-  { id: uid(), num: 1, conc: 0.1, area: 2948718 },
-  { id: uid(), num: 2, conc: 0.2, area: 5807986 },
-  { id: uid(), num: 3, conc: 0.4, area: 11415203 },
-  { id: uid(), num: 4, conc: 0.6, area: 17009026 },
+  { id: uid(), level: 1, amount: 10, area: 296.16348 },
+  { id: uid(), level: 2, amount: 25, area: 620.81195 },
+  { id: uid(), level: 3, amount: 50, area: 1286.75647 },
+  { id: uid(), level: 4, amount: 70, area: 1737.21973 },
+  { id: uid(), level: 5, amount: 100, area: 2530.36230 },
 ];
 
 const DEFAULT_CALIB: CalibInfo = {
-  idNum: "1",
-  name: "Cafeina",
-  quantMethod: "External Standard",
-  fitType: "Linear",
-  zeroThrough: "Not Through",
-  weightedRegression: "None",
-  offsetCorrection: "Off",
-  detectorName: "Detector A",
-  xScale: 1e-1,
-  xScaleLabel: "*10^-1",
-  yScale: 1e7,
-  yScaleLabel: "*10^7",
+  compoundName: "B6",
+  expRT: 2.438,
+  calibDataModified: "Thursday, April 24, 2025 6:00:25 PM",
+  multiplier: "1.0000",
+  dilution: "1.0000",
+  sortedBy: "Signal",
+  curveType: "Linear",
+  origin: "Included",
+  weight: "Equal",
 };
 
-// ─── Tooltips ──────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const DIVIDER = "    " + "=".repeat(69);
+const LINE_DIV = "    " + "-".repeat(69);
+
+function center(text: string, width = 69) {
+  const pad = Math.max(0, Math.floor((width - text.length) / 2));
+  return "    " + " ".repeat(pad) + text;
+}
+
+function Div() {
+  return <div style={{ whiteSpace: "pre" }}>{DIVIDER}</div>;
+}
+function SectionTitle({ title }: { title: string }) {
+  return (
+    <>
+      <Div />
+      <div style={{ whiteSpace: "pre" }}>{center(title)}</div>
+      <Div />
+    </>
+  );
+}
+
+// ─── Tooltips ─────────────────────────────────────────────────────────────────
 
 function ChromTooltip({ active, payload }: { active?: boolean; payload?: { payload: { time: number; signal: number } }[] }) {
   if (!active || !payload?.length) return null;
   const { time, signal } = payload[0].payload;
   return (
     <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, background: "#fff", border: "1px solid #333", padding: "4px 8px" }}>
-      <div>{fmtNum(time, 3)} min</div>
-      <div>{signal.toFixed(0)} mV</div>
+      <div>{time.toFixed(3)} min</div>
+      <div>{signal.toFixed(3)} mAU</div>
     </div>
   );
 }
 
-function CalibTooltip({ active, payload }: { active?: boolean; payload?: { payload: { x: number; y: number; label?: string } }[] }) {
-  if (!active || !payload?.length) return null;
-  const { x, y } = payload[0].payload;
-  return (
-    <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, background: "#fff", border: "1px solid #333", padding: "4px 8px" }}>
-      <div>Conc: {x.toFixed(4)}</div>
-      <div>Area: {Math.round(y).toLocaleString("pt-BR")}</div>
-    </div>
-  );
-}
-
-// ─── Vertical RT label on chromatogram ────────────────────────────────────────
+// ─── Vertical RT label ────────────────────────────────────────────────────────
 
 function PeakLabel({ viewBox, rt }: { viewBox?: { x: number; y: number }; rt: number }) {
   if (!viewBox) return null;
   const { x, y } = viewBox;
   return (
     <text
-      x={x + 3}
-      y={y - 3}
+      x={x + 3} y={y - 3}
       textAnchor="start"
       transform={`rotate(-90, ${x + 3}, ${y - 3})`}
       style={{ fontFamily: "Courier New, monospace", fontSize: 9.5, fill: "#111" }}
     >
-      {fmtNum(rt, 3)}
+      {rt.toFixed(3)}
     </text>
   );
 }
@@ -239,7 +248,7 @@ function PeakLabel({ viewBox, rt }: { viewBox?: { x: number; y: number }; rt: nu
 function PeakEditorDialog({ peak, onSave, children }: { peak: Peak; onSave: (p: Peak) => void; children: React.ReactNode }) {
   const [draft, setDraft] = useState<Peak>({ ...peak });
   const [open, setOpen] = useState(false);
-  const numKeys: (keyof Peak)[] = ["retentionTime", "height", "width", "asymmetry", "conc"];
+  const numKeys: (keyof Peak)[] = ["retentionTime", "height", "width", "asymmetry", "amtPerArea", "amount"];
   const field = (key: keyof Peak) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDraft(d => ({ ...d, [key]: numKeys.includes(key) ? parseFloat(e.target.value) || 0 : e.target.value }));
   return (
@@ -249,18 +258,19 @@ function PeakEditorDialog({ peak, onSave, children }: { peak: Peak; onSave: (p: 
         <DialogHeader><DialogTitle style={{ fontFamily: "Courier New, monospace" }}>Editar Pico</DialogTitle></DialogHeader>
         <div className="space-y-2 pt-1">
           {([
-            ["name", "Nome (ex: Cafeina)", "text"],
+            ["name", "Nome (ex: B6)", "text"],
             ["retentionTime", "Ret. Time (min)", "number"],
-            ["height", "Altura (mV)", "number"],
+            ["height", "Altura (mAU)", "number"],
             ["width", "Largura σ (min)", "number"],
             ["asymmetry", "Assimetria", "number"],
-            ["conc", "Conc.", "number"],
-            ["unit", "Unidade (ex: mg/L)", "text"],
-            ["mark", "Mark (V / SV / T)", "text"],
+            ["peakType", "Tipo (VB/BB/BV)", "text"],
+            ["amtPerArea", "Amt/Area (ex: 0.039)", "number"],
+            ["amount", "Amount (ug/ml)", "number"],
+            ["grp", "Grupo", "text"],
           ] as [keyof Peak, string, string][]).map(([k, label, type]) => (
             <div key={k} className="space-y-0.5">
               <Label className="text-xs text-muted-foreground">{label}</Label>
-              <Input type={type} step="0.001" value={draft[k] as string | number} onChange={field(k)} className="h-7 text-xs font-mono" />
+              <Input type={type} step="0.0001" value={draft[k] as string | number} onChange={field(k)} className="h-7 text-xs font-mono" />
             </div>
           ))}
           <Button className="w-full" size="sm" onClick={() => { onSave(draft); setOpen(false); }}>Salvar</Button>
@@ -270,9 +280,34 @@ function PeakEditorDialog({ peak, onSave, children }: { peak: Peak; onSave: (p: 
   );
 }
 
+// ─── Reusable panel box ───────────────────────────────────────────────────────
+
+function ControlBox({ title, children, extra }: { title: string; children: React.ReactNode; extra?: React.ReactNode }) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #ccc", padding: "10px 12px", borderRadius: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <p style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold" }}>{title}</p>
+        {extra}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function SmallField({ label, value, onChange, type = "text" }: {
+  label: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; type?: string;
+}) {
+  return (
+    <div className="mb-1.5">
+      <Label style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", display: "block" }}>{label}</Label>
+      <Input type={type} value={value} onChange={onChange} className="h-6 px-1.5" style={{ fontFamily: "Courier New, monospace", fontSize: 10 }} />
+    </div>
+  );
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
-type PageMode = "chromatogram" | "calibration";
+type PageMode = "chromatogram" | "report";
 
 export default function HplcSimulator() {
   const [page, setPage] = useState<PageMode>("chromatogram");
@@ -283,158 +318,132 @@ export default function HplcSimulator() {
   const [calib, setCalib] = useState<CalibInfo>(DEFAULT_CALIB);
   const [showControls, setShowControls] = useState(true);
 
-  // ── Chromatogram ────────────────────────────────────────────────────────────
+  // ── Chromatogram data ────────────────────────────────────────────────────────
 
   const chromatogram = useMemo(() => buildChromatogram(peaks, detector.runTime), [peaks, detector.runTime]);
 
-  const peakStats = useMemo(() => {
-    return [...peaks]
-      .sort((a, b) => a.retentionTime - b.retentionTime)
-      .map((p, i) => ({ ...p, peakNum: i + 1, area: Math.round(computeArea(p)) }));
-  }, [peaks]);
-
-  const totalArea = peakStats.reduce((s, p) => s + p.area, 0);
-  const totalHeight = peakStats.reduce((s, p) => s + p.height, 0);
+  const peakStats = useMemo(() =>
+    [...peaks].sort((a, b) => a.retentionTime - b.retentionTime).map((p, i) => ({
+      ...p, peakNum: i + 1,
+      computedArea: computeArea(p),
+    })),
+    [peaks]
+  );
+  const totalAmount = peakStats.filter(p => p.amount > 0).reduce((s, p) => s + p.amount, 0);
 
   const yMax = useMemo(() => {
-    const max = Math.max(...chromatogram.map(d => d.signal), 100);
-    return Math.ceil(max * 1.12 / 500) * 500;
+    const max = Math.max(...chromatogram.map(d => d.signal), 10);
+    return Math.ceil(max * 1.15 / 50) * 50;
   }, [chromatogram]);
 
   const xTicks = useMemo(() => {
     const t: number[] = [];
-    for (let v = 0; v <= detector.runTime; v += 2.5) t.push(parseFloat(v.toFixed(1)));
+    for (let v = 0; v <= detector.runTime; v += 2) t.push(parseFloat(v.toFixed(1)));
     return t;
   }, [detector.runTime]);
 
   const yTicks = useMemo(() => {
-    const step = yMax <= 2000 ? 500 : yMax <= 5000 ? 1000 : 2000;
+    const step = yMax <= 200 ? 50 : yMax <= 500 ? 100 : yMax <= 2000 ? 500 : 1000;
     const t: number[] = [];
     for (let v = 0; v <= yMax; v += step) t.push(v);
     return t;
   }, [yMax]);
 
-  // ── Calibration ─────────────────────────────────────────────────────────────
+  // ── Calibration ──────────────────────────────────────────────────────────────
 
   const reg = useMemo(() => {
-    const pts = standards.map(s => ({ x: s.conc, y: s.area }));
+    const pts = standards.map(s => ({ x: s.amount, y: s.area }));
     return linearRegression(pts);
   }, [standards]);
 
-  const regLine = useMemo(() => {
-    if (standards.length < 2) return [];
-    const xs = standards.map(s => s.conc);
-    const xMin = 0;
-    const xMax = Math.max(...xs) * 1.1;
-    return [
-      { x: xMin, y: reg.slope * xMin + reg.intercept },
-      { x: xMax, y: reg.slope * xMax + reg.intercept },
-    ];
-  }, [standards, reg]);
+  const calibXMax = useMemo(() => Math.max(...standards.map(s => s.amount)) * 1.15, [standards]);
+  const calibYMax = useMemo(() => Math.max(...standards.map(s => s.area)) * 1.2, [standards]);
 
-  const calibXMax = useMemo(() => {
-    if (!standards.length) return 1;
-    return Math.max(...standards.map(s => s.conc)) * 1.3;
-  }, [standards]);
-
-  const calibYMax = useMemo(() => {
-    if (!standards.length) return 1e7;
-    return Math.max(...standards.map(s => s.area)) * 1.2;
-  }, [standards]);
-
-  // Merged dataset for ComposedChart: reg line (dense) + actual standard points
   const calibChartData = useMemo(() => {
-    const sorted = [...standards].sort((a, b) => a.conc - b.conc);
-    const xMax = calibXMax;
-    // Build 80 points for the regression line from 0 to xMax
+    const sorted = [...standards].sort((a, b) => a.amount - b.amount);
     const regPts = Array.from({ length: 80 }, (_, i) => {
-      const x = (i / 79) * xMax;
-      return { x: parseFloat(x.toFixed(5)), reg: reg.slope * x + reg.intercept, pt: undefined as number | undefined };
+      const x = (i / 79) * calibXMax;
+      return { x: parseFloat(x.toFixed(4)), reg: reg.slope * x + reg.intercept, pt: undefined as number | undefined };
     });
-    // Overlay the actual standard values
     sorted.forEach(s => {
-      const nearest = regPts.reduce((best, p, i) =>
-        Math.abs(p.x - s.conc) < Math.abs(regPts[best].x - s.conc) ? i : best, 0);
-      regPts[nearest].x = s.conc;
-      regPts[nearest].reg = reg.slope * s.conc + reg.intercept;
+      const nearest = regPts.reduce((best, _p, i) =>
+        Math.abs(regPts[i].x - s.amount) < Math.abs(regPts[best].x - s.amount) ? i : best, 0);
+      regPts[nearest].x = s.amount;
+      regPts[nearest].reg = reg.slope * s.amount + reg.intercept;
       regPts[nearest].pt = s.area;
     });
     return regPts;
   }, [standards, calibXMax, reg]);
 
-  const xScaleDisplay = (v: number) => (v / calib.xScale).toFixed(1).replace(".", ",");
-  const yScaleDisplay = (v: number) => (v / calib.yScale).toFixed(1).replace(".", ",");
+  // ── Signal label ─────────────────────────────────────────────────────────────
 
-  const addStandard = () => {
-    const n = standards.length + 1;
-    setStandards(ss => [...ss, { id: uid(), num: n, conc: 0.1 * n, area: Math.round(reg.slope * 0.1 * n + reg.intercept) || 1000000 * n }]);
-  };
-  const removeStandard = (id: string) => setStandards(ss => ss.filter(s => s.id !== id));
-  const updateStandard = (id: string, key: "conc" | "area", val: number) =>
-    setStandards(ss => ss.map(s => s.id === id ? { ...s, [key]: val } : s));
+  const signalLabel = `${detector.signalName}, Sig=${detector.sigWavelength},${detector.sigBandwidth} Ref=${detector.refWavelength},${detector.refBandwidth}`;
+
+  // ── Now ───────────────────────────────────────────────────────────────────────
+
+  const now = new Date().toLocaleString("en-US", {
+    month: "numeric", day: "numeric", year: "numeric",
+    hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true,
+  });
 
   // ── Peaks ────────────────────────────────────────────────────────────────────
 
   const addPeak = useCallback(() => {
     setPeaks(ps => [...ps, {
-      id: uid(), name: "", mark: "V", unit: "", conc: 0,
+      id: uid(), name: "", peakType: "BB", grp: "", amtPerArea: 0, amount: 0,
       retentionTime: parseFloat((1 + Math.random() * (detector.runTime - 2)).toFixed(3)),
-      height: Math.round(200 + Math.random() * 500),
-      width: parseFloat((0.08 + Math.random() * 0.15).toFixed(3)),
-      asymmetry: parseFloat((0.95 + Math.random() * 0.25).toFixed(2)),
+      height: Math.round(10 + Math.random() * 80),
+      width: parseFloat((0.04 + Math.random() * 0.08).toFixed(3)),
+      asymmetry: parseFloat((0.95 + Math.random() * 0.2).toFixed(2)),
     }]);
   }, [detector.runTime]);
 
   const removePeak = (id: string) => setPeaks(ps => ps.filter(p => p.id !== id));
   const savePeak = (updated: Peak) => setPeaks(ps => ps.map(p => p.id === updated.id ? updated : p));
 
+  const addStandard = () => {
+    const n = standards.length + 1;
+    setStandards(ss => [...ss, { id: uid(), level: n, amount: 10 * n, area: Math.round(reg.slope * 10 * n + reg.intercept) }]);
+  };
+  const removeStandard = (id: string) => setStandards(ss => ss.filter(s => s.id !== id));
+  const updateStandard = (id: string, key: "amount" | "area", val: number) =>
+    setStandards(ss => ss.map(s => s.id === id ? { ...s, [key]: val } : s));
+
   const sField = (k: keyof SampleInfo) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setSample(s => ({ ...s, [k]: e.target.value }));
   const dField = (k: keyof DetectorInfo) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setDetector(d => ({ ...d, [k]: k === "runTime" ? parseFloat(e.target.value) || 15 : e.target.value }));
+    setDetector(d => ({ ...d, [k]: (["runTime", "sigWavelength", "sigBandwidth", "refWavelength", "refBandwidth"] as (keyof DetectorInfo)[]).includes(k) ? parseFloat(e.target.value) || 0 : e.target.value }));
   const cField = (k: keyof CalibInfo) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setCalib(c => ({ ...c, [k]: e.target.value }));
+    setCalib(c => ({ ...c, [k]: (["expRT"] as (keyof CalibInfo)[]).includes(k) ? parseFloat(e.target.value) || 0 : e.target.value }));
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   const MONO: React.CSSProperties = { fontFamily: "Courier New, monospace" };
-  const now = new Date().toLocaleDateString("pt-BR") + " " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   return (
     <div style={{ minHeight: "100vh", background: "#e8e8e8", padding: "12px 8px" }}>
 
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
-      <div className="no-print max-w-[1100px] mx-auto mb-3 flex items-center gap-2 flex-wrap">
+      <div className="no-print max-w-[1160px] mx-auto mb-3 flex items-center gap-2 flex-wrap">
         <FlaskConical className="h-5 w-5 text-blue-700" />
-        <span style={{ ...MONO, fontWeight: "bold", fontSize: 13 }}>Simulador HPLC — Shimadzu LabSolutions</span>
+        <span style={{ ...MONO, fontWeight: "bold", fontSize: 13 }}>Simulador HPLC — Agilent ChemStation</span>
         <div className="flex-1" />
-
-        {/* Page switcher */}
         <div style={{ display: "flex", border: "1px solid #bbb", borderRadius: 4, overflow: "hidden" }}>
-          <button
-            onClick={() => setPage("chromatogram")}
-            style={{
+          {([
+            ["chromatogram", "Cromatograma", BarChart3],
+            ["report", "Relatório", FileText],
+          ] as [PageMode, string, React.ElementType][]).map(([mode, label, Icon]) => (
+            <button key={mode} onClick={() => setPage(mode)} style={{
               ...MONO, fontSize: 11, padding: "4px 12px", cursor: "pointer",
-              background: page === "chromatogram" ? "#1d4ed8" : "#fff",
-              color: page === "chromatogram" ? "#fff" : "#333",
-              border: "none", display: "flex", alignItems: "center", gap: 4,
-            }}
-          >
-            <BarChart3 style={{ width: 13, height: 13 }} /> Cromatograma
-          </button>
-          <button
-            onClick={() => setPage("calibration")}
-            style={{
-              ...MONO, fontSize: 11, padding: "4px 12px", cursor: "pointer",
-              background: page === "calibration" ? "#1d4ed8" : "#fff",
-              color: page === "calibration" ? "#fff" : "#333",
-              border: "none", borderLeft: "1px solid #bbb", display: "flex", alignItems: "center", gap: 4,
-            }}
-          >
-            <TrendingUp style={{ width: 13, height: 13 }} /> Curva de Calibração
-          </button>
+              background: page === mode ? "#1d4ed8" : "#fff",
+              color: page === mode ? "#fff" : "#333",
+              border: "none", borderLeft: mode !== "chromatogram" ? "1px solid #bbb" : "none",
+              display: "flex", alignItems: "center", gap: 4,
+            }}>
+              <Icon style={{ width: 13, height: 13 }} /> {label}
+            </button>
+          ))}
         </div>
-
         <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => setShowControls(v => !v)}>
           <Settings className="h-3.5 w-3.5" /> {showControls ? "Ocultar" : "Controles"}
         </Button>
@@ -443,43 +452,42 @@ export default function HplcSimulator() {
         </Button>
       </div>
 
-      <div className={`max-w-[1100px] mx-auto flex gap-3 items-start`}>
+      <div className="max-w-[1160px] mx-auto flex gap-3 items-start">
 
-        {/* ── LEFT: controls panel ─────────────────────────────────────────── */}
+        {/* ── LEFT: controls ───────────────────────────────────────────────── */}
         {showControls && (
           <div className="no-print w-60 flex-shrink-0 space-y-3">
-
             {page === "chromatogram" && (
               <>
-                <ControlBox title="Sample Information">
+                <ControlBox title="Sample Info">
                   {([
-                    ["sampleName", "Sample Name"], ["sampleId", "Sample ID"],
-                    ["dataFilename", "Data Filename"], ["methodFilename", "Method Filename"],
-                    ["batchFilename", "Batch Filename"], ["vialNo", "Vial #"],
-                    ["sampleType", "Sample Type"], ["injectionVolume", "Injection Volume"],
-                    ["dateAcquired", "Date Acquired"], ["acquiredBy", "Acquired by"],
-                    ["dateProcessed", "Date Processed"], ["processedBy", "Processed by"],
+                    ["sampleName", "Sample Name"], ["acqOperator", "Acq. Operator"],
+                    ["seqLine", "Seq. Line"], ["acqInstrument", "Acq. Instrument"],
+                    ["location", "Location"], ["injectionDate", "Injection Date"],
+                    ["inj", "Inj"], ["injVolume", "Inj Volume"],
+                    ["acqMethod", "Acq. Method"], ["lastChanged1", "Last changed (Acq.)"],
+                    ["analysisMethod", "Analysis Method"], ["lastChanged2", "Last changed (Ana.)"],
                   ] as [keyof SampleInfo, string][]).map(([k, label]) => (
                     <SmallField key={k} label={label} value={sample[k]} onChange={sField(k)} />
                   ))}
                 </ControlBox>
-
                 <ControlBox title="Detector">
-                  <SmallField label="Detector Name" value={detector.detectorName} onChange={dField("detectorName")} />
-                  <SmallField label="Wavelength" value={detector.wavelength} onChange={dField("wavelength")} />
+                  <SmallField label="Signal Name (ex: DAD1 A)" value={detector.signalName} onChange={dField("signalName")} />
+                  <SmallField label="Sig Wavelength (nm)" value={String(detector.sigWavelength)} onChange={dField("sigWavelength")} type="number" />
+                  <SmallField label="Sig Bandwidth" value={String(detector.sigBandwidth)} onChange={dField("sigBandwidth")} type="number" />
+                  <SmallField label="Ref Wavelength (nm)" value={String(detector.refWavelength)} onChange={dField("refWavelength")} type="number" />
+                  <SmallField label="Ref Bandwidth" value={String(detector.refBandwidth)} onChange={dField("refBandwidth")} type="number" />
                   <SmallField label="Run Time (min)" value={String(detector.runTime)} onChange={dField("runTime")} type="number" />
                 </ControlBox>
-
                 <ControlBox title="Picos" extra={
                   <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2" onClick={addPeak}>
                     <Plus className="h-3 w-3" /> Add
                   </Button>
                 }>
-                  {[...peaks].sort((a, b) => a.retentionTime - b.retentionTime).map((p, i) => (
+                  {peakStats.map((p) => (
                     <div key={p.id} className="flex items-center gap-1 group rounded px-1 py-0.5 hover:bg-gray-50">
-                      <span style={{ ...MONO, fontSize: 9, color: "#666", width: 14 }}>{i + 1}</span>
                       <span style={{ ...MONO, fontSize: 9.5, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {fmtNum(p.retentionTime, 3)}{p.name ? ` (${p.name})` : ""}
+                        {p.retentionTime.toFixed(3)} {p.name ? `(${p.name})` : ""}
                       </span>
                       <PeakEditorDialog peak={p} onSave={savePeak}>
                         <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
@@ -496,46 +504,32 @@ export default function HplcSimulator() {
               </>
             )}
 
-            {page === "calibration" && (
+            {page === "report" && (
               <>
                 <ControlBox title="Calibration Info">
-                  {([
-                    ["idNum", "ID#"], ["name", "Name"],
-                    ["quantMethod", "Quantitative Method"],
-                    ["fitType", "Fit Type"], ["zeroThrough", "Zero Through"],
-                    ["weightedRegression", "Weighted Regression"],
-                    ["offsetCorrection", "Offset Correction"],
-                    ["detectorName", "Detector Name"],
-                    ["xScaleLabel", "X Scale Label (ex: *10^-1)"],
-                    ["yScaleLabel", "Y Scale Label (ex: *10^7)"],
-                  ] as [keyof CalibInfo, string][]).map(([k, label]) => (
-                    <SmallField key={k} label={label} value={String(calib[k])} onChange={cField(k)} />
-                  ))}
+                  <SmallField label="Compound Name" value={calib.compoundName} onChange={cField("compoundName")} />
+                  <SmallField label="Expected RT (min)" value={String(calib.expRT)} onChange={cField("expRT")} type="number" />
+                  <SmallField label="Curve Type" value={calib.curveType} onChange={cField("curveType")} />
+                  <SmallField label="Origin" value={calib.origin} onChange={cField("origin")} />
+                  <SmallField label="Weight" value={calib.weight} onChange={cField("weight")} />
+                  <SmallField label="Multiplier" value={calib.multiplier} onChange={cField("multiplier")} />
+                  <SmallField label="Dilution" value={calib.dilution} onChange={cField("dilution")} />
                 </ControlBox>
-
                 <ControlBox title="Padrões" extra={
                   <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2" onClick={addStandard}>
                     <Plus className="h-3 w-3" /> Add
                   </Button>
                 }>
-                  {standards.map((s, i) => (
-                    <div key={s.id} className="flex items-center gap-1 group mb-1">
-                      <span style={{ ...MONO, fontSize: 9, color: "#666", width: 12 }}>{i + 1}</span>
+                  {[...standards].sort((a, b) => a.amount - b.amount).map((s, i) => (
+                    <div key={s.id} className="flex items-center gap-1 group mb-1.5">
+                      <span style={{ ...MONO, fontSize: 9, color: "#555", width: 14 }}>{i + 1}</span>
                       <div className="flex flex-col gap-0.5 flex-1">
-                        <Input
-                          type="number" step="0.001"
-                          value={s.conc}
-                          onChange={e => updateStandard(s.id, "conc", parseFloat(e.target.value) || 0)}
-                          className="h-5 text-xs font-mono px-1"
-                          placeholder="Conc."
-                        />
-                        <Input
-                          type="number"
-                          value={s.area}
-                          onChange={e => updateStandard(s.id, "area", parseInt(e.target.value) || 0)}
-                          className="h-5 text-xs font-mono px-1"
-                          placeholder="Area"
-                        />
+                        <Input type="number" step="0.001" value={s.amount}
+                          onChange={e => updateStandard(s.id, "amount", parseFloat(e.target.value) || 0)}
+                          className="h-5 text-xs font-mono px-1" placeholder="Amount (ug/ml)" />
+                        <Input type="number" step="0.001" value={s.area}
+                          onChange={e => updateStandard(s.id, "area", parseFloat(e.target.value) || 0)}
+                          className="h-5 text-xs font-mono px-1" placeholder="Area (mAU*s)" />
                       </div>
                       <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 hover:text-red-500"
                         onClick={() => removeStandard(s.id)}>
@@ -549,331 +543,244 @@ export default function HplcSimulator() {
           </div>
         )}
 
-        {/* ── RIGHT: report ────────────────────────────────────────────────── */}
-        <div style={{ flex: 1, background: "#fff", border: "1px solid #bbb", boxShadow: "0 2px 8px rgba(0,0,0,.18)", padding: "28px 32px", minWidth: 0 }}>
-
-          {/* timestamp + page */}
-          <div style={{ ...MONO, fontSize: 10, textAlign: "right", color: "#333", marginBottom: 2 }}>
-            {now} Page 1 / 1
-          </div>
+        {/* ── RIGHT: Agilent report paper ──────────────────────────────────── */}
+        <div style={{ flex: 1, background: "#fff", border: "1px solid #bbb", boxShadow: "0 2px 8px rgba(0,0,0,.18)", padding: "28px 32px 20px", minWidth: 0, ...MONO, fontSize: 11.5 }}>
 
           {/* ── CHROMATOGRAM PAGE ─────────────────────────────────────────── */}
           {page === "chromatogram" && (
             <>
-              <div style={{ textAlign: "center", marginBottom: 14 }}>
-                <span style={{ ...MONO, fontSize: 16, fontWeight: "bold" }}>Analysis Report</span>
+              {/* Data File + Sample Name */}
+              <div style={{ marginBottom: 6 }}>
+                <div>Data File {sample.dataFile}</div>
+                <div>Sample Name: {sample.sampleName}</div>
               </div>
 
-              {/* Sample Information */}
-              <SectionHeader title="Sample Information" />
-              <table style={{ ...MONO, fontSize: 11, borderCollapse: "collapse", width: "100%", marginBottom: 14 }}>
-                <tbody>
-                  {([
-                    [["Sample Name", sample.sampleName], ["Sample ID", sample.sampleId]],
-                    [["Data Filename", sample.dataFilename], null],
-                    [["Method Filename", sample.methodFilename], null],
-                    [["Batch Filename", sample.batchFilename], null],
-                    [["Vial #", sample.vialNo], ["Sample Type", sample.sampleType]],
-                    [["Injection Volume", sample.injectionVolume], null],
-                    [["Date Acquired", sample.dateAcquired], ["Acquired by", sample.acquiredBy]],
-                    [["Date Processed", sample.dateProcessed], ["Processed by", sample.processedBy]],
-                  ] as ([string, string] | null)[][]).map((row, ri) => (
-                    <tr key={ri}>
-                      {row.map((cell, ci) => cell ? (
-                        <td key={ci} style={{ padding: "0 8px 1px 0", whiteSpace: "nowrap", width: "50%", verticalAlign: "top" }}>
-                          <span style={{ display: "inline-block", minWidth: 140 }}>{cell[0]}</span>
-                          <span>: {cell[1]}</span>
-                        </td>
-                      ) : <td key={ci} />)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <Div />
+              {/* Operator block */}
+              <div style={{ whiteSpace: "pre-wrap" }}>
+                {"    Acq. Operator   : " + sample.acqOperator.padEnd(28) + "Seq. Line : " + sample.seqLine}
+              </div>
+              <div style={{ whiteSpace: "pre-wrap" }}>
+                {"    Acq. Instrument : " + sample.acqInstrument.padEnd(28) + "Location  : " + sample.location}
+              </div>
+              <div style={{ whiteSpace: "pre-wrap" }}>
+                {"    Injection Date  : " + sample.injectionDate.padEnd(36) + "Inj :  " + sample.inj}
+              </div>
+              <div style={{ whiteSpace: "pre-wrap" }}>
+                {"    " + " ".repeat(55) + "Inj Volume : " + sample.injVolume}
+              </div>
+              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                {"    Acq. Method     : " + sample.acqMethod}
+              </div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged1}</div>
+              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Analysis Method : " + sample.analysisMethod}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged2}</div>
+              <div style={{ whiteSpace: "pre" }}>{"                      (modified after loading)"}</div>
+              <Div />
 
-              <Separator style={{ borderColor: "#aaa", marginBottom: 12 }} />
-
-              {/* Chromatogram */}
-              <SectionHeader title="Chromatogram" />
-              <div style={{ position: "relative" }}>
-                <div style={{ ...MONO, fontSize: 11, position: "absolute", top: 0, left: 0, zIndex: 2 }}>mV</div>
-                <div style={{ ...MONO, fontSize: 11, position: "absolute", top: 0, right: 0, zIndex: 2 }}>
-                  {detector.detectorName} {detector.wavelength}
+              {/* Chromatogram chart */}
+              <div style={{ marginTop: 14, marginBottom: 6, position: "relative" }}>
+                <div style={{ fontSize: 11, marginBottom: 2 }}>mAU</div>
+                <div style={{ fontSize: 10, color: "#555", position: "absolute", top: 0, right: 0 }}>
+                  Signal 1: {signalLabel}
                 </div>
-
-                <ResponsiveContainer width="100%" height={290}>
-                  <ComposedChart data={chromatogram} margin={{ top: 26, right: 16, left: 8, bottom: 26 }}>
-                    <CartesianGrid strokeDasharray="2 2" stroke="#ccc" />
-                    <XAxis
-                      dataKey="time" type="number"
-                      domain={[0, detector.runTime]}
-                      ticks={xTicks}
-                      tickFormatter={v => fmtNum(v, 1)}
-                      tick={{ fontFamily: "Courier New, monospace", fontSize: 10, fill: "#222" }}
+                <ResponsiveContainer width="100%" height={260}>
+                  <ComposedChart data={chromatogram} margin={{ top: 20, right: 16, left: 8, bottom: 24 }}>
+                    <CartesianGrid strokeDasharray="2 2" stroke="#ddd" />
+                    <XAxis dataKey="time" type="number" domain={[0, detector.runTime]} ticks={xTicks}
+                      tickFormatter={v => v.toFixed(1)}
+                      tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
                       label={{ value: "min", position: "right", offset: 8, fontFamily: "Courier New, monospace", fontSize: 11 }}
-                      axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }}
-                    />
-                    <YAxis
-                      domain={[0, yMax]} ticks={yTicks}
-                      tickFormatter={v => String(v)}
-                      tick={{ fontFamily: "Courier New, monospace", fontSize: 10, fill: "#222" }}
-                      axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }}
-                      width={48}
-                    />
+                      axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }} />
+                    <YAxis domain={[0, yMax]} ticks={yTicks}
+                      tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
+                      axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }} width={44} />
                     <Tooltip content={<ChromTooltip />} />
-                    {[...peaks].sort((a, b) => a.retentionTime - b.retentionTime).map(p => (
-                      <ReferenceLine
-                        key={p.id} x={p.retentionTime} stroke="none"
+                    {peaks.filter(p => p.amount > 0 || p.name).map(p => (
+                      <ReferenceLine key={p.id} x={p.retentionTime} stroke="none"
                         label={(props: { viewBox?: { x: number; y: number } }) => (
                           <PeakLabel viewBox={props.viewBox} rt={p.retentionTime} />
-                        )}
-                      />
+                        )} />
                     ))}
-                    <Line
-                      type="monotone" dataKey="signal"
-                      stroke="#111" strokeWidth={0.8}
-                      dot={false} isAnimationActive={false}
-                    />
+                    <Line type="monotone" dataKey="signal" stroke="#111" strokeWidth={0.8} dot={false} isAnimationActive={false} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
 
-              <Separator style={{ borderColor: "#aaa", marginBottom: 12 }} />
+              {/* External Standard Report */}
+              <div style={{ marginTop: 16 }}>
+                <SectionTitle title="External Standard Report" />
+                <div style={{ marginTop: 6 }}>
+                  <div>{"    Sorted By             :      " + calib.sortedBy}</div>
+                  <div>{"    Calib. Data Modified :       " + calib.calibDataModified}</div>
+                  <div>{"    Multiplier:                   :      " + calib.multiplier}</div>
+                  <div>{"    Dilution:                     :      " + calib.dilution}</div>
+                  <div>{"    Use Multiplier & Dilution Factor with ISTDs"}</div>
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <div>{"    Signal 1: " + signalLabel}</div>
+                </div>
 
-              {/* Peak Table */}
-              <SectionHeader title="Peak Table" />
-              <div style={{ ...MONO, fontSize: 10.5, color: "#333", marginBottom: 4 }}>
-                {detector.detectorName} {detector.wavelength}
-              </div>
-              <table style={{ ...MONO, fontSize: 10.5, borderCollapse: "collapse", width: "100%" }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid #555" }}>
-                    {["Peak#", "Ret. Time", "Area", "Height", "Conc.", "Unit", "Mark", "Name"].map(h => (
-                      <th key={h} style={{
-                        textAlign: ["Name", "Mark", "Unit"].includes(h) ? "left" : "right",
-                        padding: "2px 10px 2px 0", fontWeight: "bold", whiteSpace: "nowrap"
-                      }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {peakStats.map(p => (
-                    <tr key={p.id} style={{ borderBottom: "1px solid #eee" }}>
-                      <td style={TR}>{p.peakNum}</td>
-                      <td style={TR}>{fmtNum(p.retentionTime, 3)}</td>
-                      <td style={TR}>{p.area.toLocaleString("pt-BR")}</td>
-                      <td style={TR}>{p.height.toLocaleString("pt-BR")}</td>
-                      <td style={TR}>{p.conc > 0 ? fmtNum(p.conc, 3) : "0,000"}</td>
-                      <td style={TL}>{p.unit}</td>
-                      <td style={TL}>{p.mark}</td>
-                      <td style={TL}>{p.name}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr style={{ borderTop: "1px solid #555" }}>
-                    <td colSpan={2} style={{ ...MONO, padding: "2px 10px 2px 0", fontWeight: "bold" }}>Total</td>
-                    <td style={{ ...TR, fontWeight: "bold" }}>{totalArea.toLocaleString("pt-BR")}</td>
-                    <td style={{ ...TR, fontWeight: "bold" }}>{totalHeight.toLocaleString("pt-BR")}</td>
-                    <td colSpan={4} />
-                  </tr>
-                </tfoot>
-              </table>
-
-              <div style={{ ...MONO, fontSize: 9, color: "#555", marginTop: 18, textAlign: "center" }}>
-                C:\LabSolutions\Data\{sample.dataFilename}
-              </div>
-            </>
-          )}
-
-          {/* ── CALIBRATION PAGE ──────────────────────────────────────────── */}
-          {page === "calibration" && (
-            <>
-              <div style={{ textAlign: "center", marginBottom: 14 }}>
-                <span style={{ ...MONO, fontSize: 15, fontWeight: "bold" }}>
-                  ==== Shimadzu LabSolutions Calibration Curve ====
-                </span>
-              </div>
-
-              {/* Calib info left column */}
-              <div style={{ display: "flex", gap: 24, alignItems: "flex-start", marginBottom: 16 }}>
-
-                {/* Left: parameters + chart */}
-                <div style={{ flex: 1 }}>
-                  <table style={{ ...MONO, fontSize: 11, borderCollapse: "collapse" }}>
-                    <tbody>
-                      {[
-                        ["ID#", calib.idNum],
-                        ["Name", calib.name],
-                        ["Quantitative Method", calib.quantMethod],
-                        ["Function", `f(x)=${fmtSci(reg.slope)}*x+${Math.round(reg.intercept).toLocaleString("pt-BR")}`],
-                        ["    Rr1=" + reg.rr1.toFixed(7) + " Rr2=" + reg.rr2.toFixed(7) + " RSS=" + fmtSci(reg.rss), ""],
-                        ["    MeanRF: " + fmtSci(reg.meanRF) + " RFSD: " + fmtSci(reg.rfsd) + " RFRSD: " + reg.rfrsd.toFixed(6), ""],
-                        ["FitType", calib.fitType],
-                        ["ZeroThrough", calib.zeroThrough],
-                        ["Weighted Regression", calib.weightedRegression],
-                        ["Offset Correction", calib.offsetCorrection],
-                        ["Detector Name", calib.detectorName],
-                      ].map(([label, val], i) => (
-                        <tr key={i}>
-                          <td style={{ padding: "0.5px 12px 0.5px 0", whiteSpace: "nowrap", color: "#222" }}>
-                            {label.startsWith("    ") ? (
-                              <span style={{ paddingLeft: 16 }}>{label.trim()}</span>
-                            ) : (
-                              <>
-                                <span style={{ display: "inline-block", minWidth: 160 }}>{label}</span>
-                                {val && <span>: {val}</span>}
-                              </>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  {/* Chart */}
-                  <div style={{ position: "relative", marginTop: 12 }}>
-                    <div style={{ ...MONO, fontSize: 11 }}>Area</div>
-                    <div style={{ ...MONO, fontSize: 10, color: "#444", marginBottom: 2 }}>[{calib.yScaleLabel}]</div>
-
-                    <ResponsiveContainer width="100%" height={240}>
-                      <ComposedChart data={calibChartData} margin={{ top: 10, right: 20, left: 10, bottom: 30 }}>
-                        <CartesianGrid strokeDasharray="2 2" stroke="#ccc" />
-                        <XAxis
-                          dataKey="x" type="number"
-                          domain={[0, calibXMax]}
-                          tickFormatter={xScaleDisplay}
-                          tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
-                          axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }}
-                          label={{ value: `Conc. [${calib.xScaleLabel}]`, position: "insideBottom", offset: -14, fontFamily: "Courier New, monospace", fontSize: 10 }}
-                        />
-                        <YAxis
-                          type="number"
-                          domain={[0, calibYMax]}
-                          tickFormatter={yScaleDisplay}
-                          tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
-                          axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }}
-                          width={44}
-                        />
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (!active || !payload?.length) return null;
-                            const d = payload[0]?.payload as { x: number; reg: number; pt?: number };
-                            return (
-                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, background: "#fff", border: "1px solid #333", padding: "4px 8px" }}>
-                                <div>Conc: {(d.x / calib.xScale).toFixed(3).replace(".", ",")}</div>
-                                {d.pt !== undefined && <div>Area: {Math.round(d.pt).toLocaleString("pt-BR")}</div>}
-                              </div>
-                            );
-                          }}
-                        />
-
-                        {/* Dashed crosshair lines for each standard point */}
-                        {standards.map(s => (
-                          <ReferenceLine key={`vx-${s.id}`} x={s.conc} stroke="#888" strokeDasharray="4 3" strokeWidth={0.8} />
-                        ))}
-                        {standards.map(s => (
-                          <ReferenceLine key={`hy-${s.id}`} y={s.area} stroke="#888" strokeDasharray="4 3" strokeWidth={0.8} />
-                        ))}
-
-                        {/* Regression line — solid, continuous */}
-                        <Line
-                          dataKey="reg"
-                          stroke="#333"
-                          strokeWidth={1.2}
-                          dot={false}
-                          isAnimationActive={false}
-                          connectNulls
-                        />
-
-                        {/* Actual standard points — circles */}
-                        <Line
-                          dataKey="pt"
-                          stroke="#333"
-                          strokeWidth={1}
-                          dot={(props: { cx: number; cy: number; value?: number }) =>
-                            props.value !== undefined ? (
-                              <circle key={`dot-${props.cx}`} cx={props.cx} cy={props.cy} r={4} fill="#fff" stroke="#333" strokeWidth={1.5} />
-                            ) : <g key={`dot-empty-${props.cx}`} />
-                          }
-                          activeDot={false}
-                          isAnimationActive={false}
-                          connectNulls={false}
-                          legendType="none"
-                        />
-                      </ComposedChart>
-                    </ResponsiveContainer>
+                {/* Peak table */}
+                <div style={{ marginTop: 10, overflowX: "auto" }}>
+                  <div style={{ whiteSpace: "pre" }}>{"    RetTime Type      Area     Amt/Area    Amount   Grp    Name"}</div>
+                  <div style={{ whiteSpace: "pre" }}>{"     [min]          [mAU*s]               [ug/ml]"}</div>
+                  <div style={{ whiteSpace: "pre" }}>{"    " + "-".repeat(65)}</div>
+                  {peakStats.map(p => {
+                    const area = p.computedArea;
+                    const amtPerArea = p.amtPerArea > 0 ? p.amtPerArea : (area > 0 && p.amount > 0 ? p.amount / area : 0);
+                    const rt = p.retentionTime.toFixed(3).padStart(7);
+                    const type = p.peakType.padEnd(6);
+                    const areaStr = fmtArea(area).padStart(12);
+                    const aptStr = amtPerArea > 0 ? fmtSci2(amtPerArea, -2).padStart(12) : "".padStart(12);
+                    const amtStr = p.amount > 0 ? p.amount.toFixed(5).padStart(12) : "".padStart(12);
+                    const grpStr = (p.grp || "").padEnd(4);
+                    const nameStr = p.name;
+                    return (
+                      <div key={p.id} style={{ whiteSpace: "pre" }}>
+                        {"   " + rt + " " + type + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + nameStr}
+                      </div>
+                    );
+                  })}
+                  <div style={{ whiteSpace: "pre" }}>{"    "}</div>
+                  <div style={{ whiteSpace: "pre" }}>
+                    {"    Totals :                              " + "  " + totalAmount.toFixed(5)}
                   </div>
                 </div>
-
-                {/* Right: standards table */}
-                <div style={{ minWidth: 200 }}>
-                  <table style={{ ...MONO, fontSize: 11, borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid #555" }}>
-                        <th style={{ ...TR2, fontWeight: "bold" }}>#</th>
-                        <th style={{ ...TR2, fontWeight: "bold" }}>Conc.(Ratio)</th>
-                        <th style={{ ...TR2, fontWeight: "bold" }}>MeanArea</th>
-                        <th style={{ ...TR2, fontWeight: "bold" }}>Area</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...standards]
-                        .sort((a, b) => a.conc - b.conc)
-                        .map((s, i) => (
-                          <tr key={s.id} style={{ borderBottom: "1px solid #eee" }}>
-                            <td style={TR2}>{i + 1}</td>
-                            <td style={TR2}>{fmtNum(s.conc, 1)}</td>
-                            <td style={TR2}>{s.area.toLocaleString("pt-BR")}</td>
-                            <td style={TR2}>{s.area.toLocaleString("pt-BR")}</td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div style={{ ...MONO, fontSize: 9, color: "#555", marginTop: 16, textAlign: "center" }}>
-                C:\LabSolutions\Data\{calib.name}\{calib.name}_Calibration.lcd
               </div>
             </>
           )}
+
+          {/* ── REPORT PAGE (Calibration) ──────────────────────────────────── */}
+          {page === "report" && (
+            <>
+              {/* Method header */}
+              <div style={{ marginBottom: 6 }}>
+                <div>Method {sample.analysisMethod}</div>
+              </div>
+
+              <SectionTitle title="Calibration Table" />
+
+              <div style={{ marginTop: 6 }}>
+                <div>{"    Calib. Data Modified   :      " + calib.calibDataModified}</div>
+                <div style={{ marginTop: 6 }}>
+                  <div>{"    Curve Type             :      " + calib.curveType}</div>
+                  <div>{"    Origin                 :      " + calib.origin}</div>
+                  <div>{"    Weight                 :      " + calib.weight}</div>
+                </div>
+                <div style={{ marginTop: 8 }}>{"    Signal 1: " + signalLabel}</div>
+              </div>
+
+              {/* Calibration table */}
+              <div style={{ marginTop: 10 }}>
+                <div style={{ whiteSpace: "pre" }}>{"    RetTime    Lvl  Amount      Area     Amt/Area Ref Grp Name"}</div>
+                <div style={{ whiteSpace: "pre" }}>{"     [min] Sig     [ug/ml]"}</div>
+                <div style={{ whiteSpace: "pre" }}>{"    " + "-".repeat(65)}</div>
+                {[...standards].sort((a, b) => a.amount - b.amount).map((s, i) => {
+                  const amtPerArea = s.area > 0 ? s.amount / s.area : 0;
+                  if (i === 0) {
+                    return (
+                      <div key={s.id} style={{ whiteSpace: "pre" }}>
+                        {"    " + calib.expRT.toFixed(3).padStart(7) + " 1 " + (i + 1).toString().padStart(2) + "  " +
+                          s.amount.toFixed(5).padStart(12) + " " + s.area.toFixed(5).padStart(10) + " " + fmtSci2(amtPerArea, -2).padStart(12) + "         " + calib.compoundName}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={s.id} style={{ whiteSpace: "pre" }}>
+                      {"              " + (i + 1).toString().padStart(2) + "  " +
+                        s.amount.toFixed(5).padStart(12) + " " + s.area.toFixed(5).padStart(10) + " " + fmtSci2(amtPerArea, -2).padStart(12)}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ marginTop: 24 }}>
+                <SectionTitle title="Calibration Curves" />
+              </div>
+
+              {/* Calibration curve chart + stats */}
+              <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginTop: 8 }}>
+                {/* Chart */}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, marginBottom: 0 }}>Area</div>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <ComposedChart data={calibChartData} margin={{ top: 8, right: 16, left: 8, bottom: 30 }}>
+                      <CartesianGrid strokeDasharray="2 2" stroke="#ccc" />
+                      <XAxis dataKey="x" type="number" domain={[0, calibXMax]}
+                        tickFormatter={v => v.toFixed(0)}
+                        tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
+                        axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }}
+                        label={{ value: "Amount[ug/ml]", position: "insideBottom", offset: -16, fontFamily: "Courier New, monospace", fontSize: 10 }} />
+                      <YAxis type="number" domain={[0, calibYMax]}
+                        tickFormatter={v => v.toFixed(0)}
+                        tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
+                        axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }} width={52} />
+                      <Tooltip content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const d = payload[0]?.payload as { x: number; pt?: number };
+                        return (
+                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, background: "#fff", border: "1px solid #333", padding: "4px 8px" }}>
+                            <div>Amount: {d.x.toFixed(3)} ug/ml</div>
+                            {d.pt !== undefined && <div>Area: {d.pt.toFixed(3)} mAU*s</div>}
+                          </div>
+                        );
+                      }} />
+                      {/* Dashed crosshairs */}
+                      {standards.map(s => (
+                        <ReferenceLine key={`vx-${s.id}`} x={s.amount} stroke="#aaa" strokeDasharray="4 3" strokeWidth={0.8} />
+                      ))}
+                      {standards.map(s => (
+                        <ReferenceLine key={`hy-${s.id}`} y={s.area} stroke="#aaa" strokeDasharray="4 3" strokeWidth={0.8} />
+                      ))}
+                      {/* Regression line */}
+                      <Line dataKey="reg" stroke="#333" strokeWidth={1.2} dot={false} isAnimationActive={false} connectNulls legendType="none" />
+                      {/* Actual points */}
+                      <Line dataKey="pt" stroke="#333" strokeWidth={1}
+                        dot={(props: { cx: number; cy: number; value?: number }) =>
+                          props.value !== undefined
+                            ? <circle key={`d${props.cx}`} cx={props.cx} cy={props.cy} r={4} fill="#fff" stroke="#333" strokeWidth={1.5} />
+                            : <g key={`de${props.cx}`} />
+                        }
+                        activeDot={false} isAnimationActive={false} connectNulls={false} legendType="none" />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Right: stats panel */}
+                <div style={{ minWidth: 200, paddingTop: 20, fontSize: 11 }}>
+                  <div>{calib.compoundName} at exp. RT: {calib.expRT.toFixed(3)}</div>
+                  <div style={{ marginTop: 4 }}>{signalLabel}</div>
+                  <div style={{ marginTop: 8 }}>{"Correlation:            " + reg.r.toFixed(5)}</div>
+                  <div>{"Residual Std. Dev.:  " + reg.residStdDev.toFixed(5)}</div>
+                  <div style={{ marginTop: 8 }}>{"Formula: y = mx + b"}</div>
+                  <div style={{ paddingLeft: 16 }}>{"     m: " + reg.slope.toFixed(5)}</div>
+                  <div style={{ paddingLeft: 16 }}>{"     b: " + reg.intercept.toFixed(5)}</div>
+                  <div style={{ paddingLeft: 16 }}>{"     x: Amount"}</div>
+                  <div style={{ paddingLeft: 16 }}>{"     y: Area"}</div>
+                </div>
+              </div>
+
+              {/* Level markers on chart */}
+              <div style={{ marginTop: 4, fontSize: 10, color: "#555", paddingLeft: 8 }}>
+                {[...standards].sort((a, b) => a.amount - b.amount).map((s, i) => (
+                  <span key={s.id} style={{ marginRight: 12 }}>{i + 1} = {s.amount.toFixed(0)} ug/ml</span>
+                ))}
+              </div>
+
+              <div style={{ marginTop: 20 }}>
+                <SectionTitle title="*** End of Report ***" />
+              </div>
+            </>
+          )}
+
+          {/* ── Footer ──────────────────────────────────────────────────────── */}
+          <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between", fontSize: 10, color: "#444" }}>
+            <span>{sample.acqInstrument} {now} {sample.acqOperator}</span>
+            <span>Page   1 of 1</span>
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ─── Small reusable helpers ────────────────────────────────────────────────────
-
-const TR: React.CSSProperties = { textAlign: "right", padding: "1.5px 10px 1.5px 0" };
-const TL: React.CSSProperties = { textAlign: "left", padding: "1.5px 10px 1.5px 0" };
-const TR2: React.CSSProperties = { textAlign: "right", padding: "2px 8px 2px 0", whiteSpace: "nowrap" };
-
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", marginBottom: 4 }}>
-      &lt;{title}&gt;
-    </div>
-  );
-}
-
-function ControlBox({ title, children, extra }: { title: string; children: React.ReactNode; extra?: React.ReactNode }) {
-  return (
-    <div style={{ background: "#fff", border: "1px solid #ccc", padding: "10px 12px", borderRadius: 4 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <p style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold" }}>{title}</p>
-        {extra}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function SmallField({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; type?: string }) {
-  return (
-    <div className="mb-1.5">
-      <Label style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", display: "block" }}>{label}</Label>
-      <Input type={type} value={value} onChange={onChange} className="h-6 px-1.5" style={{ fontFamily: "Courier New, monospace", fontSize: 10 }} />
     </div>
   );
 }
