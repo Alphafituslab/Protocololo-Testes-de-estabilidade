@@ -127,17 +127,20 @@ router.post("/protocols/:id/finalize", requireAuth, async (req, res): Promise<vo
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const fs = parsed.data.finalStatus;
 
-  // Medida de segurança: se tentativa de aprovação contém não conformes, força reprovado automaticamente
+  // Medida de segurança: se tentativa de aprovação contém não conformes, força reprovado.
+  // Usa select direto (não count) para evitar ambiguidade de tipo BigInt/string do driver pg.
   let forcedReprovado = false;
   if (fs === "aprovado" || fs === "aprovado_com_ressalva") {
     const nonConformes = await db
-      .select({ cnt: count() })
+      .select({ id: analysisResultsTable.id })
       .from(analysisResultsTable)
       .where(and(
         eq(analysisResultsTable.protocolId, params.data.id),
         eq(analysisResultsTable.status, "nao_conforme"),
-      ));
-    if ((nonConformes[0]?.cnt ?? 0) > 0) {
+      ))
+      .limit(1);
+    req.log.info({ protocolId: params.data.id, requestedStatus: fs, ncCount: nonConformes.length }, "finalize: verificacao de nao_conforme");
+    if (nonConformes.length > 0) {
       forcedReprovado = true;
     }
   }

@@ -549,6 +549,9 @@ function InlineCell({
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
+        // Invalida o protocolo principal para que protocol.results fique atualizado
+        // (hasNonConformes depende desta cache para bloquear aprovação incorreta)
+        queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
         setEditing(false);
       },
       onError: () => {
@@ -859,6 +862,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
+        queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
       },
     },
   });
@@ -867,6 +871,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
+        queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
       },
     },
   });
