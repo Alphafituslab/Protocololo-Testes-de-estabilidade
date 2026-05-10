@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle } from "lucide-react";
+import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
+import { useLocation } from "wouter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -483,6 +485,8 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
 type PageMode = "chromatogram" | "ativos" | "report";
 
 export default function HplcSimulator() {
+  const { user, logout } = useAuth();
+  const [, navigate] = useLocation();
   const [page, setPage] = useState<PageMode>("chromatogram");
   const [peaks, setPeaks] = useState<Peak[]>(DEFAULT_PEAKS);
   const [sample, setSample] = useState<SampleInfo>(DEFAULT_SAMPLE);
@@ -689,6 +693,15 @@ export default function HplcSimulator() {
         <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => window.print()}>
           <Printer className="h-3.5 w-3.5" /> Imprimir / PDF
         </Button>
+        {user && (
+          <div className="flex items-center gap-2 border-l border-gray-300 pl-3 ml-1">
+            <span style={{ ...MONO, fontSize: 11, color: "#444" }}>{user.displayName}</span>
+            <Button size="sm" variant="ghost" className="h-8 px-2 text-xs gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={async () => { await logout(); navigate("/login"); }}>
+              <LogOut className="h-3.5 w-3.5" /> Sair
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="max-w-[1160px] mx-auto flex gap-3 items-start">
