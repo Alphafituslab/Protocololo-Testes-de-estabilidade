@@ -107,6 +107,22 @@ router.post("/protocols/:id/finalize", requireAuth, async (req, res): Promise<vo
   const parsed = FinalizeProtocolBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const fs = parsed.data.finalStatus;
+
+  // Bloqueia aprovação quando há resultados não conformes
+  if (fs === "aprovado" || fs === "aprovado_com_ressalva") {
+    const nonConformes = await db
+      .select({ cnt: count() })
+      .from(analysisResultsTable)
+      .where(and(
+        eq(analysisResultsTable.protocolId, params.data.id),
+        eq(analysisResultsTable.status, "nao_conforme"),
+      ));
+    if ((nonConformes[0]?.cnt ?? 0) > 0) {
+      res.status(422).json({ error: "Protocolo fora das especificações de liberação. Existem parâmetros não conformes na aba Resultados." });
+      return;
+    }
+  }
+
   let updateData: Record<string, unknown>;
   let statusLabel: string;
   if (fs === "em_andamento") {

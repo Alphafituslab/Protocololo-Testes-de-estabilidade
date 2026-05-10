@@ -1819,7 +1819,13 @@ function FinalizeSection({
         toast({ title: isAlreadyFinalized ? "Avaliação corrigida com sucesso" : "Protocolo finalizado com sucesso" });
         setOpen(false);
       },
-      onError: () => toast({ title: "Erro ao salvar avaliação", variant: "destructive" }),
+      onError: (err: unknown) => {
+        const apiMsg = (err as { data?: { error?: string } })?.data?.error;
+        toast({
+          title: apiMsg ?? "Erro ao salvar avaliação",
+          variant: "destructive",
+        });
+      },
     },
   });
 
