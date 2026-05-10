@@ -1690,6 +1690,8 @@ function FinalizeSection({
   currentValidityMonths,
   currentIssueDate,
   onNeedsUnlock,
+  externalOpen,
+  onExternalOpenChange,
 }: {
   protocolId: number;
   status: string;
@@ -1698,10 +1700,17 @@ function FinalizeSection({
   currentValidityMonths?: number | null;
   currentIssueDate?: string | null;
   onNeedsUnlock?: () => void;
+  externalOpen?: boolean;
+  onExternalOpenChange?: (v: boolean) => void;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    setInternalOpen(v);
+    onExternalOpenChange?.(v);
+  };
 
   const isAlreadyFinalized = status === "aprovado" || status === "reprovado" || status === "aprovado_com_ressalva";
 
@@ -1901,6 +1910,7 @@ export default function ProtocolDetail() {
   const { unlocked, unlock, lock } = useUnlock();
   const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletePasswordOpen, setDeletePasswordOpen] = useState(false);
 
@@ -2000,7 +2010,12 @@ export default function ProtocolDetail() {
             currentConclusion={protocol.conclusion}
             currentValidityMonths={protocol.validityMonths}
             currentIssueDate={protocol.issueDate}
-            onNeedsUnlock={needsPassword ? () => { setPendingAction(null); setUnlockDialogOpen(true); } : undefined}
+            externalOpen={finalizeDialogOpen}
+            onExternalOpenChange={setFinalizeDialogOpen}
+            onNeedsUnlock={needsPassword ? () => {
+              setPendingAction(() => () => setFinalizeDialogOpen(true));
+              setUnlockDialogOpen(true);
+            } : undefined}
           />
           <Link href={`/protocols/${id}/certificate`}>
             <Button variant="outline" size="sm" data-testid="button-view-certificate">
