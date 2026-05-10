@@ -123,6 +123,45 @@ interface Formula {
   calib: CalibInfo;
 }
 
+// ─── Analysis Session types ───────────────────────────────────────────────────
+
+const RUN_COLORS = ["#1560bd", "#dc2626", "#16a34a", "#9333ea", "#ea580c"];
+
+interface AnalysisRun {
+  id: string;
+  runNumber: number;    // 1–5
+  label: string;        // "R1", "R2", …
+  createdAt: string;
+  peaks: Peak[];
+  sample: SampleInfo;
+  color: string;
+}
+
+interface AnalysisSession {
+  id: string;
+  formulaId: string;
+  name: string;
+  createdAt: string;
+  notes: string;
+  runs: AnalysisRun[];
+}
+
+interface StandardEntry {
+  compoundId: string;
+  compoundName: string;
+  units: string;
+  nominalConc: number;  // declared/label concentration (ug/ml)
+  stdArea: number;      // 0 = use compound.amtPerArea; >0 = external std area
+  stdConc: number;      // external std solution concentration
+}
+
+interface FormulaStandard {
+  formulaId: string;
+  savedAt: string;
+  notes: string;
+  entries: StandardEntry[];
+}
+
 // ─── Math ─────────────────────────────────────────────────────────────────────
 
 function gaussian(t: number, rt: number, sigma: number, h: number, asym: number): number {
@@ -596,6 +635,53 @@ function saveLots(l: Lot[]) {
   try { localStorage.setItem(LOTS_KEY, JSON.stringify(l)); } catch { /* ignore */ }
 }
 
+const SESSIONS_KEY = "hplc_analysis_sessions_v1";
+const STANDARDS_KEY = "hplc_formula_standards_v1";
+
+function loadSessions(): AnalysisSession[] {
+  try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) ?? "[]") as AnalysisSession[]; }
+  catch { return []; }
+}
+function saveSessions(s: AnalysisSession[]) {
+  try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+}
+function loadFormulaStandards(): FormulaStandard[] {
+  try { return JSON.parse(localStorage.getItem(STANDARDS_KEY) ?? "[]") as FormulaStandard[]; }
+  catch { return []; }
+}
+function saveFormulaStandards(s: FormulaStandard[]) {
+  try { localStorage.setItem(STANDARDS_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+}
+
+// Applies ±2% deterministic variation to peaks so runs look slightly different
+function applyRunVariation(peaks: Peak[], runIndex: number): Peak[] {
+  return peaks.map((p, pi) => {
+    const seed = ((runIndex + 1) * 13 + pi * 7) % 100;
+    const v = (seed / 100 - 0.5) * 0.04; // ±2%
+    return {
+      ...p,
+      height: parseFloat((p.height * (1 + v)).toFixed(3)),
+      manualArea: p.manualArea > 0 ? parseFloat((p.manualArea * (1 + v)).toFixed(3)) : 0,
+    };
+  });
+}
+
+function calcTeorPct(
+  runArea: number,
+  compound: ActiveCompound,
+  stdEntry: StandardEntry | null,
+): { calcConc: number; teorPct: number | null } {
+  let calcConc = 0;
+  if (stdEntry && stdEntry.stdArea > 0) {
+    calcConc = (runArea / stdEntry.stdArea) * stdEntry.stdConc;
+  } else if (compound.amtPerArea > 0) {
+    calcConc = runArea * compound.amtPerArea;
+  }
+  const nominal = stdEntry?.nominalConc ?? 0;
+  const teorPct = nominal > 0 && calcConc > 0 ? parseFloat(((calcConc / nominal) * 100).toFixed(2)) : null;
+  return { calcConc: parseFloat(calcConc.toFixed(4)), teorPct };
+}
+
 function computeLotResults(
   peaks: Peak[],
   compounds: ActiveCompound[],
@@ -677,9 +763,149 @@ function AddLotDialog({ onSave, children }: { onSave: (lotNumber: string, notes:
   );
 }
 
+// ─── New Session Dialog ───────────────────────────────────────────────────────
+
+function NewSessionDialog({ formulas, onSave, children }: {
+  formulas: Formula[];
+  onSave: (formulaId: string, name: string, notes: string) => void;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [formulaId, setFormulaId] = useState("");
+  const [name, setName] = useState("");
+  const [notes, setNotes] = useState("");
+  const handleOpen = (v: boolean) => {
+    setOpen(v);
+    if (v && formulas.length > 0) setFormulaId(formulas[0].id);
+  };
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle className="font-mono">Nova Sessão de Análise</DialogTitle></DialogHeader>
+        <div className="space-y-3 pt-1">
+          <div>
+            <Label className="text-xs text-muted-foreground font-mono">Fórmula *</Label>
+            <select value={formulaId} onChange={e => setFormulaId(e.target.value)}
+              className="w-full h-7 text-xs font-mono border border-input rounded mt-1 px-2 bg-background">
+              {formulas.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground font-mono">Nome da sessão *</Label>
+            <Input value={name} onChange={e => setName(e.target.value)}
+              placeholder="Ex: Análise LOT-2025-001" className="h-7 text-xs font-mono mt-1" />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground font-mono">Observações</Label>
+            <Input value={notes} onChange={e => setNotes(e.target.value)}
+              placeholder="Opcional" className="h-7 text-xs font-mono mt-1" />
+          </div>
+          <p className="text-xs text-muted-foreground font-mono">Você poderá registrar até 5 corridas (injeções) nesta sessão.</p>
+          <Button className="w-full" size="sm" disabled={!formulaId || !name.trim()}
+            onClick={() => { onSave(formulaId, name.trim(), notes.trim()); setOpen(false); setName(""); setNotes(""); }}>
+            Criar Sessão
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Set Standard Dialog ──────────────────────────────────────────────────────
+
+function SetStandardDialog({ compounds, existing, onSave, children }: {
+  compounds: ActiveCompound[];
+  existing: FormulaStandard | null;
+  onSave: (entries: StandardEntry[], notes: string) => void;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [notes, setNotes] = useState(existing?.notes ?? "");
+  const [entries, setEntries] = useState<Record<string, { nominalConc: string; stdArea: string; stdConc: string }>>({});
+
+  const handleOpen = (v: boolean) => {
+    setOpen(v);
+    if (v) {
+      setNotes(existing?.notes ?? "");
+      const init: typeof entries = {};
+      for (const c of compounds) {
+        const ex = existing?.entries.find(e => e.compoundId === c.id);
+        init[c.id] = {
+          nominalConc: String(ex?.nominalConc ?? (c.specMin > 0 && c.specMax > 0 ? ((c.specMin + c.specMax) / 2).toFixed(3) : "")),
+          stdArea: String(ex?.stdArea ?? "0"),
+          stdConc: String(ex?.stdConc ?? "0"),
+        };
+      }
+      setEntries(init);
+    }
+  };
+
+  const setField = (cid: string, field: "nominalConc" | "stdArea" | "stdConc", val: string) =>
+    setEntries(e => ({ ...e, [cid]: { ...e[cid], [field]: val } }));
+
+  const handleSave = () => {
+    const parsed: StandardEntry[] = compounds.map(c => ({
+      compoundId: c.id,
+      compoundName: c.name,
+      units: c.units,
+      nominalConc: parseFloat(entries[c.id]?.nominalConc ?? "0") || 0,
+      stdArea: parseFloat(entries[c.id]?.stdArea ?? "0") || 0,
+      stdConc: parseFloat(entries[c.id]?.stdConc ?? "0") || 0,
+    }));
+    onSave(parsed, notes.trim());
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle className="font-mono">Configurar Padrão de Referência</DialogTitle></DialogHeader>
+        <div className="space-y-3 pt-1 max-h-[60vh] overflow-y-auto">
+          <p className="text-xs text-muted-foreground font-mono">
+            Para cada composto, informe a concentração nominal (declarada na fórmula) e, opcionalmente, os dados do padrão externo.
+          </p>
+          {compounds.map(c => (
+            <div key={c.id} className="border rounded p-2 space-y-1.5">
+              <div className="text-xs font-mono font-bold">{c.name} <span className="text-muted-foreground font-normal">({c.units})</span></div>
+              <div className="grid grid-cols-3 gap-1.5">
+                <div>
+                  <Label className="text-[10px] text-muted-foreground font-mono">Conc. Nominal *</Label>
+                  <Input type="number" step="any" value={entries[c.id]?.nominalConc ?? ""}
+                    onChange={e => setField(c.id, "nominalConc", e.target.value)}
+                    className="h-6 text-xs font-mono px-1" placeholder="ug/ml" />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground font-mono">Área Padrão</Label>
+                  <Input type="number" step="any" value={entries[c.id]?.stdArea ?? ""}
+                    onChange={e => setField(c.id, "stdArea", e.target.value)}
+                    className="h-6 text-xs font-mono px-1" placeholder="mAU*s" />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground font-mono">Conc. Padrão</Label>
+                  <Input type="number" step="any" value={entries[c.id]?.stdConc ?? ""}
+                    onChange={e => setField(c.id, "stdConc", e.target.value)}
+                    className="h-6 text-xs font-mono px-1" placeholder="ug/ml" />
+                </div>
+              </div>
+              <div className="text-[9px] text-muted-foreground font-mono">Área Padrão = 0 → usa Amt/Area da calibração</div>
+            </div>
+          ))}
+          <div>
+            <Label className="text-xs text-muted-foreground font-mono">Observações</Label>
+            <Input value={notes} onChange={e => setNotes(e.target.value)} className="h-7 text-xs font-mono mt-1" />
+          </div>
+          <Button className="w-full" size="sm" onClick={handleSave}>Salvar Padrão</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
-type PageMode = "chromatogram" | "ativos" | "lotes" | "report" | "usuarios";
+type PageMode = "chromatogram" | "ativos" | "lotes" | "report" | "usuarios" | "analise";
 
 interface UserRecord {
   id: number;
@@ -708,6 +934,9 @@ export default function HplcSimulator() {
   const [formulas, setFormulas] = useState<Formula[]>(() => loadFormulas());
   const [lots, setLots] = useState<Lot[]>(() => loadLots());
   const [selectedFormulaId, setSelectedFormulaId] = useState<string | null>(null);
+  const [analysisSessions, setAnalysisSessions] = useState<AnalysisSession[]>(() => loadSessions());
+  const [formulaStandards, setFormulaStandards] = useState<FormulaStandard[]>(() => loadFormulaStandards());
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [userList, setUserList] = useState<UserRecord[]>([]);
   const [userListLoading, setUserListLoading] = useState(false);
   const [userListError, setUserListError] = useState<string | null>(null);
@@ -961,6 +1190,63 @@ export default function HplcSimulator() {
     setLots(ls => { const updated = ls.filter(l => l.id !== id); saveLots(updated); return updated; });
   };
 
+  // ── Analysis Session handlers ─────────────────────────────────────────────────
+
+  const handleCreateSession = (formulaId: string, name: string, notes: string) => {
+    const session: AnalysisSession = { id: uid(), formulaId, name, notes, createdAt: new Date().toISOString(), runs: [] };
+    setAnalysisSessions(ss => { const u = [...ss, session]; saveSessions(u); return u; });
+    setCurrentSessionId(session.id);
+  };
+
+  const handleRegisterRun = () => {
+    if (!currentSessionId) return;
+    setAnalysisSessions(ss => {
+      const session = ss.find(s => s.id === currentSessionId);
+      if (!session || session.runs.length >= 5) return ss;
+      const runIndex = session.runs.length;
+      const run: AnalysisRun = {
+        id: uid(),
+        runNumber: runIndex + 1,
+        label: `R${runIndex + 1}`,
+        createdAt: new Date().toISOString(),
+        peaks: applyRunVariation([...peaks], runIndex),
+        sample: { ...sample },
+        color: RUN_COLORS[runIndex],
+      };
+      const updated = ss.map(s => s.id === currentSessionId ? { ...s, runs: [...s.runs, run] } : s);
+      saveSessions(updated);
+      return updated;
+    });
+  };
+
+  const handleDeleteRun = (sessionId: string, runId: string) => {
+    setAnalysisSessions(ss => {
+      const updated = ss.map(s => s.id === sessionId
+        ? { ...s, runs: s.runs.filter(r => r.id !== runId).map((r, i) => ({ ...r, runNumber: i + 1, label: `R${i + 1}`, color: RUN_COLORS[i] })) }
+        : s);
+      saveSessions(updated);
+      return updated;
+    });
+  };
+
+  const handleDeleteSession = (id: string) => {
+    setAnalysisSessions(ss => { const u = ss.filter(s => s.id !== id); saveSessions(u); return u; });
+    if (currentSessionId === id) setCurrentSessionId(null);
+  };
+
+  const handleSaveStandard = (formulaId: string, entries: StandardEntry[], notes: string) => {
+    const std: FormulaStandard = { formulaId, entries, notes, savedAt: new Date().toISOString() };
+    setFormulaStandards(ss => {
+      const updated = [...ss.filter(s => s.formulaId !== formulaId), std];
+      saveFormulaStandards(updated);
+      return updated;
+    });
+  };
+
+  const handleDeleteStandard = (formulaId: string) => {
+    setFormulaStandards(ss => { const u = ss.filter(s => s.formulaId !== formulaId); saveFormulaStandards(u); return u; });
+  };
+
   const addCompoundAsPeak = (compound: ActiveCompound) => {
     setPeaks(ps => [...ps, {
       id: uid(),
@@ -996,6 +1282,7 @@ export default function HplcSimulator() {
             ["chromatogram", "Cromatograma", BarChart3, false],
             ["ativos", "Ativos", Database, false],
             ["lotes", "Lotes", Layers, false],
+            ["analise", "Análise", FlaskConical, false],
             ["report", "Relatório", FileText, false],
             ["usuarios", "Usuários", Users, true],
           ] as [PageMode, string, React.ElementType, boolean][]).filter(([,, , adminOnly]) => !adminOnly || isAdmin)).map(([mode, label, Icon], idx) => (
@@ -1196,6 +1483,130 @@ export default function HplcSimulator() {
                 </ControlBox>
               </>
             )}
+
+            {page === "analise" && (() => {
+              const session = analysisSessions.find(s => s.id === currentSessionId) ?? null;
+              const sessionFormula = session ? formulas.find(f => f.id === session.formulaId) ?? null : null;
+              const std = sessionFormula ? formulaStandards.find(s => s.formulaId === sessionFormula.id) ?? null : null;
+              return (
+                <>
+                  <ControlBox title="Sessões de Análise">
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6, lineHeight: 1.5 }}>
+                      Cada sessão registra até 5 injeções independentes com cromatogramas sobrepostos e cálculo de teor (%).
+                    </div>
+                    {formulas.length === 0 ? (
+                      <div style={{ fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace" }}>
+                        Salve uma fórmula no menu "Lotes" antes de criar uma sessão de análise.
+                      </div>
+                    ) : (
+                      <NewSessionDialog formulas={formulas} onSave={handleCreateSession}>
+                        <Button size="sm" className="w-full h-7 text-xs gap-1 mb-2">
+                          <Plus className="h-3 w-3" /> Nova Sessão
+                        </Button>
+                      </NewSessionDialog>
+                    )}
+                    <div className="space-y-1 mt-1">
+                      {analysisSessions.length === 0 && (
+                        <div style={{ fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace", textAlign: "center", padding: "6px 0" }}>
+                          Nenhuma sessão criada
+                        </div>
+                      )}
+                      {analysisSessions.map(s => {
+                        const fName = formulas.find(f => f.id === s.formulaId)?.name ?? "—";
+                        const isActive = s.id === currentSessionId;
+                        return (
+                          <div key={s.id} onClick={() => setCurrentSessionId(s.id)} style={{
+                            border: isActive ? "1px solid #1d4ed8" : "1px solid #ddd",
+                            borderRadius: 4, padding: "5px 7px", cursor: "pointer",
+                            background: isActive ? "#eff6ff" : "#fafafa",
+                          }}>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, fontWeight: "bold", color: isActive ? "#1d4ed8" : "#333" }}>{s.name}</div>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", marginTop: 1 }}>{fName} · {s.runs.length}/5 corridas</div>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa" }}>{new Date(s.createdAt).toLocaleDateString("pt-BR")}</div>
+                            <div className="flex gap-1 mt-1">
+                              <Button size="sm" variant="destructive" className="h-5 text-xs px-1.5 flex-1 opacity-70"
+                                onClick={e => { e.stopPropagation(); handleDeleteSession(s.id); }}>
+                                <Trash2 className="h-2.5 w-2.5 mr-0.5" /> Excluir
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ControlBox>
+
+                  {session && sessionFormula && (
+                    <>
+                      <ControlBox title={`Corridas — ${session.name}`}>
+                        <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6 }}>
+                          Configure os picos no cromatograma e clique "Registrar" para salvar a corrida atual.
+                        </div>
+                        <Button size="sm" className="w-full h-7 text-xs gap-1 mb-2"
+                          disabled={session.runs.length >= 5}
+                          onClick={handleRegisterRun}>
+                          <Download className="h-3 w-3" /> Registrar Corrida {session.runs.length + 1}
+                        </Button>
+                        {session.runs.length >= 5 && (
+                          <div style={{ fontSize: 9, color: "#ea580c", fontFamily: "Courier New, monospace", textAlign: "center" }}>Limite de 5 corridas atingido</div>
+                        )}
+                        <div className="space-y-1 mt-1">
+                          {session.runs.map(r => (
+                            <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", border: "1px solid #eee", borderRadius: 4, background: "#fff" }}>
+                              <div style={{ width: 10, height: 10, borderRadius: 2, flexShrink: 0, background: r.color }} />
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, fontWeight: "bold" }}>{r.label}</div>
+                                <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#999" }}>{new Date(r.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+                              </div>
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-red-400 hover:text-red-600"
+                                onClick={() => handleDeleteRun(session.id, r.id)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                          {session.runs.length === 0 && (
+                            <div style={{ fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace", textAlign: "center", padding: "6px 0" }}>Nenhuma corrida registrada</div>
+                          )}
+                        </div>
+                      </ControlBox>
+
+                      <ControlBox title="Padrão de Referência">
+                        {std ? (
+                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 9 }}>
+                            <div style={{ color: "#166534", fontWeight: "bold", marginBottom: 4 }}>✓ Padrão salvo</div>
+                            {std.entries.map(e => (
+                              <div key={e.compoundId} style={{ marginBottom: 3, padding: "3px 5px", background: "#f0fdf4", borderRadius: 3, border: "1px solid #bbf7d0" }}>
+                                <div style={{ fontWeight: "bold" }}>{e.compoundName}</div>
+                                <div style={{ color: "#555" }}>Nominal: {e.nominalConc} {e.units}</div>
+                                {e.stdArea > 0 && <div style={{ color: "#555" }}>Std área: {e.stdArea} / conc: {e.stdConc}</div>}
+                              </div>
+                            ))}
+                            <div style={{ marginTop: 6, display: "flex", gap: 4 }}>
+                              <SetStandardDialog compounds={sessionFormula.activeCompounds} existing={std} onSave={(entries, notes) => handleSaveStandard(sessionFormula.id, entries, notes)}>
+                                <Button size="sm" variant="outline" className="h-5 text-xs px-1.5 flex-1">Editar</Button>
+                              </SetStandardDialog>
+                              <Button size="sm" variant="destructive" className="h-5 text-xs px-1.5 flex-1 opacity-70" onClick={() => handleDeleteStandard(sessionFormula.id)}>
+                                <Trash2 className="h-2.5 w-2.5 mr-0.5" /> Remover
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#ea580c", marginBottom: 6 }}>
+                              ⚠ Sem padrão salvo. Informe os valores para calcular o teor (%).
+                            </div>
+                            <SetStandardDialog compounds={sessionFormula.activeCompounds} existing={null} onSave={(entries, notes) => handleSaveStandard(sessionFormula.id, entries, notes)}>
+                              <Button size="sm" className="w-full h-7 text-xs gap-1">
+                                <Plus className="h-3 w-3" /> Definir Padrão
+                              </Button>
+                            </SetStandardDialog>
+                          </div>
+                        )}
+                      </ControlBox>
+                    </>
+                  )}
+                </>
+              );
+            })()}
 
             {page === "lotes" && (
               <>
@@ -1621,6 +2032,221 @@ export default function HplcSimulator() {
               </div>
             </div>
           )}
+
+          {/* ── ANÁLISE PAGE ──────────────────────────────────────────────── */}
+          {page === "analise" && (() => {
+            const session = analysisSessions.find(s => s.id === currentSessionId) ?? null;
+            const sessionFormula = session ? formulas.find(f => f.id === session.formulaId) ?? null : null;
+            const std = sessionFormula ? formulaStandards.find(s => s.formulaId === sessionFormula.id) ?? null : null;
+            const compounds = sessionFormula?.activeCompounds ?? [];
+
+            if (!session || !sessionFormula) {
+              return (
+                <div style={{ textAlign: "center", color: "#aaa", padding: "60px 0" }}>
+                  <FlaskConical style={{ width: 40, height: 40, margin: "0 auto 12px", opacity: 0.3 }} />
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 13, fontWeight: "bold", marginBottom: 6 }}>Nenhuma sessão selecionada</div>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#bbb" }}>
+                    No painel esquerdo, crie ou selecione uma sessão de análise.
+                  </div>
+                </div>
+              );
+            }
+
+            // Build overlay chromatogram data (merge all runs into one dataset)
+            const runTime = sessionFormula.detector.runTime;
+            const pts = 2000;
+            const allChrom = session.runs.map(r => buildChromatogram(r.peaks, runTime, pts));
+            const overlayData: Record<string, number>[] = allChrom.length > 0
+              ? allChrom[0].map((pt, i) => {
+                  const row: Record<string, number> = { time: pt.time };
+                  session.runs.forEach((r, ri) => { row[`r${ri + 1}`] = allChrom[ri][i].signal; });
+                  return row;
+                })
+              : [];
+
+            // Determine chart Y max across all runs
+            const allSignals = overlayData.flatMap(pt => session.runs.map((_, ri) => (pt[`r${ri + 1}`] ?? 0) as number));
+            const overlayYMax = Math.ceil((Math.max(10, ...allSignals) * 1.15) / 50) * 50;
+
+            // Per-compound teor results per run
+            const runResults = session.runs.map(run => ({
+              run,
+              compResults: compounds.map(compound => {
+                const stdEntry = std ? std.entries.find(e => e.compoundId === compound.id) ?? null : null;
+                const wavMatch = Math.abs(compound.wavelength - sessionFormula.detector.sigWavelength) <= compound.waveTol;
+                const peak = run.peaks.find(p => wavMatch && Math.abs(p.retentionTime - compound.expectedRT) <= compound.rtTol);
+                if (!peak) return { compound, area: null as number | null, calcConc: 0, teorPct: null as number | null };
+                const area = peak.manualArea > 0 ? peak.manualArea : computeArea(peak);
+                const { calcConc, teorPct } = calcTeorPct(area, compound, stdEntry);
+                return { compound, area: parseFloat(area.toFixed(4)), calcConc, teorPct };
+              }),
+            }));
+
+            // Summary stats per compound
+            const compoundSummary = compounds.map(compound => {
+              const teorPcts = runResults.map(rr => rr.compResults.find(cr => cr.compound.id === compound.id)?.teorPct).filter((v): v is number => v !== null && v !== undefined);
+              if (teorPcts.length === 0) return null;
+              const mean = teorPcts.reduce((a, b) => a + b, 0) / teorPcts.length;
+              const sd = teorPcts.length > 1 ? Math.sqrt(teorPcts.reduce((a, b) => a + (b - mean) ** 2, 0) / (teorPcts.length - 1)) : 0;
+              const cv = mean > 0 ? (sd / mean) * 100 : 0;
+              return { compoundId: compound.id, compoundName: compound.name, units: compound.units, mean: parseFloat(mean.toFixed(2)), sd: parseFloat(sd.toFixed(2)), cv: parseFloat(cv.toFixed(2)) };
+            }).filter(Boolean);
+
+            return (
+              <div style={{ fontFamily: "Courier New, monospace" }}>
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 14, fontWeight: "bold" }}>{session.name}</div>
+                  <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>
+                    Fórmula: {sessionFormula.name} · {session.runs.length} corrida(s) registrada(s) · λ {sessionFormula.detector.sigWavelength} nm
+                  </div>
+                  {!std && (
+                    <div style={{ fontSize: 10, color: "#ea580c", marginTop: 3 }}>
+                      ⚠ Padrão não definido — configure o padrão no painel esquerdo para calcular Teor (%)
+                    </div>
+                  )}
+                  {std && <div style={{ fontSize: 10, color: "#166534", marginTop: 3 }}>✓ Padrão salvo em {new Date(std.savedAt).toLocaleDateString("pt-BR")}</div>}
+                </div>
+
+                <div style={{ borderTop: "1px solid #ccc", margin: "8px 0 12px" }} />
+
+                {/* Overlay chromatogram */}
+                <div style={{ marginBottom: 6, fontSize: 11 }}>mAU</div>
+
+                {session.runs.length === 0 ? (
+                  <div style={{ textAlign: "center", color: "#aaa", padding: "40px 0", fontSize: 11, border: "1px dashed #ddd", borderRadius: 6 }}>
+                    Nenhuma corrida registrada. Use o painel esquerdo para registrar corridas.
+                  </div>
+                ) : (
+                  <>
+                    {/* Color legend */}
+                    <div style={{ display: "flex", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
+                      {session.runs.map(r => (
+                        <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10 }}>
+                          <div style={{ width: 18, height: 2, background: r.color, borderRadius: 1 }} />
+                          <span>{r.label}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <ResponsiveContainer width="100%" height={260}>
+                      <ComposedChart data={overlayData} margin={{ top: 10, right: 16, left: 8, bottom: 24 }}>
+                        <CartesianGrid strokeDasharray="2 2" stroke="#e2e2e2" />
+                        <XAxis dataKey="time" type="number" domain={[0, runTime]}
+                          tickFormatter={(v: number) => v.toFixed(1)}
+                          tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
+                          label={{ value: "min", position: "right", offset: 8, fontFamily: "Courier New, monospace", fontSize: 11 }}
+                          axisLine={{ stroke: "#333" }} tickLine={{ stroke: "#333" }} />
+                        <YAxis domain={[0, overlayYMax]}
+                          tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
+                          axisLine={{ stroke: "#333" }} tickLine={{ stroke: "#333" }} width={46} />
+                        <Tooltip content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null;
+                          return (
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, background: "#fff", border: "1px solid #333", padding: "4px 8px" }}>
+                              <div>{(label as number).toFixed(3)} min</div>
+                              {payload.map((p, i) => (
+                                <div key={i} style={{ color: p.color }}>
+                                  {p.name}: {(p.value as number).toFixed(2)} mAU
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }} />
+                        {session.runs.map((r, ri) => (
+                          <Line key={r.id} type="linear" dataKey={`r${ri + 1}`}
+                            stroke={r.color} strokeWidth={1} dot={false} isAnimationActive={false}
+                            name={r.label} connectNulls />
+                        ))}
+                      </ComposedChart>
+                    </ResponsiveContainer>
+
+                    {/* Results table */}
+                    <div style={{ borderTop: "1px solid #ccc", margin: "14px 0 10px" }} />
+                    <div style={{ fontSize: 12, fontWeight: "bold", marginBottom: 8 }}>Resultados — Teor por Corrida</div>
+
+                    {compounds.length === 0 ? (
+                      <div style={{ fontSize: 10, color: "#aaa" }}>Nenhum ativo definido nesta fórmula.</div>
+                    ) : (
+                      compounds.map(compound => {
+                        const stdEntry = std ? std.entries.find(e => e.compoundId === compound.id) ?? null : null;
+                        const summary = compoundSummary.find(cs => cs?.compoundId === compound.id);
+                        return (
+                          <div key={compound.id} style={{ marginBottom: 18 }}>
+                            <div style={{ fontSize: 11, fontWeight: "bold", marginBottom: 4, color: "#1d4ed8" }}>
+                              {compound.name} <span style={{ color: "#888", fontWeight: "normal", fontSize: 10 }}>({compound.units}){stdEntry ? ` — Nominal: ${stdEntry.nominalConc} ${compound.units}` : " — sem padrão"}</span>
+                            </div>
+                            <div style={{ overflowX: "auto" }}>
+                              <table style={{ borderCollapse: "collapse", fontSize: 10, minWidth: 420 }}>
+                                <thead>
+                                  <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #333" }}>
+                                    <th style={{ padding: "4px 10px", textAlign: "left" }}>Corrida</th>
+                                    <th style={{ padding: "4px 10px", textAlign: "right" }}>Área (mAU*s)</th>
+                                    <th style={{ padding: "4px 10px", textAlign: "right" }}>Conc. calc.</th>
+                                    <th style={{ padding: "4px 10px", textAlign: "right" }}>Teor (%)</th>
+                                    <th style={{ padding: "4px 10px", textAlign: "center" }}>Status</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {runResults.map(({ run, compResults }, ri) => {
+                                    const cr = compResults.find(c => c.compound.id === compound.id);
+                                    const teorOk = cr?.teorPct !== null && cr?.teorPct !== undefined
+                                      ? cr.teorPct >= 80 && cr.teorPct <= 120
+                                      : null;
+                                    return (
+                                      <tr key={run.id} style={{ background: ri % 2 === 0 ? "#fff" : "#fafafa", borderBottom: "1px solid #eee" }}>
+                                        <td style={{ padding: "4px 10px" }}>
+                                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                                            <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: run.color, flexShrink: 0 }} />
+                                            {run.label}
+                                          </span>
+                                        </td>
+                                        <td style={{ padding: "4px 10px", textAlign: "right" }}>{cr?.area !== null && cr?.area !== undefined ? cr.area.toFixed(3) : "—"}</td>
+                                        <td style={{ padding: "4px 10px", textAlign: "right" }}>{cr?.calcConc ? `${cr.calcConc.toFixed(4)} ${compound.units}` : "—"}</td>
+                                        <td style={{ padding: "4px 10px", textAlign: "right", fontWeight: "bold", color: teorOk === null ? "#888" : teorOk ? "#166534" : "#dc2626" }}>
+                                          {cr?.teorPct !== null && cr?.teorPct !== undefined ? `${cr.teorPct.toFixed(2)} %` : "—"}
+                                        </td>
+                                        <td style={{ padding: "4px 10px", textAlign: "center" }}>
+                                          {teorOk === null ? <span style={{ color: "#94a3b8", fontSize: 9 }}>sem padrão</span>
+                                            : teorOk ? <span style={{ color: "#166534", fontSize: 9, fontWeight: "bold" }}>✓ Aprovado</span>
+                                            : <span style={{ color: "#dc2626", fontSize: 9, fontWeight: "bold" }}>✗ Reprovado</span>}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                                {summary && (
+                                  <tfoot>
+                                    <tr style={{ background: "#f8fafc", borderTop: "2px solid #999" }}>
+                                      <td style={{ padding: "4px 10px", fontWeight: "bold" }}>Resumo ({session.runs.length} corridas)</td>
+                                      <td />
+                                      <td />
+                                      <td style={{ padding: "4px 10px", textAlign: "right", fontWeight: "bold" }}>
+                                        <div>x̄ = {summary.mean.toFixed(2)} %</div>
+                                        <div style={{ fontWeight: "normal", fontSize: 9, color: "#666" }}>DP = {summary.sd.toFixed(2)} | %CV = {summary.cv.toFixed(2)}</div>
+                                      </td>
+                                      <td style={{ padding: "4px 10px", textAlign: "center" }}>
+                                        <span style={{
+                                          fontSize: 9, fontWeight: "bold", padding: "2px 6px", borderRadius: 3,
+                                          background: summary.cv <= 2 ? "#dcfce7" : summary.cv <= 5 ? "#fef9c3" : "#fee2e2",
+                                          color: summary.cv <= 2 ? "#166534" : summary.cv <= 5 ? "#854d0e" : "#b91c1c",
+                                        }}>
+                                          %CV {summary.cv.toFixed(2)}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  </tfoot>
+                                )}
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ── USUÁRIOS PAGE (admin only) ───────────────────────────────── */}
           {page === "usuarios" && (
