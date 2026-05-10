@@ -79,13 +79,43 @@ function gaussian(t: number, rt: number, sigma: number, h: number, asym: number)
   return h * Math.exp(-(d * d) / (2 * s * s));
 }
 
-function buildChromatogram(peaks: Peak[], runTime: number, pts = 2000) {
+// Deterministic pseudo-noise — same result every render, looks random
+function pseudoNoise(i: number): number {
+  const a = Math.sin(i * 127.1 + 1.0) * 43758.5453;
+  const b = Math.sin(i * 311.7 + 2.3) * 9301.1231;
+  const c = Math.sin(i * 53.11 + 4.7) * 2053.3378;
+  return ((a + b + c) - Math.floor(a + b + c)) - 0.5; // -0.5 … +0.5
+}
+
+function buildChromatogram(peaks: Peak[], runTime: number, pts = 6000) {
   const dt = runTime / pts;
+  const noiseAmp  = 1.8;   // mAU  — visible baseline texture
+  const driftAmp  = 1.2;   // mAU  — total upward drift over full run
+  const pulseAmp  = 0.35;  // mAU  — pump pulsation ripple
+  const pulseFreq = 1.6;   // cycles / min
+
   return Array.from({ length: pts + 1 }, (_, i) => {
-    const t = parseFloat((i * dt).toFixed(4));
+    const t = i * dt;
+
+    // Sum all user-defined peaks
     let signal = 0;
-    for (const p of peaks) signal += gaussian(t, p.retentionTime, p.width, p.height, p.asymmetry);
-    return { time: t, signal: Math.max(0, parseFloat(signal.toFixed(3))) };
+    for (const p of peaks) {
+      signal += gaussian(t, p.retentionTime, p.width, p.height, p.asymmetry);
+    }
+
+    // Correlated baseline noise (2-octave layering for natural feel)
+    const n1 = pseudoNoise(i);
+    const n2 = pseudoNoise(i * 3 + 4999);
+    const noise = noiseAmp * (n1 * 0.65 + n2 * 0.35);
+
+    // Slight linear baseline drift
+    const drift = driftAmp * (t / runTime);
+
+    // Pump pressure pulsation
+    const pulse = pulseAmp * Math.sin(2 * Math.PI * pulseFreq * t);
+
+    const total = signal + noise + drift + pulse;
+    return { time: parseFloat(t.toFixed(4)), signal: parseFloat(Math.max(0, total).toFixed(3)) };
   });
 }
 
@@ -136,15 +166,17 @@ function fmtArea(n: number) { return n.toFixed(5); }
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 
 const DEFAULT_PEAKS: Peak[] = [
+  // Dead-volume / solvent-front artifact — broad, strongly asymmetric, unretained
   {
-    id: uid(), name: "B6", retentionTime: 2.401, height: 87, width: 0.048,
-    asymmetry: 1.05, peakType: "VB", manualArea: 872.10504,
-    amtPerArea: 0.0392764, amount: 34.25311, grp: "",
-  },
-  {
-    id: uid(), name: "", retentionTime: 1.05, height: 12, width: 0.06,
-    asymmetry: 1.20, peakType: "BB", manualArea: 0,
+    id: uid(), name: "", retentionTime: 0.38, height: 7, width: 0.075,
+    asymmetry: 2.6, peakType: "BB", manualArea: 0,
     amtPerArea: 0, amount: 0, grp: "",
+  },
+  // B6 analyte peak — sharp, tall, slight tailing (typical for pyridoxine on C18)
+  {
+    id: uid(), name: "B6", retentionTime: 2.401, height: 242, width: 0.022,
+    asymmetry: 1.22, peakType: "VB", manualArea: 872.10504,
+    amtPerArea: 0.0392764, amount: 34.25311, grp: "",
   },
 ];
 
@@ -627,25 +659,46 @@ export default function HplcSimulator() {
                 <div style={{ fontSize: 10, color: "#555", position: "absolute", top: 0, right: 0 }}>
                   Signal 1: {signalLabel}
                 </div>
-                <ResponsiveContainer width="100%" height={260}>
-                  <ComposedChart data={chromatogram} margin={{ top: 20, right: 16, left: 8, bottom: 24 }}>
-                    <CartesianGrid strokeDasharray="2 2" stroke="#ddd" />
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={chromatogram} margin={{ top: 22, right: 16, left: 8, bottom: 24 }}>
+                    <CartesianGrid strokeDasharray="2 2" stroke="#e2e2e2" />
                     <XAxis dataKey="time" type="number" domain={[0, detector.runTime]} ticks={xTicks}
                       tickFormatter={v => v.toFixed(1)}
                       tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
                       label={{ value: "min", position: "right", offset: 8, fontFamily: "Courier New, monospace", fontSize: 11 }}
-                      axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }} />
+                      axisLine={{ stroke: "#333" }} tickLine={{ stroke: "#333" }} />
                     <YAxis domain={[0, yMax]} ticks={yTicks}
                       tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
-                      axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }} width={44} />
+                      axisLine={{ stroke: "#333" }} tickLine={{ stroke: "#333" }} width={46} />
                     <Tooltip content={<ChromTooltip />} />
-                    {peaks.filter(p => p.amount > 0 || p.name).map(p => (
-                      <ReferenceLine key={p.id} x={p.retentionTime} stroke="none"
+
+                    {/* Integration boundary lines — dashed verticals at peak start/end */}
+                    {peakStats.filter(p => p.name).flatMap(p => {
+                      const lo = parseFloat((p.retentionTime - 3.8 * p.width).toFixed(4));
+                      const hi = parseFloat((p.retentionTime + 3.8 * p.width * p.asymmetry).toFixed(4));
+                      return [
+                        <ReferenceLine key={`il-${p.id}`} x={lo} stroke="#999" strokeWidth={0.8} strokeDasharray="3 2" />,
+                        <ReferenceLine key={`ir-${p.id}`} x={hi} stroke="#999" strokeWidth={0.8} strokeDasharray="3 2" />,
+                      ];
+                    })}
+
+                    {/* RT label above each named peak */}
+                    {peakStats.filter(p => p.name).map(p => (
+                      <ReferenceLine key={`rt-${p.id}`} x={p.retentionTime} stroke="none"
                         label={(props: { viewBox?: { x: number; y: number } }) => (
                           <PeakLabel viewBox={props.viewBox} rt={p.retentionTime} />
                         )} />
                     ))}
-                    <Line type="monotone" dataKey="signal" stroke="#111" strokeWidth={0.8} dot={false} isAnimationActive={false} />
+
+                    {/* Chromatogram signal — thin black line, no dots */}
+                    <Line
+                      type="linear"
+                      dataKey="signal"
+                      stroke="#111"
+                      strokeWidth={0.75}
+                      dot={false}
+                      isAnimationActive={false}
+                    />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
