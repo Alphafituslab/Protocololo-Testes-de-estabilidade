@@ -149,6 +149,24 @@ interface AnalysisSession {
   laudoEmittedAt?: string;
 }
 
+// Pre-analysis setup data (persisted between sessions)
+interface SessionSetupData {
+  formulaId: string;
+  sessionName: string;
+  notes: string;
+  // Amostra
+  sampleName: string;
+  lotNumber: string;
+  seqLine: string;
+  location: string;
+  // Instrumento / Método
+  acqOperator: string;
+  acqInstrument: string;
+  injVolume: string;
+  acqMethod: string;
+  analysisMethod: string;
+}
+
 interface HplcSavedImage {
   id: string;
   sessionId: string;
@@ -666,6 +684,15 @@ function saveFormulaStandards(s: FormulaStandard[]) {
   try { localStorage.setItem(STANDARDS_KEY, JSON.stringify(s)); } catch { /* ignore */ }
 }
 
+const SETUP_KEY = "hplc_session_setup_v1";
+function loadLastSetup(): Partial<SessionSetupData> {
+  try { return JSON.parse(localStorage.getItem(SETUP_KEY) ?? "{}") as Partial<SessionSetupData>; }
+  catch { return {}; }
+}
+function saveLastSetup(s: Partial<SessionSetupData>) {
+  try { localStorage.setItem(SETUP_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+}
+
 const IMAGES_KEY = "hplc_images_v1";
 function loadSavedImages(): HplcSavedImage[] {
   try { return JSON.parse(localStorage.getItem(IMAGES_KEY) ?? "[]") as HplcSavedImage[]; }
@@ -1089,44 +1116,138 @@ function AddLotDialog({ onSave, children }: { onSave: (lotNumber: string, notes:
 
 function NewSessionDialog({ formulas, onSave, children }: {
   formulas: Formula[];
-  onSave: (formulaId: string, name: string, notes: string) => void;
+  onSave: (setup: SessionSetupData) => void;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const [formulaId, setFormulaId] = useState("");
-  const [name, setName] = useState("");
-  const [notes, setNotes] = useState("");
-  const handleOpen = (v: boolean) => {
-    setOpen(v);
-    if (v && formulas.length > 0) setFormulaId(formulas[0].id);
+
+  const defaults = (): SessionSetupData => {
+    const last = loadLastSetup();
+    const f0 = formulas[0];
+    return {
+      formulaId:      last.formulaId      ?? f0?.id ?? "",
+      sessionName:    last.sessionName    ?? "",
+      notes:          "",
+      sampleName:     last.sampleName     ?? "",
+      lotNumber:      last.lotNumber      ?? "",
+      seqLine:        last.seqLine        ?? "1",
+      location:       last.location       ?? "Vial 1",
+      acqOperator:    last.acqOperator    ?? "",
+      acqInstrument:  last.acqInstrument  ?? "Instrument 1",
+      injVolume:      last.injVolume      ?? "10.0 µl",
+      acqMethod:      last.acqMethod      ?? "",
+      analysisMethod: last.analysisMethod ?? "",
+    };
   };
+
+  const [d, setD] = useState<SessionSetupData>(defaults);
+  const set = (k: keyof SessionSetupData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setD(prev => ({ ...prev, [k]: e.target.value }));
+
+  const handleOpen = (v: boolean) => {
+    if (v) setD(defaults());
+    setOpen(v);
+  };
+
+  const section = (title: string) => (
+    <div className="text-xs font-mono font-bold text-blue-700 border-b border-blue-100 pb-0.5 mt-3 mb-1.5 uppercase tracking-wide">
+      {title}
+    </div>
+  );
+
+  const field = (label: string, key: keyof SessionSetupData, placeholder = "", required = false) => (
+    <div className="flex items-center gap-2">
+      <Label className="text-xs font-mono text-muted-foreground w-36 shrink-0 text-right">
+        {label}{required ? " *" : ""}
+      </Label>
+      <Input
+        value={d[key] as string}
+        onChange={set(key)}
+        placeholder={placeholder}
+        required={required}
+        className="h-6 text-xs font-mono flex-1"
+      />
+    </div>
+  );
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!d.formulaId || !d.sessionName.trim()) return;
+    saveLastSetup({ ...d, notes: undefined as unknown as string });
+    onSave({ ...d, sessionName: d.sessionName.trim() });
+    setOpen(false);
+  };
+
+  const canSubmit = !!d.formulaId && !!d.sessionName.trim();
+
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle className="font-mono">Nova Sessão de Análise</DialogTitle></DialogHeader>
-        <form onSubmit={e => { e.preventDefault(); if (!formulaId || !name.trim()) return; onSave(formulaId, name.trim(), notes.trim()); setOpen(false); setName(""); setNotes(""); }} className="space-y-3 pt-1">
-          <div>
-            <Label className="text-xs text-muted-foreground font-mono">Fórmula *</Label>
-            <select value={formulaId} onChange={e => setFormulaId(e.target.value)}
-              className="w-full h-7 text-xs font-mono border border-input rounded mt-1 px-2 bg-background">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-mono text-sm">
+            Configuração Prévia da Análise
+          </DialogTitle>
+          <p className="text-xs text-muted-foreground font-mono">
+            Preencha os dados antes de iniciar a sessão. Os valores são lembrados para a próxima análise.
+          </p>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-1.5 pt-1">
+
+          {/* ── SESSÃO ─────────────────────────────────────────────── */}
+          {section("Sessão de Análise")}
+
+          <div className="flex items-center gap-2">
+            <Label className="text-xs font-mono text-muted-foreground w-36 shrink-0 text-right">Fórmula / Método *</Label>
+            <select
+              value={d.formulaId}
+              onChange={set("formulaId")}
+              required
+              className="h-6 text-xs font-mono border border-input rounded px-2 bg-background flex-1"
+            >
               {formulas.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
           </div>
-          <div>
-            <Label className="text-xs text-muted-foreground font-mono">Nome da sessão *</Label>
-            <Input value={name} onChange={e => setName(e.target.value)}
-              placeholder="Ex: Análise LOT-2025-001" className="h-7 text-xs font-mono mt-1" />
+          {field("Nome da Sessão", "sessionName", "Ex: Análise LOT-2025-001", true)}
+
+          {/* ── AMOSTRA ────────────────────────────────────────────── */}
+          {section("Informações da Amostra")}
+
+          {field("Nome da Amostra", "sampleName", "Ex: VITAMINA D3 500mg cáp")}
+          {field("Nº Lote / Batch", "lotNumber", "Ex: LOT-2025-042")}
+          {field("Seq. Line (nº inj.)", "seqLine", "1")}
+          {field("Local / Vial", "location", "Ex: Vial 1")}
+
+          {/* ── INSTRUMENTO / MÉTODO ───────────────────────────────── */}
+          {section("Instrumento e Método")}
+
+          {field("Operador", "acqOperator", "Nome do analista", true)}
+          {field("Instrumento", "acqInstrument", "Instrument 1")}
+          {field("Volume de Injeção", "injVolume", "10.0 µl")}
+          {field("Método de Aquisição", "acqMethod", "C:\\CHEM32\\METHODS\\...")}
+          {field("Método de Análise", "analysisMethod", "C:\\CHEM32\\METHODS\\...")}
+
+          {/* ── OBSERVAÇÕES ────────────────────────────────────────── */}
+          {section("Observações")}
+          <div className="flex items-start gap-2">
+            <Label className="text-xs font-mono text-muted-foreground w-36 shrink-0 text-right pt-1">Obs.</Label>
+            <textarea
+              value={d.notes}
+              onChange={set("notes")}
+              placeholder="Condições especiais, desvios, referências..."
+              rows={2}
+              className="flex-1 text-xs font-mono border border-input rounded px-2 py-1 bg-background resize-none"
+            />
           </div>
-          <div>
-            <Label className="text-xs text-muted-foreground font-mono">Observações</Label>
-            <Input value={notes} onChange={e => setNotes(e.target.value)}
-              placeholder="Opcional" className="h-7 text-xs font-mono mt-1" />
+
+          <div className="pt-3 border-t">
+            <Button type="submit" className="w-full" size="sm" disabled={!canSubmit}>
+              <FlaskConical className="h-3.5 w-3.5 mr-2" /> Iniciar Análise
+            </Button>
+            <p className="text-xs text-center text-muted-foreground font-mono mt-1.5">
+              Até 5 corridas (injeções) por sessão · Cromatogramas sobrepostos + Teor%
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground font-mono">Você poderá registrar até 5 corridas (injeções) nesta sessão.</p>
-          <Button type="submit" className="w-full" size="sm" disabled={!formulaId || !name.trim()}>
-            Criar Sessão
-          </Button>
         </form>
       </DialogContent>
     </Dialog>
@@ -1514,8 +1635,38 @@ export default function HplcSimulator() {
 
   // ── Analysis Session handlers ─────────────────────────────────────────────────
 
-  const handleCreateSession = (formulaId: string, name: string, notes: string) => {
-    const session: AnalysisSession = { id: uid(), formulaId, name, notes, createdAt: new Date().toISOString(), runs: [], status: "em_andamento" };
+  const handleCreateSession = (setup: SessionSetupData) => {
+    // Build injection date + data file path from setup
+    const now = new Date();
+    const injDate = now.toLocaleString("en-US", { month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true });
+    const dateSlug = now.toISOString().slice(0, 10).replace(/-/g, "-");
+    const nameSafe = (setup.sampleName || setup.sessionName).replace(/[^a-zA-Z0-9_-]/g, "_").toUpperCase();
+    const dataFile = `C:\\CHEM32\\1\\DATA\\${nameSafe}_${dateSlug}\\001-0001.D`;
+    const operatorTag = `${injDate} by ${setup.acqOperator || "USER"}`;
+
+    // Apply setup values to the sample state so runs inherit them
+    setSample({
+      dataFile,
+      sampleName:    setup.sampleName    || setup.sessionName,
+      acqOperator:   setup.acqOperator   || "",
+      seqLine:       setup.seqLine       || "1",
+      acqInstrument: setup.acqInstrument || "Instrument 1",
+      location:      setup.location      || "Vial 1",
+      injectionDate: injDate,
+      inj:           "1",
+      injVolume:     setup.injVolume     || "10.0 µl",
+      acqMethod:     setup.acqMethod     || "",
+      lastChanged1:  operatorTag,
+      analysisMethod: setup.analysisMethod || "",
+      lastChanged2:  operatorTag,
+    });
+    markDirty();
+
+    const session: AnalysisSession = {
+      id: uid(), formulaId: setup.formulaId,
+      name: setup.sessionName, notes: setup.notes,
+      createdAt: now.toISOString(), runs: [], status: "em_andamento",
+    };
     setAnalysisSessions(ss => { const u = [...ss, session]; saveSessions(u); return u; });
     setCurrentSessionId(session.id);
     setPage("analise");
