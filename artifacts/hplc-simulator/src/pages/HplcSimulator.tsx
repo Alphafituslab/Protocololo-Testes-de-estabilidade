@@ -727,6 +727,26 @@ export default function HplcSimulator() {
                         />
                         <Tooltip content={<CalibTooltip />} />
 
+                        {/* Dashed crosshair lines for each standard point */}
+                        {standards.map(s => (
+                          <ReferenceLine
+                            key={`vx-${s.id}`}
+                            x={s.conc}
+                            stroke="#888"
+                            strokeDasharray="4 3"
+                            strokeWidth={0.8}
+                          />
+                        ))}
+                        {standards.map(s => (
+                          <ReferenceLine
+                            key={`hy-${s.id}`}
+                            y={s.area}
+                            stroke="#888"
+                            strokeDasharray="4 3"
+                            strokeWidth={0.8}
+                          />
+                        ))}
+
                         {/* Regression line */}
                         <Scatter
                           data={regLine}
