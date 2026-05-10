@@ -17,12 +17,13 @@ interface Peak {
   id: string;
   name: string;
   retentionTime: number;
-  height: number;      // mAU
-  width: number;       // sigma (min)
+  height: number;       // mAU
+  width: number;        // sigma (min)
   asymmetry: number;
-  peakType: string;    // VB, BB, BV, VV...
-  amtPerArea: number;  // response factor (Amount/Area)
-  amount: number;      // ug/ml
+  peakType: string;     // VB, BB, BV, VV...
+  manualArea: number;   // 0 = use computed; >0 = override
+  amtPerArea: number;   // response factor (Amount/Area)
+  amount: number;       // ug/ml
   grp: string;
 }
 
@@ -137,11 +138,13 @@ function fmtArea(n: number) { return n.toFixed(5); }
 const DEFAULT_PEAKS: Peak[] = [
   {
     id: uid(), name: "B6", retentionTime: 2.401, height: 87, width: 0.048,
-    asymmetry: 1.05, peakType: "VB", amtPerArea: 0.0392764, amount: 34.25311, grp: "",
+    asymmetry: 1.05, peakType: "VB", manualArea: 872.10504,
+    amtPerArea: 0.0392764, amount: 34.25311, grp: "",
   },
   {
     id: uid(), name: "", retentionTime: 1.05, height: 12, width: 0.06,
-    asymmetry: 1.20, peakType: "BB", amtPerArea: 0, amount: 0, grp: "",
+    asymmetry: 1.20, peakType: "BB", manualArea: 0,
+    amtPerArea: 0, amount: 0, grp: "",
   },
 ];
 
@@ -248,7 +251,7 @@ function PeakLabel({ viewBox, rt }: { viewBox?: { x: number; y: number }; rt: nu
 function PeakEditorDialog({ peak, onSave, children }: { peak: Peak; onSave: (p: Peak) => void; children: React.ReactNode }) {
   const [draft, setDraft] = useState<Peak>({ ...peak });
   const [open, setOpen] = useState(false);
-  const numKeys: (keyof Peak)[] = ["retentionTime", "height", "width", "asymmetry", "amtPerArea", "amount"];
+  const numKeys: (keyof Peak)[] = ["retentionTime", "height", "width", "asymmetry", "manualArea", "amtPerArea", "amount"];
   const field = (key: keyof Peak) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDraft(d => ({ ...d, [key]: numKeys.includes(key) ? parseFloat(e.target.value) || 0 : e.target.value }));
   return (
@@ -259,20 +262,25 @@ function PeakEditorDialog({ peak, onSave, children }: { peak: Peak; onSave: (p: 
         <div className="space-y-2 pt-1">
           {([
             ["name", "Nome (ex: B6)", "text"],
-            ["retentionTime", "Ret. Time (min)", "number"],
-            ["height", "Altura (mAU)", "number"],
-            ["width", "Largura σ (min)", "number"],
-            ["asymmetry", "Assimetria", "number"],
-            ["peakType", "Tipo (VB/BB/BV)", "text"],
-            ["amtPerArea", "Amt/Area (ex: 0.039)", "number"],
-            ["amount", "Amount (ug/ml)", "number"],
+            ["retentionTime", "Ret. Time [min]", "number"],
+            ["peakType", "Tipo (VB/BB/BV/BB)", "text"],
+            ["manualArea", "Área [mAU*s] (0 = calculada)", "number"],
+            ["height", "Altura pico (mAU) — visual", "number"],
+            ["width", "Largura σ (min) — visual", "number"],
+            ["asymmetry", "Assimetria — visual", "number"],
+            ["amtPerArea", "Amt/Area (ex: 0.03927)", "number"],
+            ["amount", "Amount [ug/ml]", "number"],
             ["grp", "Grupo", "text"],
           ] as [keyof Peak, string, string][]).map(([k, label, type]) => (
             <div key={k} className="space-y-0.5">
               <Label className="text-xs text-muted-foreground">{label}</Label>
-              <Input type={type} step="0.0001" value={draft[k] as string | number} onChange={field(k)} className="h-7 text-xs font-mono" />
+              <Input type={type} step="0.00001" value={draft[k] as string | number} onChange={field(k)} className="h-7 text-xs font-mono" />
             </div>
           ))}
+          <p className="text-xs text-muted-foreground pt-1">
+            Área = 0 → calculada automaticamente pelo modelo Gaussiano.<br />
+            Área &gt; 0 → valor exato usado no relatório.
+          </p>
           <Button className="w-full" size="sm" onClick={() => { onSave(draft); setOpen(false); }}>Salvar</Button>
         </div>
       </DialogContent>
@@ -326,6 +334,7 @@ export default function HplcSimulator() {
     [...peaks].sort((a, b) => a.retentionTime - b.retentionTime).map((p, i) => ({
       ...p, peakNum: i + 1,
       computedArea: computeArea(p),
+      displayArea: p.manualArea > 0 ? p.manualArea : computeArea(p),
     })),
     [peaks]
   );
@@ -390,7 +399,7 @@ export default function HplcSimulator() {
 
   const addPeak = useCallback(() => {
     setPeaks(ps => [...ps, {
-      id: uid(), name: "", peakType: "BB", grp: "", amtPerArea: 0, amount: 0,
+      id: uid(), name: "", peakType: "BB", grp: "", amtPerArea: 0, amount: 0, manualArea: 0,
       retentionTime: parseFloat((1 + Math.random() * (detector.runTime - 2)).toFixed(3)),
       height: Math.round(10 + Math.random() * 80),
       width: parseFloat((0.04 + Math.random() * 0.08).toFixed(3)),
@@ -456,22 +465,32 @@ export default function HplcSimulator() {
 
         {/* ── LEFT: controls ───────────────────────────────────────────────── */}
         {showControls && (
-          <div className="no-print w-60 flex-shrink-0 space-y-3">
+          <div className="no-print w-60 flex-shrink-0 space-y-3" style={{ maxHeight: "calc(100vh - 80px)", overflowY: "auto", paddingRight: 2 }}>
             {page === "chromatogram" && (
               <>
+                {/* Sample Info — all fields including dataFile */}
                 <ControlBox title="Sample Info">
                   {([
-                    ["sampleName", "Sample Name"], ["acqOperator", "Acq. Operator"],
-                    ["seqLine", "Seq. Line"], ["acqInstrument", "Acq. Instrument"],
-                    ["location", "Location"], ["injectionDate", "Injection Date"],
-                    ["inj", "Inj"], ["injVolume", "Inj Volume"],
-                    ["acqMethod", "Acq. Method"], ["lastChanged1", "Last changed (Acq.)"],
-                    ["analysisMethod", "Analysis Method"], ["lastChanged2", "Last changed (Ana.)"],
+                    ["dataFile", "Data File (caminho)"],
+                    ["sampleName", "Sample Name"],
+                    ["acqOperator", "Acq. Operator"],
+                    ["seqLine", "Seq. Line"],
+                    ["acqInstrument", "Acq. Instrument"],
+                    ["location", "Location"],
+                    ["injectionDate", "Injection Date"],
+                    ["inj", "Inj #"],
+                    ["injVolume", "Inj Volume"],
+                    ["acqMethod", "Acq. Method"],
+                    ["lastChanged1", "Last changed (Acq.)"],
+                    ["analysisMethod", "Analysis Method"],
+                    ["lastChanged2", "Last changed (Ana.)"],
                   ] as [keyof SampleInfo, string][]).map(([k, label]) => (
                     <SmallField key={k} label={label} value={sample[k]} onChange={sField(k)} />
                   ))}
                 </ControlBox>
-                <ControlBox title="Detector">
+
+                {/* Detector */}
+                <ControlBox title="Detector / Sinal">
                   <SmallField label="Signal Name (ex: DAD1 A)" value={detector.signalName} onChange={dField("signalName")} />
                   <SmallField label="Sig Wavelength (nm)" value={String(detector.sigWavelength)} onChange={dField("sigWavelength")} type="number" />
                   <SmallField label="Sig Bandwidth" value={String(detector.sigBandwidth)} onChange={dField("sigBandwidth")} type="number" />
@@ -479,15 +498,31 @@ export default function HplcSimulator() {
                   <SmallField label="Ref Bandwidth" value={String(detector.refBandwidth)} onChange={dField("refBandwidth")} type="number" />
                   <SmallField label="Run Time (min)" value={String(detector.runTime)} onChange={dField("runTime")} type="number" />
                 </ControlBox>
+
+                {/* Ext. Std. Report meta — sorted by, calib date, multiplier, dilution */}
+                <ControlBox title="Ext. Std. Report — Meta">
+                  <SmallField label="Sorted By" value={calib.sortedBy} onChange={cField("sortedBy")} />
+                  <SmallField label="Calib. Data Modified" value={calib.calibDataModified} onChange={cField("calibDataModified")} />
+                  <SmallField label="Multiplier" value={calib.multiplier} onChange={cField("multiplier")} />
+                  <SmallField label="Dilution" value={calib.dilution} onChange={cField("dilution")} />
+                </ControlBox>
+
+                {/* Peaks */}
                 <ControlBox title="Picos" extra={
                   <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2" onClick={addPeak}>
                     <Plus className="h-3 w-3" /> Add
                   </Button>
                 }>
+                  <p style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 4 }}>
+                    Clique em ⚙ para editar todos os campos do pico.
+                  </p>
                   {peakStats.map((p) => (
                     <div key={p.id} className="flex items-center gap-1 group rounded px-1 py-0.5 hover:bg-gray-50">
                       <span style={{ ...MONO, fontSize: 9.5, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {p.retentionTime.toFixed(3)} {p.name ? `(${p.name})` : ""}
+                        {p.retentionTime.toFixed(3)} {p.name ? `(${p.name})` : "—"}
+                        {p.manualArea > 0
+                          ? <span style={{ color: "#1d4ed8" }}> ✎{p.manualArea.toFixed(2)}</span>
+                          : <span style={{ color: "#888" }}> ~{p.computedArea.toFixed(1)}</span>}
                       </span>
                       <PeakEditorDialog peak={p} onSave={savePeak}>
                         <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
@@ -506,28 +541,36 @@ export default function HplcSimulator() {
 
             {page === "report" && (
               <>
+                {/* Calibration curve info */}
                 <ControlBox title="Calibration Info">
                   <SmallField label="Compound Name" value={calib.compoundName} onChange={cField("compoundName")} />
                   <SmallField label="Expected RT (min)" value={String(calib.expRT)} onChange={cField("expRT")} type="number" />
+                  <SmallField label="Calib. Data Modified" value={calib.calibDataModified} onChange={cField("calibDataModified")} />
                   <SmallField label="Curve Type" value={calib.curveType} onChange={cField("curveType")} />
                   <SmallField label="Origin" value={calib.origin} onChange={cField("origin")} />
                   <SmallField label="Weight" value={calib.weight} onChange={cField("weight")} />
+                  <SmallField label="Sorted By" value={calib.sortedBy} onChange={cField("sortedBy")} />
                   <SmallField label="Multiplier" value={calib.multiplier} onChange={cField("multiplier")} />
                   <SmallField label="Dilution" value={calib.dilution} onChange={cField("dilution")} />
                 </ControlBox>
-                <ControlBox title="Padrões" extra={
+
+                {/* Standards */}
+                <ControlBox title="Padrões de Calibração" extra={
                   <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2" onClick={addStandard}>
                     <Plus className="h-3 w-3" /> Add
                   </Button>
                 }>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 4 }}>
+                    Amount [ug/ml] / Area [mAU*s]
+                  </div>
                   {[...standards].sort((a, b) => a.amount - b.amount).map((s, i) => (
                     <div key={s.id} className="flex items-center gap-1 group mb-1.5">
                       <span style={{ ...MONO, fontSize: 9, color: "#555", width: 14 }}>{i + 1}</span>
                       <div className="flex flex-col gap-0.5 flex-1">
-                        <Input type="number" step="0.001" value={s.amount}
+                        <Input type="number" step="0.00001" value={s.amount}
                           onChange={e => updateStandard(s.id, "amount", parseFloat(e.target.value) || 0)}
                           className="h-5 text-xs font-mono px-1" placeholder="Amount (ug/ml)" />
-                        <Input type="number" step="0.001" value={s.area}
+                        <Input type="number" step="0.00001" value={s.area}
                           onChange={e => updateStandard(s.id, "area", parseFloat(e.target.value) || 0)}
                           className="h-5 text-xs font-mono px-1" placeholder="Area (mAU*s)" />
                       </div>
@@ -627,7 +670,7 @@ export default function HplcSimulator() {
                   <div style={{ whiteSpace: "pre" }}>{"     [min]          [mAU*s]               [ug/ml]"}</div>
                   <div style={{ whiteSpace: "pre" }}>{"    " + "-".repeat(65)}</div>
                   {peakStats.map(p => {
-                    const area = p.computedArea;
+                    const area = p.displayArea;
                     const amtPerArea = p.amtPerArea > 0 ? p.amtPerArea : (area > 0 && p.amount > 0 ? p.amount / area : 0);
                     const rt = p.retentionTime.toFixed(3).padStart(7);
                     const type = p.peakType.padEnd(6);
