@@ -13,6 +13,7 @@ export interface ProtocolStats {
   emAndamento: number;
   concluido: number;
   aprovado: number;
+  aprovadoComRessalva: number;
   reprovado: number;
   totalNonConformities: number;
   recentProtocols: Protocol[];

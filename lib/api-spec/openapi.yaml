@@ -43,7 +43,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [rascunho, em_andamento, concluido, aprovado, reprovado]
+            enum: [rascunho, em_andamento, concluido, aprovado, aprovado_com_ressalva, reprovado]
         - name: nonConformes
           in: query
           schema:
@@ -730,6 +730,8 @@ components:
           type: integer
         aprovado:
           type: integer
+        aprovadoComRessalva:
+          type: integer
         reprovado:
           type: integer
         totalNonConformities:
@@ -744,6 +746,7 @@ components:
         - emAndamento
         - concluido
         - aprovado
+        - aprovadoComRessalva
         - reprovado
         - totalNonConformities
         - recentProtocols

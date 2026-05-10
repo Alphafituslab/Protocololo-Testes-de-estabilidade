@@ -1,8 +1,7 @@
 import { useGetProtocolStats } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
-import { FileText, Plus, AlertCircle, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { FileText, Plus, CheckCircle2, Clock, XCircle, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -54,6 +53,7 @@ export default function Dashboard() {
             <div className="text-2xl font-bold">{stats?.total || 0}</div>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Em Andamento</CardTitle>
@@ -63,35 +63,48 @@ export default function Dashboard() {
             <div className="text-2xl font-bold text-blue-600">{stats?.emAndamento || 0}</div>
           </CardContent>
         </Card>
-        <Card>
+
+        <Card
+          className="cursor-pointer hover:ring-2 hover:ring-green-400 transition-all"
+          onClick={() => navigate("/protocols?status=aprovado")}
+          title="Ver protocolos aprovados"
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Aprovados</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{stats?.aprovado || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">Clique para ver</p>
           </CardContent>
         </Card>
-        <Card>
+
+        <Card
+          className="cursor-pointer hover:ring-2 hover:ring-red-400 transition-all"
+          onClick={() => navigate("/protocols?status=reprovado")}
+          title="Ver protocolos reprovados"
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Reprovados</CardTitle>
             <XCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{stats?.reprovado || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">Clique para ver</p>
           </CardContent>
         </Card>
+
         <Card
-          className="cursor-pointer hover:ring-2 hover:ring-orange-400 transition-all"
-          onClick={() => navigate("/protocols?nonConformes=true")}
-          title="Ver protocolos com não conformidades"
+          className="cursor-pointer hover:ring-2 hover:ring-amber-400 transition-all"
+          onClick={() => navigate("/protocols?status=aprovado_com_ressalva")}
+          title="Ver protocolos aprovados com ressalva"
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Não Conformidades</CardTitle>
-            <AlertCircle className="h-4 w-4 text-orange-500" />
+            <CardTitle className="text-sm font-medium">Aprov. c/ Ressalva</CardTitle>
+            <ShieldCheck className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats?.totalNonConformities || 0}</div>
+            <div className="text-2xl font-bold text-amber-600">{stats?.aprovadoComRessalva || 0}</div>
             <p className="text-xs text-muted-foreground mt-1">Clique para ver</p>
           </CardContent>
         </Card>

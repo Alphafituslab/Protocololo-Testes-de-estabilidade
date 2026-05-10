@@ -14,5 +14,6 @@ export const ListProtocolsStatus = {
   em_andamento: "em_andamento",
   concluido: "concluido",
   aprovado: "aprovado",
+  aprovado_com_ressalva: "aprovado_com_ressalva",
   reprovado: "reprovado",
 } as const;

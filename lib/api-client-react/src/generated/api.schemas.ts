@@ -213,6 +213,7 @@ export interface ProtocolStats {
   emAndamento: number;
   concluido: number;
   aprovado: number;
+  aprovadoComRessalva: number;
   reprovado: number;
   totalNonConformities: number;
   recentProtocols: Protocol[];
@@ -383,5 +384,6 @@ export const ListProtocolsStatus = {
   em_andamento: "em_andamento",
   concluido: "concluido",
   aprovado: "aprovado",
+  aprovado_com_ressalva: "aprovado_com_ressalva",
   reprovado: "reprovado",
 } as const;

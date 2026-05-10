@@ -58,6 +58,7 @@ router.get("/protocols/stats", async (req, res): Promise<void> => {
     emAndamento: allProtocols.filter((p) => p.status === "em_andamento").length,
     concluido: allProtocols.filter((p) => p.status === "concluido").length,
     aprovado: allProtocols.filter((p) => p.status === "aprovado").length,
+    aprovadoComRessalva: allProtocols.filter((p) => p.status === "aprovado_com_ressalva").length,
     reprovado: allProtocols.filter((p) => p.status === "reprovado").length,
     totalNonConformities: nonConformities[0]?.cnt ?? 0,
     recentProtocols: recent,

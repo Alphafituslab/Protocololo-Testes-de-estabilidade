@@ -19,7 +19,14 @@ export const HealthCheckResponse = zod.object({
  */
 export const ListProtocolsQueryParams = zod.object({
   status: zod
-    .enum(["rascunho", "em_andamento", "concluido", "aprovado", "reprovado"])
+    .enum([
+      "rascunho",
+      "em_andamento",
+      "concluido",
+      "aprovado",
+      "aprovado_com_ressalva",
+      "reprovado",
+    ])
     .optional(),
   nonConformes: zod.coerce.boolean().optional(),
 });
@@ -129,6 +136,7 @@ export const GetProtocolStatsResponse = zod.object({
   emAndamento: zod.number(),
   concluido: zod.number(),
   aprovado: zod.number(),
+  aprovadoComRessalva: zod.number(),
   reprovado: zod.number(),
   totalNonConformities: zod.number(),
   recentProtocols: zod.array(
