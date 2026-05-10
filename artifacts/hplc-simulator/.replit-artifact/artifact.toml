@@ -1,0 +1,31 @@
+kind = "data-app"
+previewPath = "/hplc-simulator/"
+title = "Simulador HPLC"
+version = "1.0.0"
+id = "artifacts/hplc-simulator"
+router = "path"
+
+[[integratedSkills]]
+name = "data-visualization"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/hplc-simulator/" ]
+localPort = 25941
+
+[services.development]
+run = "pnpm --filter @workspace/hplc-simulator run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/hplc-simulator", "run", "build" ]
+publicDir = "artifacts/hplc-simulator/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25941"
+BASE_PATH = "/hplc-simulator/"
