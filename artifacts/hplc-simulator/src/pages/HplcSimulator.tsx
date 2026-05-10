@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download, Users, ShieldCheck, ShieldOff, ToggleLeft, ToggleRight } from "lucide-react";
+import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download, Users, ShieldCheck, ShieldOff, ToggleLeft, ToggleRight, LayoutDashboard, ImageDown, ClipboardCheck, ClipboardX, ScrollText, Activity, ImageIcon } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocation } from "wouter";
 
@@ -144,6 +144,19 @@ interface AnalysisSession {
   createdAt: string;
   notes: string;
   runs: AnalysisRun[];
+  status: "em_andamento" | "aprovado" | "reprovado" | "laudo_emitido";
+  concludedAt?: string;
+  laudoEmittedAt?: string;
+}
+
+interface HplcSavedImage {
+  id: string;
+  sessionId: string;
+  sessionName: string;
+  formulaName: string;
+  createdAt: string;
+  imageData: string;  // base64 PNG
+  notes: string;
 }
 
 interface StandardEntry {
@@ -653,6 +666,90 @@ function saveFormulaStandards(s: FormulaStandard[]) {
   try { localStorage.setItem(STANDARDS_KEY, JSON.stringify(s)); } catch { /* ignore */ }
 }
 
+const IMAGES_KEY = "hplc_images_v1";
+function loadSavedImages(): HplcSavedImage[] {
+  try { return JSON.parse(localStorage.getItem(IMAGES_KEY) ?? "[]") as HplcSavedImage[]; }
+  catch { return []; }
+}
+function saveSavedImages(imgs: HplcSavedImage[]) {
+  try { localStorage.setItem(IMAGES_KEY, JSON.stringify(imgs)); } catch { /* ignore */ }
+}
+
+// Draws the overlay chromatogram on a canvas and returns base64 PNG dataURL
+function buildChromatogramPng(
+  session: AnalysisSession,
+  formula: Formula,
+): string | null {
+  const W = 900; const H = 380;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+  const M = { top: 38, right: 20, bottom: 44, left: 64 };
+  const cW = W - M.left - M.right;
+  const cH = H - M.top - M.bottom;
+  const runTime = formula.detector.runTime;
+  const pts = 1200;
+  const allChrom = session.runs.map(r => buildChromatogram(r.peaks, runTime, pts));
+  const maxSig = Math.max(10, ...allChrom.flat().map(p => p.signal)) * 1.12;
+  const xS = (t: number) => M.left + (t / runTime) * cW;
+  const yS = (s: number) => M.top + cH - (s / maxSig) * cH;
+  // Grid
+  ctx.strokeStyle = "#e8e8e8"; ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 5; i++) {
+    const y = M.top + (i / 5) * cH;
+    ctx.beginPath(); ctx.moveTo(M.left, y); ctx.lineTo(M.left + cW, y); ctx.stroke();
+    const x = M.left + (i / 5) * cW;
+    ctx.beginPath(); ctx.moveTo(x, M.top); ctx.lineTo(x, M.top + cH); ctx.stroke();
+  }
+  // Axes
+  ctx.strokeStyle = "#222"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(M.left, M.top); ctx.lineTo(M.left, M.top + cH); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(M.left, M.top + cH); ctx.lineTo(M.left + cW, M.top + cH); ctx.stroke();
+  // Axis ticks + labels
+  ctx.fillStyle = "#444"; ctx.font = "10px Courier New"; ctx.textAlign = "center";
+  for (let i = 0; i <= 5; i++) {
+    const x = M.left + (i / 5) * cW;
+    const t = ((i / 5) * runTime).toFixed(1);
+    ctx.fillText(t, x, M.top + cH + 14);
+  }
+  ctx.textAlign = "right";
+  for (let i = 0; i <= 5; i++) {
+    const y = M.top + (i / 5) * cH;
+    const v = (((5 - i) / 5) * maxSig).toFixed(0);
+    ctx.fillText(v, M.left - 5, y + 4);
+  }
+  ctx.textAlign = "center";
+  ctx.font = "11px Courier New"; ctx.fillStyle = "#555";
+  ctx.fillText("min", M.left + cW + 18, M.top + cH + 5);
+  ctx.save(); ctx.translate(14, M.top + cH / 2); ctx.rotate(-Math.PI / 2);
+  ctx.fillText("mAU", 0, 0); ctx.restore();
+  // Title
+  ctx.font = "bold 12px Courier New"; ctx.fillStyle = "#1d4ed8"; ctx.textAlign = "center";
+  ctx.fillText(session.name, W / 2, 18);
+  ctx.font = "10px Courier New"; ctx.fillStyle = "#666";
+  ctx.fillText(`Fórmula: ${formula.name}  ·  λ ${formula.detector.sigWavelength} nm`, W / 2, 30);
+  // Lines
+  for (let ri = 0; ri < session.runs.length; ri++) {
+    const chrom = allChrom[ri];
+    ctx.strokeStyle = session.runs[ri].color; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    chrom.forEach((pt, i) => { const x = xS(pt.time); const y = yS(pt.signal); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    ctx.stroke();
+  }
+  // Legend
+  session.runs.forEach((r, i) => {
+    const lx = M.left + 12 + i * 90;
+    ctx.strokeStyle = r.color; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(lx, H - 12); ctx.lineTo(lx + 18, H - 12); ctx.stroke();
+    ctx.fillStyle = "#333"; ctx.font = "10px Courier New"; ctx.textAlign = "left";
+    ctx.fillText(r.label, lx + 22, H - 8);
+  });
+  return canvas.toDataURL("image/png");
+}
+
 // Applies ±2% deterministic variation to peaks so runs look slightly different
 function applyRunVariation(peaks: Peak[], runIndex: number): Peak[] {
   return peaks.map((p, pi) => {
@@ -904,7 +1001,7 @@ function SetStandardDialog({ compounds, existing, onSave, children }: {
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-type PageMode = "chromatogram" | "ativos" | "lotes" | "report" | "usuarios" | "analise";
+type PageMode = "painel" | "chromatogram" | "ativos" | "lotes" | "report" | "usuarios" | "analise";
 
 interface UserRecord {
   id: number;
@@ -935,6 +1032,7 @@ export default function HplcSimulator() {
   const [selectedFormulaId, setSelectedFormulaId] = useState<string | null>(null);
   const [analysisSessions, setAnalysisSessions] = useState<AnalysisSession[]>(() => loadSessions());
   const [formulaStandards, setFormulaStandards] = useState<FormulaStandard[]>(() => loadFormulaStandards());
+  const [savedImages, setSavedImages] = useState<HplcSavedImage[]>(() => loadSavedImages());
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [userList, setUserList] = useState<UserRecord[]>([]);
   const [userListLoading, setUserListLoading] = useState(false);
@@ -1192,9 +1290,10 @@ export default function HplcSimulator() {
   // ── Analysis Session handlers ─────────────────────────────────────────────────
 
   const handleCreateSession = (formulaId: string, name: string, notes: string) => {
-    const session: AnalysisSession = { id: uid(), formulaId, name, notes, createdAt: new Date().toISOString(), runs: [] };
+    const session: AnalysisSession = { id: uid(), formulaId, name, notes, createdAt: new Date().toISOString(), runs: [], status: "em_andamento" };
     setAnalysisSessions(ss => { const u = [...ss, session]; saveSessions(u); return u; });
     setCurrentSessionId(session.id);
+    setPage("analise");
   };
 
   const handleRegisterRun = () => {
@@ -1231,6 +1330,46 @@ export default function HplcSimulator() {
   const handleDeleteSession = (id: string) => {
     setAnalysisSessions(ss => { const u = ss.filter(s => s.id !== id); saveSessions(u); return u; });
     if (currentSessionId === id) setCurrentSessionId(null);
+  };
+
+  const handleConcludeSession = (sessionId: string, status: "aprovado" | "reprovado") => {
+    setAnalysisSessions(ss => {
+      const updated = ss.map(s => s.id === sessionId ? { ...s, status, concludedAt: new Date().toISOString() } : s);
+      saveSessions(updated);
+      return updated;
+    });
+  };
+
+  const handleEmitLaudo = (sessionId: string) => {
+    setAnalysisSessions(ss => {
+      const updated = ss.map(s => s.id === sessionId ? { ...s, status: "laudo_emitido" as const, laudoEmittedAt: new Date().toISOString() } : s);
+      saveSessions(updated);
+      return updated;
+    });
+  };
+
+  const handleSavePng = (sessionId: string) => {
+    const session = analysisSessions.find(s => s.id === sessionId);
+    const formula = session ? formulas.find(f => f.id === session.formulaId) ?? null : null;
+    if (!session || !formula || session.runs.length === 0) return;
+    const dataUrl = buildChromatogramPng(session, formula);
+    if (!dataUrl) return;
+    // Download
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = `${session.name.replace(/[^a-zA-Z0-9_-]/g, "_")}_cromatograma.png`;
+    link.click();
+    // Save to library
+    const img: HplcSavedImage = {
+      id: uid(), sessionId: session.id, sessionName: session.name,
+      formulaName: formula.name, createdAt: new Date().toISOString(),
+      imageData: dataUrl, notes: "",
+    };
+    setSavedImages(imgs => { const u = [...imgs, img]; saveSavedImages(u); return u; });
+  };
+
+  const handleDeleteSavedImage = (imgId: string) => {
+    setSavedImages(imgs => { const u = imgs.filter(i => i.id !== imgId); saveSavedImages(u); return u; });
   };
 
   const handleSaveStandard = (formulaId: string, entries: StandardEntry[], notes: string) => {
@@ -1278,6 +1417,7 @@ export default function HplcSimulator() {
         <div className="flex-1" />
         <div style={{ display: "flex", border: "1px solid #bbb", borderRadius: 4, overflow: "hidden" }}>
           {(([
+            ["painel", "Painel", LayoutDashboard, false],
             ["chromatogram", "Cromatograma", BarChart3, false],
             ["ativos", "Ativos", Database, false],
             ["lotes", "Lotes", Layers, false],
@@ -1660,6 +1800,188 @@ export default function HplcSimulator() {
 
         {/* ── RIGHT: Agilent report paper ──────────────────────────────────── */}
         <div style={{ flex: 1, background: "#fff", border: "1px solid #bbb", boxShadow: "0 2px 8px rgba(0,0,0,.18)", padding: "28px 32px 20px", minWidth: 0, ...MONO, fontSize: 11.5 }}>
+
+          {/* ── PAINEL / DASHBOARD PAGE ───────────────────────────────────── */}
+          {page === "painel" && (() => {
+            const total = analysisSessions.length;
+            const emAndamento = analysisSessions.filter(s => s.status === "em_andamento").length;
+            const aprovados = analysisSessions.filter(s => s.status === "aprovado").length;
+            const reprovados = analysisSessions.filter(s => s.status === "reprovado").length;
+            const laudos = analysisSessions.filter(s => s.status === "laudo_emitido").length;
+            const imgCount = savedImages.length;
+
+            const statusLabel: Record<string, string> = {
+              em_andamento: "Em Análise",
+              aprovado: "Aprovado",
+              reprovado: "Reprovado",
+              laudo_emitido: "Laudo Emitido",
+            };
+            const statusBg: Record<string, string> = {
+              em_andamento: "#dbeafe",
+              aprovado: "#dcfce7",
+              reprovado: "#fee2e2",
+              laudo_emitido: "#f3e8ff",
+            };
+            const statusColor: Record<string, string> = {
+              em_andamento: "#1d4ed8",
+              aprovado: "#16a34a",
+              reprovado: "#dc2626",
+              laudo_emitido: "#7c3aed",
+            };
+
+            return (
+              <div style={{ fontFamily: "Courier New, monospace" }}>
+                {/* Header */}
+                <div style={{ fontWeight: "bold", fontSize: 15, marginBottom: 18, borderBottom: "1px solid #bbb", paddingBottom: 10, color: "#1d4ed8" }}>
+                  Painel de Análises
+                </div>
+
+                {/* Stat cards */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 24 }}>
+                  {[
+                    { label: "Total", value: total, bg: "#f8fafc", color: "#334155", Icon: Activity },
+                    { label: "Em Análise", value: emAndamento, bg: "#dbeafe", color: "#1d4ed8", Icon: FlaskConical },
+                    { label: "Aprovados", value: aprovados, bg: "#dcfce7", color: "#16a34a", Icon: ClipboardCheck },
+                    { label: "Reprovados", value: reprovados, bg: "#fee2e2", color: "#dc2626", Icon: ClipboardX },
+                    { label: "Laudos", value: laudos, bg: "#f3e8ff", color: "#7c3aed", Icon: ScrollText },
+                  ].map(({ label, value, bg, color, Icon }) => (
+                    <div key={label} style={{ background: bg, border: `1px solid ${color}33`, borderRadius: 8, padding: "14px 12px", textAlign: "center" }}>
+                      <Icon style={{ width: 20, height: 20, color, margin: "0 auto 6px" }} />
+                      <div style={{ fontSize: 22, fontWeight: "bold", color, lineHeight: 1 }}>{value}</div>
+                      <div style={{ fontSize: 9, color: "#666", marginTop: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Imagens salvas banner */}
+                <div style={{ background: "#fafaf9", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 14px", marginBottom: 18, display: "flex", alignItems: "center", gap: 10 }}>
+                  <ImageIcon style={{ width: 16, height: 16, color: "#64748b" }} />
+                  <span style={{ fontSize: 11, color: "#555" }}>
+                    <b>{imgCount}</b> imagem{imgCount !== 1 ? "ns" : ""} de cromatograma salva{imgCount !== 1 ? "s" : ""} e disponíveis para anexar no Protocolo de Estabilidade.
+                  </span>
+                  {imgCount > 0 && (
+                    <button style={{ marginLeft: "auto", fontSize: 10, color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}
+                      onClick={() => { if (confirm(`Excluir todas as ${imgCount} imagens salvas?`)) { setSavedImages([]); saveSavedImages([]); } }}>
+                      Limpar biblioteca
+                    </button>
+                  )}
+                </div>
+
+                {/* Session list */}
+                {analysisSessions.length === 0 ? (
+                  <div style={{ textAlign: "center", color: "#aaa", fontSize: 12, padding: "40px 0" }}>
+                    Nenhuma sessão de análise criada ainda.<br />
+                    <span style={{ fontSize: 10 }}>Vá para a aba "Análise" e crie uma nova sessão.</span>
+                  </div>
+                ) : (
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10.5 }}>
+                    <thead>
+                      <tr style={{ background: "#f1f5f9" }}>
+                        {["Sessão", "Fórmula", "Corridas", "Status", "Data", "Ações"].map(h => (
+                          <th key={h} style={{ padding: "6px 10px", textAlign: "left", fontWeight: "bold", color: "#334155", borderBottom: "1px solid #cbd5e1", fontFamily: "Courier New, monospace", fontSize: 10 }}>
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...analysisSessions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((s, i) => {
+                        const formula = formulas.find(f => f.id === s.formulaId);
+                        const bg = i % 2 === 0 ? "#fff" : "#f9fafb";
+                        return (
+                          <tr key={s.id} style={{ background: bg, borderBottom: "1px solid #f0f0f0" }}>
+                            <td style={{ padding: "8px 10px", fontWeight: "bold", color: "#1e293b" }}>{s.name}</td>
+                            <td style={{ padding: "8px 10px", color: "#475569" }}>{formula?.name ?? "—"}</td>
+                            <td style={{ padding: "8px 10px", textAlign: "center" }}>
+                              <span style={{ background: "#e0f2fe", color: "#0369a1", padding: "1px 7px", borderRadius: 10, fontSize: 10, fontWeight: "bold" }}>
+                                {s.runs.length}/5
+                              </span>
+                            </td>
+                            <td style={{ padding: "8px 10px" }}>
+                              <span style={{ background: statusBg[s.status] ?? "#f1f5f9", color: statusColor[s.status] ?? "#334155", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: "bold", whiteSpace: "nowrap" }}>
+                                {statusLabel[s.status] ?? s.status}
+                              </span>
+                            </td>
+                            <td style={{ padding: "8px 10px", color: "#64748b", whiteSpace: "nowrap" }}>
+                              {new Date(s.createdAt).toLocaleDateString("pt-BR")}
+                            </td>
+                            <td style={{ padding: "8px 6px" }}>
+                              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                                {/* Go to analysis */}
+                                <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #bbb", borderRadius: 4, background: "#f8fafc", cursor: "pointer", color: "#1d4ed8" }}
+                                  onClick={() => { setCurrentSessionId(s.id); setPage("analise"); }}>
+                                  Ver
+                                </button>
+
+                                {/* Conclude */}
+                                {s.status === "em_andamento" && s.runs.length > 0 && (
+                                  <>
+                                    <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #16a34a", borderRadius: 4, background: "#dcfce7", cursor: "pointer", color: "#16a34a" }}
+                                      onClick={() => { if (confirm(`Marcar "${s.name}" como APROVADO?`)) handleConcludeSession(s.id, "aprovado"); }}>
+                                      <ClipboardCheck style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Aprovar
+                                    </button>
+                                    <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #dc2626", borderRadius: 4, background: "#fee2e2", cursor: "pointer", color: "#dc2626" }}
+                                      onClick={() => { if (confirm(`Marcar "${s.name}" como REPROVADO?`)) handleConcludeSession(s.id, "reprovado"); }}>
+                                      <ClipboardX style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Reprovar
+                                    </button>
+                                  </>
+                                )}
+
+                                {/* Emit Laudo */}
+                                {(s.status === "aprovado" || s.status === "reprovado") && (
+                                  <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #7c3aed", borderRadius: 4, background: "#f3e8ff", cursor: "pointer", color: "#7c3aed" }}
+                                    onClick={() => { if (confirm(`Emitir laudo para "${s.name}"?`)) handleEmitLaudo(s.id); }}>
+                                    <ScrollText style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Emitir Laudo
+                                  </button>
+                                )}
+
+                                {/* Save PNG */}
+                                {s.runs.length > 0 && (
+                                  <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #0284c7", borderRadius: 4, background: "#e0f2fe", cursor: "pointer", color: "#0284c7" }}
+                                    onClick={() => handleSavePng(s.id)}>
+                                    <ImageDown style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Salvar PNG
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+
+                {/* Saved images gallery */}
+                {savedImages.length > 0 && (
+                  <div style={{ marginTop: 28 }}>
+                    <div style={{ fontWeight: "bold", fontSize: 12, marginBottom: 12, borderBottom: "1px solid #bbb", paddingBottom: 6, color: "#334155" }}>
+                      Biblioteca de Imagens — disponíveis para o Protocolo de Estabilidade
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                      {savedImages.map(img => (
+                        <div key={img.id} style={{ border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
+                          <img src={img.imageData} alt={img.sessionName} style={{ width: "100%", height: 120, objectFit: "cover", borderBottom: "1px solid #e2e8f0", display: "block" }} />
+                          <div style={{ padding: "6px 8px" }}>
+                            <div style={{ fontSize: 9, fontWeight: "bold", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{img.sessionName}</div>
+                            <div style={{ fontSize: 8, color: "#64748b" }}>{img.formulaName} · {new Date(img.createdAt).toLocaleDateString("pt-BR")}</div>
+                            <div style={{ display: "flex", gap: 4, marginTop: 5 }}>
+                              <a href={img.imageData} download={`${img.sessionName}.png`} style={{ flex: 1, fontSize: 8, padding: "2px 0", border: "1px solid #0284c7", borderRadius: 3, background: "#e0f2fe", color: "#0284c7", textAlign: "center", textDecoration: "none", display: "block" }}>
+                                Download
+                              </a>
+                              <button style={{ fontSize: 8, padding: "2px 6px", border: "1px solid #dc2626", borderRadius: 3, background: "#fee2e2", cursor: "pointer", color: "#dc2626" }}
+                                onClick={() => { if (confirm("Excluir esta imagem?")) handleDeleteSavedImage(img.id); }}>
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ── CHROMATOGRAM PAGE ─────────────────────────────────────────── */}
           {page === "chromatogram" && (

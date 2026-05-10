@@ -46,9 +46,105 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Microscope, Download } from "lucide-react";
 import { AuditTrail } from "@/components/audit-trail";
 import { useToast } from "@/hooks/use-toast";
+
+// ── HPLC images shared via localStorage ────────────────────────────────────
+interface HplcSavedImage {
+  id: string;
+  sessionId: string;
+  sessionName: string;
+  formulaName: string;
+  createdAt: string;
+  imageData: string;
+  notes: string;
+}
+
+function HplcImagesTab() {
+  const [images, setImages] = useState<HplcSavedImage[]>([]);
+  const [selected, setSelected] = useState<HplcSavedImage | null>(null);
+
+  useEffect(() => {
+    const reload = () => {
+      try {
+        const raw = localStorage.getItem("hplc_images_v1");
+        setImages(raw ? (JSON.parse(raw) as HplcSavedImage[]) : []);
+      } catch { /* ignore */ }
+    };
+    reload();
+    window.addEventListener("storage", reload);
+    return () => window.removeEventListener("storage", reload);
+  }, []);
+
+  if (images.length === 0) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+            <Microscope className="h-10 w-10 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">Nenhuma imagem de cromatograma HPLC disponível.</p>
+            <p className="text-xs text-muted-foreground/70">
+              Acesse o Simulador HPLC → aba Painel → salve os cromatogramas das sessões de análise.
+              As imagens aparecerão aqui automaticamente.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Microscope className="h-4 w-4" /> Cromatogramas do Simulador HPLC
+          <span className="ml-auto text-xs font-normal text-muted-foreground">{images.length} imagem{images.length !== 1 ? "ns" : ""} disponível{images.length !== 1 ? "is" : ""}</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {selected && (
+          <Dialog open onOpenChange={() => setSelected(null)}>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>{selected.sessionName}</DialogTitle>
+              </DialogHeader>
+              <img src={selected.imageData} alt={selected.sessionName} className="w-full rounded border" />
+              <div className="text-xs text-muted-foreground mt-1">
+                Fórmula: {selected.formulaName} · {new Date(selected.createdAt).toLocaleString("pt-BR")}
+              </div>
+              <div className="flex gap-2 mt-2">
+                <a href={selected.imageData} download={`${selected.sessionName}_cromatograma.png`} className="flex-1">
+                  <button className="w-full flex items-center justify-center gap-2 text-sm border rounded px-3 py-1.5 hover:bg-muted">
+                    <Download className="h-3.5 w-3.5" /> Baixar PNG
+                  </button>
+                </a>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {images.map(img => (
+            <div key={img.id} className="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => setSelected(img)}>
+              <img src={img.imageData} alt={img.sessionName} className="w-full h-36 object-cover border-b" />
+              <div className="p-2.5">
+                <p className="text-xs font-semibold truncate">{img.sessionName}</p>
+                <p className="text-xs text-muted-foreground truncate">{img.formulaName}</p>
+                <p className="text-xs text-muted-foreground/70">{new Date(img.createdAt).toLocaleDateString("pt-BR")}</p>
+                <a href={img.imageData} download={`${img.sessionName}_cromatograma.png`}
+                  onClick={e => e.stopPropagation()}
+                  className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                  <Download className="h-3 w-3" /> Baixar PNG
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 const STATUS_LABELS: Record<string, string> = {
   rascunho: "Rascunho",
@@ -2292,6 +2388,7 @@ export default function ProtocolDetail() {
           <TabsTrigger value="kinetics" data-testid="tab-kinetics">Cinetica</TabsTrigger>
           <TabsTrigger value="metodologia" data-testid="tab-metodologia">Metodologia</TabsTrigger>
           <TabsTrigger value="historico" data-testid="tab-historico"><History className="h-3.5 w-3.5 mr-1" />Histórico</TabsTrigger>
+          <TabsTrigger value="hplc" data-testid="tab-hplc"><Microscope className="h-3.5 w-3.5 mr-1" />Cromatogramas HPLC</TabsTrigger>
         </TabsList>
         <TabsContent value="info">
           <Card>
@@ -2344,6 +2441,9 @@ export default function ProtocolDetail() {
               <AuditTrail protocolId={numId} />
             </CardContent>
           </Card>
+        </TabsContent>
+        <TabsContent value="hplc">
+          <HplcImagesTab />
         </TabsContent>
       </Tabs>
     </div>
