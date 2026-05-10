@@ -126,10 +126,17 @@ router.post("/protocols/:id/finalize", requireAuth, async (req, res): Promise<vo
   let updateData: Record<string, unknown>;
   let statusLabel: string;
   if (fs === "em_andamento") {
+    // Busca o protocolo atual para preservar progressPercent caso não seja enviado
+    const [existing] = await db.select({ progressPercent: protocolsTable.progressPercent })
+      .from(protocolsTable).where(eq(protocolsTable.id, params.data.id));
+    const newProgress = parsed.data.progressPercent;
     updateData = {
       status: "em_andamento",
       finalStatus: null,
-      progressPercent: parsed.data.progressPercent ?? null,
+      // Só sobrescreve se o operador enviou um valor; caso contrário mantém o existente
+      progressPercent: newProgress !== undefined && newProgress !== null
+        ? newProgress
+        : (existing?.progressPercent ?? null),
     };
     statusLabel = "EM ANDAMENTO";
   } else {

@@ -1785,14 +1785,21 @@ function FinalizeSection({
   };
 
   // Auto-fill conclusion when finalStatus changes (only if conclusion is empty or matches a default)
-  // Also clear any blocking error when the user changes the selection
+  // Also clear any blocking error when the user changes the selection.
+  // When switching back to em_andamento, restore progressPercent from saved value so it is never lost.
   useEffect(() => {
     if (!finalStatusWatch) return;
     setBlockingError(null);
-    const current = form.getValues("conclusion")?.trim() ?? "";
-    const isDefaultOrEmpty = !current || Object.values(CONCLUSION_DEFAULTS).some(d => d === current);
-    if (isDefaultOrEmpty) {
-      form.setValue("conclusion", CONCLUSION_DEFAULTS[finalStatusWatch] ?? "");
+    if (finalStatusWatch === "em_andamento") {
+      if (currentProgressPercent != null) {
+        form.setValue("progressPercent", currentProgressPercent);
+      }
+    } else {
+      const current = form.getValues("conclusion")?.trim() ?? "";
+      const isDefaultOrEmpty = !current || Object.values(CONCLUSION_DEFAULTS).some(d => d === current);
+      if (isDefaultOrEmpty) {
+        form.setValue("conclusion", CONCLUSION_DEFAULTS[finalStatusWatch] ?? "");
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [finalStatusWatch]);
