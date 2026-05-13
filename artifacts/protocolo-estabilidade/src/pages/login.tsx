@@ -8,6 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
+function popRedirect(): string {
+  try {
+    const saved = sessionStorage.getItem("alphafitus_redirect");
+    if (saved) { sessionStorage.removeItem("alphafitus_redirect"); return saved; }
+  } catch { /* ignore */ }
+  return "/";
+}
+
 export default function LoginPage() {
   const { login, user } = useAuth();
   const [, navigate] = useLocation();
@@ -21,37 +29,33 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const pendingRedirect = useRef<string | null>(null);
+  const navigatedRef = useRef(false);
 
-  function popRedirect(): string {
-    try {
-      const saved = sessionStorage.getItem("alphafitus_redirect");
-      if (saved) { sessionStorage.removeItem("alphafitus_redirect"); return saved; }
-    } catch { /* ignore */ }
-    return "/";
-  }
-
+  // If user is already logged in (e.g. back-button to /login), redirect away
   useEffect(() => {
-    if (user) {
-      const dest = pendingRedirect.current ?? popRedirect();
-      pendingRedirect.current = null;
-      navigate(dest);
-      return;
+    if (user && !navigatedRef.current) {
+      navigatedRef.current = true;
+      navigate(popRedirect());
     }
+  }, [user]);
+
+  // Fetch setup status once on mount
+  useEffect(() => {
     fetch("/api/auth/setup-needed")
       .then((r) => r.json())
       .then((d: { setupNeeded: boolean }) => setSetupNeeded(d.setupNeeded))
       .catch(() => setSetupNeeded(false));
-  }, [user, navigate]);
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    pendingRedirect.current = popRedirect();
+    const dest = popRedirect();
     try {
       await login(username, password);
+      navigatedRef.current = true;
+      navigate(dest);
     } catch (err) {
-      pendingRedirect.current = null;
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
       setLoading(false);
     }
@@ -64,7 +68,7 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
-    pendingRedirect.current = popRedirect();
+    const dest = popRedirect();
     try {
       const res = await fetch("/api/auth/setup", {
         method: "POST",
@@ -76,8 +80,9 @@ export default function LoginPage() {
         throw new Error((d as { error?: string }).error ?? "Erro ao configurar.");
       }
       await login(username, password);
+      navigatedRef.current = true;
+      navigate(dest);
     } catch (err) {
-      pendingRedirect.current = null;
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
       setLoading(false);
     }
