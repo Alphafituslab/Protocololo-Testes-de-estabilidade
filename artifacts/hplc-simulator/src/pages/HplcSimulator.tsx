@@ -738,24 +738,31 @@ function stringsToPeak(base: Peak, s: Record<keyof Peak, string>): Peak {
   return result;
 }
 
-function PeakEditorDialog({ peak, onSave, children }: { peak: Peak; onSave: (p: Peak) => void; children: React.ReactNode }) {
+function PeakEditorDialog({ peak, onSave, children, controlledOpen, onControlledClose }: {
+  peak: Peak; onSave: (p: Peak) => void; children?: React.ReactNode;
+  controlledOpen?: boolean; onControlledClose?: () => void;
+}) {
   const [draft, setDraft] = useState<Record<keyof Peak, string>>(() => peakToStrings(peak));
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen! : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (isControlled) { if (!v) onControlledClose?.(); }
+    else setInternalOpen(v);
+  };
   const field = (key: keyof Peak) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDraft(d => ({ ...d, [key]: e.target.value }));
   const noiseVal = parseFloat(draft.peakNoise) || 0;
-  const openDialog = () => { setDraft(peakToStrings(peak)); setOpen(true); };
-  // Use cloneElement instead of DialogTrigger asChild to avoid Radix UI Slot ref
-  // cleanup (insertBefore) crashes when the dialog trigger is conditionally unmounted.
-  const trigger = React.cloneElement(
+  const openDialog = () => { setDraft(peakToStrings(peak)); setInternalOpen(true); };
+  const trigger = children ? React.cloneElement(
     React.Children.only(children) as React.ReactElement<React.HTMLAttributes<HTMLElement>>,
     { onClick: openDialog },
-  );
+  ) : null;
   return (
     <>
       {trigger}
       <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-xs">
+      <DialogContent className="max-w-xs overflow-y-auto max-h-[85vh]">
         <DialogHeader><DialogTitle style={{ fontFamily: "Courier New, monospace" }}>Editar Pico</DialogTitle></DialogHeader>
         <form onSubmit={e => { e.preventDefault(); onSave(stringsToPeak(peak, draft)); setOpen(false); }} className="space-y-2 pt-1">
           {([
@@ -1722,6 +1729,7 @@ export default function HplcSimulator() {
   const [savePngDialog, setSavePngDialog] = useState<{ sessionId: string; redirectToGallery: boolean } | null>(null);
   const [savePngCertNum, setSavePngCertNum] = useState("");
   const [peakContextMenu, setPeakContextMenu] = useState<{ x: number; y: number; peakId: string } | null>(null);
+  const [editingPeakId, setEditingPeakId] = useState<string | null>(null);
   const [finalizeDialog, setFinalizeDialog] = useState<{ id: string; name: string } | null>(null);
   const [finalizeStatus, setFinalizeStatus] = useState<"em_andamento" | "aprovado" | "reprovado">("aprovado");
   const [finalizeNotes, setFinalizeNotes] = useState("");
@@ -5136,6 +5144,15 @@ export default function HplcSimulator() {
               </div>
               {/* Menu items */}
               <div style={{ padding: "4px 0" }}>
+                {!peak.locked && (
+                  <button
+                    onClick={() => { setEditingPeakId(peak.id); setPeakContextMenu(null); }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 11, fontFamily: "Courier New, monospace", color: "#1d4ed8", textAlign: "left" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#eff6ff")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                    <Settings style={{ width: 13, height: 13, color: "#1d4ed8" }} /> Editar pico
+                  </button>
+                )}
                 <button
                   onClick={() => { toggleLockPeak(peak.id); setPeakContextMenu(null); }}
                   style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 11, fontFamily: "Courier New, monospace", color: peak.locked ? "#d97706" : "#334155", textAlign: "left" }}
@@ -5162,6 +5179,21 @@ export default function HplcSimulator() {
               </div>
             </div>
           </>
+        );
+      })()}
+
+      {/* ── Peak editor dialog — opened via context menu (right-click) ───────── */}
+      {editingPeakId && (() => {
+        const ep = peaks.find(p => p.id === editingPeakId);
+        if (!ep) return null;
+        return (
+          <PeakEditorDialog
+            key={editingPeakId}
+            peak={ep}
+            onSave={savePeak}
+            controlledOpen={true}
+            onControlledClose={() => setEditingPeakId(null)}
+          />
         );
       })()}
 
