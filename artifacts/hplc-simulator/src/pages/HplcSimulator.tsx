@@ -2889,13 +2889,13 @@ export default function HplcSimulator() {
                             ? <LockOpen className="h-3 w-3 text-amber-500" />
                             : <Lock className="h-3 w-3 text-gray-400" />}
                         </Button>
-                        {!p.locked && (
-                          <PeakEditorDialog peak={p} onSave={savePeak}>
-                            <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
-                              <Settings className="h-3 w-3" />
-                            </Button>
-                          </PeakEditorDialog>
-                        )}
+                        {/* Always mounted to avoid Radix Dialog unmount crash when locking */}
+                        <PeakEditorDialog peak={p} onSave={savePeak}>
+                          <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                            style={{ visibility: p.locked ? "hidden" : "visible" }}>
+                            <Settings className="h-3 w-3" />
+                          </Button>
+                        </PeakEditorDialog>
                         <Button size="sm" variant="ghost" className="h-5 w-5 p-0 hover:text-red-500"
                           title={p.locked ? "Pico travado — desbloqueie para excluir" : "Excluir pico"}
                           disabled={!!p.locked}
