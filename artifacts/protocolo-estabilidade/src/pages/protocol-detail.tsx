@@ -1953,7 +1953,9 @@ function FinalizeSection({
 
   const isAlreadyFinalized = status === "aprovado" || status === "reprovado" || status === "aprovado_com_ressalva";
 
-  const initStatus = (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento") ?? "em_andamento";
+  // Se há não-conformes, força reprovado independentemente do status salvo
+  const savedRawStatus = (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento") ?? "em_andamento";
+  const initStatus: "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento" = hasNonConformes ? "reprovado" : savedRawStatus;
   const form = useForm<z.infer<typeof finalizeSchema>>({
     resolver: zodResolver(finalizeSchema),
     defaultValues: {
@@ -2010,18 +2012,20 @@ function FinalizeSection({
   // When the dialog opens, re-sync form values from current protocol data
   const handleOpenChange = (next: boolean) => {
     if (next) {
-      const savedStatus = (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento") ?? "em_andamento";
+      const rawSaved = (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento") ?? "em_andamento";
+      // Protocolo com não-conformes → sempre abre como reprovado automaticamente
+      const effectiveStatus: "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento" = hasNonConformes ? "reprovado" : rawSaved;
       form.reset({
-        finalStatus: savedStatus,
-        conclusion: currentConclusion ?? CONCLUSION_DEFAULTS[savedStatus] ?? "",
+        finalStatus: effectiveStatus,
+        conclusion: currentConclusion ?? CONCLUSION_DEFAULTS[effectiveStatus] ?? "",
         validityMonths: currentValidityMonths ?? 24,
         issueDate: currentIssueDate ?? new Date().toISOString().split("T")[0],
         ressalva: currentRessalva ?? "",
         progressPercent: currentProgressPercent ?? undefined,
       });
-      // Verifica imediatamente ao abrir: se status já era aprovado e há não conformes, mostra erro
-      // (o useEffect de finalStatusWatch não dispara quando o valor não muda)
-      if ((savedStatus === "aprovado" || savedStatus === "aprovado_com_ressalva") && hasNonConformes) {
+      // Reprovado já está selecionado quando há não-conformes; blockingError só aparece
+      // se o usuário ALTERAR manualmente para aprovado (tratado pelo useEffect abaixo).
+      if ((effectiveStatus === "aprovado" || effectiveStatus === "aprovado_com_ressalva") && hasNonConformes) {
         setBlockingError("Protocolo fora das especificações de liberação. Existem parâmetros não conformes na aba Resultados.");
       } else {
         setBlockingError(null);
