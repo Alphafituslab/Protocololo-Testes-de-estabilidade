@@ -2340,7 +2340,7 @@ export default function ProtocolDetail() {
             title="Confirmação de senha"
             description="A remoção de um protocolo é irreversível. Digite a senha mestra para confirmar."
             submitLabel="Confirmar"
-            onSuccess={() => { setDeletePasswordOpen(false); setDeleteConfirmOpen(true); }}
+            onSuccess={() => { setDeletePasswordOpen(false); setTimeout(() => setDeleteConfirmOpen(true), 50); }}
           />
           {/* Step 2: final confirmation */}
           <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
