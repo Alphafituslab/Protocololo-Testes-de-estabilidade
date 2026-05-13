@@ -448,18 +448,45 @@ function ChromTooltip({ active, payload }: { active?: boolean; payload?: { paylo
 
 // ─── Vertical RT label ────────────────────────────────────────────────────────
 
-function PeakLabel({ viewBox, rt }: { viewBox?: { x: number; y: number }; rt: number }) {
+function PeakLabel({ viewBox, rt, name, dragging }: {
+  viewBox?: { x: number; y: number };
+  rt: number;
+  name?: string;
+  dragging?: boolean;
+}) {
   if (!viewBox) return null;
   const { x, y } = viewBox;
   return (
-    <text
-      x={x + 3} y={y - 3}
-      textAnchor="start"
-      transform={`rotate(-90, ${x + 3}, ${y - 3})`}
-      style={{ fontFamily: "Courier New, monospace", fontSize: 9.5, fill: "#111" }}
-    >
-      {rt.toFixed(3)}
-    </text>
+    <g>
+      {/* Compound name — horizontal, inside chart near the top */}
+      {name && (
+        <text
+          x={x + 5} y={y + 13}
+          textAnchor="start"
+          style={{ fontFamily: "Courier New, monospace", fontSize: 9, fill: dragging ? "#e05" : "#1560bd", fontWeight: "bold", pointerEvents: "none" }}
+        >
+          {name}
+        </text>
+      )}
+      {/* RT number — rotated vertical, above chart area */}
+      <text
+        x={x + 3} y={y - 3}
+        textAnchor="start"
+        transform={`rotate(-90, ${x + 3}, ${y - 3})`}
+        style={{ fontFamily: "Courier New, monospace", fontSize: 9.5, fill: dragging ? "#e05" : "#555", pointerEvents: "none" }}
+      >
+        {rt.toFixed(3)}
+      </text>
+      {/* Drag handle indicator — wider clickable zone hint */}
+      <line
+        x1={x} y1={y} x2={x} y2={y + 260}
+        stroke={dragging ? "#e05" : "#1560bd"}
+        strokeWidth={dragging ? 2 : 0.5}
+        strokeDasharray={dragging ? "none" : "4 3"}
+        strokeOpacity={dragging ? 0.6 : 0.3}
+        style={{ pointerEvents: "none" }}
+      />
+    </g>
   );
 }
 
@@ -1414,6 +1441,65 @@ export default function HplcSimulator() {
     setConfirmed(true);
     setTimeout(() => setConfirmed(false), 2000);
   }, [peaks, sample, detector, standards, calib, activeCompounds]);
+
+  // ── Peak drag (left/right on chromatogram) ───────────────────────────────────
+
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const peakDragRef = useRef<{ peakId: string } | null>(null);
+  const [draggingPeakId, setDraggingPeakId] = useState<string | null>(null);
+
+  // chart inner-area constants (must match ComposedChart margin + YAxis width)
+  const CM_LEFT = 54;  // margin.left(8) + YAxis.width(46)
+  const CM_RIGHT = 16; // margin.right
+
+  const xToTime = useCallback((clientX: number): number => {
+    if (!chartContainerRef.current) return 0;
+    const rect = chartContainerRef.current.getBoundingClientRect();
+    const innerW = rect.width - CM_LEFT - CM_RIGHT;
+    const t = ((clientX - rect.left - CM_LEFT) / innerW) * detector.runTime;
+    return parseFloat(Math.max(0.05, Math.min(detector.runTime * 0.98, t)).toFixed(3));
+  }, [detector.runTime]);
+
+  const timeToClientX = useCallback((t: number): number => {
+    if (!chartContainerRef.current) return 0;
+    const rect = chartContainerRef.current.getBoundingClientRect();
+    const innerW = rect.width - CM_LEFT - CM_RIGHT;
+    return rect.left + CM_LEFT + (t / detector.runTime) * innerW;
+  }, [detector.runTime]);
+
+  const handleChartMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!chartContainerRef.current) return;
+    const rect = chartContainerRef.current.getBoundingClientRect();
+    const innerW = rect.width - CM_LEFT - CM_RIGHT;
+    const mouseX = e.clientX - rect.left;
+    let best: { id: string; dist: number } | null = null;
+    for (const p of peaks.filter(pp => pp.name)) {
+      const px = CM_LEFT + (p.retentionTime / detector.runTime) * innerW;
+      const d = Math.abs(mouseX - px);
+      if (d < 16 && (!best || d < best.dist)) best = { id: p.id, dist: d };
+    }
+    if (best) {
+      peakDragRef.current = { peakId: best.id };
+      setDraggingPeakId(best.id);
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, [peaks, detector.runTime]);
+
+  const handleChartMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!peakDragRef.current) return;
+    const newRT = xToTime(e.clientX);
+    const pid = peakDragRef.current.peakId;
+    setPeaks(ps => ps.map(p => p.id === pid ? { ...p, retentionTime: newRT } : p));
+  }, [xToTime]);
+
+  const handleChartMouseUp = useCallback(() => {
+    if (peakDragRef.current) {
+      peakDragRef.current = null;
+      setDraggingPeakId(null);
+      markDirty();
+    }
+  }, [markDirty]);
 
   // ── Chromatogram data ────────────────────────────────────────────────────────
 
@@ -2414,11 +2500,24 @@ export default function HplcSimulator() {
               <Div />
 
               {/* Chromatogram chart */}
-              <div style={{ marginTop: 14, marginBottom: 6, position: "relative" }}>
+              <div
+                ref={chartContainerRef}
+                style={{ marginTop: 14, marginBottom: 6, position: "relative", cursor: draggingPeakId ? "ew-resize" : "crosshair" }}
+                onMouseDown={handleChartMouseDown}
+                onMouseMove={handleChartMouseMove}
+                onMouseUp={handleChartMouseUp}
+                onMouseLeave={handleChartMouseUp}
+              >
                 <div style={{ fontSize: 11, marginBottom: 2 }}>mAU</div>
                 <div style={{ fontSize: 10, color: "#555", position: "absolute", top: 0, right: 0 }}>
                   Signal 1: {signalLabel}
                 </div>
+                {/* Drag hint tooltip */}
+                {!draggingPeakId && peakStats.some(p => p.name) && (
+                  <div style={{ position: "absolute", bottom: 28, left: 54, fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace", pointerEvents: "none" }}>
+                    ← arraste o pico para ajustar o TR →
+                  </div>
+                )}
                 <ResponsiveContainer width="100%" height={300}>
                   <ComposedChart data={chromatogram} margin={{ top: 22, right: 16, left: 8, bottom: 24 }}>
                     <CartesianGrid strokeDasharray="2 2" stroke="#e2e2e2" />
@@ -2442,15 +2541,20 @@ export default function HplcSimulator() {
                       ];
                     })}
 
-                    {/* RT label above each named peak */}
+                    {/* Name + RT label above each named peak; highlighted when dragging */}
                     {peakStats.filter(p => p.name).map(p => (
                       <ReferenceLine key={`rt-${p.id}`} x={p.retentionTime} stroke="none"
                         label={(props: { viewBox?: { x: number; y: number } }) => (
-                          <PeakLabel viewBox={props.viewBox} rt={p.retentionTime} />
+                          <PeakLabel
+                            viewBox={props.viewBox}
+                            rt={p.retentionTime}
+                            name={p.name}
+                            dragging={draggingPeakId === p.id}
+                          />
                         )} />
                     ))}
 
-                    {/* Chromatogram signal — thin black line, no dots */}
+                    {/* Chromatogram signal — thin blue line, no dots */}
                     <Line
                       type="linear"
                       dataKey="signal"
