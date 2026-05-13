@@ -1062,22 +1062,22 @@ function buildChromatogramPng(
     const det = formula.detector;
 
     // --- Header ---
-    txt("Data File  " + run.sample.dataFile); nl();
-    txt("Sample Name: " + run.sample.sampleName); nl(2);
+    txt("Arquivo de dados  " + run.sample.dataFile); nl();
+    txt("Nome da amostra: " + run.sample.sampleName); nl(2);
 
     sep();
 
     // --- Operator block ---
     const pad = (s: string, n: number) => s.padEnd(n);
-    txt(`    Acq. Operator   : ${pad(run.sample.acqOperator, 28)}Seq. Line :  ${run.sample.seqLine}`); nl();
-    txt(`    Acq. Instrument : ${pad(run.sample.acqInstrument, 28)}Location  : ${run.sample.location}`); nl();
-    txt(`    Injection Date  : ${pad(run.sample.injectionDate, 36)}Inj :  ${run.sample.inj}`); nl();
-    txt(`    ${" ".repeat(55)}Inj Volume : ${run.sample.injVolume}`); nl();
-    txt(`    Acq. Method     : ${run.sample.acqMethod}`); nl();
-    txt(`    Last changed    : ${run.sample.lastChanged1}`); nl();
-    txt(`    Analysis Method : ${run.sample.analysisMethod}`); nl();
-    txt(`    Last changed    : ${run.sample.lastChanged2}`); nl();
-    txt(`                      (modified after loading)`); nl(2);
+    txt(`    Operador de aquisição   : ${pad(run.sample.acqOperator, 28)}Linha de sequência :  ${run.sample.seqLine}`); nl();
+    txt(`    Instrumento de aquisição: ${pad(run.sample.acqInstrument, 28)}Localização        : ${run.sample.location}`); nl();
+    txt(`    Data da injeção         : ${pad(run.sample.injectionDate, 36)}Injeção :  ${run.sample.inj}`); nl();
+    txt(`    ${" ".repeat(55)}Volume injetado : ${run.sample.injVolume}`); nl();
+    txt(`    Método de aquisição     : ${run.sample.acqMethod}`); nl();
+    txt(`    Última alteração        : ${run.sample.lastChanged1}`); nl();
+    txt(`    Método de análise       : ${run.sample.analysisMethod}`); nl();
+    txt(`    Última alteração        : ${run.sample.lastChanged2}`); nl();
+    txt(`                      (modificado após o carregamento)`); nl(2);
 
     sep();
 
@@ -2392,7 +2392,7 @@ export default function HplcSimulator() {
                     </div>
                   )}
                   {([
-                    ["dataFile", "Data File (caminho)"],
+                    ["dataFile", "Arquivo de dados (caminho)"],
                     ["sampleName", "Sample Name"],
                     ["acqOperator", "Acq. Operator"],
                     ["seqLine", "Seq. Line"],
@@ -3178,33 +3178,33 @@ export default function HplcSimulator() {
           {/* ── CHROMATOGRAM PAGE ─────────────────────────────────────────── */}
           {page === "chromatogram" && (
             <>
-              {/* Data File + Sample Name */}
+              {/* Arquivo de dados + Nome da amostra */}
               <div style={{ marginBottom: 6 }}>
-                <div>Data File {sample.dataFile}</div>
-                <div>Sample Name: {sample.sampleName}</div>
+                <div>Arquivo de dados {sample.dataFile}</div>
+                <div>Nome da amostra: {sample.sampleName}</div>
               </div>
 
               <Div />
               {/* Operator block */}
               <div style={{ whiteSpace: "pre-wrap" }}>
-                {"    Acq. Operator   : " + sample.acqOperator.padEnd(28) + "Seq. Line : " + sample.seqLine}
+                {"    Operador de aquisição   : " + sample.acqOperator.padEnd(28) + "Linha de sequência : " + sample.seqLine}
               </div>
               <div style={{ whiteSpace: "pre-wrap" }}>
-                {"    Acq. Instrument : " + sample.acqInstrument.padEnd(28) + "Location  : " + sample.location}
+                {"    Instrumento de aquisição: " + sample.acqInstrument.padEnd(28) + "Localização        : " + sample.location}
               </div>
               <div style={{ whiteSpace: "pre-wrap" }}>
-                {"    Injection Date  : " + sample.injectionDate.padEnd(36) + "Inj :  " + sample.inj}
+                {"    Data da injeção         : " + sample.injectionDate.padEnd(36) + "Injeção :  " + sample.inj}
               </div>
               <div style={{ whiteSpace: "pre-wrap" }}>
-                {"    " + " ".repeat(55) + "Inj Volume : " + sample.injVolume}
+                {"    " + " ".repeat(55) + "Volume injetado : " + sample.injVolume}
               </div>
               <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
-                {"    Acq. Method     : " + sample.acqMethod}
+                {"    Método de aquisição     : " + sample.acqMethod}
               </div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged1}</div>
-              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Analysis Method : " + sample.analysisMethod}</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged2}</div>
-              <div style={{ whiteSpace: "pre" }}>{"                      (modified after loading)"}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Última alteração        : " + sample.lastChanged1}</div>
+              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Método de análise       : " + sample.analysisMethod}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Última alteração        : " + sample.lastChanged2}</div>
+              <div style={{ whiteSpace: "pre" }}>{"                      (modificado após o carregamento)"}</div>
               <Div />
 
               {/* Chromatogram chart */}
@@ -3375,18 +3375,18 @@ export default function HplcSimulator() {
 
               {/* Replicated sample info (same as chromatogram tab) */}
               <div style={{ marginBottom: 6 }}>
-                <div>Data File {sample.dataFile}</div>
-                <div>Sample Name: {sample.sampleName}</div>
+                <div>Arquivo de dados {sample.dataFile}</div>
+                <div>Nome da amostra: {sample.sampleName}</div>
               </div>
               <Div />
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Acq. Operator   : " + sample.acqOperator.padEnd(28) + "Seq. Line : " + sample.seqLine}</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Acq. Instrument : " + sample.acqInstrument.padEnd(28) + "Location  : " + sample.location}</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Injection Date  : " + sample.injectionDate.padEnd(36) + "Inj :  " + sample.inj}</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    " + " ".repeat(55) + "Inj Volume : " + sample.injVolume}</div>
-              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Acq. Method     : " + sample.acqMethod}</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged1}</div>
-              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Analysis Method : " + sample.analysisMethod}</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged2}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Operador de aquisição   : " + sample.acqOperator.padEnd(28) + "Linha de sequência : " + sample.seqLine}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Instrumento de aquisição: " + sample.acqInstrument.padEnd(28) + "Localização        : " + sample.location}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Data da injeção         : " + sample.injectionDate.padEnd(36) + "Injeção :  " + sample.inj}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    " + " ".repeat(55) + "Volume injetado : " + sample.injVolume}</div>
+              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Método de aquisição     : " + sample.acqMethod}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Última alteração        : " + sample.lastChanged1}</div>
+              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Método de análise       : " + sample.analysisMethod}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Última alteração        : " + sample.lastChanged2}</div>
               <Div />
 
               {/* External Standard Report — only print-selected peaks */}
