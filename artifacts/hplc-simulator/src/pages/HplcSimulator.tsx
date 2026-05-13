@@ -688,30 +688,36 @@ function PeakLabel({ viewBox, rt, name, dragging }: {
 }) {
   if (!viewBox) return null;
   const { x, y } = viewBox;
+  const color = dragging ? "#e05" : "#1560bd";
+  // Anchor point for both labels: just below the top of the margin space.
+  // With margin.top=75, y is the SVG top of the plot. Labels go upward (negative offset).
+  const ay = y - 6; // anchor y — within the top margin, safe from clipping
+
   return (
     <g>
-      {/* Compound name — horizontal, inside chart near the top */}
+      {/* RT number — vertical, leftmost column above the peak line */}
+      <text
+        x={x + 3} y={ay}
+        textAnchor="start"
+        transform={`rotate(-90, ${x + 3}, ${ay})`}
+        style={{ fontFamily: "Courier New, monospace", fontSize: 9.5, fill: dragging ? "#e05" : "#666", pointerEvents: "none" }}
+      >
+        {rt.toFixed(3)}
+      </text>
+      {/* Compound name — vertical, second column to the right of RT */}
       {name && (
         <text
-          x={x + 5} y={y + 13}
+          x={x + 14} y={ay}
           textAnchor="start"
-          style={{ fontFamily: "Courier New, monospace", fontSize: 9, fill: dragging ? "#e05" : "#1560bd", fontWeight: "bold", pointerEvents: "none" }}
+          transform={`rotate(-90, ${x + 14}, ${ay})`}
+          style={{ fontFamily: "Courier New, monospace", fontSize: 9, fill: color, fontWeight: "bold", pointerEvents: "none" }}
         >
           {name}
         </text>
       )}
-      {/* RT number — rotated vertical, above chart area */}
-      <text
-        x={x + 3} y={y - 3}
-        textAnchor="start"
-        transform={`rotate(-90, ${x + 3}, ${y - 3})`}
-        style={{ fontFamily: "Courier New, monospace", fontSize: 9.5, fill: dragging ? "#e05" : "#555", pointerEvents: "none" }}
-      >
-        {rt.toFixed(3)}
-      </text>
-      {/* Drag handle indicator — wider clickable zone hint */}
+      {/* Dashed vertical marker line through the plot */}
       <line
-        x1={x} y1={y} x2={x} y2={y + 260}
+        x1={x} y1={y} x2={x} y2={y + 300}
         stroke={dragging ? "#e05" : "#1560bd"}
         strokeWidth={dragging ? 2 : 0.5}
         strokeDasharray={dragging ? "none" : "4 3"}
@@ -1913,7 +1919,8 @@ export default function HplcSimulator() {
 
   const yMax = useMemo(() => {
     const max = Math.max(...chromatogram.map(d => d.signal), 10);
-    return Math.ceil(max * 1.15 / 50) * 50;
+    const computed = Math.ceil(max * 1.15 / 50) * 50;
+    return Math.max(computed, 2000); // always at least 2000 mAU so peak labels are never cut
   }, [chromatogram]);
 
   const xTicks = useMemo(() => {
@@ -3577,8 +3584,8 @@ export default function HplcSimulator() {
                     ← arraste o pico para ajustar o TR →
                   </div>
                 )}
-                <ResponsiveContainer width="100%" height={300}>
-                  <ComposedChart data={mergedChrom} margin={{ top: 22, right: 16, left: 8, bottom: 24 }}>
+                <ResponsiveContainer width="100%" height={360}>
+                  <ComposedChart data={mergedChrom} margin={{ top: 75, right: 16, left: 8, bottom: 24 }}>
                     <CartesianGrid strokeDasharray="2 2" stroke="#e2e2e2" />
                     <XAxis dataKey="time" type="number" domain={[0, detector.runTime]} ticks={xTicks}
                       tickFormatter={v => v.toFixed(1)}
