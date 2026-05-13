@@ -2196,6 +2196,14 @@ export default function ProtocolDetail() {
         toast({ title: "Protocolo removido" });
         setLocation("/");
       },
+      onError: (err) => {
+        const anyErr = err as { error?: string; message?: string; status?: number };
+        const description =
+          anyErr?.status === 401
+            ? "Sua sessão expirou. Faça login novamente."
+            : anyErr?.error ?? anyErr?.message ?? "Erro ao excluir protocolo. Tente novamente.";
+        toast({ variant: "destructive", title: "Erro ao excluir", description });
+      },
     },
   });
 

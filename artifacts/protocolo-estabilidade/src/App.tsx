@@ -131,14 +131,24 @@ function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+const REDIRECT_KEY = "alphafitus_redirect";
+
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
+  const [location] = useLocation();
   if (isLoading) return (
     <div className="min-h-screen flex items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
   );
-  if (!user) return <Redirect to="/login" />;
+  if (!user) {
+    try {
+      if (location && location !== "/" && location !== "/login") {
+        sessionStorage.setItem(REDIRECT_KEY, location);
+      }
+    } catch { /* ignore */ }
+    return <Redirect to="/login" />;
+  }
   return (
     <Layout>
       <Component />
@@ -148,12 +158,20 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 
 function ProtectedDetailRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
+  const [location] = useLocation();
   if (isLoading) return (
     <div className="min-h-screen flex items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
   );
-  if (!user) return <Redirect to="/login" />;
+  if (!user) {
+    try {
+      if (location && location !== "/" && location !== "/login") {
+        sessionStorage.setItem(REDIRECT_KEY, location);
+      }
+    } catch { /* ignore */ }
+    return <Redirect to="/login" />;
+  }
   return <Component />;
 }
 

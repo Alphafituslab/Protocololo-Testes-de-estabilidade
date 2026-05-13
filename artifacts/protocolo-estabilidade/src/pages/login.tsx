@@ -29,12 +29,20 @@ export default function LoginPage() {
       .catch(() => setSetupNeeded(false));
   }, [user, navigate]);
 
+  function popRedirect(): string {
+    try {
+      const saved = sessionStorage.getItem("alphafitus_redirect");
+      if (saved) { sessionStorage.removeItem("alphafitus_redirect"); return saved; }
+    } catch { /* ignore */ }
+    return "/";
+  }
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
       await login(username, password);
-      navigate("/");
+      navigate(popRedirect());
     } catch (err) {
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
     } finally {
@@ -60,7 +68,7 @@ export default function LoginPage() {
         throw new Error((d as { error?: string }).error ?? "Erro ao configurar.");
       }
       await login(username, password);
-      navigate("/");
+      navigate(popRedirect());
     } catch (err) {
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
     } finally {
