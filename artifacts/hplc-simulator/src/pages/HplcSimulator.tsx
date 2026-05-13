@@ -1412,6 +1412,10 @@ export default function HplcSimulator() {
   const [userListLoading, setUserListLoading] = useState(false);
   const [userListError, setUserListError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [deleteSessionDialog, setDeleteSessionDialog] = useState<{ id: string; name: string } | null>(null);
+  const [deleteSessionPwd, setDeleteSessionPwd] = useState("");
+  const [deleteSessionError, setDeleteSessionError] = useState<string | null>(null);
+  const [deleteSessionLoading, setDeleteSessionLoading] = useState(false);
 
   const markDirty = useCallback(() => { setIsDirty(true); setConfirmed(false); }, []);
 
@@ -1837,6 +1841,38 @@ export default function HplcSimulator() {
     if (currentSessionId === id) setCurrentSessionId(null);
   };
 
+  const openDeleteSessionDialog = (id: string, name: string) => {
+    setDeleteSessionDialog({ id, name });
+    setDeleteSessionPwd("");
+    setDeleteSessionError(null);
+  };
+
+  const confirmDeleteSession = async () => {
+    if (!deleteSessionDialog) return;
+    setDeleteSessionLoading(true);
+    setDeleteSessionError(null);
+    try {
+      const token = sessionStorage.getItem("alphafitus_token") ?? "";
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password: deleteSessionPwd }),
+      });
+      if (!res.ok) {
+        const data = await res.json() as { error?: string };
+        setDeleteSessionError(data.error ?? "Senha incorreta.");
+        return;
+      }
+      handleDeleteSession(deleteSessionDialog.id);
+      setDeleteSessionDialog(null);
+      setDeleteSessionPwd("");
+    } catch {
+      setDeleteSessionError("Erro ao verificar senha.");
+    } finally {
+      setDeleteSessionLoading(false);
+    }
+  };
+
   const handleConcludeSession = (sessionId: string, status: "aprovado" | "reprovado") => {
     setAnalysisSessions(ss => {
       const updated = ss.map(s => s.id === sessionId ? { ...s, status, concludedAt: new Date().toISOString() } : s);
@@ -2003,6 +2039,16 @@ export default function HplcSimulator() {
                           setDetector(d => ({ ...d, sigWavelength: c.wavelength }));
                           setCalib(cb => ({ ...cb, compoundName: c.name, expRT: c.expectedRT }));
                           prevCalibNameRef.current = c.name;
+                          // Update the matching peak (by name or the first peak) with compound parameters
+                          setPeaks(ps => {
+                            const idx = ps.findIndex(p => p.name === c.name || p.name === calib.compoundName);
+                            if (idx === -1 && ps.length === 0) return ps;
+                            const target = idx >= 0 ? idx : 0;
+                            return ps.map((p, i) => i === target
+                              ? { ...p, name: c.name, retentionTime: c.expectedRT, width: c.typicalWidth, asymmetry: c.typicalAsym }
+                              : p
+                            );
+                          });
                           markDirty();
                           e.target.value = "";
                         }}
@@ -2247,7 +2293,7 @@ export default function HplcSimulator() {
                             <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa" }}>{new Date(s.createdAt).toLocaleDateString("pt-BR")}</div>
                             <div className="flex gap-1 mt-1">
                               <Button size="sm" variant="destructive" className="h-5 text-xs px-1.5 flex-1 opacity-70"
-                                onClick={e => { e.stopPropagation(); handleDeleteSession(s.id); }}>
+                                onClick={e => { e.stopPropagation(); openDeleteSessionDialog(s.id, s.name); }}>
                                 <Trash2 className="h-2.5 w-2.5 mr-0.5" /> Excluir
                               </Button>
                             </div>
@@ -2525,6 +2571,12 @@ export default function HplcSimulator() {
                                     <ImageDown style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Salvar PNG
                                   </button>
                                 )}
+
+                                {/* Delete with password */}
+                                <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #dc2626", borderRadius: 4, background: "#fee2e2", cursor: "pointer", color: "#dc2626" }}
+                                  onClick={() => openDeleteSessionDialog(s.id, s.name)}>
+                                  <Trash2 style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Excluir
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -2675,7 +2727,7 @@ export default function HplcSimulator() {
                         strokeWidth={0.8}
                         strokeDasharray="3 2"
                         label={(props: { viewBox?: { x: number; y: number } }) => {
-                          if (!props.viewBox) return null;
+                          if (!props.viewBox) return <g />;
                           const { x, y } = props.viewBox;
                           return (
                             <text x={x - 3} y={y + 13} textAnchor="end"
@@ -3464,6 +3516,62 @@ export default function HplcSimulator() {
           </div>
         </div>
       </div>
+
+      {/* ── Password-protected delete session dialog ─────────────────────────── */}
+      {deleteSessionDialog && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 9999,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 10, padding: "24px 28px", minWidth: 340, boxShadow: "0 8px 40px rgba(0,0,0,0.22)",
+            fontFamily: "Courier New, monospace",
+          }}>
+            <div style={{ fontSize: 15, fontWeight: "bold", color: "#dc2626", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+              <Trash2 style={{ width: 16, height: 16 }} /> Excluir Sessão de Análise
+            </div>
+            <div style={{ fontSize: 11, color: "#334155", marginBottom: 14, lineHeight: 1.5 }}>
+              Você está prestes a excluir permanentemente:<br />
+              <strong>"{deleteSessionDialog.name}"</strong><br />
+              <span style={{ color: "#dc2626", fontSize: 10 }}>Esta ação não pode ser desfeita.</span>
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 10, color: "#64748b", display: "block", marginBottom: 4 }}>
+                Digite a senha mestra para confirmar:
+              </label>
+              <input
+                type="password"
+                value={deleteSessionPwd}
+                onChange={e => { setDeleteSessionPwd(e.target.value); setDeleteSessionError(null); }}
+                onKeyDown={e => e.key === "Enter" && !deleteSessionLoading && confirmDeleteSession()}
+                placeholder="Senha mestra"
+                autoFocus
+                style={{
+                  width: "100%", border: deleteSessionError ? "1px solid #dc2626" : "1px solid #cbd5e1",
+                  borderRadius: 5, padding: "6px 10px", fontSize: 12, fontFamily: "Courier New, monospace",
+                  outline: "none", boxSizing: "border-box",
+                }}
+              />
+              {deleteSessionError && (
+                <div style={{ fontSize: 10, color: "#dc2626", marginTop: 4 }}>{deleteSessionError}</div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                style={{ fontSize: 11, padding: "6px 14px", border: "1px solid #cbd5e1", borderRadius: 5, background: "#f8fafc", cursor: "pointer", color: "#475569" }}
+                onClick={() => { setDeleteSessionDialog(null); setDeleteSessionPwd(""); setDeleteSessionError(null); }}>
+                Cancelar
+              </button>
+              <button
+                disabled={deleteSessionLoading || !deleteSessionPwd}
+                style={{ fontSize: 11, padding: "6px 16px", border: "1px solid #dc2626", borderRadius: 5, background: deleteSessionLoading || !deleteSessionPwd ? "#fca5a5" : "#dc2626", cursor: deleteSessionLoading || !deleteSessionPwd ? "not-allowed" : "pointer", color: "#fff", fontWeight: "bold" }}
+                onClick={confirmDeleteSession}>
+                {deleteSessionLoading ? "Verificando…" : "Excluir"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
