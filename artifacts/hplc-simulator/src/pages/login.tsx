@@ -21,6 +21,9 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // If user is already logged in (e.g. valid session in sessionStorage),
+  // redirect them away from the login page via Wouter (no race condition here
+  // since the session was loaded synchronously from storage before first render).
   useEffect(() => {
     if (user) {
       navigate("/");
@@ -30,13 +33,17 @@ export default function LoginPage() {
       .then((r) => r.json())
       .then((d: { setupNeeded: boolean }) => setSetupNeeded(d.setupNeeded))
       .catch(() => setSetupNeeded(false));
-  }, [user, navigate]);
+  }, [user]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
       await login(username, password);
+      // Use a hard navigation so the page reloads and auth-context reads
+      // the fresh token from sessionStorage. This avoids the React batching
+      // race where ProtectedRoute renders before setUser() commits.
+      window.location.replace(import.meta.env.BASE_URL || "/");
     } catch (err) {
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
       setLoading(false);
@@ -61,6 +68,7 @@ export default function LoginPage() {
         throw new Error((d as { error?: string }).error ?? "Erro ao configurar.");
       }
       await login(username, password);
+      window.location.replace(import.meta.env.BASE_URL || "/");
     } catch (err) {
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
       setLoading(false);

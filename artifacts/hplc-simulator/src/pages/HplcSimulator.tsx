@@ -882,6 +882,7 @@ interface PersistedState {
   standards: CalibStandard[];
   calib: CalibInfo;
   activeCompounds: ActiveCompound[];
+  productName?: string;
 }
 
 function loadState(): PersistedState | null {
@@ -1641,6 +1642,7 @@ export default function HplcSimulator() {
   const [confirmed, setConfirmed] = useState(false);
   const [peaks, setPeaks] = useState<Peak[]>(() => loadState()?.peaks ?? DEFAULT_PEAKS);
   const [sample, setSample] = useState<SampleInfo>(() => loadState()?.sample ?? DEFAULT_SAMPLE);
+  const [productName, setProductName] = useState<string>(() => loadState()?.productName ?? "");
   const [detector, setDetector] = useState<DetectorInfo>(() => loadState()?.detector ?? DEFAULT_DETECTOR);
   const [standards, setStandards] = useState<CalibStandard[]>(() => loadState()?.standards ?? DEFAULT_STANDARDS);
   const [calib, setCalib] = useState<CalibInfo>(() => loadState()?.calib ?? DEFAULT_CALIB);
@@ -1707,11 +1709,11 @@ export default function HplcSimulator() {
       prevCalibNameRef.current = newName;
     }
 
-    saveState({ peaks: finalPeaks, sample, detector, standards, calib, activeCompounds: finalActives });
+    saveState({ peaks: finalPeaks, sample, detector, standards, calib, activeCompounds: finalActives, productName });
     setIsDirty(false);
     setConfirmed(true);
     setTimeout(() => setConfirmed(false), 2000);
-  }, [peaks, sample, detector, standards, calib, activeCompounds]);
+  }, [peaks, sample, detector, standards, calib, activeCompounds, productName]);
 
   // ── Peak drag (left/right on chromatogram) ───────────────────────────────────
 
@@ -2401,6 +2403,38 @@ export default function HplcSimulator() {
               <>
                 {/* Sample Info — all fields including dataFile */}
                 <ControlBox title="Sample Info">
+                  {/* ── Nome do Produto / Suplemento ── */}
+                  <div className="mb-2 pb-2 border-b border-gray-100">
+                    <label className="text-xs font-mono font-bold text-gray-700" style={{ fontSize: 9.5 }}>
+                      Nome do Produto / Suplemento
+                    </label>
+                    <input
+                      type="text"
+                      value={productName}
+                      placeholder="Ex: Biotina, Tiamina B1, Vitamina D3..."
+                      onChange={e => {
+                        const nome = e.target.value;
+                        setProductName(nome);
+                        if (nome.trim()) {
+                          const now = new Date();
+                          const pad = (n: number) => String(n).padStart(2, "0");
+                          const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+                          const seq = String(parseInt(sample.seqLine) || 1).padStart(3, "0");
+                          setSample(s => ({
+                            ...s,
+                            dataFile: `C:\\CHEM32\\1\\DATA\\TESTE ${nome} ${datePart}\\${seq}-${seq}01.D`,
+                            sampleName: nome,
+                          }));
+                        }
+                        markDirty();
+                      }}
+                      className="w-full h-6 text-xs font-mono border border-input rounded px-1 bg-background mt-0.5"
+                      style={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
+                    />
+                    <p className="text-xs text-muted-foreground font-mono mt-0.5" style={{ fontSize: 9 }}>
+                      Preenche Arquivo de dados e Sample Name automaticamente.
+                    </p>
+                  </div>
                   {/* ── Quick-fill from active compound bank ── */}
                   {activeCompounds.length > 0 && (
                     <div className="mb-2 pb-2 border-b border-blue-100">
@@ -2626,7 +2660,8 @@ export default function HplcSimulator() {
                             <Settings className="h-3 w-3" />
                           </Button>
                         </PeakEditorDialog>
-                        <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 hover:text-red-500"
+                        <Button size="sm" variant="ghost" className="h-5 w-5 p-0 hover:text-red-500"
+                          title="Excluir pico"
                           onClick={() => removePeak(p.id)}>
                           <Trash2 className="h-3 w-3" />
                         </Button>
