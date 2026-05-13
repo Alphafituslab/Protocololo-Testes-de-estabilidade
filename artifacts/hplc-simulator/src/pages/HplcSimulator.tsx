@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
-import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download, Users, ShieldCheck, ShieldOff, ToggleLeft, ToggleRight, LayoutDashboard, ImageDown, ClipboardCheck, ClipboardX, ScrollText, Activity, ImageIcon, Eye, EyeOff, ClipboardPaste, Scale } from "lucide-react";
+import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download, Users, ShieldCheck, ShieldOff, ToggleLeft, ToggleRight, LayoutDashboard, ImageDown, ClipboardCheck, ClipboardX, ScrollText, Activity, ImageIcon, Eye, EyeOff, ClipboardPaste, Scale, Lock, LockOpen } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocation } from "wouter";
 
@@ -30,6 +30,7 @@ interface Peak {
   peakNoise: number;        // 0 = perfect Gaussian; 1 = max roughness
   attachedFile?: string;    // filename of imported data file
   printSelected?: boolean;  // include in printed report (default = true)
+  locked?: boolean;         // if true: peak cannot be moved, edited or deleted
 }
 
 interface SampleInfo {
@@ -1678,6 +1679,7 @@ export default function HplcSimulator() {
   const [currentSnapshotSessionId, setCurrentSnapshotSessionId] = useState<string | null>(null);
   const [savePngDialog, setSavePngDialog] = useState<{ sessionId: string; redirectToGallery: boolean } | null>(null);
   const [savePngCertNum, setSavePngCertNum] = useState("");
+  const [peakContextMenu, setPeakContextMenu] = useState<{ x: number; y: number; peakId: string } | null>(null);
   const [finalizeDialog, setFinalizeDialog] = useState<{ id: string; name: string } | null>(null);
   const [finalizeStatus, setFinalizeStatus] = useState<"em_andamento" | "aprovado" | "reprovado">("aprovado");
   const [finalizeNotes, setFinalizeNotes] = useState("");
@@ -1790,7 +1792,7 @@ export default function HplcSimulator() {
     const innerW = rect.width - CM_LEFT - CM_RIGHT;
     const mouseX = e.clientX - rect.left;
     let best: { id: string; dist: number } | null = null;
-    for (const p of peaks.filter(pp => pp.name)) {
+    for (const p of peaks.filter(pp => pp.name && !pp.locked)) {
       const px = CM_LEFT + (p.retentionTime / detector.runTime) * innerW;
       const d = Math.abs(mouseX - px);
       if (d < 16 && (!best || d < best.dist)) best = { id: p.id, dist: d };
@@ -1800,6 +1802,23 @@ export default function HplcSimulator() {
       setDraggingPeakId(best.id);
       e.preventDefault();
       e.stopPropagation();
+    }
+  }, [peaks, detector.runTime]);
+
+  const handleChartContextMenu = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!chartContainerRef.current) return;
+    const rect = chartContainerRef.current.getBoundingClientRect();
+    const innerW = rect.width - CM_LEFT - CM_RIGHT;
+    const mouseX = e.clientX - rect.left;
+    let best: { id: string; dist: number } | null = null;
+    for (const p of peaks) {
+      const px = CM_LEFT + (p.retentionTime / detector.runTime) * innerW;
+      const d = Math.abs(mouseX - px);
+      if (d < 24 && (!best || d < best.dist)) best = { id: p.id, dist: d };
+    }
+    if (best) {
+      setPeakContextMenu({ x: e.clientX, y: e.clientY, peakId: best.id });
     }
   }, [peaks, detector.runTime]);
 
@@ -1925,8 +1944,14 @@ export default function HplcSimulator() {
     markDirty();
   }, [detector.runTime, markDirty]);
 
-  const removePeak = (id: string) => { setPeaks(ps => ps.filter(p => p.id !== id)); markDirty(); };
+  const removePeak = (id: string) => {
+    const peak = peaks.find(p => p.id === id);
+    if (peak?.locked) return;
+    setPeaks(ps => ps.filter(p => p.id !== id));
+    markDirty();
+  };
   const savePeak = (updated: Peak) => { setPeaks(ps => ps.map(p => p.id === updated.id ? updated : p)); markDirty(); };
+  const toggleLockPeak = (id: string) => { setPeaks(ps => ps.map(p => p.id === id ? { ...p, locked: !p.locked } : p)); markDirty(); };
 
   const addStandard = () => {
     const n = standards.length + 1;
@@ -2760,13 +2785,17 @@ export default function HplcSimulator() {
                     <span style={{ color: "#1d4ed8" }}>☑ = incluir na impressão</span>
                   </p>
                   {peakStats.map((p) => (
-                    <div key={p.id} className="group mb-2">
-                      <div className="flex items-center gap-1 rounded px-1 py-0.5 hover:bg-gray-50">
+                    <div key={p.id} className="group mb-2"
+                      onContextMenu={e => { e.preventDefault(); setPeakContextMenu({ x: e.clientX, y: e.clientY, peakId: p.id }); }}>
+                      <div className="flex items-center gap-1 rounded px-1 py-0.5 hover:bg-gray-50"
+                        style={{ background: p.locked ? "#fef9ec" : undefined, borderLeft: p.locked ? "2px solid #f59e0b" : "2px solid transparent" }}>
                         <input
                           type="checkbox"
                           title="Incluir na impressão"
                           checked={p.printSelected !== false}
+                          disabled={!!p.locked}
                           onChange={e => {
+                            if (p.locked) return;
                             setPeaks(ps => ps.map(pk => pk.id === p.id ? { ...pk, printSelected: e.target.checked } : pk));
                             markDirty();
                           }}
@@ -2774,18 +2803,29 @@ export default function HplcSimulator() {
                           style={{ accentColor: "#1d4ed8" }}
                         />
                         <span style={{ ...MONO, fontSize: 9.5, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {p.locked && <Lock style={{ display: "inline", width: 9, height: 9, color: "#f59e0b", marginRight: 3, verticalAlign: "middle" }} />}
                           {p.retentionTime.toFixed(3)} {p.name ? `(${p.name})` : "—"}
                           {p.manualArea > 0
                             ? <span style={{ color: "#1d4ed8" }}> ✎{p.manualArea.toFixed(2)}</span>
                             : <span style={{ color: "#888" }}> ~{p.computedArea.toFixed(1)}</span>}
                         </span>
-                        <PeakEditorDialog peak={p} onSave={savePeak}>
-                          <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
-                            <Settings className="h-3 w-3" />
-                          </Button>
-                        </PeakEditorDialog>
+                        <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                          title={p.locked ? "Desbloquear pico" : "Travar pico"}
+                          onClick={() => toggleLockPeak(p.id)}>
+                          {p.locked
+                            ? <LockOpen className="h-3 w-3 text-amber-500" />
+                            : <Lock className="h-3 w-3 text-gray-400" />}
+                        </Button>
+                        {!p.locked && (
+                          <PeakEditorDialog peak={p} onSave={savePeak}>
+                            <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
+                              <Settings className="h-3 w-3" />
+                            </Button>
+                          </PeakEditorDialog>
+                        )}
                         <Button size="sm" variant="ghost" className="h-5 w-5 p-0 hover:text-red-500"
-                          title="Excluir pico"
+                          title={p.locked ? "Pico travado — desbloqueie para excluir" : "Excluir pico"}
+                          disabled={!!p.locked}
                           onClick={() => removePeak(p.id)}>
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -3467,6 +3507,7 @@ export default function HplcSimulator() {
                 onMouseMove={handleChartMouseMove}
                 onMouseUp={handleChartMouseUp}
                 onMouseLeave={handleChartMouseUp}
+                onContextMenu={handleChartContextMenu}
               >
                 <div style={{ fontSize: 11, marginBottom: 2 }}>mAU</div>
                 <div style={{ fontSize: 10, color: "#555", position: "absolute", top: 0, right: 0 }}>
@@ -5008,6 +5049,61 @@ export default function HplcSimulator() {
       )}
 
       {/* ── Password-protected delete session dialog ─────────────────────────── */}
+      {/* ── Peak context menu ─────────────────────────────────────────────── */}
+      {peakContextMenu && (() => {
+        const peak = peaks.find(p => p.id === peakContextMenu.peakId);
+        if (!peak) return null;
+        return (
+          <>
+            {/* Backdrop to close menu */}
+            <div style={{ position: "fixed", inset: 0, zIndex: 9998 }} onClick={() => setPeakContextMenu(null)} onContextMenu={e => { e.preventDefault(); setPeakContextMenu(null); }} />
+            <div style={{
+              position: "fixed", zIndex: 9999,
+              left: peakContextMenu.x, top: peakContextMenu.y,
+              background: "#fff", border: "1px solid #e2e8f0",
+              borderRadius: 7, boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+              minWidth: 190, fontFamily: "Courier New, monospace", fontSize: 11,
+              overflow: "hidden",
+            }}>
+              {/* Header */}
+              <div style={{ padding: "8px 12px 6px", borderBottom: "1px solid #f1f5f9", background: "#f8fafc" }}>
+                <div style={{ fontWeight: "bold", color: "#1e293b", fontSize: 11 }}>
+                  {peak.name ? peak.name : `RT ${peak.retentionTime.toFixed(3)} min`}
+                </div>
+                {peak.name && <div style={{ color: "#64748b", fontSize: 9.5 }}>TR: {peak.retentionTime.toFixed(3)} min</div>}
+                {peak.locked && <div style={{ color: "#f59e0b", fontSize: 9, fontWeight: "bold", marginTop: 2 }}>🔒 TRAVADO</div>}
+              </div>
+              {/* Menu items */}
+              <div style={{ padding: "4px 0" }}>
+                <button
+                  onClick={() => { toggleLockPeak(peak.id); setPeakContextMenu(null); }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 11, fontFamily: "Courier New, monospace", color: peak.locked ? "#d97706" : "#334155", textAlign: "left" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                  {peak.locked
+                    ? <><LockOpen style={{ width: 13, height: 13, color: "#d97706" }} /> Desbloquear pico</>
+                    : <><Lock style={{ width: 13, height: 13, color: "#64748b" }} /> Travar pico</>}
+                </button>
+                {!peak.locked && (
+                  <button
+                    onClick={() => { removePeak(peak.id); setPeakContextMenu(null); }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 11, fontFamily: "Courier New, monospace", color: "#dc2626", textAlign: "left" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#fef2f2")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                    <Trash2 style={{ width: 13, height: 13 }} /> Excluir pico
+                  </button>
+                )}
+                {peak.locked && (
+                  <div style={{ padding: "6px 14px", color: "#94a3b8", fontSize: 9.5 }}>
+                    Desbloqueie para excluir ou editar.
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
       {deleteSessionDialog && (
         <div style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 9999,
