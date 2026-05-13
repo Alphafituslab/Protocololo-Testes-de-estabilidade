@@ -31,23 +31,24 @@ const store = {
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Read sessionStorage synchronously so the protected routes never see a
+  // "not authenticated" flash after login + window.location.replace().
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    try {
+      const stored = store.get(USER_KEY);
+      return stored ? (JSON.parse(stored) as AuthUser) : null;
+    } catch { return null; }
+  });
+  const [token, setToken] = useState<string | null>(() => {
+    try { return store.get(TOKEN_KEY); } catch { return null; }
+  });
+  // isLoading is always false: we initialise synchronously, no async step needed.
+  const isLoading = false;
 
+  // Wire up the API client token getter whenever the token changes.
   useEffect(() => {
-    const storedToken = store.get(TOKEN_KEY);
-    const storedUser = store.get(USER_KEY);
-    if (storedToken && storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser) as AuthUser;
-        setToken(storedToken);
-        setUser(parsedUser);
-        setAuthTokenGetter(() => storedToken);
-      } catch { /* ignore parse errors */ }
-    }
-    setIsLoading(false);
-  }, []);
+    setAuthTokenGetter(token ? () => token : null);
+  }, [token]);
 
   const login = useCallback(async (username: string, password: string) => {
     const res = await fetch("/api/auth/login", {
