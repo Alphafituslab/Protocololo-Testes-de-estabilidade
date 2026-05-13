@@ -249,6 +249,32 @@ function pseudoNoise(i: number): number {
   return ((a + b + c) - Math.floor(a + b + c)) - 0.5; // -0.5 … +0.5
 }
 
+// ── Method name sync helpers ──────────────────────────────────────────────────
+// Extract just the last path segment (filename) from a Windows/Unix path
+function extractMethodFilename(path: string): string {
+  if (!path) return "";
+  const parts = path.split(/[\\/]/);
+  return parts[parts.length - 1] || path;
+}
+// Replace the last segment (filename) of a path with a new filename.
+// If the current path has no directory component, just returns newFilename.
+function applyMethodFilename(currentPath: string, newFilename: string): string {
+  if (!currentPath) return newFilename;
+  const sep = currentPath.includes("\\") ? "\\" : "/";
+  const parts = currentPath.split(/[\\/]/);
+  if (parts.length <= 1) return newFilename;
+  parts[parts.length - 1] = newFilename;
+  return parts.join(sep);
+}
+// Given a change to acqMethod or analysisMethod, derive what the OTHER field should be.
+// Both paths keep their directories; only the final .M filename is synced.
+function syncMethodPeer(changedKey: "acqMethod" | "analysisMethod", newValue: string, currentPeer: string): string {
+  const newFilename = extractMethodFilename(newValue);
+  // If the new value has no path structure, just use it directly as the peer filename too
+  if (!currentPeer) return newFilename;
+  return applyMethodFilename(currentPeer, newFilename);
+}
+
 // Hash peak id string → integer seed for deterministic per-peak noise
 function idSeed(id: string): number {
   let h = 0;
@@ -1421,8 +1447,18 @@ function NewSessionDialog({ formulas, onSave, children }: {
   };
 
   const [d, setD] = useState<SessionSetupData>(defaults);
-  const set = (k: keyof SessionSetupData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setD(prev => ({ ...prev, [k]: e.target.value }));
+  const set = (k: keyof SessionSetupData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setD(prev => {
+      if (k === "acqMethod") {
+        return { ...prev, acqMethod: val, analysisMethod: syncMethodPeer("acqMethod", val, prev.analysisMethod) };
+      }
+      if (k === "analysisMethod") {
+        return { ...prev, analysisMethod: val, acqMethod: syncMethodPeer("analysisMethod", val, prev.acqMethod) };
+      }
+      return { ...prev, [k]: val };
+    });
+  };
 
   const handleOpen = (v: boolean) => {
     if (v) setD(defaults());
@@ -2047,7 +2083,16 @@ export default function HplcSimulator() {
   };
 
   const sField = (k: keyof SampleInfo) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSample(s => ({ ...s, [k]: e.target.value }));
+    const val = e.target.value;
+    setSample(s => {
+      if (k === "acqMethod") {
+        return { ...s, acqMethod: val, analysisMethod: syncMethodPeer("acqMethod", val, s.analysisMethod) };
+      }
+      if (k === "analysisMethod") {
+        return { ...s, analysisMethod: val, acqMethod: syncMethodPeer("analysisMethod", val, s.acqMethod) };
+      }
+      return { ...s, [k]: val };
+    });
     markDirty();
   };
   const dField = (k: keyof DetectorInfo) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2595,7 +2640,10 @@ export default function HplcSimulator() {
                         onChange={e => {
                           const c = activeCompounds.find(ac => ac.id === e.target.value);
                           if (!c) return;
-                          setSample(s => ({ ...s, sampleName: c.name, acqMethod: c.method || s.acqMethod }));
+                          setSample(s => {
+                            const newAcq = c.method || s.acqMethod;
+                            return { ...s, sampleName: c.name, acqMethod: newAcq, analysisMethod: syncMethodPeer("acqMethod", newAcq, s.analysisMethod) };
+                          });
                           setDetector(d => ({ ...d, sigWavelength: c.wavelength }));
                           setCalib(cb => ({ ...cb, compoundName: c.name, expRT: c.expectedRT }));
                           prevCalibNameRef.current = c.name;
@@ -2652,10 +2700,20 @@ export default function HplcSimulator() {
                     ["injectionDate", "Injection Date"],
                     ["inj", "Inj #"],
                     ["injVolume", "Inj Volume"],
-                    ["acqMethod", "Acq. Method"],
-                    ["lastChanged1", "Last changed (Acq.)"],
-                    ["analysisMethod", "Analysis Method"],
-                    ["lastChanged2", "Last changed (Ana.)"],
+                  ] as [keyof SampleInfo, string][]).map(([k, label]) => (
+                    <SmallField key={k} label={label} value={sample[k]} onChange={sField(k)} />
+                  ))}
+                  {/* Method sync group */}
+                  <div style={{ border: "1px solid #bfdbfe", borderRadius: 5, padding: "5px 6px", marginTop: 4, background: "#eff6ff" }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#1d4ed8", fontWeight: "bold", marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                      ⟷ Métodos sincronizados — alterar um atualiza o outro automaticamente
+                    </div>
+                    <SmallField label="Acq. Method" value={sample.acqMethod} onChange={sField("acqMethod")} />
+                    <SmallField label="Last changed (Acq.)" value={sample.lastChanged1} onChange={sField("lastChanged1")} />
+                    <SmallField label="Analysis Method" value={sample.analysisMethod} onChange={sField("analysisMethod")} />
+                    <SmallField label="Last changed (Ana.)" value={sample.lastChanged2} onChange={sField("lastChanged2")} />
+                  </div>
+                  {([
                     ["reportDate", "Data do Relatório (rodapé)"],
                     ["softwareRev", "Versão Software (rodapé)"],
                   ] as [keyof SampleInfo, string][]).map(([k, label]) => (
