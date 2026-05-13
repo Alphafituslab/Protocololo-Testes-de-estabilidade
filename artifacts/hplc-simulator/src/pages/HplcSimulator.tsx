@@ -715,15 +715,6 @@ function PeakLabel({ viewBox, rt, name, dragging }: {
           {name}
         </text>
       )}
-      {/* Dashed vertical marker line through the plot */}
-      <line
-        x1={x} y1={y} x2={x} y2={y + 300}
-        stroke={dragging ? "#e05" : "#1560bd"}
-        strokeWidth={dragging ? 2 : 0.5}
-        strokeDasharray={dragging ? "none" : "4 3"}
-        strokeOpacity={dragging ? 0.6 : 0.3}
-        style={{ pointerEvents: "none" }}
-      />
     </g>
   );
 }
