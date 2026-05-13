@@ -1105,9 +1105,12 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40">
-                    <TableHead className="w-44 text-xs">Parametro</TableHead>
-                    <TableHead className="w-36 text-xs">Criterio</TableHead>
-                    <TableHead className="w-6 text-xs"></TableHead>
+                    {/* Sticky: Parameter column */}
+                    <TableHead className="w-44 text-xs sticky left-0 z-20 bg-muted/40 border-r border-border/60">Parametro</TableHead>
+                    {/* Sticky: Criterion column — wider so no text is clipped */}
+                    <TableHead className="w-52 text-xs sticky left-44 z-20 bg-muted/40 border-r border-border/60">Criterio</TableHead>
+                    {/* Sticky: delete-button column */}
+                    <TableHead className="w-6 text-xs sticky left-[23rem] z-20 bg-muted/40 border-r border-border/40"></TableHead>
                     {lots.map((lot) =>
                       PERIODS.map((period) => (
                         <TableHead key={`${lot.id}-${period}`} className="text-xs text-center min-w-28">
@@ -1126,13 +1129,19 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                     const rowHasAR = protocolIsAR && results.some(
                       (r) => r.parameter === param.parameter && r.status === "nao_conforme",
                     );
+                    const stickyBg = rowHasNonConforming
+                      ? "bg-red-50"
+                      : rowHasAR
+                      ? "bg-amber-50"
+                      : "bg-background";
                     return (
                     <TableRow
                       key={param.uid}
                       data-testid={`row-param-${param.parameter}`}
                       className={rowHasNonConforming ? "bg-red-50 hover:bg-red-100" : rowHasAR ? "bg-amber-50 hover:bg-amber-100" : ""}
                     >
-                      <TableCell className="py-1 pr-1">
+                      {/* Sticky: Parameter cell */}
+                      <TableCell className={`py-1 pr-1 sticky left-0 z-10 border-r border-border/60 ${stickyBg}`}>
                         <input
                           value={param.parameter}
                           onChange={(e) => updateParam(param.uid, "parameter", e.target.value)}
@@ -1154,7 +1163,8 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                           onSelect={(s, c) => setParamMethod(param.parameter, s, c)}
                         />
                       </TableCell>
-                      <TableCell className="py-1 pr-1">
+                      {/* Sticky: Criterion cell */}
+                      <TableCell className={`py-1 pr-1 sticky left-44 z-10 border-r border-border/60 ${stickyBg}`}>
                         <input
                           value={param.criterion}
                           onChange={(e) => updateParam(param.uid, "criterion", e.target.value)}
@@ -1162,7 +1172,8 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                           placeholder="Critério de aceitação"
                         />
                       </TableCell>
-                      <TableCell className="py-1 px-1 text-center">
+                      {/* Sticky: delete-button cell */}
+                      <TableCell className={`py-1 px-1 text-center sticky left-[23rem] z-10 border-r border-border/40 ${stickyBg}`}>
                         <button
                           type="button"
                           onClick={() => removeParam(param.uid)}
