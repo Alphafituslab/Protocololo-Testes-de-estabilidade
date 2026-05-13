@@ -225,7 +225,7 @@ export default function ProtocolForm() {
             <CardContent className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="certNumber" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Numero do Certificado</FormLabel>
+                  <FormLabel>Número do Certificado</FormLabel>
                   <FormControl><Input data-testid="input-certNumber" placeholder="ex: CERT-AF-20241210/035" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -267,7 +267,7 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="capsuleComposition" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>Composicao da Capsula</FormLabel>
+                  <FormLabel>Composição da Cápsula</FormLabel>
                   <FormControl><Input data-testid="input-capsuleComposition" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -282,7 +282,7 @@ export default function ProtocolForm() {
             <CardContent className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="studyStartDate" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Data de Inicio</FormLabel>
+                  <FormLabel>Data de Início</FormLabel>
                   <FormControl><Input type="date" data-testid="input-studyStartDate" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -310,7 +310,7 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="studyPeriodMonths" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Periodo do Estudo (meses)</FormLabel>
+                  <FormLabel>Período do Estudo (meses)</FormLabel>
                   <FormControl><Input type="number" data-testid="input-studyPeriodMonths" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -336,19 +336,19 @@ export default function ProtocolForm() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">4. Responsaveis</CardTitle>
+              <CardTitle className="text-base">4. Responsáveis</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="elaboratedBy" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Elaboracao</FormLabel>
+                  <FormLabel>Elaboração</FormLabel>
                   <FormControl><Input data-testid="input-elaboratedBy" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="approvedBy" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Aprovacao</FormLabel>
+                  <FormLabel>Aprovação</FormLabel>
                   <FormControl><Input data-testid="input-approvedBy" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -362,7 +362,7 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="seniorAnalyst" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Analista Senior</FormLabel>
+                  <FormLabel>Analista Sênior</FormLabel>
                   <FormControl><Input data-testid="input-seniorAnalyst" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -390,7 +390,7 @@ export default function ProtocolForm() {
             </Link>
             <Button type="submit" disabled={isPending} data-testid="button-submit">
               {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              {isEdit ? "Salvar Alteracoes" : "Criar Protocolo"}
+              {isEdit ? "Salvar Alterações" : "Criar Protocolo"}
             </Button>
           </div>
         </form>

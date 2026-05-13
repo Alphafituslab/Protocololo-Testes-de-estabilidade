@@ -114,10 +114,12 @@ function HplcImagesTab() {
                 Fórmula: {selected.formulaName} · {new Date(selected.createdAt).toLocaleString("pt-BR")}
               </div>
               <div className="flex gap-2 mt-2">
-                <a href={selected.imageData} download={`${selected.sessionName}_cromatograma.png`} className="flex-1">
-                  <button className="w-full flex items-center justify-center gap-2 text-sm border rounded px-3 py-1.5 hover:bg-muted">
-                    <Download className="h-3.5 w-3.5" /> Baixar PNG
-                  </button>
+                <a
+                  href={selected.imageData}
+                  download={`${selected.sessionName}_cromatograma.png`}
+                  className="flex-1 flex items-center justify-center gap-2 text-sm border rounded px-3 py-1.5 hover:bg-muted"
+                >
+                  <Download className="h-3.5 w-3.5" /> Baixar PNG
                 </a>
               </div>
             </DialogContent>
@@ -149,7 +151,7 @@ function HplcImagesTab() {
 const STATUS_LABELS: Record<string, string> = {
   rascunho: "Rascunho",
   em_andamento: "Em Andamento",
-  concluido: "Concluido",
+  concluido: "Concluído",
   aprovado: "Aprovado",
   reprovado: "Reprovado",
   aprovado_com_ressalva: "Aprovado c/ Ressalva",
@@ -173,25 +175,25 @@ const RESULT_STATUS_COLORS: Record<string, string> = {
 
 const ANALYSIS_PARAMETERS = [
   { parameter: "pH", category: "fisico_quimica", criterion: "8,90 – 9,40" },
-  { parameter: "Perda por dessecacao", category: "fisico_quimica", criterion: "≤ 5%" },
+  { parameter: "Perda por dessecação", category: "fisico_quimica", criterion: "≤ 5%" },
   { parameter: "Cor", category: "fisico_quimica", criterion: "Branco" },
-  { parameter: "Odor", category: "fisico_quimica", criterion: "Caracteristico" },
-  { parameter: "Aparencia", category: "fisico_quimica", criterion: "Homogenea" },
+  { parameter: "Odor", category: "fisico_quimica", criterion: "Característico" },
+  { parameter: "Aparência", category: "fisico_quimica", criterion: "Homogênea" },
   { parameter: "Cinzas totais", category: "fisico_quimica", criterion: "≤ 50%" },
-  { parameter: "Dissolucao", category: "fisico_quimica", criterion: "Q ≥ 80% em 30 min" },
-  { parameter: "Massa media", category: "fisico_quimica", criterion: "± 7,5%" },
+  { parameter: "Dissolução", category: "fisico_quimica", criterion: "Q ≥ 80% em 30 min" },
+  { parameter: "Massa média", category: "fisico_quimica", criterion: "± 7,5%" },
   { parameter: "Kcal", category: "fisico_quimica", criterion: "≤ 4 kcal declara 0" },
-  { parameter: "Sodio", category: "fisico_quimica", criterion: "≤ 5 mg declara 0" },
+  { parameter: "Sódio", category: "fisico_quimica", criterion: "≤ 5 mg declara 0" },
   { parameter: "Coliformes totais", category: "microbiologica", criterion: "≤ 10 UFC/g" },
   { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25 g" },
   { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10 UFC/g" },
   { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 100 UFC/g" },
   { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente" },
   { parameter: "Enterobacteriaceae", category: "microbiologica", criterion: "Ausente" },
-  { parameter: "Calcio", category: "teor_ativo", criterion: "98,50% - 100,50%" },
+  { parameter: "Cálcio", category: "teor_ativo", criterion: "98,50% - 100,50%" },
   { parameter: "Vitamina D", category: "teor_ativo", criterion: "97,00% - 103,00%" },
   { parameter: "Torque de tampa", category: "embalagem", criterion: "2 unidades a cada 100" },
-  { parameter: "Selagem por inducao", category: "embalagem", criterion: "2 unidades a cada 100" },
+  { parameter: "Selagem por indução", category: "embalagem", criterion: "2 unidades a cada 100" },
   { parameter: "Integridade selagem", category: "embalagem", criterion: "2 unidades a cada 100" },
 ];
 
@@ -215,7 +217,7 @@ const finalizeSchema = z.object({
   if (data.finalStatus !== "em_andamento" && (!data.conclusion || data.conclusion.trim().length < 1)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "Conclusao obrigatoria",
+      message: "Conclusão obrigatória",
       path: ["conclusion"],
     });
   }
@@ -411,7 +413,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <p className="text-sm text-muted-foreground">Lotes piloto incluidos neste estudo</p>
+        <p className="text-sm text-muted-foreground">Lotes piloto incluídos neste estudo</p>
         <Button size="sm" onClick={openNew} data-testid="button-add-lot">
           <Plus className="h-4 w-4 mr-1" /> Adicionar Lote
         </Button>
@@ -421,7 +423,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
         <div className="text-center py-8 text-muted-foreground">Carregando...</div>
       ) : lots.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground border rounded-md">
-          Nenhum lote cadastrado. Adicione um lote para comecar.
+          Nenhum lote cadastrado. Adicione um lote para começar.
         </div>
       ) : (
         <Table>
@@ -455,7 +457,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Remover lote?</AlertDialogTitle>
-                          <AlertDialogDescription>Isso tambem removera todos os resultados associados a este lote.</AlertDialogDescription>
+                          <AlertDialogDescription>Isso também removerá todos os resultados associados a este lote.</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -583,6 +585,7 @@ function CellImages({ storageKey }: { storageKey: string }) {
         }}
       />
       <button
+        type="button"
         onClick={() => setOpen((o) => !o)}
         className={`text-[9px] flex items-center gap-0.5 px-1 py-0.5 rounded transition-colors ${images.length > 0 ? "text-blue-600 hover:bg-blue-50" : "text-muted-foreground/20 hover:text-muted-foreground/50"}`}
         title={images.length > 0 ? `${images.length} imagem(ns) anexada(s)` : "Anexar imagem"}
@@ -610,6 +613,7 @@ function CellImages({ storageKey }: { storageKey: string }) {
           )}
           {images.length === 0 && <p className="text-xs text-muted-foreground mb-2">Nenhuma imagem ainda.</p>}
           <button
+            type="button"
             onClick={() => { fileRef.current?.click(); setOpen(false); }}
             className="text-xs text-primary hover:underline flex items-center gap-1"
           >
@@ -645,8 +649,6 @@ function InlineCell({
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
-        // Invalida o protocolo principal para que protocol.results fique atualizado
-        // (hasNonConformes depende desta cache para bloquear aprovação incorreta)
         queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
         setEditing(false);
       },
@@ -656,6 +658,8 @@ function InlineCell({
       },
     },
   });
+
+  const bulkUpsert = useUpsertResult();
 
   const save = () => {
     if (!value.trim()) { setEditing(false); return; }
@@ -728,6 +732,7 @@ function InlineCell({
         <div className="flex gap-0.5 justify-center flex-wrap">
           {(["conforme", "nao_conforme", "na", "aprovado_com_ressalva"] as const).map((s) => (
             <button
+              type="button"
               key={s}
               onClick={() => setStatus(s)}
               className={`text-[9px] px-1 py-0.5 rounded border transition-all ${status === s ? statusBtnColors[s] : "bg-white text-muted-foreground border-border"}`}
@@ -757,6 +762,7 @@ function InlineCell({
         )}
         <div className="flex gap-0.5 justify-center">
           <button
+            type="button"
             onClick={save}
             disabled={upsertResult.isPending}
             className="text-[9px] px-2 py-0.5 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50"
@@ -764,6 +770,7 @@ function InlineCell({
             {upsertResult.isPending ? "..." : "OK"}
           </button>
           <button
+            type="button"
             onClick={() => setEditing(false)}
             className="text-[9px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80"
           >
@@ -772,14 +779,18 @@ function InlineCell({
         </div>
         {value.trim() && (
           <button
-            onClick={() => {
-              for (const lot of lots) {
-                for (const p of [0, 3, 6]) {
-                  upsertResult.mutate({
+            type="button"
+            onClick={async () => {
+              const tasks = lots.flatMap((lot) =>
+                ([0, 3, 6] as const).map((p) => ({ lotId: lot.id, period: p }))
+              );
+              await Promise.all(
+                tasks.map(({ lotId, period }) =>
+                  bulkUpsert.mutateAsync({
                     id: protocolId,
                     data: {
-                      lotId: lot.id,
-                      period: p,
+                      lotId,
+                      period,
                       analysisDate: new Date().toISOString().split("T")[0],
                       category: param.category as "fisico_quimica" | "microbiologica" | "teor_ativo" | "embalagem",
                       parameter: param.parameter,
@@ -788,15 +799,19 @@ function InlineCell({
                       numericResult: parseFloat(value.replace(",", ".")) || undefined,
                       status,
                     },
-                  });
-                }
-              }
+                  })
+                )
+              );
+              queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
+              queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
+              queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
               setEditing(false);
             }}
-            className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 w-full mt-0.5"
+            disabled={bulkUpsert.isPending}
+            className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 w-full mt-0.5 disabled:opacity-50"
             title="Preenche todos os lotes e períodos com este valor"
           >
-            ↕ replicar todos
+            {bulkUpsert.isPending ? "Salvando..." : "↕ replicar todos"}
           </button>
         )}
       </div>
@@ -808,11 +823,11 @@ function InlineCell({
     <div className="flex flex-col items-center gap-0.5" data-testid={`cell-${param.parameter}-${lotId}-${period}`}>
       <div
         onClick={open}
-        onFocus={open}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } }}
         tabIndex={0}
         data-inline-cell
         className="cursor-pointer group flex items-center justify-center min-h-8 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-inset rounded w-full"
-        title="Clique ou Tab para editar"
+        title="Clique ou Enter para editar"
       >
         {result ? (
           <span className={`inline-flex flex-col items-center gap-0.5 px-1.5 py-0.5 rounded text-xs border font-medium group-hover:opacity-80 transition-opacity ${statusColors[result.status]}`}>
@@ -853,6 +868,7 @@ function ParamMethodSelector({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
+          type="button"
           className={`flex items-center gap-0.5 mt-0.5 text-[10px] rounded px-1 py-0 transition-colors ${
             selected
               ? "text-primary/80 hover:text-primary"
@@ -877,6 +893,7 @@ function ParamMethodSelector({
           <div className="space-y-0.5 max-h-60 overflow-y-auto">
             {selected && (
               <button
+                type="button"
                 onClick={() => { onSelect(null, null); setOpen(false); }}
                 className="w-full text-left text-[10px] px-2 py-1 rounded hover:bg-destructive/10 text-destructive"
               >
@@ -885,6 +902,7 @@ function ParamMethodSelector({
             )}
             {methodologies.map((m) => (
               <button
+                type="button"
                 key={m.id}
                 onClick={() => { onSelect(m.shortName, m.citation); setOpen(false); }}
                 className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted transition-colors ${
@@ -947,7 +965,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
     });
   };
 
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedParamsRef = useRef(false);
   const updateProtocol = useUpdateProtocol();
   const queryClient = useQueryClient();
 
@@ -996,28 +1014,25 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [protocolId, results]);
 
-  const saveParams = useCallback((params: EditableParam[]) => {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: JSON.stringify(params) } });
+  useEffect(() => {
+    if (!isMountedParamsRef.current) {
+      isMountedParamsRef.current = true;
+      return;
+    }
+    const timer = setTimeout(() => {
+      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: JSON.stringify(editableParams) } });
     }, 800);
-  }, [protocolId, updateProtocol]);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editableParams, protocolId]);
 
   const updateParam = (uid: string, field: "parameter" | "criterion", val: string) => {
-    setEditableParams((prev) => {
-      const next = prev.map((p) => (p.uid === uid ? { ...p, [field]: val } : p));
-      saveParams(next);
-      return next;
-    });
+    setEditableParams((prev) => prev.map((p) => (p.uid === uid ? { ...p, [field]: val } : p)));
   };
 
   const addParam = (category: string) => {
     const uid = `${category}_${Date.now()}`;
-    setEditableParams((prev) => {
-      const next = [...prev, { uid, parameter: "", criterion: "", category }];
-      saveParams(next);
-      return next;
-    });
+    setEditableParams((prev) => [...prev, { uid, parameter: "", criterion: "", category }]);
   };
 
   const removeParam = (uid: string) => {
@@ -1142,6 +1157,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                       </TableCell>
                       <TableCell className="py-1 px-1 text-center">
                         <button
+                          type="button"
                           onClick={() => removeParam(param.uid)}
                           className="text-muted-foreground/20 hover:text-destructive text-base leading-none transition-colors"
                           title="Remover parâmetro"
@@ -1179,6 +1195,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
             </div>
             <div className="flex justify-end mt-1 pr-1">
               <button
+                type="button"
                 onClick={() => addParam(key)}
                 className="text-xs text-muted-foreground/60 hover:text-primary flex items-center gap-1 py-1 px-2 rounded hover:bg-muted transition-colors"
               >
@@ -1989,7 +2006,7 @@ function FinalizeSection({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isAlreadyFinalized ? "Corrigir Avaliação Final do Protocolo" : "Avaliacao Final do Protocolo"}
+            {isAlreadyFinalized ? "Corrigir Avaliação Final do Protocolo" : "Avaliação Final do Protocolo"}
           </DialogTitle>
           {isAlreadyFinalized && (
             <p className="text-xs text-muted-foreground pt-1">
@@ -2194,7 +2211,7 @@ export default function ProtocolDetail() {
   if (!protocol) {
     return (
       <div className="text-center py-16 text-muted-foreground">
-        <p>Protocolo nao encontrado.</p>
+        <p>Protocolo não encontrado.</p>
         <Link href="/"><Button variant="link" className="mt-2">Voltar ao Dashboard</Button></Link>
       </div>
     );
@@ -2226,6 +2243,7 @@ export default function ProtocolDetail() {
               {/* Lock indicator */}
               {isFinalized && (
                 <button
+                  type="button"
                   onClick={() => unlocked ? lock() : setUnlockDialogOpen(true)}
                   className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border transition-colors ${
                     unlocked
