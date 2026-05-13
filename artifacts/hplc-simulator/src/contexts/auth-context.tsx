@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { setAuthTokenGetter } from "@workspace/api-client-react";
 
 export type AuthUser = {
   id: number;
@@ -41,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const parsedUser = JSON.parse(storedUser) as AuthUser;
         setToken(storedToken);
         setUser(parsedUser);
+        setAuthTokenGetter(() => storedToken);
       } catch { /* ignore parse errors */ }
     }
     setIsLoading(false);
@@ -68,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     store.set(USER_KEY, JSON.stringify(data.user));
     setToken(data.token);
     setUser(data.user);
+    setAuthTokenGetter(() => data.token);
   }, []);
 
   const logout = useCallback(async () => {
@@ -83,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(USER_KEY);
     setToken(null);
     setUser(null);
+    setAuthTokenGetter(null);
   }, [token]);
 
   return (

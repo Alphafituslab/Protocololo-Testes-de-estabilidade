@@ -22,7 +22,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) { navigate("/"); return; }
+    if (user) { window.location.href = "/"; return; }
     fetch("/api/auth/setup-needed")
       .then((r) => r.json())
       .then((d: { setupNeeded: boolean }) => setSetupNeeded(d.setupNeeded))
@@ -42,10 +42,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(username, password);
-      navigate(popRedirect());
+      window.location.href = popRedirect();
     } catch (err) {
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
-    } finally {
       setLoading(false);
     }
   }
@@ -68,10 +67,9 @@ export default function LoginPage() {
         throw new Error((d as { error?: string }).error ?? "Erro ao configurar.");
       }
       await login(username, password);
-      navigate(popRedirect());
+      window.location.href = popRedirect();
     } catch (err) {
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
-    } finally {
       setLoading(false);
     }
   }
