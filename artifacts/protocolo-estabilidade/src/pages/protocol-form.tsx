@@ -246,7 +246,7 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="packagingType" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tipo de Embalagem</FormLabel>
+                  <FormLabel>Tipo de Pote</FormLabel>
                   <FormControl><Input data-testid="input-packagingType" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>

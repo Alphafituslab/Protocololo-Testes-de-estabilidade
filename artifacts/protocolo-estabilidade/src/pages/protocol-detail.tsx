@@ -344,7 +344,7 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
     { label: "CEP", value: protocol.cep },
     { label: "Produto", value: protocol.productName },
     { label: "Tipo de Produto", value: protocol.productType },
-    { label: "Embalagem", value: protocol.packagingType },
+    { label: "Tipo de Pote", value: protocol.packagingType },
     { label: "Ingredientes Ativos", value: protocol.activeIngredients },
     { label: "Excipientes", value: protocol.excipients },
     { label: "Composição da Cápsula", value: protocol.capsuleComposition },
