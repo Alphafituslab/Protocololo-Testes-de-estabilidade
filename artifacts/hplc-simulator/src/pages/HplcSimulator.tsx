@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
   ResponsiveContainer, Tooltip, ReferenceLine,
@@ -1491,7 +1491,7 @@ export default function HplcSimulator() {
   const [selectedFormulaId, setSelectedFormulaId] = useState<string | null>(null);
   const [analysisSessions, setAnalysisSessions] = useState<AnalysisSession[]>(() => loadSessions());
   const [formulaStandards, setFormulaStandards] = useState<FormulaStandard[]>(() => loadFormulaStandards());
-  const [savedImages, setSavedImages] = useState<HplcSavedImage[]>(() => loadSavedImages());
+  const [savedImages, setSavedImages] = useState<HplcSavedImage[]>([]);
   const [compoundCalibrations, setCompoundCalibrations] = useState<Record<string, CompoundCalibration>>(() => loadCompoundCalibrations());
   const [selectedCalibCompoundId, setSelectedCalibCompoundId] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -1507,6 +1507,12 @@ export default function HplcSimulator() {
   const [deleteSessionPwd, setDeleteSessionPwd] = useState("");
   const [deleteSessionError, setDeleteSessionError] = useState<string | null>(null);
   const [deleteSessionLoading, setDeleteSessionLoading] = useState(false);
+
+  // Load heavy image data after first paint so it doesn't block initial render
+  useEffect(() => {
+    const imgs = loadSavedImages();
+    if (imgs.length > 0) setSavedImages(imgs);
+  }, []);
 
   const markDirty = useCallback(() => { setIsDirty(true); setConfirmed(false); }, []);
 
@@ -1600,7 +1606,7 @@ export default function HplcSimulator() {
   // ── Chromatogram data ────────────────────────────────────────────────────────
 
   const chromatogram = useMemo(
-    () => buildChromatogram(peaks, detector.runTime, 6000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse),
+    () => buildChromatogram(peaks, detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse),
     [peaks, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse],
   );
 
@@ -1615,7 +1621,7 @@ export default function HplcSimulator() {
     const stdPeakObj: Peak = {
       ...namedPeak, id: "std-ovl", name: "STD", height: stdHeight, manualArea: 0,
     };
-    const chrom = buildChromatogram([stdPeakObj], detector.runTime, 6000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse);
+    const chrom = buildChromatogram([stdPeakObj], detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse);
     return { chrom, midStd, namedPeak, stdHeight, level: Math.floor(sorted.length / 2) + 1, total: sorted.length };
   }, [showStdPeak, standards, peaks, calib.compoundName, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse]);
 
