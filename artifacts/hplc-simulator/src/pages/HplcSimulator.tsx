@@ -27,6 +27,8 @@ interface Peak {
   amtPerArea: number;   // response factor (Amount/Area)
   amount: number;       // ug/ml
   grp: string;
+  attachedFile?: string;    // filename of imported data file
+  printSelected?: boolean;  // include in printed report (default = true)
 }
 
 interface SampleInfo {
@@ -71,6 +73,11 @@ interface CalibInfo {
   curveType: string;
   origin: string;
   weight: string;
+}
+
+interface CompoundCalibration {
+  calib: CalibInfo;
+  standards: CalibStandard[];
 }
 
 interface ActiveCompound {
@@ -727,6 +734,15 @@ function loadSavedImages(): HplcSavedImage[] {
 }
 function saveSavedImages(imgs: HplcSavedImage[]) {
   try { localStorage.setItem(IMAGES_KEY, JSON.stringify(imgs)); } catch { /* ignore */ }
+}
+
+const COMPOUND_CALIBS_KEY = "hplc_compound_calibrations_v1";
+function loadCompoundCalibrations(): Record<string, CompoundCalibration> {
+  try { return JSON.parse(localStorage.getItem(COMPOUND_CALIBS_KEY) ?? "{}") as Record<string, CompoundCalibration>; }
+  catch { return {}; }
+}
+function saveCompoundCalibrations(c: Record<string, CompoundCalibration>) {
+  try { localStorage.setItem(COMPOUND_CALIBS_KEY, JSON.stringify(c)); } catch { /* ignore */ }
 }
 
 // Generates a full Agilent ChemStation-style report PNG for the session
@@ -1407,7 +1423,11 @@ export default function HplcSimulator() {
   const [analysisSessions, setAnalysisSessions] = useState<AnalysisSession[]>(() => loadSessions());
   const [formulaStandards, setFormulaStandards] = useState<FormulaStandard[]>(() => loadFormulaStandards());
   const [savedImages, setSavedImages] = useState<HplcSavedImage[]>(() => loadSavedImages());
+  const [compoundCalibrations, setCompoundCalibrations] = useState<Record<string, CompoundCalibration>>(() => loadCompoundCalibrations());
+  const [selectedCalibCompoundId, setSelectedCalibCompoundId] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileTargetPeakIdRef = useRef<string | null>(null);
   const [userList, setUserList] = useState<UserRecord[]>([]);
   const [userListLoading, setUserListLoading] = useState(false);
   const [userListError, setUserListError] = useState<string | null>(null);
@@ -1621,6 +1641,88 @@ export default function HplcSimulator() {
   const updateStandard = (id: string, key: "amount" | "area", val: number) => {
     setStandards(ss => ss.map(s => s.id === id ? { ...s, [key]: val } : s));
     markDirty();
+  };
+
+  // ── Per-compound calibration helpers ─────────────────────────────────────────
+
+  const getCC = (compoundId: string): CompoundCalibration => {
+    if (compoundCalibrations[compoundId]) return compoundCalibrations[compoundId];
+    const c = activeCompounds.find(ac => ac.id === compoundId);
+    return {
+      calib: { ...DEFAULT_CALIB, compoundName: c?.name ?? "", expRT: c?.expectedRT ?? 0 },
+      standards: DEFAULT_STANDARDS.map(s => ({ ...s, id: uid() })),
+    };
+  };
+
+  const updateCompoundCalibField = (compoundId: string, key: keyof CalibInfo, value: string | number) => {
+    setCompoundCalibrations(cc => {
+      const existing = cc[compoundId] ?? getCC(compoundId);
+      const updated = { ...cc, [compoundId]: { ...existing, calib: { ...existing.calib, [key]: value } } };
+      saveCompoundCalibrations(updated);
+      return updated;
+    });
+    markDirty();
+  };
+
+  const addCompoundStandard = (compoundId: string) => {
+    setCompoundCalibrations(cc => {
+      const existing = cc[compoundId] ?? getCC(compoundId);
+      const n = existing.standards.length + 1;
+      const newStd: CalibStandard = { id: uid(), level: n, amount: 10 * n, area: Math.round(250 * n) };
+      const updated = { ...cc, [compoundId]: { ...existing, standards: [...existing.standards, newStd] } };
+      saveCompoundCalibrations(updated);
+      return updated;
+    });
+    markDirty();
+  };
+
+  const removeCompoundStandard = (compoundId: string, stdId: string) => {
+    setCompoundCalibrations(cc => {
+      const existing = cc[compoundId] ?? getCC(compoundId);
+      const updated = { ...cc, [compoundId]: { ...existing, standards: existing.standards.filter(s => s.id !== stdId) } };
+      saveCompoundCalibrations(updated);
+      return updated;
+    });
+    markDirty();
+  };
+
+  const updateCompoundStandard = (compoundId: string, stdId: string, key: "amount" | "area", val: number) => {
+    setCompoundCalibrations(cc => {
+      const existing = cc[compoundId] ?? getCC(compoundId);
+      const updated = { ...cc, [compoundId]: { ...existing, standards: existing.standards.map(s => s.id === stdId ? { ...s, [key]: val } : s) } };
+      saveCompoundCalibrations(updated);
+      return updated;
+    });
+    markDirty();
+  };
+
+  // ── File attachment per peak ──────────────────────────────────────────────────
+
+  const handlePeakFileOpen = (peakId: string) => {
+    fileTargetPeakIdRef.current = peakId;
+    fileInputRef.current?.click();
+  };
+
+  const handlePeakFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const peakId = fileTargetPeakIdRef.current;
+    if (!file || !peakId) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = (ev.target?.result as string) ?? "";
+      const rtMatch = text.match(/ret(?:ention)?[\s._\-]?time[\s:=,\t]+([0-9]+\.?[0-9]*)/i);
+      const areaMatch = text.match(/\barea[\s:=,\t]+([0-9]+\.?[0-9]*)/i);
+      setPeaks(ps => ps.map(p => {
+        if (p.id !== peakId) return p;
+        const updated: Peak = { ...p, attachedFile: file.name };
+        if (rtMatch) updated.retentionTime = parseFloat(rtMatch[1]);
+        if (areaMatch) updated.manualArea = parseFloat(areaMatch[1]);
+        return updated;
+      }));
+      markDirty();
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
   const sField = (k: keyof SampleInfo) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2110,25 +2212,56 @@ export default function HplcSimulator() {
                   </Button>
                 }>
                   <p style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 4 }}>
-                    Clique em ⚙ para editar · arraste no gráfico para mover.
+                    Clique em ⚙ para editar · arraste no gráfico para mover.<br />
+                    <span style={{ color: "#1d4ed8" }}>☑ = incluir na impressão</span>
                   </p>
                   {peakStats.map((p) => (
-                    <div key={p.id} className="flex items-center gap-1 group rounded px-1 py-0.5 hover:bg-gray-50">
-                      <span style={{ ...MONO, fontSize: 9.5, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {p.retentionTime.toFixed(3)} {p.name ? `(${p.name})` : "—"}
-                        {p.manualArea > 0
-                          ? <span style={{ color: "#1d4ed8" }}> ✎{p.manualArea.toFixed(2)}</span>
-                          : <span style={{ color: "#888" }}> ~{p.computedArea.toFixed(1)}</span>}
-                      </span>
-                      <PeakEditorDialog peak={p} onSave={savePeak}>
-                        <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
-                          <Settings className="h-3 w-3" />
+                    <div key={p.id} className="group mb-2">
+                      <div className="flex items-center gap-1 rounded px-1 py-0.5 hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          title="Incluir na impressão"
+                          checked={p.printSelected !== false}
+                          onChange={e => {
+                            setPeaks(ps => ps.map(pk => pk.id === p.id ? { ...pk, printSelected: e.target.checked } : pk));
+                            markDirty();
+                          }}
+                          className="h-3 w-3 flex-shrink-0"
+                          style={{ accentColor: "#1d4ed8" }}
+                        />
+                        <span style={{ ...MONO, fontSize: 9.5, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {p.retentionTime.toFixed(3)} {p.name ? `(${p.name})` : "—"}
+                          {p.manualArea > 0
+                            ? <span style={{ color: "#1d4ed8" }}> ✎{p.manualArea.toFixed(2)}</span>
+                            : <span style={{ color: "#888" }}> ~{p.computedArea.toFixed(1)}</span>}
+                        </span>
+                        <PeakEditorDialog peak={p} onSave={savePeak}>
+                          <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
+                            <Settings className="h-3 w-3" />
+                          </Button>
+                        </PeakEditorDialog>
+                        <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 hover:text-red-500"
+                          onClick={() => removePeak(p.id)}>
+                          <Trash2 className="h-3 w-3" />
                         </Button>
-                      </PeakEditorDialog>
-                      <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 hover:text-red-500"
-                        onClick={() => removePeak(p.id)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      </div>
+                      {/* File attachment row */}
+                      <div className="flex items-center gap-1 pl-4 mt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => handlePeakFileOpen(p.id)}
+                          style={{ fontFamily: "Courier New, monospace", fontSize: 8, padding: "1px 5px", border: "1px solid #bbb", borderRadius: 3, background: "#f9fafb", cursor: "pointer", color: "#555", flexShrink: 0 }}
+                        >
+                          📂 Arquivo
+                        </button>
+                        {p.attachedFile ? (
+                          <span style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#1d4ed8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p.attachedFile}>
+                            {p.attachedFile}
+                          </span>
+                        ) : (
+                          <span style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#bbb" }}>sem arquivo</span>
+                        )}
+                      </div>
                     </div>
                   ))}
 
@@ -2180,50 +2313,83 @@ export default function HplcSimulator() {
               </>
             )}
 
-            {page === "report" && (
-              <>
-                {/* Calibration curve info */}
-                <ControlBox title="Calibration Info">
-                  <SmallField label="Compound Name" value={calib.compoundName} onChange={cField("compoundName")} />
-                  <SmallField label="Expected RT (min)" value={String(calib.expRT)} onChange={cField("expRT")} type="number" />
-                  <SmallField label="Calib. Data Modified" value={calib.calibDataModified} onChange={cField("calibDataModified")} />
-                  <SmallField label="Curve Type" value={calib.curveType} onChange={cField("curveType")} />
-                  <SmallField label="Origin" value={calib.origin} onChange={cField("origin")} />
-                  <SmallField label="Weight" value={calib.weight} onChange={cField("weight")} />
-                  <SmallField label="Sorted By" value={calib.sortedBy} onChange={cField("sortedBy")} />
-                  <SmallField label="Multiplier" value={calib.multiplier} onChange={cField("multiplier")} />
-                  <SmallField label="Dilution" value={calib.dilution} onChange={cField("dilution")} />
-                </ControlBox>
-
-                {/* Standards */}
-                <ControlBox title="Padrões de Calibração" extra={
-                  <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2" onClick={addStandard}>
-                    <Plus className="h-3 w-3" /> Add
-                  </Button>
-                }>
-                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 4 }}>
-                    Amount [ug/ml] / Area [mAU*s]
-                  </div>
-                  {[...standards].sort((a, b) => a.amount - b.amount).map((s, i) => (
-                    <div key={s.id} className="flex items-center gap-1 group mb-1.5">
-                      <span style={{ ...MONO, fontSize: 9, color: "#555", width: 14 }}>{i + 1}</span>
-                      <div className="flex flex-col gap-0.5 flex-1">
-                        <Input type="number" step="0.00001" value={s.amount}
-                          onChange={e => updateStandard(s.id, "amount", parseFloat(e.target.value) || 0)}
-                          className="h-5 text-xs font-mono px-1" placeholder="Amount (ug/ml)" />
-                        <Input type="number" step="0.00001" value={s.area}
-                          onChange={e => updateStandard(s.id, "area", parseFloat(e.target.value) || 0)}
-                          className="h-5 text-xs font-mono px-1" placeholder="Area (mAU*s)" />
+            {page === "report" && (() => {
+              const calibCompoundId = selectedCalibCompoundId ?? activeCompounds[0]?.id ?? null;
+              const calibCompound = activeCompounds.find(c => c.id === calibCompoundId) ?? null;
+              const cc = calibCompoundId ? getCC(calibCompoundId) : null;
+              return (
+                <>
+                  {/* Compound selector */}
+                  <ControlBox title="Calibração por Composto">
+                    {activeCompounds.length === 0 ? (
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa" }}>
+                        Adicione compostos na aba Ativos primeiro.
                       </div>
-                      <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 hover:text-red-500"
-                        onClick={() => removeStandard(s.id)}>
-                        <Trash2 className="h-3 w-3" />
+                    ) : (
+                      <>
+                        <label style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", display: "block", marginBottom: 2 }}>Composto:</label>
+                        <select
+                          value={calibCompoundId ?? ""}
+                          onChange={e => setSelectedCalibCompoundId(e.target.value)}
+                          className="w-full h-6 text-xs font-mono border border-input rounded px-1 bg-background mb-3"
+                        >
+                          {activeCompounds.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                        {calibCompound && cc && (
+                          <>
+                            <SmallField label="Calib. Data Modified" value={cc.calib.calibDataModified} onChange={e => updateCompoundCalibField(calibCompound.id, "calibDataModified", e.target.value)} />
+                            <SmallField label="Expected RT (min)" value={String(cc.calib.expRT || calibCompound.expectedRT)} onChange={e => updateCompoundCalibField(calibCompound.id, "expRT", parseFloat(e.target.value) || 0)} type="number" />
+                            <SmallField label="Curve Type" value={cc.calib.curveType} onChange={e => updateCompoundCalibField(calibCompound.id, "curveType", e.target.value)} />
+                            <SmallField label="Origin" value={cc.calib.origin} onChange={e => updateCompoundCalibField(calibCompound.id, "origin", e.target.value)} />
+                            <SmallField label="Weight" value={cc.calib.weight} onChange={e => updateCompoundCalibField(calibCompound.id, "weight", e.target.value)} />
+                          </>
+                        )}
+                      </>
+                    )}
+                  </ControlBox>
+
+                  {/* Standards for selected compound */}
+                  {calibCompound && cc && (
+                    <ControlBox title={`Padrões — ${calibCompound.name}`} extra={
+                      <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2" onClick={() => addCompoundStandard(calibCompound.id)}>
+                        <Plus className="h-3 w-3" /> Add
                       </Button>
-                    </div>
-                  ))}
-                </ControlBox>
-              </>
-            )}
+                    }>
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 4 }}>
+                        Amount [ug/ml] / Area [mAU*s]
+                      </div>
+                      {[...cc.standards].sort((a, b) => a.amount - b.amount).map((s, i) => (
+                        <div key={s.id} className="flex items-center gap-1 group mb-1.5">
+                          <span style={{ ...MONO, fontSize: 9, color: "#555", width: 14 }}>{i + 1}</span>
+                          <div className="flex flex-col gap-0.5 flex-1">
+                            <Input type="number" step="0.00001" value={s.amount}
+                              onChange={e => updateCompoundStandard(calibCompound.id, s.id, "amount", parseFloat(e.target.value) || 0)}
+                              className="h-5 text-xs font-mono px-1" placeholder="Amount (ug/ml)" />
+                            <Input type="number" step="0.00001" value={s.area}
+                              onChange={e => updateCompoundStandard(calibCompound.id, s.id, "area", parseFloat(e.target.value) || 0)}
+                              className="h-5 text-xs font-mono px-1" placeholder="Area (mAU*s)" />
+                          </div>
+                          <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 hover:text-red-500"
+                            onClick={() => removeCompoundStandard(calibCompound.id, s.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </ControlBox>
+                  )}
+
+                  {/* Ext. Std. Report meta (shared) */}
+                  <ControlBox title="Ext. Std. Report — Meta">
+                    <SmallField label="Sorted By" value={calib.sortedBy} onChange={cField("sortedBy")} />
+                    <SmallField label="Calib. Data Modified" value={calib.calibDataModified} onChange={cField("calibDataModified")} />
+                    <SmallField label="Multiplier" value={calib.multiplier} onChange={cField("multiplier")} />
+                    <SmallField label="Dilution" value={calib.dilution} onChange={cField("dilution")} />
+                  </ControlBox>
+                </>
+              );
+            })()}
 
             {page === "ativos" && (
               <>
@@ -2817,7 +2983,7 @@ export default function HplcSimulator() {
             </>
           )}
 
-          {/* ── REPORT PAGE (Calibration) ──────────────────────────────────── */}
+          {/* ── REPORT PAGE ──────────────────────────────────────────────── */}
           {page === "report" && (
             <>
               {/* Method header */}
@@ -2825,114 +2991,190 @@ export default function HplcSimulator() {
                 <div>Method {sample.analysisMethod}</div>
               </div>
 
-              <SectionTitle title="Calibration Table" />
-
-              <div style={{ marginTop: 6 }}>
-                <div>{"    Calib. Data Modified   :      " + calib.calibDataModified}</div>
-                <div style={{ marginTop: 6 }}>
-                  <div>{"    Curve Type             :      " + calib.curveType}</div>
-                  <div>{"    Origin                 :      " + calib.origin}</div>
-                  <div>{"    Weight                 :      " + calib.weight}</div>
-                </div>
-                <div style={{ marginTop: 8 }}>{"    Signal 1: " + signalLabel}</div>
+              {/* Replicated sample info (same as chromatogram tab) */}
+              <div style={{ marginBottom: 6 }}>
+                <div>Data File {sample.dataFile}</div>
+                <div>Sample Name: {sample.sampleName}</div>
               </div>
+              <Div />
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Acq. Operator   : " + sample.acqOperator.padEnd(28) + "Seq. Line : " + sample.seqLine}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Acq. Instrument : " + sample.acqInstrument.padEnd(28) + "Location  : " + sample.location}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Injection Date  : " + sample.injectionDate.padEnd(36) + "Inj :  " + sample.inj}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    " + " ".repeat(55) + "Inj Volume : " + sample.injVolume}</div>
+              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Acq. Method     : " + sample.acqMethod}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged1}</div>
+              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Analysis Method : " + sample.analysisMethod}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged2}</div>
+              <Div />
 
-              {/* Calibration table */}
-              <div style={{ marginTop: 10 }}>
-                <div style={{ whiteSpace: "pre" }}>{"    RetTime    Lvl  Amount      Area     Amt/Area Ref Grp Name"}</div>
-                <div style={{ whiteSpace: "pre" }}>{"     [min] Sig     [ug/ml]"}</div>
-                <div style={{ whiteSpace: "pre" }}>{"    " + "-".repeat(65)}</div>
-                {[...standards].sort((a, b) => a.amount - b.amount).map((s, i) => {
-                  const amtPerArea = s.area > 0 ? s.amount / s.area : 0;
-                  if (i === 0) {
+              {/* External Standard Report — only print-selected peaks */}
+              <div style={{ marginTop: 16 }}>
+                <SectionTitle title="External Standard Report" />
+                <div style={{ marginTop: 6 }}>
+                  <div>{"    Sorted By             :      " + calib.sortedBy}</div>
+                  <div>{"    Calib. Data Modified :       " + calib.calibDataModified}</div>
+                  <div>{"    Multiplier            :      " + calib.multiplier}</div>
+                  <div>{"    Dilution              :      " + calib.dilution}</div>
+                  <div>{"    Use Multiplier & Dilution Factor with ISTDs"}</div>
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <div>{"    Signal 1: " + signalLabel}</div>
+                </div>
+                <div style={{ marginTop: 10, overflowX: "auto" }}>
+                  <div style={{ whiteSpace: "pre" }}>{"    RetTime Type      Area     Amt/Area    Amount   Grp    Name"}</div>
+                  <div style={{ whiteSpace: "pre" }}>{"     [min]          [mAU*s]               [ug/ml]"}</div>
+                  <div style={{ whiteSpace: "pre" }}>{"    " + "-".repeat(65)}</div>
+                  {peakStats.filter(p => p.printSelected !== false).map(p => {
+                    const area = p.displayArea;
+                    const amtPerArea = p.amtPerArea > 0 ? p.amtPerArea : (area > 0 && p.amount > 0 ? p.amount / area : 0);
+                    const rt = p.retentionTime.toFixed(3).padStart(7);
+                    const type = p.peakType.padEnd(6);
+                    const areaStr = fmtArea(area).padStart(12);
+                    const aptStr = amtPerArea > 0 ? fmtSci2(amtPerArea, -2).padStart(12) : "".padStart(12);
+                    const amtStr = p.amount > 0 ? p.amount.toFixed(5).padStart(12) : "".padStart(12);
+                    const grpStr = (p.grp || "").padEnd(4);
                     return (
-                      <div key={s.id} style={{ whiteSpace: "pre" }}>
-                        {"    " + calib.expRT.toFixed(3).padStart(7) + " 1 " + (i + 1).toString().padStart(2) + "  " +
-                          s.amount.toFixed(5).padStart(12) + " " + s.area.toFixed(5).padStart(10) + " " + fmtSci2(amtPerArea, -2).padStart(12) + "         " + calib.compoundName}
+                      <div key={p.id} style={{ whiteSpace: "pre" }}>
+                        {"   " + rt + " " + type + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + p.name}
                       </div>
                     );
-                  }
-                  return (
-                    <div key={s.id} style={{ whiteSpace: "pre" }}>
-                      {"              " + (i + 1).toString().padStart(2) + "  " +
-                        s.amount.toFixed(5).padStart(12) + " " + s.area.toFixed(5).padStart(10) + " " + fmtSci2(amtPerArea, -2).padStart(12)}
+                  })}
+                  <div style={{ whiteSpace: "pre" }}>{"    "}</div>
+                  <div style={{ whiteSpace: "pre" }}>
+                    {"    Totals :                              " + "  " +
+                      peakStats.filter(p => p.printSelected !== false && p.amount > 0).reduce((s, p) => s + p.amount, 0).toFixed(5)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Per-compound Calibration Tables */}
+              {activeCompounds.map(compound => {
+                const cc = getCC(compound.id);
+                if (cc.standards.length === 0) return null;
+                const compReg = linearRegression(cc.standards.map(s => ({ x: s.amount, y: s.area })));
+                const compCalibXMax = Math.max(...cc.standards.map(s => s.amount), 1) * 1.15;
+                const compCalibYMax = Math.max(...cc.standards.map(s => s.area), 1) * 1.2;
+                const compCalibChartData = (() => {
+                  const sorted = [...cc.standards].sort((a, b) => a.amount - b.amount);
+                  const regPts = Array.from({ length: 80 }, (_, i) => {
+                    const x = (i / 79) * compCalibXMax;
+                    return { x: parseFloat(x.toFixed(4)), reg: compReg.slope * x + compReg.intercept, pt: undefined as number | undefined };
+                  });
+                  sorted.forEach(s => {
+                    const nearest = regPts.reduce((best, _p, i) =>
+                      Math.abs(regPts[i].x - s.amount) < Math.abs(regPts[best].x - s.amount) ? i : best, 0);
+                    regPts[nearest].x = s.amount;
+                    regPts[nearest].reg = compReg.slope * s.amount + compReg.intercept;
+                    regPts[nearest].pt = s.area;
+                  });
+                  return regPts;
+                })();
+                const expRT = cc.calib.expRT > 0 ? cc.calib.expRT : compound.expectedRT;
+
+                return (
+                  <div key={compound.id} style={{ marginTop: 24 }}>
+                    <SectionTitle title={`Calibration Table — ${compound.name}`} />
+
+                    <div style={{ marginTop: 6 }}>
+                      <div>{"    Calib. Data Modified   :      " + cc.calib.calibDataModified}</div>
+                      <div style={{ marginTop: 6 }}>
+                        <div>{"    Curve Type             :      " + cc.calib.curveType}</div>
+                        <div>{"    Origin                 :      " + cc.calib.origin}</div>
+                        <div>{"    Weight                 :      " + cc.calib.weight}</div>
+                      </div>
+                      <div style={{ marginTop: 8 }}>{"    Signal 1: " + signalLabel}</div>
                     </div>
-                  );
-                })}
-              </div>
 
-              <div style={{ marginTop: 24 }}>
-                <SectionTitle title="Calibration Curves" />
-              </div>
-
-              {/* Calibration curve chart + stats */}
-              <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginTop: 8 }}>
-                {/* Chart */}
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, marginBottom: 0 }}>Area</div>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <ComposedChart data={calibChartData} margin={{ top: 8, right: 16, left: 8, bottom: 30 }}>
-                      <CartesianGrid strokeDasharray="2 2" stroke="#ccc" />
-                      <XAxis dataKey="x" type="number" domain={[0, calibXMax]}
-                        tickFormatter={v => v.toFixed(0)}
-                        tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
-                        axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }}
-                        label={{ value: "Amount[ug/ml]", position: "insideBottom", offset: -16, fontFamily: "Courier New, monospace", fontSize: 10 }} />
-                      <YAxis type="number" domain={[0, calibYMax]}
-                        tickFormatter={v => v.toFixed(0)}
-                        tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
-                        axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }} width={52} />
-                      <Tooltip content={({ active, payload }) => {
-                        if (!active || !payload?.length) return null;
-                        const d = payload[0]?.payload as { x: number; pt?: number };
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ whiteSpace: "pre" }}>{"    RetTime    Lvl  Amount      Area     Amt/Area Ref Grp Name"}</div>
+                      <div style={{ whiteSpace: "pre" }}>{"     [min] Sig     [ug/ml]"}</div>
+                      <div style={{ whiteSpace: "pre" }}>{"    " + "-".repeat(65)}</div>
+                      {[...cc.standards].sort((a, b) => a.amount - b.amount).map((s, i) => {
+                        const amtPerArea = s.area > 0 ? s.amount / s.area : 0;
+                        if (i === 0) {
+                          return (
+                            <div key={s.id} style={{ whiteSpace: "pre" }}>
+                              {"    " + expRT.toFixed(3).padStart(7) + " 1 " + (i + 1).toString().padStart(2) + "  " +
+                                s.amount.toFixed(5).padStart(12) + " " + s.area.toFixed(5).padStart(10) + " " + fmtSci2(amtPerArea, -2).padStart(12) + "         " + compound.name}
+                            </div>
+                          );
+                        }
                         return (
-                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, background: "#fff", border: "1px solid #333", padding: "4px 8px" }}>
-                            <div>Amount: {d.x.toFixed(3)} ug/ml</div>
-                            {d.pt !== undefined && <div>Area: {d.pt.toFixed(3)} mAU*s</div>}
+                          <div key={s.id} style={{ whiteSpace: "pre" }}>
+                            {"              " + (i + 1).toString().padStart(2) + "  " +
+                              s.amount.toFixed(5).padStart(12) + " " + s.area.toFixed(5).padStart(10) + " " + fmtSci2(amtPerArea, -2).padStart(12)}
                           </div>
                         );
-                      }} />
-                      {/* Dashed crosshairs */}
-                      {standards.map(s => (
-                        <ReferenceLine key={`vx-${s.id}`} x={s.amount} stroke="#aaa" strokeDasharray="4 3" strokeWidth={0.8} />
-                      ))}
-                      {standards.map(s => (
-                        <ReferenceLine key={`hy-${s.id}`} y={s.area} stroke="#aaa" strokeDasharray="4 3" strokeWidth={0.8} />
-                      ))}
-                      {/* Regression line */}
-                      <Line dataKey="reg" stroke="#333" strokeWidth={1.2} dot={false} isAnimationActive={false} connectNulls legendType="none" />
-                      {/* Actual points */}
-                      <Line dataKey="pt" stroke="#333" strokeWidth={1}
-                        dot={(props: { cx: number; cy: number; value?: number }) =>
-                          props.value !== undefined
-                            ? <circle key={`d${props.cx}`} cx={props.cx} cy={props.cy} r={4} fill="#fff" stroke="#333" strokeWidth={1.5} />
-                            : <g key={`de${props.cx}`} />
-                        }
-                        activeDot={false} isAnimationActive={false} connectNulls={false} legendType="none" />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
+                      })}
+                    </div>
 
-                {/* Right: stats panel */}
-                <div style={{ minWidth: 200, paddingTop: 20, fontSize: 11 }}>
-                  <div>{calib.compoundName} at exp. RT: {calib.expRT.toFixed(3)}</div>
-                  <div style={{ marginTop: 4 }}>{signalLabel}</div>
-                  <div style={{ marginTop: 8 }}>{"Correlation:            " + reg.r.toFixed(5)}</div>
-                  <div>{"Residual Std. Dev.:  " + reg.residStdDev.toFixed(5)}</div>
-                  <div style={{ marginTop: 8 }}>{"Formula: y = mx + b"}</div>
-                  <div style={{ paddingLeft: 16 }}>{"     m: " + reg.slope.toFixed(5)}</div>
-                  <div style={{ paddingLeft: 16 }}>{"     b: " + reg.intercept.toFixed(5)}</div>
-                  <div style={{ paddingLeft: 16 }}>{"     x: Amount"}</div>
-                  <div style={{ paddingLeft: 16 }}>{"     y: Area"}</div>
-                </div>
-              </div>
+                    <div style={{ marginTop: 20 }}>
+                      <SectionTitle title={`Calibration Curves — ${compound.name}`} />
+                    </div>
 
-              {/* Level markers on chart */}
-              <div style={{ marginTop: 4, fontSize: 10, color: "#555", paddingLeft: 8 }}>
-                {[...standards].sort((a, b) => a.amount - b.amount).map((s, i) => (
-                  <span key={s.id} style={{ marginRight: 12 }}>{i + 1} = {s.amount.toFixed(0)} ug/ml</span>
-                ))}
-              </div>
+                    <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginTop: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, marginBottom: 0 }}>Area</div>
+                        <ResponsiveContainer width="100%" height={200}>
+                          <ComposedChart data={compCalibChartData} margin={{ top: 8, right: 16, left: 8, bottom: 30 }}>
+                            <CartesianGrid strokeDasharray="2 2" stroke="#ccc" />
+                            <XAxis dataKey="x" type="number" domain={[0, compCalibXMax]}
+                              tickFormatter={v => v.toFixed(0)}
+                              tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
+                              axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }}
+                              label={{ value: "Amount[ug/ml]", position: "insideBottom", offset: -16, fontFamily: "Courier New, monospace", fontSize: 10 }} />
+                            <YAxis type="number" domain={[0, compCalibYMax]}
+                              tickFormatter={v => v.toFixed(0)}
+                              tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
+                              axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }} width={52} />
+                            <Tooltip content={({ active, payload }) => {
+                              if (!active || !payload?.length) return null;
+                              const d = payload[0]?.payload as { x: number; pt?: number };
+                              return (
+                                <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, background: "#fff", border: "1px solid #333", padding: "4px 8px" }}>
+                                  <div>Amount: {d.x.toFixed(3)} ug/ml</div>
+                                  {d.pt !== undefined && <div>Area: {d.pt.toFixed(3)} mAU*s</div>}
+                                </div>
+                              );
+                            }} />
+                            {cc.standards.map(s => (
+                              <ReferenceLine key={`vx-${s.id}`} x={s.amount} stroke="#aaa" strokeDasharray="4 3" strokeWidth={0.8} />
+                            ))}
+                            {cc.standards.map(s => (
+                              <ReferenceLine key={`hy-${s.id}`} y={s.area} stroke="#aaa" strokeDasharray="4 3" strokeWidth={0.8} />
+                            ))}
+                            <Line dataKey="reg" stroke="#333" strokeWidth={1.2} dot={false} isAnimationActive={false} connectNulls legendType="none" />
+                            <Line dataKey="pt" stroke="#333" strokeWidth={1}
+                              dot={(props: { cx: number; cy: number; value?: number }) =>
+                                props.value !== undefined
+                                  ? <circle key={`d${props.cx}`} cx={props.cx} cy={props.cy} r={4} fill="#fff" stroke="#333" strokeWidth={1.5} />
+                                  : <g key={`de${props.cx}`} />
+                              }
+                              activeDot={false} isAnimationActive={false} connectNulls={false} legendType="none" />
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div style={{ minWidth: 190, paddingTop: 20, fontSize: 11 }}>
+                        <div>{compound.name} at exp. RT: {expRT.toFixed(3)}</div>
+                        <div style={{ marginTop: 4 }}>{signalLabel}</div>
+                        <div style={{ marginTop: 8 }}>{"Correlation:            " + compReg.r.toFixed(5)}</div>
+                        <div>{"Residual Std. Dev.:  " + compReg.residStdDev.toFixed(5)}</div>
+                        <div style={{ marginTop: 8 }}>{"Formula: y = mx + b"}</div>
+                        <div style={{ paddingLeft: 16 }}>{"     m: " + compReg.slope.toFixed(5)}</div>
+                        <div style={{ paddingLeft: 16 }}>{"     b: " + compReg.intercept.toFixed(5)}</div>
+                        <div style={{ paddingLeft: 16 }}>{"     x: Amount"}</div>
+                        <div style={{ paddingLeft: 16 }}>{"     y: Area"}</div>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: 4, fontSize: 10, color: "#555", paddingLeft: 8 }}>
+                      {[...cc.standards].sort((a, b) => a.amount - b.amount).map((s, i) => (
+                        <span key={s.id} style={{ marginRight: 12 }}>{i + 1} = {s.amount.toFixed(0)} ug/ml</span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
 
               <div style={{ marginTop: 20 }}>
                 <SectionTitle title="*** End of Report ***" />
@@ -3525,6 +3767,15 @@ export default function HplcSimulator() {
           </div>
         </div>
       </div>
+
+      {/* ── Hidden file input for peak file attachment ───────────────────────── */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".txt,.csv,.asc,.dat,.d,.report"
+        style={{ display: "none" }}
+        onChange={handlePeakFileChange}
+      />
 
       {/* ── Password-protected delete session dialog ─────────────────────────── */}
       {deleteSessionDialog && (
