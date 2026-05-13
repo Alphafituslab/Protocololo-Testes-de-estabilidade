@@ -2401,15 +2401,31 @@ export default function HplcSimulator() {
                           setDetector(d => ({ ...d, sigWavelength: c.wavelength }));
                           setCalib(cb => ({ ...cb, compoundName: c.name, expRT: c.expectedRT }));
                           prevCalibNameRef.current = c.name;
-                          // Update the matching peak (by name or the first peak) with compound parameters
+                          // If a peak for this compound already exists, update it.
+                          // Otherwise ADD a new independent peak — never overwrite a different peak.
                           setPeaks(ps => {
-                            const idx = ps.findIndex(p => p.name === c.name || p.name === calib.compoundName);
-                            if (idx === -1 && ps.length === 0) return ps;
-                            const target = idx >= 0 ? idx : 0;
-                            return ps.map((p, i) => i === target
-                              ? { ...p, name: c.name, retentionTime: c.expectedRT, width: c.typicalWidth, asymmetry: c.typicalAsym }
-                              : p
-                            );
+                            const idx = ps.findIndex(p => p.name === c.name);
+                            if (idx >= 0) {
+                              return ps.map((p, i) => i === idx
+                                ? { ...p, name: c.name, retentionTime: c.expectedRT, width: c.typicalWidth, asymmetry: c.typicalAsym }
+                                : p
+                              );
+                            }
+                            // No existing peak for this compound — add a new one
+                            return [...ps, {
+                              id: uid(),
+                              name: c.name,
+                              peakType: "BB",
+                              grp: "",
+                              retentionTime: c.expectedRT,
+                              height: 200,
+                              width: c.typicalWidth,
+                              asymmetry: c.typicalAsym,
+                              amtPerArea: c.amtPerArea,
+                              amount: 0,
+                              manualArea: 0,
+                              peakNoise: 0,
+                            }];
                           });
                           markDirty();
                           e.target.value = "";
@@ -2429,7 +2445,7 @@ export default function HplcSimulator() {
                     </div>
                   )}
                   {([
-                    ["dataFile", "Arquivo de dados (caminho)"],
+                    ["dataFile", "Arquivo de dados (vial/path)"],
                     ["sampleName", "Sample Name"],
                     ["acqOperator", "Acq. Operator"],
                     ["seqLine", "Seq. Line"],
