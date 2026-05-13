@@ -59,11 +59,13 @@ interface HplcSavedImage {
   createdAt: string;
   imageData: string;
   notes: string;
+  certificateNumber?: string;
 }
 
-function HplcImagesTab() {
+function HplcImagesTab({ certNumber }: { certNumber?: string }) {
   const [images, setImages] = useState<HplcSavedImage[]>([]);
   const [selected, setSelected] = useState<HplcSavedImage | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     const reload = () => {
@@ -77,6 +79,11 @@ function HplcImagesTab() {
     return () => window.removeEventListener("storage", reload);
   }, []);
 
+  const linkedImages = certNumber ? images.filter(img => img.certificateNumber === certNumber) : [];
+  const otherImages = certNumber ? images.filter(img => img.certificateNumber !== certNumber) : images;
+  const hasLinked = linkedImages.length > 0;
+  const displayImages = hasLinked && !showAll ? linkedImages : images;
+
   if (images.length === 0) {
     return (
       <Card>
@@ -85,8 +92,7 @@ function HplcImagesTab() {
             <Microscope className="h-10 w-10 text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground">Nenhuma imagem de cromatograma HPLC disponível.</p>
             <p className="text-xs text-muted-foreground/70">
-              Acesse o Simulador HPLC → aba Painel → salve os cromatogramas das sessões de análise.
-              As imagens aparecerão aqui automaticamente.
+              No Simulador HPLC, ao salvar uma imagem informe o número do certificado <strong>{certNumber}</strong> para ela aparecer aqui automaticamente.
             </p>
           </div>
         </CardContent>
@@ -99,8 +105,19 @@ function HplcImagesTab() {
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <Microscope className="h-4 w-4" /> Cromatogramas do Simulador HPLC
-          <span className="ml-auto text-xs font-normal text-muted-foreground">{images.length} imagem{images.length !== 1 ? "ns" : ""} disponível{images.length !== 1 ? "is" : ""}</span>
+          {hasLinked ? (
+            <span className="ml-auto text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded px-2 py-0.5">
+              {linkedImages.length} vinculada{linkedImages.length !== 1 ? "s" : ""} a este protocolo
+            </span>
+          ) : (
+            <span className="ml-auto text-xs font-normal text-muted-foreground">{images.length} imagem{images.length !== 1 ? "ns" : ""} disponível{images.length !== 1 ? "is" : ""}</span>
+          )}
         </CardTitle>
+        {certNumber && images.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Para vincular uma imagem a este protocolo, informe o número do certificado <strong className="text-foreground">{certNumber}</strong> ao salvar no Simulador HPLC.
+          </p>
+        )}
       </CardHeader>
       <CardContent>
         {selected && (
@@ -110,8 +127,11 @@ function HplcImagesTab() {
                 <DialogTitle>{selected.sessionName}</DialogTitle>
               </DialogHeader>
               <img src={selected.imageData} alt={selected.sessionName} className="w-full rounded border" />
-              <div className="text-xs text-muted-foreground mt-1">
-                Fórmula: {selected.formulaName} · {new Date(selected.createdAt).toLocaleString("pt-BR")}
+              <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                <div>Fórmula: {selected.formulaName} · {new Date(selected.createdAt).toLocaleString("pt-BR")}</div>
+                {selected.certificateNumber && (
+                  <div className="text-green-700 font-medium">Certificado vinculado: {selected.certificateNumber}</div>
+                )}
               </div>
               <div className="flex gap-2 mt-2">
                 <a
@@ -125,23 +145,61 @@ function HplcImagesTab() {
             </DialogContent>
           </Dialog>
         )}
+
+        {hasLinked && (
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              onClick={() => setShowAll(false)}
+              className={`text-xs px-3 py-1 rounded-full border transition-colors ${!showAll ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-muted-foreground hover:bg-muted"}`}
+            >
+              Vinculadas a este protocolo ({linkedImages.length})
+            </button>
+            <button
+              onClick={() => setShowAll(true)}
+              className={`text-xs px-3 py-1 rounded-full border transition-colors ${showAll ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-muted-foreground hover:bg-muted"}`}
+            >
+              Todas ({images.length})
+            </button>
+          </div>
+        )}
+
+        {!hasLinked && certNumber && otherImages.length > 0 && (
+          <div className="mb-3 p-2.5 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+            Nenhuma imagem vinculada ao certificado <strong>{certNumber}</strong>. Mostrando todas as imagens disponíveis.
+          </div>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {images.map(img => (
-            <div key={img.id} className="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => setSelected(img)}>
-              <img src={img.imageData} alt={img.sessionName} className="w-full h-36 object-cover border-b" />
-              <div className="p-2.5">
-                <p className="text-xs font-semibold truncate">{img.sessionName}</p>
-                <p className="text-xs text-muted-foreground truncate">{img.formulaName}</p>
-                <p className="text-xs text-muted-foreground/70">{new Date(img.createdAt).toLocaleDateString("pt-BR")}</p>
-                <a href={img.imageData} download={`${img.sessionName}_cromatograma.png`}
-                  onClick={e => e.stopPropagation()}
-                  className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:underline">
-                  <Download className="h-3 w-3" /> Baixar PNG
-                </a>
+          {displayImages.map(img => {
+            const isLinked = certNumber && img.certificateNumber === certNumber;
+            return (
+              <div key={img.id}
+                className={`border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${isLinked ? "ring-2 ring-green-400" : ""}`}
+                onClick={() => setSelected(img)}>
+                <div className="relative">
+                  <img src={img.imageData} alt={img.sessionName} className="w-full h-36 object-cover border-b" />
+                  {isLinked && (
+                    <span className="absolute top-1.5 right-1.5 bg-green-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+                      VINCULADA
+                    </span>
+                  )}
+                </div>
+                <div className="p-2.5">
+                  <p className="text-xs font-semibold truncate">{img.sessionName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{img.formulaName}</p>
+                  <p className="text-xs text-muted-foreground/70">{new Date(img.createdAt).toLocaleDateString("pt-BR")}</p>
+                  {img.certificateNumber && !isLinked && (
+                    <p className="text-xs text-muted-foreground/60 truncate">Cert: {img.certificateNumber}</p>
+                  )}
+                  <a href={img.imageData} download={`${img.sessionName}_cromatograma.png`}
+                    onClick={e => e.stopPropagation()}
+                    className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                    <Download className="h-3 w-3" /> Baixar PNG
+                  </a>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>
@@ -2478,7 +2536,7 @@ export default function ProtocolDetail() {
           </Card>
         </TabsContent>
         <TabsContent value="hplc">
-          <HplcImagesTab />
+          <HplcImagesTab certNumber={protocol.certNumber} />
         </TabsContent>
       </Tabs>
     </div>

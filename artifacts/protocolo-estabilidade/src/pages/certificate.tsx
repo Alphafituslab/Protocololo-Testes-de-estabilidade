@@ -599,7 +599,7 @@ export default function CertificatePage() {
           </div>
           <div className="text-right text-sm space-y-1 min-w-48">
             <div>
-              <span className="text-gray-500 text-xs block">Numero</span>
+              <span className="text-gray-500 text-xs block">Número do Certificado</span>
               <span className="font-bold tracking-wide">{cert.certNumber}</span>
             </div>
             <div>
@@ -622,7 +622,7 @@ export default function CertificatePage() {
             </dl>
           </div>
           <div className="space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1">Identificacao</h2>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1">Identificação do Produto</h2>
             <dl className="space-y-1">
               <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Produto:</dt><dd className="font-medium">{cert.productName}</dd></div>
               {cert.presentation && <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Apresentacao:</dt><dd>{cert.presentation}</dd></div>}

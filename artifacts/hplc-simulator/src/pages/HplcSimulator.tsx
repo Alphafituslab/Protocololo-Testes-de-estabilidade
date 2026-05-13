@@ -199,6 +199,7 @@ interface HplcSavedImage {
   createdAt: string;
   imageData: string;  // base64 PNG
   notes: string;
+  certificateNumber?: string;
 }
 
 interface StandardEntry {
@@ -1675,6 +1676,8 @@ export default function HplcSimulator() {
   const [deleteSessionError, setDeleteSessionError] = useState<string | null>(null);
   const [deleteSessionLoading, setDeleteSessionLoading] = useState(false);
   const [currentSnapshotSessionId, setCurrentSnapshotSessionId] = useState<string | null>(null);
+  const [savePngDialog, setSavePngDialog] = useState<{ sessionId: string; redirectToGallery: boolean } | null>(null);
+  const [savePngCertNum, setSavePngCertNum] = useState("");
   const [finalizeDialog, setFinalizeDialog] = useState<{ id: string; name: string } | null>(null);
   const [finalizeStatus, setFinalizeStatus] = useState<"em_andamento" | "aprovado" | "reprovado">("aprovado");
   const [finalizeNotes, setFinalizeNotes] = useState("");
@@ -2340,13 +2343,23 @@ export default function HplcSimulator() {
     });
   };
 
+  // Opens dialog asking for certificate number before saving
   const handleSavePng = (sessionId: string, redirectToGallery = false) => {
     const session = analysisSessions.find(s => s.id === sessionId);
+    if (!session || session.runs.length === 0) return;
+    setSavePngCertNum("");
+    setSavePngDialog({ sessionId, redirectToGallery });
+  };
+
+  const handleConfirmSavePng = () => {
+    if (!savePngDialog) return;
+    const { sessionId, redirectToGallery } = savePngDialog;
+    const session = analysisSessions.find(s => s.id === sessionId);
     const formula = session ? formulas.find(f => f.id === session.formulaId) ?? null : null;
-    if (!session || !formula || session.runs.length === 0) return;
+    if (!session || !formula) { setSavePngDialog(null); return; }
     const std = formulaStandards.find(s => s.formulaId === session.formulaId) ?? null;
     const dataUrl = buildChromatogramPng(session, formula, std);
-    if (!dataUrl) return;
+    if (!dataUrl) { setSavePngDialog(null); return; }
     // Download
     const link = document.createElement("a");
     link.href = dataUrl;
@@ -2357,8 +2370,10 @@ export default function HplcSimulator() {
       id: uid(), sessionId: session.id, sessionName: session.name,
       formulaName: formula.name, createdAt: new Date().toISOString(),
       imageData: dataUrl, notes: "",
+      certificateNumber: savePngCertNum.trim() || undefined,
     };
     setSavedImages(imgs => { const u = [...imgs, img]; saveSavedImages(u); return u; });
+    setSavePngDialog(null);
     // Optionally redirect to painel gallery
     if (redirectToGallery) {
       setPage("painel");
@@ -3381,8 +3396,15 @@ export default function HplcSimulator() {
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
                       {savedImages.map(img => (
-                        <div key={img.id} style={{ border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
-                          <img src={img.imageData} alt={img.sessionName} style={{ width: "100%", height: 120, objectFit: "cover", borderBottom: "1px solid #e2e8f0", display: "block" }} />
+                        <div key={img.id} style={{ border: img.certificateNumber ? "1.5px solid #16a34a" : "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
+                          <div style={{ position: "relative" }}>
+                            <img src={img.imageData} alt={img.sessionName} style={{ width: "100%", height: 120, objectFit: "cover", borderBottom: "1px solid #e2e8f0", display: "block" }} />
+                            {img.certificateNumber && (
+                              <span style={{ position: "absolute", top: 4, right: 4, background: "#16a34a", color: "#fff", fontSize: 7, fontWeight: "bold", padding: "2px 5px", borderRadius: 3 }}>
+                                CERT: {img.certificateNumber}
+                              </span>
+                            )}
+                          </div>
                           <div style={{ padding: "6px 8px" }}>
                             <div style={{ fontSize: 9, fontWeight: "bold", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{img.sessionName}</div>
                             <div style={{ fontSize: 8, color: "#64748b" }}>{img.formulaName} · {new Date(img.createdAt).toLocaleDateString("pt-BR")}</div>
@@ -4799,6 +4821,64 @@ export default function HplcSimulator() {
                 </table>
               </div>
             )}
+          </div>
+        );
+      })()}
+
+      {/* ── Save PNG dialog (Salvar cromatograma + vincular ao certificado) ──── */}
+      {savePngDialog && (() => {
+        const session = analysisSessions.find(s => s.id === savePngDialog.sessionId);
+        return (
+          <div style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 9997,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <div style={{
+              background: "#fff", borderRadius: 10, padding: "24px 28px", width: 400, maxWidth: "90vw",
+              boxShadow: "0 8px 40px rgba(0,0,0,0.22)", fontFamily: "Courier New, monospace",
+            }}>
+              <div style={{ fontSize: 15, fontWeight: "bold", color: "#0284c7", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+                <ImageDown style={{ width: 16, height: 16 }} /> Salvar Cromatograma
+              </div>
+              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 18 }}>
+                Sessão: <b style={{ color: "#334155" }}>{session?.name}</b>
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 10, color: "#334155", fontWeight: "bold", display: "block", marginBottom: 4 }}>
+                  Número do Certificado (opcional)
+                </label>
+                <p style={{ fontSize: 9, color: "#64748b", marginBottom: 6, lineHeight: 1.5 }}>
+                  Informe o número do certificado do Protocolo de Estabilidade para vincular a imagem. Ela aparecerá automaticamente na aba HPLC daquele protocolo.
+                </p>
+                <input
+                  type="text"
+                  value={savePngCertNum}
+                  onChange={e => setSavePngCertNum(e.target.value)}
+                  placeholder="Ex: CA-2025-001"
+                  autoFocus
+                  style={{
+                    width: "100%", fontFamily: "Courier New, monospace", fontSize: 12,
+                    padding: "7px 10px", border: "1.5px solid #0284c7", borderRadius: 4,
+                    boxSizing: "border-box", outline: "none", letterSpacing: "0.05em",
+                  }}
+                  onKeyDown={e => { if (e.key === "Enter") handleConfirmSavePng(); }}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button
+                  style={{ fontSize: 11, padding: "7px 16px", border: "1px solid #cbd5e1", borderRadius: 5, background: "#f8fafc", cursor: "pointer", color: "#475569" }}
+                  onClick={() => setSavePngDialog(null)}>
+                  Cancelar
+                </button>
+                <button
+                  style={{ fontSize: 11, padding: "7px 20px", border: "none", borderRadius: 5, background: "#0284c7", cursor: "pointer", color: "#fff", fontWeight: "bold" }}
+                  onClick={handleConfirmSavePng}>
+                  Salvar PNG
+                </button>
+              </div>
+            </div>
           </div>
         );
       })()}
