@@ -46,6 +46,8 @@ interface SampleInfo {
   lastChanged1: string;
   analysisMethod: string;
   lastChanged2: string;
+  reportDate: string;    // date shown in footer (editable)
+  softwareRev: string;   // software version string shown in footer
 }
 
 interface DetectorInfo {
@@ -354,6 +356,8 @@ const DEFAULT_SAMPLE: SampleInfo = {
   lastChanged1: "4/25/2025 2:36:55 PM by EDSON",
   analysisMethod: "C:\\CHEM32\\1\\METHODS\\B6.M",
   lastChanged2: "4/30/2025 1:05:09 PM by EDSON",
+  reportDate: "4/30/2025 12:00:00 PM",
+  softwareRev: "Agilent ChemStation for LC and LC/MS Systems  Rev. B.04.03 [16]  Copyright (c) Agilent Technologies",
 };
 
 const DEFAULT_DETECTOR: DetectorInfo = {
@@ -1957,6 +1961,8 @@ export default function HplcSimulator() {
       lastChanged1:  operatorTag,
       analysisMethod: setup.analysisMethod || "",
       lastChanged2:  operatorTag,
+      reportDate:    injDate,
+      softwareRev:   DEFAULT_SAMPLE.softwareRev,
     });
     markDirty();
 
@@ -2121,7 +2127,7 @@ export default function HplcSimulator() {
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
       <div className="no-print max-w-[1160px] mx-auto mb-3 flex items-center gap-2 flex-wrap">
         <FlaskConical className="h-5 w-5 text-blue-700" />
-        <span style={{ ...MONO, fontWeight: "bold", fontSize: 13 }}>Simulador HPLC — Agilent ChemStation</span>
+        <span style={{ ...MONO, fontWeight: "bold", fontSize: 13 }}>Agilent ChemStation</span>
         <div className="flex-1" />
         <div style={{ display: "flex", border: "1px solid #bbb", borderRadius: 4, overflow: "hidden" }}>
           {(([
@@ -2246,6 +2252,8 @@ export default function HplcSimulator() {
                     ["lastChanged1", "Last changed (Acq.)"],
                     ["analysisMethod", "Analysis Method"],
                     ["lastChanged2", "Last changed (Ana.)"],
+                    ["reportDate", "Data do Relatório (rodapé)"],
+                    ["softwareRev", "Versão Software (rodapé)"],
                   ] as [keyof SampleInfo, string][]).map(([k, label]) => (
                     <SmallField key={k} label={label} value={sample[k]} onChange={sField(k)} />
                   ))}
@@ -3903,10 +3911,15 @@ export default function HplcSimulator() {
             );
           })()}
 
-          {/* ── Footer ──────────────────────────────────────────────────────── */}
-          <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between", fontSize: 10, color: "#444" }}>
-            <span>{sample.acqInstrument} {now} {sample.acqOperator}</span>
-            <span>Page   1 of 1</span>
+          {/* ── Footer — Agilent ChemStation style ──────────────────────── */}
+          <div style={{ marginTop: 20, borderTop: "1px solid #bbb", paddingTop: 5 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 10, color: "#333" }}>
+              <span>{sample.acqInstrument}{"   "}{sample.reportDate || now}{"   "}{sample.acqOperator}</span>
+              <span>Page   1 of 1</span>
+            </div>
+            <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginTop: 2, whiteSpace: "pre-wrap" }}>
+              {sample.softwareRev}
+            </div>
           </div>
         </div>
       </div>
