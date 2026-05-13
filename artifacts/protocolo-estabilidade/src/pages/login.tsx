@@ -30,12 +30,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const navigatedRef = useRef(false);
+  // Destination is saved here so the useEffect can use it after user state commits
+  const destRef = useRef<string>("/");
 
-  // If user is already logged in (e.g. back-button to /login), redirect away
+  // This useEffect is the ONLY place navigation happens.
+  // It runs only after React has committed the new user state,
+  // which guarantees ProtectedRoute sees user != null when it renders.
   useEffect(() => {
     if (user && !navigatedRef.current) {
       navigatedRef.current = true;
-      navigate(popRedirect());
+      navigate(destRef.current);
     }
   }, [user]);
 
@@ -50,11 +54,11 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const dest = popRedirect();
+    destRef.current = popRedirect();
     try {
       await login(username, password);
-      navigatedRef.current = true;
-      navigate(dest);
+      // Do NOT call navigate() here. The useEffect above fires after
+      // React commits setUser(), so ProtectedRoute sees user != null.
     } catch (err) {
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
       setLoading(false);
@@ -68,7 +72,7 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
-    const dest = popRedirect();
+    destRef.current = popRedirect();
     try {
       const res = await fetch("/api/auth/setup", {
         method: "POST",
@@ -80,8 +84,7 @@ export default function LoginPage() {
         throw new Error((d as { error?: string }).error ?? "Erro ao configurar.");
       }
       await login(username, password);
-      navigatedRef.current = true;
-      navigate(dest);
+      // Do NOT call navigate() here — useEffect handles it.
     } catch (err) {
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
       setLoading(false);

@@ -2190,10 +2190,14 @@ export default function ProtocolDetail() {
   const deleteProtocol = useDeleteProtocol({
     mutation: {
       onSuccess: () => {
+        // Remove the protocol from cache and navigate away BEFORE invalidating
+        // other queries. This prevents ProtocolDetail from re-rendering with
+        // missing/undefined data (which would trip the error boundary briefly).
+        queryClient.removeQueries({ queryKey: getGetProtocolQueryKey(numId) });
+        setLocation("/");
         queryClient.invalidateQueries({ queryKey: getListProtocolsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetProtocolStatsQueryKey() });
         toast({ title: "Protocolo removido" });
-        setLocation("/");
       },
       onError: (err) => {
         const anyErr = err as { data?: { error?: string }; message?: string; status?: number };
