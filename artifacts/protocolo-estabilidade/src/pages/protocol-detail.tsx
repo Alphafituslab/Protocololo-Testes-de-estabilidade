@@ -359,11 +359,16 @@ function LotsTab({ protocolId }: { protocolId: number }) {
   const createLot = useCreateLot({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
-        queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
-        toast({ title: "Lote adicionado" });
+        // Close dialog and reset form first so the portal unmounts cleanly,
+        // then defer cache invalidation to a separate tick to avoid the
+        // React "insertBefore" reconciliation error.
         setOpen(false);
         form.reset();
+        toast({ title: "Lote adicionado" });
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
+          queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
+        }, 0);
       },
     },
   });
@@ -371,11 +376,13 @@ function LotsTab({ protocolId }: { protocolId: number }) {
   const updateLot = useUpdateLot({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
-        toast({ title: "Lote atualizado" });
         setOpen(false);
         setEditLot(null);
         form.reset();
+        toast({ title: "Lote atualizado" });
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
+        }, 0);
       },
     },
   });
@@ -1957,10 +1964,8 @@ function FinalizeSection({
   const finalize = useFinalizeProtocol({
     mutation: {
       onSuccess: (data) => {
-        queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
-        queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocolId) });
-        queryClient.invalidateQueries({ queryKey: getGetProtocolStatsQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getListProtocolsQueryKey() });
+        // Close dialog first (portal unmounts cleanly), then defer invalidations.
+        setOpen(false);
         const autoReprovado = (data as unknown as Record<string, unknown>)._autoReprovado === true;
         if (autoReprovado) {
           toast({
@@ -1971,7 +1976,12 @@ function FinalizeSection({
         } else {
           toast({ title: isAlreadyFinalized ? "Avaliação corrigida com sucesso" : "Protocolo finalizado com sucesso" });
         }
-        setOpen(false);
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
+          queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocolId) });
+          queryClient.invalidateQueries({ queryKey: getGetProtocolStatsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListProtocolsQueryKey() });
+        }, 0);
       },
       onError: (err: unknown) => {
         const apiMsg = (err as { data?: { error?: string } })?.data?.error;

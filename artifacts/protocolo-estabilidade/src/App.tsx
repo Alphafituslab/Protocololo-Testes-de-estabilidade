@@ -48,6 +48,21 @@ class AppErrorBoundary extends Component<
     return { hasError: true, errorMessage: msg };
   }
 
+  // DOM portal reconciliation errors (insertBefore / removeChild) are transient —
+  // they occur when a Dialog portal unmounts during a simultaneous query refetch.
+  // Auto-reset silently so the user never sees the error screen for these cases.
+  componentDidCatch(error: Error) {
+    const msg = error?.message ?? "";
+    if (
+      msg.includes("insertBefore") ||
+      msg.includes("removeChild") ||
+      msg.includes("NotFoundError") ||
+      msg.includes("não é filho")
+    ) {
+      setTimeout(() => this.setState({ hasError: false, errorMessage: "" }), 0);
+    }
+  }
+
   render() {
     if (this.state.hasError) {
       return (
