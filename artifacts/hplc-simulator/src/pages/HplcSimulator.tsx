@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
   ResponsiveContainer, Tooltip, ReferenceLine,
@@ -1387,8 +1387,29 @@ export default function HplcSimulator() {
 
   const markDirty = useCallback(() => { setIsDirty(true); setConfirmed(false); }, []);
 
+  // Tracks the compound name as of the last confirm, so we can cascade renames
+  const prevCalibNameRef = useRef(calib.compoundName);
+
   const handleConfirm = useCallback(() => {
-    saveState({ peaks, sample, detector, standards, calib, activeCompounds });
+    const oldName = prevCalibNameRef.current;
+    const newName = calib.compoundName.trim();
+
+    // Cascade compound name change → peaks and active compounds
+    let finalPeaks = peaks;
+    let finalActives = activeCompounds;
+    if (newName && newName !== oldName) {
+      finalPeaks = peaks.map(p =>
+        p.name === oldName ? { ...p, name: newName } : p
+      );
+      finalActives = activeCompounds.map(c =>
+        c.name === oldName ? { ...c, name: newName } : c
+      );
+      setPeaks(finalPeaks);
+      setActiveCompounds(finalActives);
+      prevCalibNameRef.current = newName;
+    }
+
+    saveState({ peaks: finalPeaks, sample, detector, standards, calib, activeCompounds: finalActives });
     setIsDirty(false);
     setConfirmed(true);
     setTimeout(() => setConfirmed(false), 2000);
