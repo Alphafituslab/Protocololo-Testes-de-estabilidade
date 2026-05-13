@@ -27,6 +27,7 @@ interface Peak {
   amtPerArea: number;   // response factor (Amount/Area)
   amount: number;       // ug/ml
   grp: string;
+  peakNoise: number;        // 0 = perfect Gaussian; 1 = max roughness
   attachedFile?: string;    // filename of imported data file
   printSelected?: boolean;  // include in printed report (default = true)
 }
@@ -221,6 +222,26 @@ function pseudoNoise(i: number): number {
   return ((a + b + c) - Math.floor(a + b + c)) - 0.5; // -0.5 … +0.5
 }
 
+// Hash peak id string → integer seed for deterministic per-peak noise
+function idSeed(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+// Per-peak surface roughness: deterministic noise proportional to local Gaussian amplitude
+// Returns a multiplier offset so the Gaussian shape is preserved but roughened
+function peakNoiseAt(i: number, seed: number, localAmp: number, peakNoise: number): number {
+  if (peakNoise <= 0 || localAmp < 0.5) return 0;
+  // Three octaves of layered noise, different frequency per octave to mimic column heterogeneity
+  const n1 = pseudoNoise(i * 7 + seed % 997);
+  const n2 = pseudoNoise(i * 23 + (seed >> 3) % 1987);
+  const n3 = pseudoNoise(i * 71 + (seed >> 6) % 4003);
+  const raw = n1 * 0.55 + n2 * 0.30 + n3 * 0.15;
+  // Scale: at peakNoise=1, roughness ≈ 8% of local amplitude
+  return raw * peakNoise * 0.08 * localAmp;
+}
+
 function buildChromatogram(
   peaks: Peak[], runTime: number, pts = 6000,
   noiseAmp = 1.8, driftAmp = 1.2, pulseAmp = 0.35,
@@ -228,13 +249,18 @@ function buildChromatogram(
   const dt = runTime / pts;
   const pulseFreq = 1.6;   // cycles / min
 
+  // Pre-compute per-peak seeds once
+  const peakSeeds = peaks.map(p => idSeed(p.id));
+
   return Array.from({ length: pts + 1 }, (_, i) => {
     const t = i * dt;
 
-    // Sum all user-defined peaks
+    // Sum all user-defined peaks (with optional surface roughness)
     let signal = 0;
-    for (const p of peaks) {
-      signal += gaussian(t, p.retentionTime, p.width, p.height, p.asymmetry);
+    for (let pi = 0; pi < peaks.length; pi++) {
+      const p = peaks[pi];
+      const localAmp = gaussian(t, p.retentionTime, p.width, p.height, p.asymmetry);
+      signal += localAmp + peakNoiseAt(i, peakSeeds[pi], localAmp, p.peakNoise ?? 0);
     }
 
     // Correlated baseline noise (2-octave layering for natural feel)
@@ -304,13 +330,13 @@ const DEFAULT_PEAKS: Peak[] = [
   {
     id: uid(), name: "", retentionTime: 0.38, height: 7, width: 0.075,
     asymmetry: 2.6, peakType: "BB", manualArea: 0,
-    amtPerArea: 0, amount: 0, grp: "",
+    amtPerArea: 0, amount: 0, grp: "", peakNoise: 0,
   },
   // B6 analyte peak — sharp, tall, slight tailing (typical for pyridoxine on C18)
   {
     id: uid(), name: "B6", retentionTime: 2.401, height: 242, width: 0.022,
     asymmetry: 1.22, peakType: "VB", manualArea: 872.10504,
-    amtPerArea: 0.0392764, amount: 34.25311, grp: "",
+    amtPerArea: 0.0392764, amount: 34.25311, grp: "", peakNoise: 0,
   },
 ];
 
@@ -508,7 +534,7 @@ function PeakLabel({ viewBox, rt, name, dragging }: {
 
 // ─── Peak editor ──────────────────────────────────────────────────────────────
 
-const PEAK_NUM_KEYS: (keyof Peak)[] = ["retentionTime", "height", "width", "asymmetry", "manualArea", "amtPerArea", "amount"];
+const PEAK_NUM_KEYS: (keyof Peak)[] = ["retentionTime", "height", "width", "asymmetry", "manualArea", "amtPerArea", "amount", "peakNoise"];
 
 function peakToStrings(p: Peak): Record<keyof Peak, string> {
   return Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v)])) as Record<keyof Peak, string>;
@@ -530,6 +556,7 @@ function PeakEditorDialog({ peak, onSave, children }: { peak: Peak; onSave: (p: 
   const [open, setOpen] = useState(false);
   const field = (key: keyof Peak) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDraft(d => ({ ...d, [key]: e.target.value }));
+  const noiseVal = parseFloat(draft.peakNoise) || 0;
   return (
     <Dialog open={open} onOpenChange={v => { setOpen(v); if (v) setDraft(peakToStrings(peak)); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -558,6 +585,27 @@ function PeakEditorDialog({ peak, onSave, children }: { peak: Peak; onSave: (p: 
               />
             </div>
           ))}
+
+          {/* Peak surface roughness slider */}
+          <div className="pt-1">
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs text-muted-foreground">Rugosidade do pico</Label>
+              <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
+                {noiseVal === 0 ? "perfeito" : noiseVal < 0.3 ? "leve" : noiseVal < 0.65 ? "moderado" : "intenso"}
+                {" "}({noiseVal.toFixed(2)})
+              </span>
+            </div>
+            <input
+              type="range" min="0" max="1" step="0.01"
+              value={noiseVal}
+              onChange={e => setDraft(d => ({ ...d, peakNoise: e.target.value }))}
+              className="w-full h-2 accent-blue-600"
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 1 }}>
+              <span>0 = Gaussiano perfeito</span><span>1 = muito rugoso</span>
+            </div>
+          </div>
+
           <p className="text-xs text-muted-foreground pt-1">
             Área = 0 → calculada automaticamente pelo modelo Gaussiano.<br />
             Área &gt; 0 → valor exato usado no relatório.
@@ -1634,6 +1682,7 @@ export default function HplcSimulator() {
   const addPeak = useCallback(() => {
     setPeaks(ps => [...ps, {
       id: uid(), name: "", peakType: "BB", grp: "", amtPerArea: 0, amount: 0, manualArea: 0,
+      peakNoise: 0,
       retentionTime: parseFloat((1 + Math.random() * (detector.runTime - 2)).toFixed(3)),
       height: Math.round(10 + Math.random() * 80),
       width: parseFloat((0.04 + Math.random() * 0.08).toFixed(3)),
@@ -2056,6 +2105,7 @@ export default function HplcSimulator() {
       amtPerArea: compound.amtPerArea,
       amount: 0,
       manualArea: 0,
+      peakNoise: 0,
     }]);
     setPage("chromatogram");
     markDirty();
