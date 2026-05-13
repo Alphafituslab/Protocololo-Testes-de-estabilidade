@@ -54,6 +54,11 @@ interface DetectorInfo {
   refWavelength: number;
   refBandwidth: number;
   runTime: number;      // min
+  // Baseline appearance
+  baselineNoise: number;  // mAU — high-frequency noise amplitude (0 = flat)
+  baselineDrift: number;  // mAU — linear upward drift over full run
+  baselinePulse: number;  // mAU — pump pulsation ripple
+  lineWidth: number;      // px — thickness of the chromatogram trace
 }
 
 interface CalibStandard {
@@ -216,11 +221,11 @@ function pseudoNoise(i: number): number {
   return ((a + b + c) - Math.floor(a + b + c)) - 0.5; // -0.5 … +0.5
 }
 
-function buildChromatogram(peaks: Peak[], runTime: number, pts = 6000) {
+function buildChromatogram(
+  peaks: Peak[], runTime: number, pts = 6000,
+  noiseAmp = 1.8, driftAmp = 1.2, pulseAmp = 0.35,
+) {
   const dt = runTime / pts;
-  const noiseAmp  = 1.8;   // mAU  — visible baseline texture
-  const driftAmp  = 1.2;   // mAU  — total upward drift over full run
-  const pulseAmp  = 0.35;  // mAU  — pump pulsation ripple
   const pulseFreq = 1.6;   // cycles / min
 
   return Array.from({ length: pts + 1 }, (_, i) => {
@@ -332,6 +337,10 @@ const DEFAULT_DETECTOR: DetectorInfo = {
   refWavelength: 360,
   refBandwidth: 100,
   runTime: 10,
+  baselineNoise: 1.8,
+  baselineDrift: 1.2,
+  baselinePulse: 0.35,
+  lineWidth: 1.0,
 };
 
 const DEFAULT_STANDARDS: CalibStandard[] = [
@@ -792,7 +801,8 @@ function buildChromatogramPng(
     const ML_c = ML + 46;
     const cW = W - ML_c - 36;
     const runTime = formula.detector.runTime;
-    const chrom = buildChromatogram(run.peaks, runTime, 1600);
+    const det = formula.detector;
+    const chrom = buildChromatogram(run.peaks, runTime, 1600, det.baselineNoise ?? 1.8, det.baselineDrift ?? 1.2, det.baselinePulse ?? 0.35);
     const maxSig = Math.max(10, ...chrom.map(p => p.signal)) * 1.1;
 
     const xS = (t: number) => ML_c + (t / runTime) * cW;
@@ -842,7 +852,7 @@ function buildChromatogramPng(
     ctx.beginPath(); ctx.moveTo(ML_c, chartTop + CHART_H); ctx.lineTo(ML_c + cW, chartTop + CHART_H); ctx.stroke();
 
     // Chromatogram — Agilent ChemStation blue
-    ctx.strokeStyle = "#1560bd"; ctx.lineWidth = 1;
+    ctx.strokeStyle = "#1560bd"; ctx.lineWidth = det.lineWidth ?? 1;
     ctx.beginPath();
     chrom.forEach((pt, i) => {
       const px = xS(pt.time); const py = yS(pt.signal);
@@ -1528,7 +1538,10 @@ export default function HplcSimulator() {
 
   // ── Chromatogram data ────────────────────────────────────────────────────────
 
-  const chromatogram = useMemo(() => buildChromatogram(peaks, detector.runTime), [peaks, detector.runTime]);
+  const chromatogram = useMemo(
+    () => buildChromatogram(peaks, detector.runTime, 6000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse),
+    [peaks, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse],
+  );
 
   // Standard reference peak overlay — simulates the mid-level calibration standard
   const stdPeakInfo = useMemo(() => {
@@ -1541,9 +1554,9 @@ export default function HplcSimulator() {
     const stdPeakObj: Peak = {
       ...namedPeak, id: "std-ovl", name: "STD", height: stdHeight, manualArea: 0,
     };
-    const chrom = buildChromatogram([stdPeakObj], detector.runTime);
+    const chrom = buildChromatogram([stdPeakObj], detector.runTime, 6000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse);
     return { chrom, midStd, namedPeak, stdHeight, level: Math.floor(sorted.length / 2) + 1, total: sorted.length };
-  }, [showStdPeak, standards, peaks, calib.compoundName, detector.runTime]);
+  }, [showStdPeak, standards, peaks, calib.compoundName, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse]);
 
   const mergedChrom = useMemo(() => {
     if (!stdPeakInfo) return chromatogram;
@@ -1730,7 +1743,8 @@ export default function HplcSimulator() {
     markDirty();
   };
   const dField = (k: keyof DetectorInfo) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDetector(d => ({ ...d, [k]: (["runTime", "sigWavelength", "sigBandwidth", "refWavelength", "refBandwidth"] as (keyof DetectorInfo)[]).includes(k) ? parseFloat(e.target.value) || 0 : e.target.value }));
+    const numericKeys: (keyof DetectorInfo)[] = ["runTime", "sigWavelength", "sigBandwidth", "refWavelength", "refBandwidth", "baselineNoise", "baselineDrift", "baselinePulse", "lineWidth"];
+    setDetector(d => ({ ...d, [k]: numericKeys.includes(k) ? parseFloat(e.target.value) || 0 : e.target.value }));
     markDirty();
   };
   const cField = (k: keyof CalibInfo) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2195,6 +2209,85 @@ export default function HplcSimulator() {
                   <SmallField label="Ref Wavelength (nm)" value={String(detector.refWavelength)} onChange={dField("refWavelength")} type="number" />
                   <SmallField label="Ref Bandwidth" value={String(detector.refBandwidth)} onChange={dField("refBandwidth")} type="number" />
                   <SmallField label="Run Time (min)" value={String(detector.runTime)} onChange={dField("runTime")} type="number" />
+                </ControlBox>
+
+                {/* Baseline appearance */}
+                <ControlBox title="Linha de Base">
+                  <p style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6 }}>
+                    Ajuste a aparência do traçado e do ruído de fundo.
+                  </p>
+                  {/* Line thickness slider */}
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                      <span>Espessura do traçado</span>
+                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{detector.lineWidth.toFixed(1)} px</span>
+                    </div>
+                    <input
+                      type="range" min="0.3" max="4" step="0.1"
+                      value={detector.lineWidth}
+                      onChange={e => { setDetector(d => ({ ...d, lineWidth: parseFloat(e.target.value) })); markDirty(); }}
+                      className="w-full h-2 accent-blue-600"
+                    />
+                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                      <span>Fina</span><span>Grossa</span>
+                    </div>
+                  </div>
+                  {/* Noise slider */}
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                      <span>Ruído de fundo (mAU)</span>
+                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{detector.baselineNoise.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range" min="0" max="10" step="0.1"
+                      value={detector.baselineNoise}
+                      onChange={e => { setDetector(d => ({ ...d, baselineNoise: parseFloat(e.target.value) })); markDirty(); }}
+                      className="w-full h-2 accent-blue-600"
+                    />
+                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                      <span>0 = plana</span><span>10 = muito ruidosa</span>
+                    </div>
+                  </div>
+                  {/* Drift slider */}
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                      <span>Deriva linear (mAU)</span>
+                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{detector.baselineDrift.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range" min="0" max="15" step="0.1"
+                      value={detector.baselineDrift}
+                      onChange={e => { setDetector(d => ({ ...d, baselineDrift: parseFloat(e.target.value) })); markDirty(); }}
+                      className="w-full h-2 accent-blue-600"
+                    />
+                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                      <span>0 = linear</span><span>15 = deriva alta</span>
+                    </div>
+                  </div>
+                  {/* Pulse slider */}
+                  <div style={{ marginBottom: 4 }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                      <span>Pulsação da bomba (mAU)</span>
+                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{detector.baselinePulse.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range" min="0" max="5" step="0.05"
+                      value={detector.baselinePulse}
+                      onChange={e => { setDetector(d => ({ ...d, baselinePulse: parseFloat(e.target.value) })); markDirty(); }}
+                      className="w-full h-2 accent-blue-600"
+                    />
+                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                      <span>0 = sem pulso</span><span>5 = forte</span>
+                    </div>
+                  </div>
+                  {/* Reset button */}
+                  <button
+                    type="button"
+                    onClick={() => { setDetector(d => ({ ...d, baselineNoise: 1.8, baselineDrift: 1.2, baselinePulse: 0.35, lineWidth: 1.0 })); markDirty(); }}
+                    style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 8px", border: "1px solid #bbb", borderRadius: 3, background: "#f9fafb", cursor: "pointer", color: "#555", marginTop: 4 }}
+                  >
+                    ↺ Restaurar padrão
+                  </button>
                 </ControlBox>
 
                 {/* Ext. Std. Report meta — sorted by, calib date, multiplier, dilution */}
@@ -3326,7 +3419,7 @@ export default function HplcSimulator() {
             // Build overlay chromatogram data (merge all runs into one dataset)
             const runTime = sessionFormula.detector.runTime;
             const pts = 2000;
-            const allChrom = session.runs.map(r => buildChromatogram(r.peaks, runTime, pts));
+            const allChrom = session.runs.map(r => buildChromatogram(r.peaks, runTime, pts, sessionFormula.detector.baselineNoise ?? 1.8, sessionFormula.detector.baselineDrift ?? 1.2, sessionFormula.detector.baselinePulse ?? 0.35));
             const overlayData: Record<string, number>[] = allChrom.length > 0
               ? allChrom[0].map((pt, i) => {
                   const row: Record<string, number> = { time: pt.time };
