@@ -787,7 +787,7 @@ function InlineCell({
               const thisCell = (e.currentTarget as HTMLElement).closest<HTMLElement>("[data-inline-cell]");
               const idx = thisCell ? allCells.indexOf(thisCell) : -1;
               const next = e.shiftKey ? allCells[idx - 1] : allCells[idx + 1];
-              if (next) { setEditing(false); setTimeout(() => next.focus(), 30); }
+              if (next) { setEditing(false); setTimeout(() => { next.focus(); next.click(); }, 30); }
             }
           }}
           className="w-full border border-primary rounded px-1.5 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary"

@@ -1925,7 +1925,7 @@ export default function HplcSimulator() {
 
   const xTicks = useMemo(() => {
     const t: number[] = [];
-    for (let v = 0; v <= detector.runTime; v += 2) t.push(parseFloat(v.toFixed(1)));
+    for (let v = 2; v <= detector.runTime; v += 2) t.push(parseFloat(v.toFixed(1))); // skip 0 — it overlaps the Y-axis
     return t;
   }, [detector.runTime]);
 
@@ -3584,6 +3584,9 @@ export default function HplcSimulator() {
                     ← arraste o pico para ajustar o TR →
                   </div>
                 )}
+                {/* overflow:visible lets vertical peak labels render above the plot margin */}
+                <style>{`.hplc-main-chart .recharts-wrapper svg { overflow: visible; }`}</style>
+                <div className="hplc-main-chart">
                 <ResponsiveContainer width="100%" height={360}>
                   <ComposedChart data={mergedChrom} margin={{ top: 75, right: 16, left: 8, bottom: 24 }}>
                     <CartesianGrid strokeDasharray="2 2" stroke="#e2e2e2" />
@@ -3677,6 +3680,7 @@ export default function HplcSimulator() {
                     </span>
                   </div>
                 )}
+                </div>{/* /hplc-main-chart */}
               </div>
 
               {/* External Standard Report */}
