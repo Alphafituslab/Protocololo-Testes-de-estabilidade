@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
   ResponsiveContainer, Tooltip, ReferenceLine,
@@ -753,9 +753,17 @@ function PeakEditorDialog({ peak, onSave, children }: { peak: Peak; onSave: (p: 
   const field = (key: keyof Peak) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDraft(d => ({ ...d, [key]: e.target.value }));
   const noiseVal = parseFloat(draft.peakNoise) || 0;
+  const openDialog = () => { setDraft(peakToStrings(peak)); setOpen(true); };
+  // Use cloneElement instead of DialogTrigger asChild to avoid Radix UI Slot ref
+  // cleanup (insertBefore) crashes when the dialog trigger is conditionally unmounted.
+  const trigger = React.cloneElement(
+    React.Children.only(children) as React.ReactElement<React.HTMLAttributes<HTMLElement>>,
+    { onClick: openDialog },
+  );
   return (
-    <Dialog open={open} onOpenChange={v => { setOpen(v); if (v) setDraft(peakToStrings(peak)); }}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+    <>
+      {trigger}
+      <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-xs">
         <DialogHeader><DialogTitle style={{ fontFamily: "Courier New, monospace" }}>Editar Pico</DialogTitle></DialogHeader>
         <form onSubmit={e => { e.preventDefault(); onSave(stringsToPeak(peak, draft)); setOpen(false); }} className="space-y-2 pt-1">
@@ -810,6 +818,7 @@ function PeakEditorDialog({ peak, onSave, children }: { peak: Peak; onSave: (p: 
         </form>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
 
@@ -2881,15 +2890,13 @@ export default function HplcSimulator() {
                             ? <LockOpen className="h-3 w-3 text-amber-500" />
                             : <Lock className="h-3 w-3 text-gray-400" />}
                         </Button>
-                        <PeakEditorDialog peak={p} onSave={savePeak}>
-                          <Button size="sm" variant="ghost"
-                            className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
-                            style={p.locked ? { pointerEvents: "none", visibility: "hidden" } : undefined}
-                            tabIndex={p.locked ? -1 : undefined}
-                            aria-hidden={p.locked || undefined}>
-                            <Settings className="h-3 w-3" />
-                          </Button>
-                        </PeakEditorDialog>
+                        {!p.locked && (
+                          <PeakEditorDialog peak={p} onSave={savePeak}>
+                            <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
+                              <Settings className="h-3 w-3" />
+                            </Button>
+                          </PeakEditorDialog>
+                        )}
                         <Button size="sm" variant="ghost" className="h-5 w-5 p-0 hover:text-red-500"
                           title={p.locked ? "Pico travado — desbloqueie para excluir" : "Excluir pico"}
                           disabled={!!p.locked}
