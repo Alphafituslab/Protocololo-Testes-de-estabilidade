@@ -199,7 +199,7 @@ const PERIODS = [0, 3, 6];
 
 const lotSchema = z.object({
   lotNumber: z.string().min(1, "Número do lote obrigatório"),
-  manufacturingDate: z.string().min(1, "Data obrigatoria"),
+  manufacturingDate: z.string().min(1, "Data obrigatória"),
   quantity: z.coerce.number().min(1),
   notes: z.string().optional(),
 });
@@ -222,7 +222,7 @@ const finalizeSchema = z.object({
   if (data.finalStatus === "aprovado_com_ressalva" && (!data.ressalva || data.ressalva.trim().length < 10)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "Obrigatorio descrever a ressalva (minimo 10 caracteres) para aprovar com ressalva.",
+      message: "Obrigatório descrever a ressalva (mínimo 10 caracteres) para aprovar com ressalva.",
       path: ["ressalva"],
     });
   }
@@ -427,8 +427,8 @@ function LotsTab({ protocolId }: { protocolId: number }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Numero do Lote</TableHead>
-              <TableHead>Data de Fabricacao</TableHead>
+              <TableHead>Número do Lote</TableHead>
+              <TableHead>Data de Fabricação</TableHead>
               <TableHead>Quantidade</TableHead>
               <TableHead>Notas</TableHead>
               <TableHead className="w-20"></TableHead>
@@ -489,7 +489,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField control={form.control} name="lotNumber" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Numero do Lote</FormLabel>
+                  <FormLabel>Número do Lote</FormLabel>
                   <FormControl><Input data-testid="input-lotNumber" placeholder="LP-20241210-639" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -497,7 +497,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
               <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="manufacturingDate" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data de Fabricacao</FormLabel>
+                    <FormLabel>Data de Fabricação</FormLabel>
                     <FormControl><Input type="date" data-testid="input-manufacturingDate" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -2108,7 +2108,7 @@ function FinalizeSection({
                 )} />
                 <FormField control={form.control} name="issueDate" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data de Emissao</FormLabel>
+                    <FormLabel>Data de Emissão</FormLabel>
                     <FormControl><Input type="date" data-testid="input-issueDate" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
