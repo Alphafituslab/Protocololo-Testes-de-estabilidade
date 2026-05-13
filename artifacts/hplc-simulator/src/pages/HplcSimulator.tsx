@@ -3535,33 +3535,32 @@ export default function HplcSimulator() {
           {/* ── CHROMATOGRAM PAGE ─────────────────────────────────────────── */}
           {page === "chromatogram" && (
             <>
-              {/* Arquivo de dados + Nome da amostra */}
+              {/* Data File + Sample Name — Agilent ChemStation format */}
               <div style={{ marginBottom: 6 }}>
-                <div>Arquivo de dados {sample.dataFile}</div>
-                <div>Nome da amostra: {sample.sampleName}</div>
+                <div>Data File {sample.dataFile}</div>
+                <div>Sample Name: {sample.sampleName}</div>
               </div>
 
               <Div />
-              {/* Operator block */}
               <div style={{ whiteSpace: "pre-wrap" }}>
-                {"    Operador de aquisição   : " + sample.acqOperator.padEnd(28) + "Linha de sequência : " + sample.seqLine}
+                {"    Acq. Operator   : " + sample.acqOperator.padEnd(38) + "Seq. Line : " + String(sample.seqLine).padStart(3)}
               </div>
               <div style={{ whiteSpace: "pre-wrap" }}>
-                {"    Instrumento de aquisição: " + sample.acqInstrument.padEnd(28) + "Localização        : " + sample.location}
+                {"    Acq. Instrument : " + sample.acqInstrument.padEnd(36) + "Location : " + sample.location}
               </div>
               <div style={{ whiteSpace: "pre-wrap" }}>
-                {"    Data da injeção         : " + sample.injectionDate.padEnd(36) + "Injeção :  " + sample.inj}
+                {"    Injection Date  : " + sample.injectionDate.padEnd(38) + "Inj :  " + sample.inj}
               </div>
               <div style={{ whiteSpace: "pre-wrap" }}>
-                {"    " + " ".repeat(55) + "Volume injetado : " + sample.injVolume}
+                {"    " + " ".repeat(59) + "Inj Volume : " + sample.injVolume}
               </div>
               <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
-                {"    Método de aquisição     : " + sample.acqMethod}
+                {"    Acq. Method     : " + sample.acqMethod}
               </div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Última alteração        : " + sample.lastChanged1}</div>
-              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Método de análise       : " + sample.analysisMethod}</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Última alteração        : " + sample.lastChanged2}</div>
-              <div style={{ whiteSpace: "pre" }}>{"                      (modificado após o carregamento)"}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged1}</div>
+              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Analysis Method : " + sample.analysisMethod}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged2}</div>
+              <div style={{ whiteSpace: "pre", wordBreak: "break-all" }}>{"              " + signalLabel + " (" + sample.dataFile + ")"}</div>
               <Div />
 
               {/* Chromatogram chart */}
@@ -3575,12 +3574,9 @@ export default function HplcSimulator() {
                 onContextMenu={handleChartContextMenu}
               >
                 <div style={{ fontSize: 11, marginBottom: 2 }}>mAU</div>
-                <div style={{ fontSize: 10, color: "#555", position: "absolute", top: 0, right: 0 }}>
-                  Signal 1: {signalLabel}
-                </div>
-                {/* Drag hint tooltip */}
+                {/* Drag hint tooltip — hidden when printing */}
                 {!draggingPeakId && peakStats.some(p => p.name) && (
-                  <div style={{ position: "absolute", bottom: 28, left: 54, fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace", pointerEvents: "none" }}>
+                  <div className="no-print" style={{ position: "absolute", bottom: 28, left: 54, fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace", pointerEvents: "none" }}>
                     ← arraste o pico para ajustar o TR →
                   </div>
                 )}
@@ -3701,26 +3697,26 @@ export default function HplcSimulator() {
                 <div style={{ marginTop: 10, overflowX: "auto" }}>
                   <div style={{ whiteSpace: "pre" }}>{"    RetTime Type      Area     Amt/Area    Amount   Grp    Name"}</div>
                   <div style={{ whiteSpace: "pre" }}>{"     [min]          [mAU*s]               [ug/ml]"}</div>
-                  <div style={{ whiteSpace: "pre" }}>{"    " + "-".repeat(65)}</div>
+                  <div style={{ whiteSpace: "pre" }}>{"    -------|------|----------|----------|----------|--|------------------"}</div>
                   {peakStats.map(p => {
                     const area = p.displayArea;
                     const amtPerArea = p.amtPerArea > 0 ? p.amtPerArea : (area > 0 && p.amount > 0 ? p.amount / area : 0);
                     const rt = p.retentionTime.toFixed(3).padStart(7);
                     const type = p.peakType.padEnd(6);
-                    const areaStr = fmtArea(area).padStart(12);
-                    const aptStr = amtPerArea > 0 ? fmtSci2(amtPerArea, -2).padStart(12) : "".padStart(12);
-                    const amtStr = p.amount > 0 ? p.amount.toFixed(5).padStart(12) : "".padStart(12);
-                    const grpStr = (p.grp || "").padEnd(4);
+                    const areaStr = fmtArea(area).padStart(10);
+                    const aptStr = amtPerArea > 0 ? fmtSci2(amtPerArea, -2).padStart(10) : "".padStart(10);
+                    const amtStr = p.amount > 0 ? p.amount.toFixed(5).padStart(10) : "".padStart(10);
+                    const grpStr = (p.grp || "").padEnd(2);
                     const nameStr = p.name;
                     return (
                       <div key={p.id} style={{ whiteSpace: "pre" }}>
-                        {"   " + rt + " " + type + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + nameStr}
+                        {"    " + rt + " " + type + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + nameStr}
                       </div>
                     );
                   })}
                   <div style={{ whiteSpace: "pre" }}>{"    "}</div>
                   <div style={{ whiteSpace: "pre" }}>
-                    {"    Totals :                              " + "  " + totalAmount.toFixed(5)}
+                    {"    Totals :                              " + totalAmount.toFixed(5).padStart(12)}
                   </div>
                 </div>
               </div>
@@ -3730,25 +3726,21 @@ export default function HplcSimulator() {
           {/* ── REPORT PAGE ──────────────────────────────────────────────── */}
           {page === "report" && (
             <>
-              {/* Method header */}
+              {/* Data File + Sample Name — Agilent ChemStation format */}
               <div style={{ marginBottom: 6 }}>
-                <div>Method {sample.analysisMethod}</div>
-              </div>
-
-              {/* Replicated sample info (same as chromatogram tab) */}
-              <div style={{ marginBottom: 6 }}>
-                <div>Arquivo de dados {sample.dataFile}</div>
-                <div>Nome da amostra: {sample.sampleName}</div>
+                <div>Data File {sample.dataFile}</div>
+                <div>Sample Name: {sample.sampleName}</div>
               </div>
               <Div />
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Operador de aquisição   : " + sample.acqOperator.padEnd(28) + "Linha de sequência : " + sample.seqLine}</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Instrumento de aquisição: " + sample.acqInstrument.padEnd(28) + "Localização        : " + sample.location}</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Data da injeção         : " + sample.injectionDate.padEnd(36) + "Injeção :  " + sample.inj}</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    " + " ".repeat(55) + "Volume injetado : " + sample.injVolume}</div>
-              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Método de aquisição     : " + sample.acqMethod}</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Última alteração        : " + sample.lastChanged1}</div>
-              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Método de análise       : " + sample.analysisMethod}</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Última alteração        : " + sample.lastChanged2}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Acq. Operator   : " + sample.acqOperator.padEnd(38) + "Seq. Line : " + String(sample.seqLine).padStart(3)}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Acq. Instrument : " + sample.acqInstrument.padEnd(36) + "Location : " + sample.location}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Injection Date  : " + sample.injectionDate.padEnd(38) + "Inj :  " + sample.inj}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    " + " ".repeat(59) + "Inj Volume : " + sample.injVolume}</div>
+              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Acq. Method     : " + sample.acqMethod}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged1}</div>
+              <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Analysis Method : " + sample.analysisMethod}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged2}</div>
+              <div style={{ whiteSpace: "pre", wordBreak: "break-all" }}>{"              " + signalLabel + " (" + sample.dataFile + ")"}</div>
               <Div />
 
               {/* External Standard Report — only print-selected peaks */}
@@ -3757,8 +3749,8 @@ export default function HplcSimulator() {
                 <div style={{ marginTop: 6 }}>
                   <div>{"    Sorted By             :      " + calib.sortedBy}</div>
                   <div>{"    Calib. Data Modified :       " + calib.calibDataModified}</div>
-                  <div>{"    Multiplier            :      " + calib.multiplier}</div>
-                  <div>{"    Dilution              :      " + calib.dilution}</div>
+                  <div>{"    Multiplier:                   :      " + calib.multiplier}</div>
+                  <div>{"    Dilution:                     :      " + calib.dilution}</div>
                   <div>{"    Use Multiplier & Dilution Factor with ISTDs"}</div>
                 </div>
                 <div style={{ marginTop: 8 }}>
@@ -3767,26 +3759,26 @@ export default function HplcSimulator() {
                 <div style={{ marginTop: 10, overflowX: "auto" }}>
                   <div style={{ whiteSpace: "pre" }}>{"    RetTime Type      Area     Amt/Area    Amount   Grp    Name"}</div>
                   <div style={{ whiteSpace: "pre" }}>{"     [min]          [mAU*s]               [ug/ml]"}</div>
-                  <div style={{ whiteSpace: "pre" }}>{"    " + "-".repeat(65)}</div>
+                  <div style={{ whiteSpace: "pre" }}>{"    -------|------|----------|----------|----------|--|------------------"}</div>
                   {peakStats.filter(p => p.printSelected !== false).map(p => {
                     const area = p.displayArea;
                     const amtPerArea = p.amtPerArea > 0 ? p.amtPerArea : (area > 0 && p.amount > 0 ? p.amount / area : 0);
                     const rt = p.retentionTime.toFixed(3).padStart(7);
                     const type = p.peakType.padEnd(6);
-                    const areaStr = fmtArea(area).padStart(12);
-                    const aptStr = amtPerArea > 0 ? fmtSci2(amtPerArea, -2).padStart(12) : "".padStart(12);
-                    const amtStr = p.amount > 0 ? p.amount.toFixed(5).padStart(12) : "".padStart(12);
-                    const grpStr = (p.grp || "").padEnd(4);
+                    const areaStr = fmtArea(area).padStart(10);
+                    const aptStr = amtPerArea > 0 ? fmtSci2(amtPerArea, -2).padStart(10) : "".padStart(10);
+                    const amtStr = p.amount > 0 ? p.amount.toFixed(5).padStart(10) : "".padStart(10);
+                    const grpStr = (p.grp || "").padEnd(2);
                     return (
                       <div key={p.id} style={{ whiteSpace: "pre" }}>
-                        {"   " + rt + " " + type + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + p.name}
+                        {"    " + rt + " " + type + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + p.name}
                       </div>
                     );
                   })}
                   <div style={{ whiteSpace: "pre" }}>{"    "}</div>
                   <div style={{ whiteSpace: "pre" }}>
-                    {"    Totals :                              " + "  " +
-                      peakStats.filter(p => p.printSelected !== false && p.amount > 0).reduce((s, p) => s + p.amount, 0).toFixed(5)}
+                    {"    Totals :                              " +
+                      peakStats.filter(p => p.printSelected !== false && p.amount > 0).reduce((s, p) => s + p.amount, 0).toFixed(5).padStart(12)}
                   </div>
                 </div>
               </div>
