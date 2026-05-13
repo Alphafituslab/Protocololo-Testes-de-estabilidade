@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
-import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download, Users, ShieldCheck, ShieldOff, ToggleLeft, ToggleRight, LayoutDashboard, ImageDown, ClipboardCheck, ClipboardX, ScrollText, Activity, ImageIcon, Eye, EyeOff, ClipboardPaste } from "lucide-react";
+import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download, Users, ShieldCheck, ShieldOff, ToggleLeft, ToggleRight, LayoutDashboard, ImageDown, ClipboardCheck, ClipboardX, ScrollText, Activity, ImageIcon, Eye, EyeOff, ClipboardPaste, Scale } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocation } from "wouter";
 
@@ -212,6 +212,20 @@ interface FormulaStandard {
   savedAt: string;
   notes: string;
   entries: StandardEntry[];
+}
+
+interface PadraoConfig {
+  compoundName: string;
+  // Reference standard
+  stdPeakName: string;     // label: which peak was used as standard
+  stdArea: number;         // mAU·s — area of the reference peak
+  stdAmountUg: number;     // µg — certified/known mass injected
+  stdPurity: number;       // % — certified purity of the reference standard
+  // Sample
+  smpPeakName: string;     // label: which peak was used as sample
+  smpArea: number;         // mAU·s — area of the sample peak
+  smpDeclaredAmountUg: number; // µg — theoretical/declared amount (for purity %)
+  notes: string;
 }
 
 // ─── Math ─────────────────────────────────────────────────────────────────────
@@ -932,6 +946,19 @@ function saveCompoundCalibrations(c: Record<string, CompoundCalibration>) {
   try { localStorage.setItem(COMPOUND_CALIBS_KEY, JSON.stringify(c)); } catch { /* ignore */ }
 }
 
+const PADRAO_KEY = "hplc_padrao_config_v1";
+const DEFAULT_PADRAO_CONFIG: PadraoConfig = {
+  compoundName: "", stdPeakName: "", stdArea: 0, stdAmountUg: 0, stdPurity: 100,
+  smpPeakName: "", smpArea: 0, smpDeclaredAmountUg: 0, notes: "",
+};
+function loadPadraoConfig(): PadraoConfig {
+  try { return { ...DEFAULT_PADRAO_CONFIG, ...(JSON.parse(localStorage.getItem(PADRAO_KEY) ?? "{}") as Partial<PadraoConfig>) }; }
+  catch { return { ...DEFAULT_PADRAO_CONFIG }; }
+}
+function savePadraoConfig(c: PadraoConfig) {
+  try { localStorage.setItem(PADRAO_KEY, JSON.stringify(c)); } catch { /* ignore */ }
+}
+
 // Generates a full Agilent ChemStation-style report PNG for the session
 function buildChromatogramPng(
   session: AnalysisSession,
@@ -1579,7 +1606,7 @@ function SetStandardDialog({ compounds, existing, onSave, children }: {
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-type PageMode = "painel" | "chromatogram" | "ativos" | "lotes" | "report" | "usuarios" | "analise";
+type PageMode = "painel" | "chromatogram" | "ativos" | "lotes" | "report" | "usuarios" | "analise" | "padrao";
 
 interface UserRecord {
   id: number;
@@ -1630,6 +1657,10 @@ export default function HplcSimulator() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importText, setImportText] = useState("");
   const [importReplacesPeaks, setImportReplacesPeaks] = useState(true);
+  const [padraoConfig, setPadraoConfig] = useState<PadraoConfig>(() => loadPadraoConfig());
+  const updatePadrao = useCallback((patch: Partial<PadraoConfig>) => {
+    setPadraoConfig(prev => { const next = { ...prev, ...patch }; savePadraoConfig(next); return next; });
+  }, []);
 
   // Load heavy image data after first paint so it doesn't block initial render
   useEffect(() => {
@@ -2289,6 +2320,7 @@ export default function HplcSimulator() {
             ["ativos", "Ativos", Database, false],
             ["lotes", "Lotes", Layers, false],
             ["analise", "Análise", FlaskConical, false],
+            ["padrao", "Padrão", Scale, false],
             ["report", "Relatório", FileText, false],
             ["usuarios", "Usuários", Users, true],
           ] as [PageMode, string, React.ElementType, boolean][]).filter(([,, , adminOnly]) => !adminOnly || isAdmin)).map(([mode, label, Icon], idx) => (
@@ -4246,6 +4278,327 @@ export default function HplcSimulator() {
           </div>
         </div>
       )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          PADRÃO — Comparação com Padrão de Referência (Método Padrão Externo)
+          ══════════════════════════════════════════════════════════════════════ */}
+      {page === "padrao" && (() => {
+        const peakList = peaks.filter(p => p.retentionTime > 0.5);
+        const getArea = (p: Peak) => p.manualArea > 0 ? p.manualArea : computeArea(p);
+
+        const stdArea = padraoConfig.stdArea;
+        const smpArea = padraoConfig.smpArea;
+        const ratio   = stdArea > 0 ? smpArea / stdArea : 0;
+
+        const foundAmountUg   = ratio * padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100);
+        const foundAmountMg   = foundAmountUg / 1000;
+        const purityVsStd     = ratio * padraoConfig.stdPurity;
+        const purityVsDecl    = padraoConfig.smpDeclaredAmountUg > 0
+          ? (foundAmountUg / padraoConfig.smpDeclaredAmountUg) * 100
+          : null;
+        const hasData = stdArea > 0 && smpArea > 0 && padraoConfig.stdAmountUg > 0;
+
+        const ROW: React.CSSProperties = { display: "grid", gridTemplateColumns: "160px 1fr", gap: "6px 12px", alignItems: "center", marginBottom: 6 };
+        const LBL: React.CSSProperties = { fontFamily: "Courier New, monospace", fontSize: 11, color: "#64748b", textAlign: "right" };
+        const VAL: React.CSSProperties = { fontFamily: "Courier New, monospace", fontSize: 11, color: "#0f172a" };
+        const INP: React.CSSProperties = {
+          fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 7px",
+          border: "1px solid #cbd5e1", borderRadius: 4, width: "100%", boxSizing: "border-box", background: "#fff",
+        };
+        const CARD: React.CSSProperties = {
+          background: "#fff", border: "1px solid #d1d5db", borderRadius: 6, padding: "14px 18px",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
+        };
+
+        const numInput = (
+          value: number,
+          onChange: (v: number) => void,
+          opts?: { step?: string; placeholder?: string; min?: number }
+        ) => (
+          <input
+            type="number"
+            step={opts?.step ?? "any"}
+            min={opts?.min ?? 0}
+            placeholder={opts?.placeholder}
+            value={value === 0 ? "" : value}
+            onChange={e => onChange(parseFloat(e.target.value) || 0)}
+            style={INP}
+          />
+        );
+
+        const PeakCapture = ({ label, onCapture }: { label: string; onCapture: (p: Peak) => void }) => (
+          peakList.length === 0 ? null : (
+            <div style={{ marginTop: 6 }}>
+              <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#94a3b8", marginBottom: 4 }}>
+                Capturar área do cromatograma:
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {peakList.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => onCapture(p)}
+                    style={{
+                      fontFamily: "Courier New, monospace", fontSize: 10, padding: "2px 8px",
+                      border: "1px solid #93c5fd", borderRadius: 3, background: "#eff6ff",
+                      cursor: "pointer", color: "#1d4ed8",
+                    }}
+                  >
+                    {p.name || `RT ${p.retentionTime.toFixed(3)}`} — {getArea(p).toFixed(2)} mAU·s
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2, fontFamily: "Courier New, monospace" }}>
+                {label}
+              </div>
+            </div>
+          )
+        );
+
+        const ResultCell = ({ value, label, color, big }: { value: string; label: string; color?: string; big?: boolean }) => (
+          <div style={{
+            background: color ?? "#f8fafc", borderRadius: 6, padding: "10px 14px",
+            border: `1.5px solid ${color ? color + "80" : "#e2e8f0"}`, minWidth: 140,
+          }}>
+            <div style={{ fontFamily: "Courier New, monospace", fontSize: big ? 22 : 18, fontWeight: "bold", color: color ?? "#1e293b" }}>
+              {value}
+            </div>
+            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b", marginTop: 2 }}>
+              {label}
+            </div>
+          </div>
+        );
+
+        return (
+          <div className="max-w-[1160px] mx-auto" style={{ padding: "0 4px" }}>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              <Scale style={{ width: 18, height: 18, color: "#1560bd" }} />
+              <span style={{ fontFamily: "Courier New, monospace", fontSize: 14, fontWeight: "bold", color: "#1e293b" }}>
+                Comparação com Padrão de Referência
+              </span>
+              <span style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#94a3b8", marginLeft: 4 }}>
+                Método Padrão Externo (single-point)
+              </span>
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={() => updatePadrao({ ...DEFAULT_PADRAO_CONFIG })}
+                style={{ fontFamily: "Courier New, monospace", fontSize: 10, padding: "3px 10px", border: "1px solid #e2e8f0", borderRadius: 4, background: "#f8fafc", cursor: "pointer", color: "#64748b" }}
+              >
+                Limpar
+              </button>
+            </div>
+
+            {/* Two-column input cards */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
+
+              {/* ─ Standard card ─ */}
+              <div style={CARD}>
+                <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#1560bd", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ width: 10, height: 10, background: "#1560bd", borderRadius: 2 }} />
+                  Padrão de Referência
+                </div>
+
+                <div style={ROW}>
+                  <span style={LBL}>Composto</span>
+                  <input
+                    type="text"
+                    placeholder="Ex: Vitamina B6, Cafeína…"
+                    value={padraoConfig.compoundName}
+                    onChange={e => updatePadrao({ compoundName: e.target.value })}
+                    style={INP}
+                  />
+                </div>
+                <div style={ROW}>
+                  <span style={LBL}>Área do Padrão (mAU·s)</span>
+                  {numInput(padraoConfig.stdArea, v => updatePadrao({ stdArea: v }), { step: "0.001", placeholder: "0.000" })}
+                </div>
+                <div style={ROW}>
+                  <span style={LBL}>Massa injetada (µg)</span>
+                  {numInput(padraoConfig.stdAmountUg, v => updatePadrao({ stdAmountUg: v }), { step: "0.001", placeholder: "µg" })}
+                </div>
+                <div style={ROW}>
+                  <span style={LBL}>Pureza certificada (%)</span>
+                  {numInput(padraoConfig.stdPurity, v => updatePadrao({ stdPurity: v }), { step: "0.01", placeholder: "100.00" })}
+                </div>
+
+                <PeakCapture
+                  label="Captura como área do padrão"
+                  onCapture={p => updatePadrao({ stdArea: parseFloat(getArea(p).toFixed(5)), stdPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}` })}
+                />
+                {padraoConfig.stdPeakName && (
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1560bd", marginTop: 4 }}>
+                    ✓ Pico capturado: {padraoConfig.stdPeakName}
+                  </div>
+                )}
+              </div>
+
+              {/* ─ Sample card ─ */}
+              <div style={CARD}>
+                <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#f97316", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ width: 10, height: 10, background: "#f97316", borderRadius: 2 }} />
+                  Amostra Analisada
+                </div>
+
+                <div style={ROW}>
+                  <span style={LBL}>Área da Amostra (mAU·s)</span>
+                  {numInput(padraoConfig.smpArea, v => updatePadrao({ smpArea: v }), { step: "0.001", placeholder: "0.000" })}
+                </div>
+                <div style={ROW}>
+                  <span style={{ ...LBL, fontSize: 10 }}>Massa declarada/teórica (µg)</span>
+                  {numInput(padraoConfig.smpDeclaredAmountUg, v => updatePadrao({ smpDeclaredAmountUg: v }), { step: "0.001", placeholder: "opcional — para % vs declarado" })}
+                </div>
+
+                <PeakCapture
+                  label="Captura como área da amostra"
+                  onCapture={p => updatePadrao({ smpArea: parseFloat(getArea(p).toFixed(5)), smpPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}` })}
+                />
+                {padraoConfig.smpPeakName && (
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#f97316", marginTop: 4 }}>
+                    ✓ Pico capturado: {padraoConfig.smpPeakName}
+                  </div>
+                )}
+
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ ...LBL, textAlign: "left", marginBottom: 4 }}>Observações</div>
+                  <input
+                    type="text"
+                    placeholder="Opcional"
+                    value={padraoConfig.notes}
+                    onChange={e => updatePadrao({ notes: e.target.value })}
+                    style={INP}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ─ Results ─ */}
+            <div style={{ ...CARD, marginBottom: 18 }}>
+              <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#1e293b", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                <Zap style={{ width: 14, height: 14, color: "#f59e0b" }} />
+                Resultado — Quantificação por Padrão Externo
+              </div>
+
+              {!hasData ? (
+                <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#94a3b8", padding: "24px 0", textAlign: "center" }}>
+                  Preencha a Área do Padrão, a Massa injetada e a Área da Amostra para calcular.
+                </div>
+              ) : (
+                <>
+                  {/* Summary cards */}
+                  <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+                    <ResultCell
+                      value={`${purityVsStd.toFixed(2)} %`}
+                      label="Pureza vs. Padrão (área)"
+                      color={purityVsStd >= 98 ? "#16a34a" : purityVsStd >= 90 ? "#d97706" : "#dc2626"}
+                      big
+                    />
+                    {purityVsDecl !== null && (
+                      <ResultCell
+                        value={`${purityVsDecl.toFixed(2)} %`}
+                        label="Pureza vs. Declarado"
+                        color={purityVsDecl >= 98 ? "#16a34a" : purityVsDecl >= 90 ? "#d97706" : "#dc2626"}
+                      />
+                    )}
+                    <ResultCell value={`${foundAmountUg.toFixed(4)} µg`} label="Teor encontrado (µg)" />
+                    <ResultCell value={`${foundAmountMg.toFixed(6)} mg`} label="Teor encontrado (mg)" />
+                  </div>
+
+                  {/* Detailed table */}
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 11 }}>
+                    <thead>
+                      <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
+                        <th style={{ textAlign: "left", padding: "6px 10px", color: "#475569", fontWeight: 700 }}>Parâmetro</th>
+                        <th style={{ textAlign: "right", padding: "6px 10px", color: "#475569", fontWeight: 700 }}>Padrão</th>
+                        <th style={{ textAlign: "right", padding: "6px 10px", color: "#475569", fontWeight: 700 }}>Amostra</th>
+                        <th style={{ textAlign: "right", padding: "6px 10px", color: "#475569", fontWeight: 700 }}>Razão (A/S)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { label: "Composto", std: padraoConfig.compoundName || "—", smp: padraoConfig.smpPeakName || "—", ratio: "" },
+                        { label: "Pico (referência)", std: padraoConfig.stdPeakName || "—", smp: padraoConfig.smpPeakName || "—", ratio: "" },
+                        { label: "Área (mAU·s)", std: stdArea.toFixed(5), smp: smpArea.toFixed(5), ratio: ratio.toFixed(6) },
+                        { label: "Massa injetada (µg)", std: padraoConfig.stdAmountUg.toFixed(4), smp: foundAmountUg.toFixed(4), ratio: ratio.toFixed(6) },
+                        { label: "Pureza certificada / encontrada (%)", std: padraoConfig.stdPurity.toFixed(2), smp: purityVsStd.toFixed(2), ratio: "" },
+                        ...(purityVsDecl !== null ? [{ label: "Pureza vs. declarado (%)", std: "—", smp: purityVsDecl.toFixed(2), ratio: "" }] : []),
+                        { label: "Teor encontrado (µg)", std: "—", smp: foundAmountUg.toFixed(4), ratio: "" },
+                        { label: "Teor encontrado (mg)", std: "—", smp: foundAmountMg.toFixed(6), ratio: "" },
+                      ].map((row, i) => (
+                        <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                          <td style={{ padding: "5px 10px", color: "#334155" }}>{row.label}</td>
+                          <td style={{ padding: "5px 10px", textAlign: "right", color: "#1560bd" }}>{row.std}</td>
+                          <td style={{ padding: "5px 10px", textAlign: "right", color: "#f97316", fontWeight: row.label.startsWith("Pureza") || row.label.startsWith("Teor") ? 700 : 400 }}>{row.smp}</td>
+                          <td style={{ padding: "5px 10px", textAlign: "right", color: "#64748b" }}>{row.ratio}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* Formula reference */}
+                  <div style={{ marginTop: 12, padding: "8px 12px", background: "#f8fafc", borderRadius: 4, border: "1px solid #e2e8f0", fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b" }}>
+                    <strong>Fórmula aplicada:</strong>
+                    {"  "}Teor (µg) = (Área Amostra / Área Padrão) × Massa Padrão (µg) × (Pureza Padrão / 100)
+                    {"  |  "}
+                    Pureza (%) = (Área Amostra / Área Padrão) × Pureza Padrão (%)
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Multi-peak visual reference */}
+            {peakList.length > 0 && (
+              <div style={{ ...CARD }}>
+                <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#475569", marginBottom: 10 }}>
+                  Picos disponíveis no cromatograma atual
+                </div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 10.5 }}>
+                  <thead>
+                    <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
+                      {["Pico", "TR (min)", "Altura (mAU)", "Área (mAU·s)", "Área Manual", "Capturar como"].map(h => (
+                        <th key={h} style={{ padding: "5px 8px", textAlign: h === "Pico" ? "left" : "right", color: "#475569", fontWeight: 700 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {peakList.map((p, i) => {
+                      const area = getArea(p);
+                      const isStd = padraoConfig.stdArea === parseFloat(area.toFixed(5));
+                      const isSmp = padraoConfig.smpArea === parseFloat(area.toFixed(5));
+                      return (
+                        <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9", background: isStd ? "#eff6ff" : isSmp ? "#fff7ed" : i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                          <td style={{ padding: "4px 8px", color: "#1e293b", fontWeight: 600 }}>
+                            {p.name || `—`}
+                            {isStd && <span style={{ color: "#1560bd", marginLeft: 4 }}>[Padrão]</span>}
+                            {isSmp && <span style={{ color: "#f97316", marginLeft: 4 }}>[Amostra]</span>}
+                          </td>
+                          <td style={{ padding: "4px 8px", textAlign: "right" }}>{p.retentionTime.toFixed(3)}</td>
+                          <td style={{ padding: "4px 8px", textAlign: "right" }}>{p.height.toFixed(1)}</td>
+                          <td style={{ padding: "4px 8px", textAlign: "right" }}>{computeArea(p).toFixed(5)}</td>
+                          <td style={{ padding: "4px 8px", textAlign: "right", color: p.manualArea > 0 ? "#7c3aed" : "#94a3b8" }}>
+                            {p.manualArea > 0 ? p.manualArea.toFixed(5) : "—"}
+                          </td>
+                          <td style={{ padding: "4px 8px", textAlign: "right" }}>
+                            <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                              <button
+                                onClick={() => updatePadrao({ stdArea: parseFloat(area.toFixed(5)), stdPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}` })}
+                                style={{ fontSize: 9.5, padding: "2px 6px", border: "1px solid #93c5fd", borderRadius: 3, background: "#eff6ff", cursor: "pointer", color: "#1d4ed8" }}
+                              >Padrão</button>
+                              <button
+                                onClick={() => updatePadrao({ smpArea: parseFloat(area.toFixed(5)), smpPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}` })}
+                                style={{ fontSize: 9.5, padding: "2px 6px", border: "1px solid #fed7aa", borderRadius: 3, background: "#fff7ed", cursor: "pointer", color: "#c2410c" }}
+                              >Amostra</button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── Password-protected delete session dialog ─────────────────────────── */}
       {deleteSessionDialog && (
