@@ -198,7 +198,7 @@ const ANALYSIS_PARAMETERS = [
 const PERIODS = [0, 3, 6];
 
 const lotSchema = z.object({
-  lotNumber: z.string().min(1, "Numero do lote obrigatorio"),
+  lotNumber: z.string().min(1, "Número do lote obrigatório"),
   manufacturingDate: z.string().min(1, "Data obrigatoria"),
   quantity: z.coerce.number().min(1),
   notes: z.string().optional(),
@@ -276,31 +276,31 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
   const setTempRecebimento = (v: string) => { setTempRecebimentoRaw(v); saveEnv({ tempRecebimento: v }); };
 
   const fieldsTop = [
-    { label: "Numero do Certificado", value: protocol.certNumber },
+    { label: "Número do Certificado", value: protocol.certNumber },
     { label: "Empresa", value: protocol.companyName },
     { label: "CNPJ", value: protocol.cnpj },
     { label: "IE", value: protocol.ie },
-    { label: "Endereco", value: protocol.address },
+    { label: "Endereço", value: protocol.address },
     { label: "CEP", value: protocol.cep },
     { label: "Produto", value: protocol.productName },
     { label: "Tipo de Produto", value: protocol.productType },
     { label: "Embalagem", value: protocol.packagingType },
     { label: "Ingredientes Ativos", value: protocol.activeIngredients },
     { label: "Excipientes", value: protocol.excipients },
-    { label: "Composicao Capsula", value: protocol.capsuleComposition },
+    { label: "Composição da Cápsula", value: protocol.capsuleComposition },
   ];
 
   const fieldsBottom = [
-    { label: "Data Inicio", value: protocol.studyStartDate },
+    { label: "Data Início", value: protocol.studyStartDate },
     { label: "Data Final", value: protocol.studyEndDate },
     { label: "Temperatura de Estudo", value: protocol.storageTemp },
     { label: "Umidade de Estudo", value: protocol.storageHumidity },
-    { label: "Periodo (meses)", value: protocol.studyPeriodMonths?.toString() },
+    { label: "Período (meses)", value: protocol.studyPeriodMonths?.toString() },
     { label: "Intervalos de Teste", value: protocol.testIntervals },
-    { label: "Elaboracao", value: protocol.elaboratedBy },
-    { label: "Aprovacao", value: protocol.approvedBy },
+    { label: "Elaboração", value: protocol.elaboratedBy },
+    { label: "Aprovação", value: protocol.approvedBy },
     { label: "Emitido por", value: protocol.issuedBy },
-    { label: "Analista Senior", value: protocol.seniorAnalyst },
+    { label: "Analista Sênior", value: protocol.seniorAnalyst },
   ];
 
   return (
@@ -2382,10 +2382,10 @@ export default function ProtocolDetail() {
 
       <Tabs defaultValue="info" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="info" data-testid="tab-info">Informacoes</TabsTrigger>
+          <TabsTrigger value="info" data-testid="tab-info">Informações</TabsTrigger>
           <TabsTrigger value="lots" data-testid="tab-lots">Lotes</TabsTrigger>
-          <TabsTrigger value="results" data-testid="tab-results">Resultados</TabsTrigger>
-          <TabsTrigger value="kinetics" data-testid="tab-kinetics">Cinetica</TabsTrigger>
+          <TabsTrigger value="results" data-testid="tab-results">Resultados Analisados</TabsTrigger>
+          <TabsTrigger value="kinetics" data-testid="tab-kinetics">Cinética</TabsTrigger>
           <TabsTrigger value="metodologia" data-testid="tab-metodologia">Metodologia</TabsTrigger>
           <TabsTrigger value="historico" data-testid="tab-historico"><History className="h-3.5 w-3.5 mr-1" />Histórico</TabsTrigger>
           <TabsTrigger value="hplc" data-testid="tab-hplc"><Microscope className="h-3.5 w-3.5 mr-1" />Cromatogramas HPLC</TabsTrigger>
