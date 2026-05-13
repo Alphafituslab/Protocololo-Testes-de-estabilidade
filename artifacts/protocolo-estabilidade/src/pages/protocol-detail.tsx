@@ -2170,7 +2170,6 @@ export default function ProtocolDetail() {
   const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletePasswordOpen, setDeletePasswordOpen] = useState(false);
 
   const { data: protocol, isLoading } = useGetProtocol(numId, {
@@ -2332,34 +2331,19 @@ export default function ProtocolDetail() {
           >
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
-          {/* Step 1: password dialog for delete */}
+          {/* Delete: password verification = confirmation. Single dialog avoids portal conflict. */}
           <UnlockDialog
             open={deletePasswordOpen}
             onOpenChange={setDeletePasswordOpen}
             onUnlock={unlock}
-            title="Confirmação de senha"
-            description="A remoção de um protocolo é irreversível. Digite a senha mestra para confirmar."
-            submitLabel="Confirmar"
-            onSuccess={() => { setDeletePasswordOpen(false); setTimeout(() => setDeleteConfirmOpen(true), 50); }}
+            title="Remover protocolo?"
+            description="Esta ação é irreversível e removerá todos os lotes e resultados associados. Digite a senha mestra para confirmar a exclusão."
+            submitLabel="Remover permanentemente"
+            onSuccess={() => {
+              setDeletePasswordOpen(false);
+              deleteProtocol.mutate({ id: numId });
+            }}
           />
-          {/* Step 2: final confirmation */}
-          <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Remover protocolo?</AlertDialogTitle>
-                <AlertDialogDescription>Esta ação é irreversível e removerá todos os lotes e resultados associados.</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => { deleteProtocol.mutate({ id: numId }); setDeleteConfirmOpen(false); }}
-                >
-                  Remover permanentemente
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       </div>
 
