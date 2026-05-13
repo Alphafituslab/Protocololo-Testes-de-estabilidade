@@ -1400,6 +1400,7 @@ export default function HplcSimulator() {
   const [activeCompounds, setActiveCompounds] = useState<ActiveCompound[]>(() => loadState()?.activeCompounds ?? DEFAULT_ACTIVE_COMPOUNDS);
   const [lastIdentified, setLastIdentified] = useState<string[]>([]);
   const [showControls, setShowControls] = useState(true);
+  const [showStdPeak, setShowStdPeak] = useState(false);
   const [formulas, setFormulas] = useState<Formula[]>(() => loadFormulas());
   const [lots, setLots] = useState<Lot[]>(() => loadLots());
   const [selectedFormulaId, setSelectedFormulaId] = useState<string | null>(null);
@@ -1504,6 +1505,27 @@ export default function HplcSimulator() {
   // ── Chromatogram data ────────────────────────────────────────────────────────
 
   const chromatogram = useMemo(() => buildChromatogram(peaks, detector.runTime), [peaks, detector.runTime]);
+
+  // Standard reference peak overlay — simulates the mid-level calibration standard
+  const stdPeakInfo = useMemo(() => {
+    if (!showStdPeak || standards.length === 0) return null;
+    const sorted = [...standards].sort((a, b) => a.amount - b.amount);
+    const midStd = sorted[Math.floor(sorted.length / 2)];
+    const namedPeak = peaks.find(p => p.name === calib.compoundName) ?? peaks.find(p => p.name);
+    if (!namedPeak) return null;
+    const stdHeight = midStd.area / (namedPeak.width * Math.sqrt(2 * Math.PI));
+    const stdPeakObj: Peak = {
+      ...namedPeak, id: "std-ovl", name: "STD", height: stdHeight, manualArea: 0,
+    };
+    const chrom = buildChromatogram([stdPeakObj], detector.runTime);
+    return { chrom, midStd, namedPeak, stdHeight, level: Math.floor(sorted.length / 2) + 1, total: sorted.length };
+  }, [showStdPeak, standards, peaks, calib.compoundName, detector.runTime]);
+
+  const mergedChrom = useMemo(() => {
+    if (!stdPeakInfo) return chromatogram;
+    const stdMap = new Map(stdPeakInfo.chrom.map(pt => [pt.time, pt.signal]));
+    return chromatogram.map(pt => ({ ...pt, stdSignal: stdMap.get(pt.time) ?? 0 }));
+  }, [chromatogram, stdPeakInfo]);
 
   const peakStats = useMemo(() =>
     [...peaks].sort((a, b) => a.retentionTime - b.retentionTime).map((p, i) => ({
@@ -1966,6 +1988,38 @@ export default function HplcSimulator() {
               <>
                 {/* Sample Info — all fields including dataFile */}
                 <ControlBox title="Sample Info">
+                  {/* ── Quick-fill from active compound bank ── */}
+                  {activeCompounds.length > 0 && (
+                    <div className="mb-2 pb-2 border-b border-blue-100">
+                      <label className="text-xs font-mono font-bold text-blue-700">
+                        Buscar Ativo →
+                      </label>
+                      <select
+                        defaultValue=""
+                        onChange={e => {
+                          const c = activeCompounds.find(ac => ac.id === e.target.value);
+                          if (!c) return;
+                          setSample(s => ({ ...s, sampleName: c.name, acqMethod: c.method || s.acqMethod }));
+                          setDetector(d => ({ ...d, sigWavelength: c.wavelength }));
+                          setCalib(cb => ({ ...cb, compoundName: c.name, expRT: c.expectedRT }));
+                          prevCalibNameRef.current = c.name;
+                          markDirty();
+                          e.target.value = "";
+                        }}
+                        className="w-full h-6 text-xs font-mono border border-input rounded px-1 bg-background mt-0.5"
+                      >
+                        <option value="">— selecionar composto —</option>
+                        {activeCompounds.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} (λ={c.wavelength}nm, TR={c.expectedRT}min)
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-muted-foreground font-mono mt-0.5" style={{ fontSize: 9 }}>
+                        Preenche Sample Name, λ, TR esperado e método automaticamente.
+                      </p>
+                    </div>
+                  )}
                   {([
                     ["dataFile", "Data File (caminho)"],
                     ["sampleName", "Sample Name"],
@@ -2010,7 +2064,7 @@ export default function HplcSimulator() {
                   </Button>
                 }>
                   <p style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 4 }}>
-                    Clique em ⚙ para editar todos os campos do pico.
+                    Clique em ⚙ para editar · arraste no gráfico para mover.
                   </p>
                   {peakStats.map((p) => (
                     <div key={p.id} className="flex items-center gap-1 group rounded px-1 py-0.5 hover:bg-gray-50">
@@ -2031,6 +2085,51 @@ export default function HplcSimulator() {
                       </Button>
                     </div>
                   ))}
+
+                  {/* ── Standard reference overlay toggle ── */}
+                  <div className="mt-2 pt-2 border-t border-orange-100">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={showStdPeak}
+                        onChange={e => setShowStdPeak(e.target.checked)}
+                        className="h-3 w-3 accent-orange-500"
+                      />
+                      <span className="text-xs font-mono font-bold text-orange-600">Mostrar Padrão</span>
+                    </label>
+                    {showStdPeak && standards.length === 0 && (
+                      <p style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 4 }}>
+                        Adicione padrões de calibração na aba Relatório → Padrões de Calibração.
+                      </p>
+                    )}
+                    {stdPeakInfo && (
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginTop: 6, lineHeight: 1.7 }}>
+                        <div style={{ color: "#f97316", fontWeight: "bold" }}>── Padrão Nível {stdPeakInfo.level}/{stdPeakInfo.total} ──</div>
+                        <div>Amount: <b>{stdPeakInfo.midStd.amount.toFixed(3)} µg/mL</b></div>
+                        <div>Área std: <b>{stdPeakInfo.midStd.area.toFixed(3)} mAU·s</b></div>
+                        <div>Altura simulada: {stdPeakInfo.stdHeight.toFixed(1)} mAU</div>
+                        <div>TR: {stdPeakInfo.namedPeak.retentionTime.toFixed(3)} min</div>
+                        {(() => {
+                          const samplePeak = peakStats.find(p => p.name === calib.compoundName) ?? peakStats.find(p => p.name);
+                          if (!samplePeak) return null;
+                          const sampleArea = samplePeak.displayArea;
+                          const ratio = stdPeakInfo.midStd.area > 0 ? sampleArea / stdPeakInfo.midStd.area : null;
+                          const conc = ratio !== null ? ratio * stdPeakInfo.midStd.amount : null;
+                          return (
+                            <>
+                              <div style={{ marginTop: 4, borderTop: "1px solid #e5e7eb", paddingTop: 4 }}>
+                                <div>Área amostra: {sampleArea.toFixed(3)} mAU·s</div>
+                                <div>Razão A/Aₛₜ𝒹: {ratio !== null ? ratio.toFixed(4) : "—"}</div>
+                                <div style={{ color: "#166534", fontWeight: "bold" }}>
+                                  Conc. calculada: {conc !== null ? conc.toFixed(3) + " µg/mL" : "—"}
+                                </div>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
                 </ControlBox>
               </>
             )}
@@ -2519,7 +2618,7 @@ export default function HplcSimulator() {
                   </div>
                 )}
                 <ResponsiveContainer width="100%" height={300}>
-                  <ComposedChart data={chromatogram} margin={{ top: 22, right: 16, left: 8, bottom: 24 }}>
+                  <ComposedChart data={mergedChrom} margin={{ top: 22, right: 16, left: 8, bottom: 24 }}>
                     <CartesianGrid strokeDasharray="2 2" stroke="#e2e2e2" />
                     <XAxis dataKey="time" type="number" domain={[0, detector.runTime]} ticks={xTicks}
                       tickFormatter={v => v.toFixed(1)}
@@ -2554,6 +2653,40 @@ export default function HplcSimulator() {
                         )} />
                     ))}
 
+                    {/* Standard reference peak — dashed orange line */}
+                    {stdPeakInfo && (
+                      <Line
+                        type="linear"
+                        dataKey="stdSignal"
+                        stroke="#f97316"
+                        strokeWidth={1.5}
+                        strokeDasharray="6 3"
+                        dot={false}
+                        isAnimationActive={false}
+                        legendType="none"
+                      />
+                    )}
+
+                    {/* Standard RT label */}
+                    {stdPeakInfo && (
+                      <ReferenceLine
+                        x={stdPeakInfo.namedPeak.retentionTime}
+                        stroke="#f97316"
+                        strokeWidth={0.8}
+                        strokeDasharray="3 2"
+                        label={(props: { viewBox?: { x: number; y: number } }) => {
+                          if (!props.viewBox) return null;
+                          const { x, y } = props.viewBox;
+                          return (
+                            <text x={x - 3} y={y + 13} textAnchor="end"
+                              style={{ fontFamily: "Courier New, monospace", fontSize: 9, fill: "#f97316", fontWeight: "bold", pointerEvents: "none" }}>
+                              STD {stdPeakInfo.midStd.amount.toFixed(0)}µg/mL
+                            </text>
+                          );
+                        }}
+                      />
+                    )}
+
                     {/* Chromatogram signal — thin blue line, no dots */}
                     <Line
                       type="linear"
@@ -2565,6 +2698,18 @@ export default function HplcSimulator() {
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
+
+                {/* Legend when std peak is visible */}
+                {stdPeakInfo && (
+                  <div style={{ display: "flex", gap: 16, fontSize: 9, fontFamily: "Courier New, monospace", marginTop: 4, paddingLeft: 54 }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ display: "inline-block", width: 20, height: 2, background: "#1560bd" }} /> Amostra
+                    </span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ display: "inline-block", width: 20, height: 2, background: "#f97316", borderTop: "2px dashed #f97316" }} /> Padrão (Nível {stdPeakInfo.level})
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* External Standard Report */}
