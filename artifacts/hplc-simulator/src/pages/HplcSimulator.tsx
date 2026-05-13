@@ -1502,6 +1502,8 @@ export default function HplcSimulator() {
   const [userListError, setUserListError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [deleteSessionDialog, setDeleteSessionDialog] = useState<{ id: string; name: string } | null>(null);
+  const [panelStatusFilter, setPanelStatusFilter] = useState<string | null>(null);
+  const galleryRef = useRef<HTMLDivElement>(null);
   const [deleteSessionPwd, setDeleteSessionPwd] = useState("");
   const [deleteSessionError, setDeleteSessionError] = useState<string | null>(null);
   const [deleteSessionLoading, setDeleteSessionLoading] = useState(false);
@@ -2077,7 +2079,7 @@ export default function HplcSimulator() {
     });
   };
 
-  const handleSavePng = (sessionId: string) => {
+  const handleSavePng = (sessionId: string, redirectToGallery = false) => {
     const session = analysisSessions.find(s => s.id === sessionId);
     const formula = session ? formulas.find(f => f.id === session.formulaId) ?? null : null;
     if (!session || !formula || session.runs.length === 0) return;
@@ -2096,6 +2098,11 @@ export default function HplcSimulator() {
       imageData: dataUrl, notes: "",
     };
     setSavedImages(imgs => { const u = [...imgs, img]; saveSavedImages(u); return u; });
+    // Optionally redirect to painel gallery
+    if (redirectToGallery) {
+      setPage("painel");
+      setTimeout(() => galleryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
+    }
   };
 
   const handleDeleteSavedImage = (imgId: string) => {
@@ -2816,35 +2823,57 @@ export default function HplcSimulator() {
                   Painel de Análises
                 </div>
 
-                {/* Stat cards */}
+                {/* Stat cards — clickable to filter the session list below */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 24 }}>
                   {[
-                    { label: "Total", value: total, bg: "#f8fafc", color: "#334155", Icon: Activity },
-                    { label: "Em Análise", value: emAndamento, bg: "#dbeafe", color: "#1d4ed8", Icon: FlaskConical },
-                    { label: "Aprovados", value: aprovados, bg: "#dcfce7", color: "#16a34a", Icon: ClipboardCheck },
-                    { label: "Reprovados", value: reprovados, bg: "#fee2e2", color: "#dc2626", Icon: ClipboardX },
-                    { label: "Laudos", value: laudos, bg: "#f3e8ff", color: "#7c3aed", Icon: ScrollText },
-                  ].map(({ label, value, bg, color, Icon }) => (
-                    <div key={label} style={{ background: bg, border: `1px solid ${color}33`, borderRadius: 8, padding: "14px 12px", textAlign: "center" }}>
-                      <Icon style={{ width: 20, height: 20, color, margin: "0 auto 6px" }} />
-                      <div style={{ fontSize: 22, fontWeight: "bold", color, lineHeight: 1 }}>{value}</div>
-                      <div style={{ fontSize: 9, color: "#666", marginTop: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
-                    </div>
-                  ))}
+                    { label: "Total", value: total, bg: "#f8fafc", color: "#334155", Icon: Activity, filter: null },
+                    { label: "Em Análise", value: emAndamento, bg: "#dbeafe", color: "#1d4ed8", Icon: FlaskConical, filter: "em_andamento" },
+                    { label: "Aprovados", value: aprovados, bg: "#dcfce7", color: "#16a34a", Icon: ClipboardCheck, filter: "aprovado" },
+                    { label: "Reprovados", value: reprovados, bg: "#fee2e2", color: "#dc2626", Icon: ClipboardX, filter: "reprovado" },
+                    { label: "Laudos", value: laudos, bg: "#f3e8ff", color: "#7c3aed", Icon: ScrollText, filter: "laudo_emitido" },
+                  ].map(({ label, value, bg, color, Icon, filter }) => {
+                    const isActive = panelStatusFilter === filter;
+                    return (
+                      <div key={label}
+                        onClick={() => setPanelStatusFilter(isActive ? null : filter)}
+                        style={{
+                          background: bg, border: `2px solid ${isActive ? color : color + "33"}`,
+                          borderRadius: 8, padding: "14px 12px", textAlign: "center",
+                          cursor: "pointer", transform: isActive ? "scale(1.03)" : "scale(1)",
+                          boxShadow: isActive ? `0 2px 10px ${color}44` : "none",
+                          transition: "all 0.15s",
+                          userSelect: "none",
+                        }}>
+                        <Icon style={{ width: 20, height: 20, color, margin: "0 auto 6px" }} />
+                        <div style={{ fontSize: 22, fontWeight: "bold", color, lineHeight: 1 }}>{value}</div>
+                        <div style={{ fontSize: 9, color: "#666", marginTop: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
+                        {isActive && <div style={{ fontSize: 8, color, marginTop: 3, fontWeight: "bold" }}>filtrado ✓</div>}
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Imagens salvas banner */}
-                <div style={{ background: "#fafaf9", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 14px", marginBottom: 18, display: "flex", alignItems: "center", gap: 10 }}>
-                  <ImageIcon style={{ width: 16, height: 16, color: "#64748b" }} />
+                <div style={{ background: imgCount > 0 ? "#f0fdf4" : "#fafaf9", border: `1px solid ${imgCount > 0 ? "#86efac" : "#e5e7eb"}`, borderRadius: 8, padding: "10px 14px", marginBottom: 18, display: "flex", alignItems: "center", gap: 10 }}>
+                  <ImageIcon style={{ width: 16, height: 16, color: imgCount > 0 ? "#16a34a" : "#64748b" }} />
                   <span style={{ fontSize: 11, color: "#555" }}>
-                    <b>{imgCount}</b> imagem{imgCount !== 1 ? "ns" : ""} de cromatograma salva{imgCount !== 1 ? "s" : ""} e disponíveis para anexar no Protocolo de Estabilidade.
+                    <b style={{ color: imgCount > 0 ? "#16a34a" : "#334155", fontSize: 13 }}>{imgCount}</b>{" "}
+                    imagem{imgCount !== 1 ? "ns" : ""} de cromatograma salva{imgCount !== 1 ? "s" : ""} e disponíveis para anexar no Protocolo de Estabilidade.
                   </span>
-                  {imgCount > 0 && (
-                    <button style={{ marginLeft: "auto", fontSize: 10, color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}
-                      onClick={() => { if (confirm(`Excluir todas as ${imgCount} imagens salvas?`)) { setSavedImages([]); saveSavedImages([]); } }}>
-                      Limpar biblioteca
-                    </button>
-                  )}
+                  <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+                    {imgCount > 0 && (
+                      <>
+                        <button style={{ fontSize: 10, padding: "2px 10px", border: "1px solid #16a34a", borderRadius: 4, background: "#dcfce7", cursor: "pointer", color: "#16a34a", fontWeight: "bold", fontFamily: "Courier New, monospace" }}
+                          onClick={() => galleryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+                          Ver galeria ↓
+                        </button>
+                        <button style={{ fontSize: 10, color: "#dc2626", background: "none", border: "none", cursor: "pointer", fontFamily: "Courier New, monospace" }}
+                          onClick={() => { if (confirm(`Excluir todas as ${imgCount} imagens salvas?`)) { setSavedImages([]); saveSavedImages([]); } }}>
+                          Limpar biblioteca
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Session list */}
@@ -2853,7 +2882,23 @@ export default function HplcSimulator() {
                     Nenhuma sessão de análise criada ainda.<br />
                     <span style={{ fontSize: 10 }}>Vá para a aba "Análise" e crie uma nova sessão.</span>
                   </div>
-                ) : (
+                ) : (() => {
+                  const filtered = [...analysisSessions]
+                    .filter(s => !panelStatusFilter || s.status === panelStatusFilter)
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                  return (
+                  <>
+                    {panelStatusFilter && (
+                      <div style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 10, color: "#555", fontFamily: "Courier New, monospace" }}>
+                          Mostrando {filtered.length} sessão(ões) com filtro: <b>{statusLabel[panelStatusFilter]}</b>
+                        </span>
+                        <button style={{ fontSize: 9, padding: "1px 8px", border: "1px solid #94a3b8", borderRadius: 4, background: "#f1f5f9", cursor: "pointer", color: "#475569" }}
+                          onClick={() => setPanelStatusFilter(null)}>
+                          ✕ Limpar filtro
+                        </button>
+                      </div>
+                    )}
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10.5 }}>
                     <thead>
                       <tr style={{ background: "#f1f5f9" }}>
@@ -2865,7 +2910,7 @@ export default function HplcSimulator() {
                       </tr>
                     </thead>
                     <tbody>
-                      {[...analysisSessions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((s, i) => {
+                      {filtered.map((s, i) => {
                         const formula = formulas.find(f => f.id === s.formulaId);
                         const bg = i % 2 === 0 ? "#fff" : "#f9fafb";
                         const goToSession = () => { setCurrentSessionId(s.id); setPage("analise"); };
@@ -2883,7 +2928,7 @@ export default function HplcSimulator() {
                             <td style={{ padding: "8px 10px", color: "#475569" }}>{formula?.name ?? "—"}</td>
                             <td style={{ padding: "8px 10px", textAlign: "center" }}>
                               <span style={{ background: "#e0f2fe", color: "#0369a1", padding: "1px 7px", borderRadius: 10, fontSize: 10, fontWeight: "bold" }}>
-                                {s.runs.length}/5
+                                {s.runs.length}
                               </span>
                             </td>
                             <td style={{ padding: "8px 10px" }}>
@@ -2926,10 +2971,16 @@ export default function HplcSimulator() {
 
                                 {/* Save PNG */}
                                 {s.runs.length > 0 && (
-                                  <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #0284c7", borderRadius: 4, background: "#e0f2fe", cursor: "pointer", color: "#0284c7" }}
-                                    onClick={() => handleSavePng(s.id)}>
-                                    <ImageDown style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Salvar PNG
-                                  </button>
+                                  <>
+                                    <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #0284c7", borderRadius: 4, background: "#e0f2fe", cursor: "pointer", color: "#0284c7" }}
+                                      onClick={() => handleSavePng(s.id, false)}>
+                                      <ImageDown style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />PNG
+                                    </button>
+                                    <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #16a34a", borderRadius: 4, background: "#dcfce7", cursor: "pointer", color: "#16a34a" }}
+                                      onClick={() => handleSavePng(s.id, true)}>
+                                      <ImageIcon style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />→ Biblioteca
+                                    </button>
+                                  </>
                                 )}
 
                                 {/* Delete with password */}
@@ -2944,9 +2995,12 @@ export default function HplcSimulator() {
                       })}
                     </tbody>
                   </table>
-                )}
+                  </>
+                  );
+                })()}
 
                 {/* Saved images gallery */}
+                <div ref={galleryRef} />
                 {savedImages.length > 0 && (
                   <div style={{ marginTop: 28 }}>
                     <div style={{ fontWeight: "bold", fontSize: 12, marginBottom: 12, borderBottom: "1px solid #bbb", paddingBottom: 6, color: "#334155" }}>
