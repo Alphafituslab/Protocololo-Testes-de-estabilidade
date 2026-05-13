@@ -2196,11 +2196,11 @@ export default function ProtocolDetail() {
         setLocation("/");
       },
       onError: (err) => {
-        const anyErr = err as { error?: string; message?: string; status?: number };
+        const anyErr = err as { data?: { error?: string }; message?: string; status?: number };
         const description =
           anyErr?.status === 401
             ? "Sua sessão expirou. Faça login novamente."
-            : anyErr?.error ?? anyErr?.message ?? "Erro ao excluir protocolo. Tente novamente.";
+            : anyErr?.data?.error ?? anyErr?.message ?? "Erro ao excluir protocolo. Tente novamente.";
         toast({ variant: "destructive", title: "Erro ao excluir", description });
       },
     },

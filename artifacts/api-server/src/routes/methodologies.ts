@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, methodologiesTable } from "@workspace/db";
 import { z } from "zod";
+import { requireAuth } from "../lib/session";
 
 const router: IRouter = Router();
 
@@ -29,7 +30,7 @@ router.get("/methodologies", async (_req, res): Promise<void> => {
   res.json(rows);
 });
 
-router.post("/methodologies", async (req, res): Promise<void> => {
+router.post("/methodologies", requireAuth, async (req, res): Promise<void> => {
   const parsed = CreateMethodologyBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -46,7 +47,7 @@ router.post("/methodologies", async (req, res): Promise<void> => {
   res.status(201).json(created);
 });
 
-router.put("/methodologies/:id", async (req, res): Promise<void> => {
+router.put("/methodologies/:id", requireAuth, async (req, res): Promise<void> => {
   const params = MethodologyIdParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -73,7 +74,7 @@ router.put("/methodologies/:id", async (req, res): Promise<void> => {
   res.json(updated);
 });
 
-router.delete("/methodologies/:id", async (req, res): Promise<void> => {
+router.delete("/methodologies/:id", requireAuth, async (req, res): Promise<void> => {
   const params = MethodologyIdParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });

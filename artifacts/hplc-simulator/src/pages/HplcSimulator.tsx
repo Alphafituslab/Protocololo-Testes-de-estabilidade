@@ -2043,9 +2043,12 @@ export default function HplcSimulator() {
     }
   }, [token]);
 
+  const [toggleError, setToggleError] = useState<string | null>(null);
+
   const toggleHplcAccess = async (userId: number, current: boolean) => {
     if (!token || togglingId) return;
     setTogglingId(userId);
+    setToggleError(null);
     try {
       const res = await fetch(`/api/users/${userId}`, {
         method: "PUT",
@@ -2055,6 +2058,8 @@ export default function HplcSimulator() {
       if (!res.ok) throw new Error("Erro ao atualizar acesso.");
       const updated = await res.json() as UserRecord;
       setUserList(ul => ul.map(u => u.id === userId ? { ...u, hplcAccess: updated.hplcAccess } : u));
+    } catch (e) {
+      setToggleError((e as Error).message);
     } finally {
       setTogglingId(null);
     }
@@ -3955,6 +3960,11 @@ export default function HplcSimulator() {
               </div>
               {userListError && (
                 <div style={{ color: "#dc2626", fontFamily: "Courier New, monospace", fontSize: 11, marginBottom: 10 }}>{userListError}</div>
+              )}
+              {toggleError && (
+                <div style={{ color: "#dc2626", fontFamily: "Courier New, monospace", fontSize: 11, marginBottom: 10, padding: "6px 10px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 4 }}>
+                  Erro ao alterar acesso: {toggleError}
+                </div>
               )}
               {userList.length === 0 && !userListLoading && !userListError && (
                 <div style={{ textAlign: "center", color: "#aaa", padding: "32px 0", fontFamily: "Courier New, monospace", fontSize: 11 }}>

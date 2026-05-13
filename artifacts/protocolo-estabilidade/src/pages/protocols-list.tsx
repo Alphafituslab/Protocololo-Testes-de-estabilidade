@@ -18,19 +18,34 @@ const STATUS_BADGE_VARIANT: Record<string, "default" | "secondary" | "destructiv
   reprovado: "destructive",
 };
 
+type StatusFilter = "rascunho" | "em_andamento" | "concluido" | "aprovado" | "aprovado_com_ressalva" | "reprovado";
+const VALID_STATUS_SET = new Set<string>(["rascunho", "em_andamento", "concluido", "aprovado", "aprovado_com_ressalva", "reprovado"]);
+
 export default function ProtocolsList() {
   const [location] = useLocation();
   const params = new URLSearchParams(location.split("?")[1] ?? "");
   const nonConformes = params.get("nonConformes") === "true";
+  const rawStatus = params.get("status");
+  const statusFilter: StatusFilter | null = rawStatus && VALID_STATUS_SET.has(rawStatus) ? rawStatus as StatusFilter : null;
 
-  const { data: protocols, isLoading } = useListProtocols(
-    nonConformes ? { nonConformes: true } : {},
-  );
+  const queryParams = nonConformes
+    ? { nonConformes: true }
+    : statusFilter
+      ? { status: statusFilter }
+      : {};
 
-  const title = nonConformes ? "Protocolos com Não Conformidades" : "Todos os Protocolos";
+  const { data: protocols, isLoading } = useListProtocols(queryParams);
+
+  const title = nonConformes
+    ? "Protocolos com Não Conformidades"
+    : statusFilter && STATUS_LABELS[statusFilter]
+      ? `Protocolos — ${STATUS_LABELS[statusFilter]}`
+      : "Todos os Protocolos";
   const subtitle = nonConformes
     ? "Protocolos que possuem ao menos um resultado fora das especificações."
-    : "Lista completa de protocolos de estabilidade.";
+    : statusFilter
+      ? `Filtrando por status: ${STATUS_LABELS[statusFilter] ?? statusFilter}.`
+      : "Lista completa de protocolos de estabilidade.";
 
   return (
     <div className="space-y-6">

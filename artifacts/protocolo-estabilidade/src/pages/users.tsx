@@ -109,12 +109,14 @@ export default function UsersPage() {
   const createUser = useMutation({
     mutationFn: (data: UserFormData) => apiFetch<User>("/api/users", token, { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); setNewOpen(false); toast({ title: "Usuário criado com sucesso." }); },
+    onError: (err) => toast({ variant: "destructive", title: "Erro ao criar usuário", description: (err as Error).message }),
   });
 
   const updateUser = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<UserFormData> & { active?: boolean } }) =>
       apiFetch<User>(`/api/users/${id}`, token, { method: "PUT", body: JSON.stringify(data) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); setEditOpen(false); toast({ title: "Usuário atualizado." }); },
+    onError: (err) => toast({ variant: "destructive", title: "Erro ao atualizar usuário", description: (err as Error).message }),
   });
 
   if (!isAdmin) {
