@@ -2517,9 +2517,18 @@ export default function HplcSimulator() {
                       {[...analysisSessions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((s, i) => {
                         const formula = formulas.find(f => f.id === s.formulaId);
                         const bg = i % 2 === 0 ? "#fff" : "#f9fafb";
+                        const goToSession = () => { setCurrentSessionId(s.id); setPage("analise"); };
                         return (
-                          <tr key={s.id} style={{ background: bg, borderBottom: "1px solid #f0f0f0" }}>
-                            <td style={{ padding: "8px 10px", fontWeight: "bold", color: "#1e293b" }}>{s.name}</td>
+                          <tr key={s.id}
+                            onClick={goToSession}
+                            style={{ background: bg, borderBottom: "1px solid #f0f0f0", cursor: "pointer", transition: "background 0.1s" }}
+                            onMouseEnter={e => (e.currentTarget.style.background = "#eff6ff")}
+                            onMouseLeave={e => (e.currentTarget.style.background = bg)}>
+                            <td style={{ padding: "8px 10px" }}>
+                              <span style={{ fontWeight: "bold", color: "#1d4ed8", textDecoration: "underline", textUnderlineOffset: 2, cursor: "pointer" }}>
+                                {s.name}
+                              </span>
+                            </td>
                             <td style={{ padding: "8px 10px", color: "#475569" }}>{formula?.name ?? "—"}</td>
                             <td style={{ padding: "8px 10px", textAlign: "center" }}>
                               <span style={{ background: "#e0f2fe", color: "#0369a1", padding: "1px 7px", borderRadius: 10, fontSize: 10, fontWeight: "bold" }}>
@@ -2534,12 +2543,12 @@ export default function HplcSimulator() {
                             <td style={{ padding: "8px 10px", color: "#64748b", whiteSpace: "nowrap" }}>
                               {new Date(s.createdAt).toLocaleDateString("pt-BR")}
                             </td>
-                            <td style={{ padding: "8px 6px" }}>
+                            <td style={{ padding: "8px 6px" }} onClick={e => e.stopPropagation()}>
                               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                                 {/* Go to analysis */}
-                                <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #bbb", borderRadius: 4, background: "#f8fafc", cursor: "pointer", color: "#1d4ed8" }}
-                                  onClick={() => { setCurrentSessionId(s.id); setPage("analise"); }}>
-                                  Ver
+                                <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #1d4ed8", borderRadius: 4, background: "#eff6ff", cursor: "pointer", color: "#1d4ed8", fontWeight: "bold" }}
+                                  onClick={goToSession}>
+                                  → Abrir
                                 </button>
 
                                 {/* Conclude */}
