@@ -107,7 +107,7 @@ export default function ProtocolForm() {
           capsuleComposition: "",
           studyStartDate: "",
           studyEndDate: "",
-          studyObjective: "",
+          studyObjective: "O presente estudo tem como objetivo avaliar a estabilidade físico-química e microbiológica do suplemento alimentar em cápsulas de Calcio + vitamina D, quando submetido a condições aceleradas de armazenamento (40°C ± 2°C / 75% ± 5% UR), assegurando que o produto mantenha suas características de qualidade, segurança, eficácia e o teor do ativo ao longo do período de estudo.",
           storageTemp: "40°C ± 2°C",
           storageHumidity: "75% UR ± 5% UR",
           studyPeriodMonths: 6,
@@ -324,7 +324,7 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="studyObjective" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>Objetivo do Estudo</FormLabel>
+                  <FormLabel>OBJETIVO DO ESTUDO</FormLabel>
                   <FormControl>
                     <Textarea data-testid="input-studyObjective" rows={3} {...field} />
                   </FormControl>
