@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download, Users, ShieldCheck, ShieldOff, ToggleLeft, ToggleRight, LayoutDashboard, ImageDown, ClipboardCheck, ClipboardX, ScrollText, Activity, ImageIcon } from "lucide-react";
+import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download, Users, ShieldCheck, ShieldOff, ToggleLeft, ToggleRight, LayoutDashboard, ImageDown, ClipboardCheck, ClipboardX, ScrollText, Activity, ImageIcon, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocation } from "wouter";
 
@@ -150,6 +150,7 @@ interface AnalysisRun {
   peaks: Peak[];
   sample: SampleInfo;
   color: string;
+  hidden?: boolean;     // if true, excluded from charts and analysis
 }
 
 interface AnalysisSession {
@@ -929,9 +930,10 @@ function buildChromatogramPng(
     y = chartTop + CHART_H + 16;
   };
 
-  // ── Render each run as a full ChemStation page ──────────────────────────
-  for (let ri = 0; ri < session.runs.length; ri++) {
-    const run = session.runs[ri];
+  // ── Render each run as a full ChemStation page (skip hidden runs) ────────
+  const visibleRunsPng = session.runs.filter(r => !r.hidden);
+  for (let ri = 0; ri < visibleRunsPng.length; ri++) {
+    const run = visibleRunsPng[ri];
     const det = formula.detector;
 
     // --- Header ---
@@ -2007,6 +2009,16 @@ export default function HplcSimulator() {
     });
   };
 
+  const handleToggleRunHidden = (sessionId: string, runId: string) => {
+    setAnalysisSessions(ss => {
+      const updated = ss.map(s => s.id === sessionId
+        ? { ...s, runs: s.runs.map(r => r.id === runId ? { ...r, hidden: !r.hidden } : r) }
+        : s);
+      saveSessions(updated);
+      return updated;
+    });
+  };
+
   const handleDeleteSession = (id: string) => {
     setAnalysisSessions(ss => { const u = ss.filter(s => s.id !== id); saveSessions(u); return u; });
     if (currentSessionId === id) setCurrentSessionId(null);
@@ -2636,13 +2648,34 @@ export default function HplcSimulator() {
                         )}
                         <div className="space-y-1 mt-1">
                           {session.runs.map(r => (
-                            <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", border: "1px solid #eee", borderRadius: 4, background: "#fff" }}>
-                              <div style={{ width: 10, height: 10, borderRadius: 2, flexShrink: 0, background: r.color }} />
+                            <div key={r.id} style={{
+                              display: "flex", alignItems: "center", gap: 4, padding: "3px 6px",
+                              border: `1px solid ${r.hidden ? "#e5e7eb" : "#d1d5db"}`,
+                              borderRadius: 4,
+                              background: r.hidden ? "#f9fafb" : "#fff",
+                              opacity: r.hidden ? 0.6 : 1,
+                              transition: "opacity 0.15s",
+                            }}>
+                              <div style={{ width: 10, height: 10, borderRadius: 2, flexShrink: 0, background: r.hidden ? "#ccc" : r.color }} />
                               <div style={{ flex: 1 }}>
-                                <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, fontWeight: "bold" }}>{r.label}</div>
-                                <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#999" }}>{new Date(r.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+                                <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, fontWeight: "bold", color: r.hidden ? "#aaa" : "#111" }}>
+                                  {r.label}
+                                  {r.hidden && <span style={{ fontWeight: 400, fontSize: 8, color: "#bbb", marginLeft: 4 }}>oculto</span>}
+                                </div>
+                                <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#999" }}>
+                                  {new Date(r.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                                </div>
                               </div>
+                              {/* Toggle visibility */}
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0"
+                                title={r.hidden ? "Mostrar corrida" : "Ocultar corrida"}
+                                style={{ color: r.hidden ? "#9ca3af" : "#3b82f6" }}
+                                onClick={() => handleToggleRunHidden(session.id, r.id)}>
+                                {r.hidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                              </Button>
+                              {/* Delete */}
                               <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-red-400 hover:text-red-600"
+                                title="Excluir corrida"
                                 onClick={() => handleDeleteRun(session.id, r.id)}>
                                 <Trash2 className="h-3 w-3" />
                               </Button>
@@ -3474,24 +3507,25 @@ export default function HplcSimulator() {
               );
             }
 
-            // Build overlay chromatogram data (merge all runs into one dataset)
+            // Build overlay chromatogram data — visible runs only
             const runTime = sessionFormula.detector.runTime;
             const pts = 2000;
-            const allChrom = session.runs.map(r => buildChromatogram(r.peaks, runTime, pts, sessionFormula.detector.baselineNoise ?? 1.8, sessionFormula.detector.baselineDrift ?? 1.2, sessionFormula.detector.baselinePulse ?? 0.35));
+            const visibleRuns = session.runs.filter(r => !r.hidden);
+            const allChrom = visibleRuns.map(r => buildChromatogram(r.peaks, runTime, pts, sessionFormula.detector.baselineNoise ?? 1.8, sessionFormula.detector.baselineDrift ?? 1.2, sessionFormula.detector.baselinePulse ?? 0.35));
             const overlayData: Record<string, number>[] = allChrom.length > 0
               ? allChrom[0].map((pt, i) => {
                   const row: Record<string, number> = { time: pt.time };
-                  session.runs.forEach((r, ri) => { row[`r${ri + 1}`] = allChrom[ri][i].signal; });
+                  visibleRuns.forEach((r, ri) => { row[`r${ri + 1}`] = allChrom[ri][i].signal; });
                   return row;
                 })
               : [];
 
-            // Determine chart Y max across all runs
-            const allSignals = overlayData.flatMap(pt => session.runs.map((_, ri) => (pt[`r${ri + 1}`] ?? 0) as number));
+            // Determine chart Y max across visible runs only
+            const allSignals = overlayData.flatMap(pt => visibleRuns.map((_, ri) => (pt[`r${ri + 1}`] ?? 0) as number));
             const overlayYMax = Math.ceil((Math.max(10, ...allSignals) * 1.15) / 50) * 50;
 
-            // Per-compound teor results per run
-            const runResults = session.runs.map(run => ({
+            // Per-compound teor results — visible runs only
+            const runResults = visibleRuns.map(run => ({
               run,
               compResults: compounds.map(compound => {
                 const stdEntry = std ? std.entries.find(e => e.compoundId === compound.id) ?? null : null;
@@ -3540,12 +3574,14 @@ export default function HplcSimulator() {
                   </div>
                 ) : (
                   <>
-                    {/* Color legend */}
+                    {/* Color legend — all runs, greyed out if hidden */}
                     <div style={{ display: "flex", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
                       {session.runs.map(r => (
-                        <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10 }}>
-                          <div style={{ width: 18, height: 2, background: r.color, borderRadius: 1 }} />
-                          <span>{r.label}</span>
+                        <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, opacity: r.hidden ? 0.35 : 1 }}>
+                          <div style={{ width: 18, height: 2, background: r.hidden ? "#ccc" : r.color, borderRadius: 1 }} />
+                          <span style={{ textDecoration: r.hidden ? "line-through" : "none", color: r.hidden ? "#aaa" : undefined }}>
+                            {r.label}{r.hidden ? " (oculto)" : ""}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -3574,7 +3610,7 @@ export default function HplcSimulator() {
                             </div>
                           );
                         }} />
-                        {session.runs.map((r, ri) => (
+                        {visibleRuns.map((r, ri) => (
                           <Line key={r.id} type="linear" dataKey={`r${ri + 1}`}
                             stroke={r.color} strokeWidth={1} dot={false} isAnimationActive={false}
                             name={r.label} connectNulls />
