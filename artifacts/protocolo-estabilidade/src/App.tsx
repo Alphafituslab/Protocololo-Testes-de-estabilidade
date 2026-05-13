@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter, useLocation, Link, Redirect } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation, Link } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,22 +11,66 @@ import CertificatePage from "./pages/certificate";
 import LoginPage from "./pages/login";
 import UsersPage from "./pages/users";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
-import { Beaker, FileText, Home, Users, LogOut, Loader2, ShieldCheck } from "lucide-react";
+import { FileText, Home, Users, LogOut, Loader2, ShieldCheck, AlertTriangle, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import React, { useEffect, Component } from "react";
 
 const queryClient = new QueryClient({
   defaultOptions: {
+    queries: {
+      retry: 1,
+    },
     mutations: {
       onError: (err) => {
         if ((err as { status?: number }).status === 401) {
-          window.location.href = "/login";
+          window.location.replace("/login");
         }
       },
     },
   },
 });
+
+// ── Error boundary ────────────────────────────────────────────────────────────
+
+class AppErrorBoundary extends Component<
+  { children: React.ReactNode },
+  { hasError: boolean; errorMessage: string }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, errorMessage: "" };
+  }
+
+  static getDerivedStateFromError(error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return { hasError: true, errorMessage: msg };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8 text-center">
+          <AlertTriangle className="h-10 w-10 text-destructive" />
+          <div>
+            <h2 className="text-lg font-semibold">Algo deu errado</h2>
+            <p className="text-sm text-muted-foreground mt-1">{this.state.errorMessage}</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => { this.setState({ hasError: false, errorMessage: "" }); window.location.replace("/"); }}
+          >
+            <RefreshCcw className="h-4 w-4 mr-2" /> Recarregar
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ── Layout & Nav ──────────────────────────────────────────────────────────────
 
 function UserMenu() {
   const { user, logout, isAdmin } = useAuth();
@@ -57,7 +101,10 @@ function UserMenu() {
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={async () => { await logout(); navigate("/login"); }} className="text-destructive focus:text-destructive">
+        <DropdownMenuItem
+          onClick={async () => { await logout(); }}
+          className="text-destructive focus:text-destructive"
+        >
           <LogOut className="h-4 w-4 mr-2" /> Sair
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -90,7 +137,7 @@ function SidebarFooter() {
         </button>
       )}
       <button
-        onClick={async () => { await logout(); navigate("/login"); }}
+        onClick={async () => { await logout(); }}
         className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-destructive hover:bg-destructive/10 transition-colors font-medium"
       >
         <LogOut className="h-3.5 w-3.5" /> Sair da conta
@@ -131,61 +178,94 @@ function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+// ── Protected routes ──────────────────────────────────────────────────────────
+
 const REDIRECT_KEY = "alphafitus_redirect";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
-  const [location] = useLocation();
-  if (isLoading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    </div>
-  );
-  if (!user) {
-    try {
-      if (location && location !== "/" && location !== "/login") {
-        sessionStorage.setItem(REDIRECT_KEY, location);
-      }
-    } catch { /* ignore */ }
-    return <Redirect to="/login" />;
+  const [location, navigate] = useLocation();
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!user) {
+      try {
+        if (location && location !== "/" && location !== "/login") {
+          sessionStorage.setItem(REDIRECT_KEY, location);
+        }
+      } catch { /* ignore */ }
+      navigate("/login", { replace: true });
+    }
+  }, [user, isLoading]);
+
+  if (isLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
+
   return (
     <Layout>
-      <Component />
+      <AppErrorBoundary>
+        <Component />
+      </AppErrorBoundary>
     </Layout>
   );
 }
 
 function ProtectedDetailRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
-  const [location] = useLocation();
-  if (isLoading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    </div>
-  );
-  if (!user) {
-    try {
-      if (location && location !== "/" && location !== "/login") {
-        sessionStorage.setItem(REDIRECT_KEY, location);
-      }
-    } catch { /* ignore */ }
-    return <Redirect to="/login" />;
+  const [location, navigate] = useLocation();
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!user) {
+      try {
+        if (location && location !== "/" && location !== "/login") {
+          sessionStorage.setItem(REDIRECT_KEY, location);
+        }
+      } catch { /* ignore */ }
+      navigate("/login", { replace: true });
+    }
+  }, [user, isLoading]);
+
+  if (isLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
-  return <Component />;
+
+  return (
+    <AppErrorBoundary>
+      <Component />
+    </AppErrorBoundary>
+  );
 }
+
+// ── Router ────────────────────────────────────────────────────────────────────
+
+const DashboardRoute = () => <ProtectedRoute component={Dashboard} />;
+const ProtocolsListRoute = () => <ProtectedRoute component={ProtocolsList} />;
+const ProtocolFormRoute = () => <ProtectedRoute component={ProtocolForm} />;
+const CertificateRoute = () => <ProtectedDetailRoute component={CertificatePage} />;
+const ProtocolDetailRoute = () => <ProtectedRoute component={ProtocolDetail} />;
+const UsersRoute = () => <ProtectedRoute component={UsersPage} />;
 
 function Router() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
-      <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
-      <Route path="/protocols" component={() => <ProtectedRoute component={ProtocolsList} />} />
-      <Route path="/protocols/new" component={() => <ProtectedRoute component={ProtocolForm} />} />
-      <Route path="/protocols/:id/edit" component={() => <ProtectedRoute component={ProtocolForm} />} />
-      <Route path="/protocols/:id/certificate" component={() => <ProtectedDetailRoute component={CertificatePage} />} />
-      <Route path="/protocols/:id" component={() => <ProtectedRoute component={ProtocolDetail} />} />
-      <Route path="/users" component={() => <ProtectedRoute component={UsersPage} />} />
+      <Route path="/" component={DashboardRoute} />
+      <Route path="/protocols" component={ProtocolsListRoute} />
+      <Route path="/protocols/new" component={ProtocolFormRoute} />
+      <Route path="/protocols/:id/edit" component={ProtocolFormRoute} />
+      <Route path="/protocols/:id/certificate" component={CertificateRoute} />
+      <Route path="/protocols/:id" component={ProtocolDetailRoute} />
+      <Route path="/users" component={UsersRoute} />
       <Route component={NotFound} />
     </Switch>
   );
