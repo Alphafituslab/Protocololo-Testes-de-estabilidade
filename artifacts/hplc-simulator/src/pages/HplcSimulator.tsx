@@ -498,20 +498,20 @@ const DEFAULT_PEAKS: Peak[] = [
 ];
 
 const DEFAULT_SAMPLE: SampleInfo = {
-  dataFile: "C:\\CHEM32\\1\\DATA\\TESTE B6-290 POTE 2 AMOSTRAS 15G 2025-04-26 12-14-15\\024-2401.D",
-  sampleName: "amostra A.p",
+  dataFile: "C:\\CHEM32\\1\\DATA\\TESTE B6-290 2025-04-23 12-55-35\\009-0901.D",
+  sampleName: "Amostra atual A",
   acqOperator: "EDSON",
-  seqLine: "24",
+  seqLine: "9",
   acqInstrument: "Instrument 1",
-  location: "Vial 24",
-  injectionDate: "4/30/2025 11:53:34 AM",
+  location: "Vial 9",
+  injectionDate: "4/25/2025 12:25:09 PM",
   inj: "1",
   injVolume: "10.0 µl",
-  acqMethod: "C:\\CHEM32\\1\\DATA\\TESTE B6-290 POTE 2 AMOSTRAS 15G 2025-04-26 12-14-15\\B6 TESTE 290.M",
-  lastChanged1: "4/25/2025 2:36:55 PM by EDSON",
+  acqMethod: "C:\\CHEM32\\1\\DATA\\TESTE B6-290 2025-04-23 12-55-35\\B6 TESTE 290.M",
+  lastChanged1: "4/23/2025 8:27:30 AM by EDSON",
   analysisMethod: "C:\\CHEM32\\1\\METHODS\\B6.M",
-  lastChanged2: "4/30/2025 1:05:09 PM by EDSON",
-  reportDate: "4/30/2025 12:00:00 PM",
+  lastChanged2: "4/25/2025 9:51:12 AM by EDSON",
+  reportDate: "4/26/2025 2:11:37 PM",
   softwareRev: "Agilent ChemStation for LC and LC/MS Systems  Rev. B.04.03 [16]  Copyright (c) Agilent Technologies",
 };
 
@@ -521,7 +521,7 @@ const DEFAULT_DETECTOR: DetectorInfo = {
   sigBandwidth: 4,
   refWavelength: 360,
   refBandwidth: 100,
-  runTime: 10,
+  runTime: 14,
   baselineNoise: 1.8,
   baselineDrift: 1.2,
   baselinePulse: 0.35,
@@ -550,10 +550,10 @@ const DEFAULT_CALIB: CalibInfo = {
 
 const DEFAULT_ACTIVE_COMPOUNDS: ActiveCompound[] = [
   {
-    id: uid(), name: "Vitamina B6", wavelength: 290, waveTol: 8,
-    expectedRT: 2.438, rtTol: 0.15, typicalWidth: 0.022, typicalAsym: 1.22,
-    amtPerArea: 0.03927, units: "ug/ml", specMin: 20, specMax: 50,
-    method: "B6.M", notes: "Piridoxina HCl — C₈H₁₁NO₃·HCl",
+    id: uid(), name: "B6", wavelength: 290, waveTol: 8,
+    expectedRT: 2.408, rtTol: 0.15, typicalWidth: 0.014, typicalAsym: 1.22,
+    amtPerArea: 3.95781e-2, units: "ug/ml", specMin: 0, specMax: 0,
+    method: "B6 TESTE 290.M", notes: "Piridoxina HCl — C₈H₁₁NO₃·HCl  |  λ=290nm, Ref=360nm",
   },
   {
     id: uid(), name: "Cafeína", wavelength: 272, waveTol: 8,
