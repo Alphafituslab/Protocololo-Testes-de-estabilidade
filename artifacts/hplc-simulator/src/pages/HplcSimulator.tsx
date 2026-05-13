@@ -160,14 +160,17 @@ interface AnalysisRun {
 
 interface AnalysisSession {
   id: string;
-  formulaId: string;
+  formulaId?: string;       // optional — snapshot sessions (created via "Confirmar") have none
   name: string;
   createdAt: string;
+  updatedAt?: string;
   notes: string;
   runs: AnalysisRun[];
   status: "em_andamento" | "aprovado" | "reprovado" | "laudo_emitido";
   concludedAt?: string;
   laudoEmittedAt?: string;
+  conclusionNotes?: string; // notes entered in the finalization dialog
+  snapshotState?: PersistedState; // full chromatogram state at time of "Confirmar"
 }
 
 // Pre-analysis setup data (persisted between sessions)
@@ -1671,6 +1674,11 @@ export default function HplcSimulator() {
   const [deleteSessionPwd, setDeleteSessionPwd] = useState("");
   const [deleteSessionError, setDeleteSessionError] = useState<string | null>(null);
   const [deleteSessionLoading, setDeleteSessionLoading] = useState(false);
+  const [currentSnapshotSessionId, setCurrentSnapshotSessionId] = useState<string | null>(null);
+  const [finalizeDialog, setFinalizeDialog] = useState<{ id: string; name: string } | null>(null);
+  const [finalizeStatus, setFinalizeStatus] = useState<"em_andamento" | "aprovado" | "reprovado">("aprovado");
+  const [finalizeNotes, setFinalizeNotes] = useState("");
+  const [newAnalysisDialog, setNewAnalysisDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importText, setImportText] = useState("");
   const [importReplacesPeaks, setImportReplacesPeaks] = useState(true);
@@ -1709,11 +1717,44 @@ export default function HplcSimulator() {
       prevCalibNameRef.current = newName;
     }
 
-    saveState({ peaks: finalPeaks, sample, detector, standards, calib, activeCompounds: finalActives, productName });
+    const snapshotState: PersistedState = { peaks: finalPeaks, sample, detector, standards, calib, activeCompounds: finalActives, productName };
+    saveState(snapshotState);
+
+    // ── Also upsert a snapshot session so the Painel always reflects the latest confirmed state ──
+    const sessionName = productName.trim() || sample.sampleName.trim() || `Análise ${new Date().toLocaleDateString("pt-BR")}`;
+    const now = new Date().toISOString();
+
+    const existingSnapshot = currentSnapshotSessionId
+      ? analysisSessions.find(s => s.id === currentSnapshotSessionId && s.status === "em_andamento")
+      : null;
+
+    let updatedSessions: AnalysisSession[];
+    let newSnapshotId: string | null = null;
+
+    if (existingSnapshot) {
+      // Update existing draft — refresh name + snapshot
+      updatedSessions = analysisSessions.map(s =>
+        s.id === existingSnapshot.id ? { ...s, name: sessionName, snapshotState, updatedAt: now } : s
+      );
+    } else {
+      // Create a new snapshot session (previous one was concluded or doesn't exist)
+      newSnapshotId = uid();
+      const newSession: AnalysisSession = {
+        id: newSnapshotId, name: sessionName, notes: "",
+        createdAt: now, updatedAt: now, runs: [], status: "em_andamento",
+        snapshotState,
+      };
+      updatedSessions = [...analysisSessions, newSession];
+    }
+
+    setAnalysisSessions(updatedSessions);
+    saveSessions(updatedSessions);
+    if (newSnapshotId) setCurrentSnapshotSessionId(newSnapshotId);
+
     setIsDirty(false);
     setConfirmed(true);
     setTimeout(() => setConfirmed(false), 2000);
-  }, [peaks, sample, detector, standards, calib, activeCompounds, productName]);
+  }, [peaks, sample, detector, standards, calib, activeCompounds, productName, currentSnapshotSessionId, analysisSessions]);
 
   // ── Peak drag (left/right on chromatogram) ───────────────────────────────────
 
@@ -2245,12 +2286,50 @@ export default function HplcSimulator() {
     }
   };
 
-  const handleConcludeSession = (sessionId: string, status: "aprovado" | "reprovado") => {
+  const handleConcludeSession = (sessionId: string, status: "em_andamento" | "aprovado" | "reprovado", notes?: string) => {
     setAnalysisSessions(ss => {
-      const updated = ss.map(s => s.id === sessionId ? { ...s, status, concludedAt: new Date().toISOString() } : s);
+      const updated = ss.map(s => s.id === sessionId ? {
+        ...s,
+        status,
+        concludedAt: status !== "em_andamento" ? new Date().toISOString() : s.concludedAt,
+        conclusionNotes: notes !== undefined ? notes : s.conclusionNotes,
+      } : s);
       saveSessions(updated);
       return updated;
     });
+  };
+
+  const handleLoadSnapshotSession = (session: AnalysisSession) => {
+    if (!session.snapshotState) return;
+    const s = session.snapshotState;
+    setPeaks(s.peaks ?? DEFAULT_PEAKS);
+    setSample(s.sample ?? DEFAULT_SAMPLE);
+    setDetector(s.detector ?? DEFAULT_DETECTOR);
+    setStandards(s.standards ?? DEFAULT_STANDARDS);
+    setCalib(s.calib ?? DEFAULT_CALIB);
+    setActiveCompounds(s.activeCompounds ?? DEFAULT_ACTIVE_COMPOUNDS);
+    setProductName(s.productName ?? "");
+    setCurrentSnapshotSessionId(session.id);
+    setIsDirty(false);
+    saveState(s);
+    setPage("chromatogram");
+  };
+
+  const handleNewAnalysis = () => {
+    setPeaks(DEFAULT_PEAKS);
+    setSample(DEFAULT_SAMPLE);
+    setDetector(DEFAULT_DETECTOR);
+    setStandards(DEFAULT_STANDARDS);
+    setCalib(DEFAULT_CALIB);
+    setActiveCompounds(DEFAULT_ACTIVE_COMPOUNDS);
+    setProductName("");
+    prevCalibNameRef.current = DEFAULT_CALIB.compoundName;
+    setCurrentSnapshotSessionId(null);
+    setIsDirty(false);
+    setConfirmed(false);
+    saveState({ peaks: DEFAULT_PEAKS, sample: DEFAULT_SAMPLE, detector: DEFAULT_DETECTOR, standards: DEFAULT_STANDARDS, calib: DEFAULT_CALIB, activeCompounds: DEFAULT_ACTIVE_COMPOUNDS, productName: "" });
+    setPage("chromatogram");
+    setNewAnalysisDialog(false);
   };
 
   const handleEmitLaudo = (sessionId: string) => {
@@ -2376,9 +2455,39 @@ export default function HplcSimulator() {
         )}
         {confirmed && !isDirty && (
           <span className="flex items-center gap-1 text-xs text-green-700 font-medium px-2">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Salvo
+            <CheckCircle2 className="h-3.5 w-3.5" /> Salvo no Painel
           </span>
         )}
+
+        {/* ── Concluir — opens finalization dialog for the active snapshot session ── */}
+        {(() => {
+          const activeSnap = currentSnapshotSessionId
+            ? analysisSessions.find(s => s.id === currentSnapshotSessionId && s.status === "em_andamento")
+            : null;
+          return activeSnap ? (
+            <Button
+              size="sm"
+              className="h-8 text-xs gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+              onClick={() => {
+                setFinalizeStatus("aprovado");
+                setFinalizeNotes("");
+                setFinalizeDialog({ id: activeSnap.id, name: activeSnap.name });
+              }}
+            >
+              <ClipboardCheck className="h-3.5 w-3.5" /> Concluir
+            </Button>
+          ) : null;
+        })()}
+
+        {/* ── Nova Análise ── */}
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 text-xs gap-1.5"
+          onClick={() => setNewAnalysisDialog(true)}
+        >
+          <Plus className="h-3.5 w-3.5" /> Nova Análise
+        </Button>
 
         <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => window.print()}>
           <Printer className="h-3.5 w-3.5" /> Imprimir / PDF
@@ -3193,18 +3302,36 @@ export default function HplcSimulator() {
                                   → Abrir
                                 </button>
 
-                                {/* Conclude */}
-                                {s.status === "em_andamento" && s.runs.length > 0 && (
-                                  <>
-                                    <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #16a34a", borderRadius: 4, background: "#dcfce7", cursor: "pointer", color: "#16a34a" }}
-                                      onClick={() => { if (confirm(`Marcar "${s.name}" como APROVADO?`)) handleConcludeSession(s.id, "aprovado"); }}>
-                                      <ClipboardCheck style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Aprovar
-                                    </button>
-                                    <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #dc2626", borderRadius: 4, background: "#fee2e2", cursor: "pointer", color: "#dc2626" }}
-                                      onClick={() => { if (confirm(`Marcar "${s.name}" como REPROVADO?`)) handleConcludeSession(s.id, "reprovado"); }}>
-                                      <ClipboardX style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Reprovar
-                                    </button>
-                                  </>
+                                {/* Revisar — loads snapshot back into chromatogram */}
+                                {s.snapshotState && (
+                                  <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #0284c7", borderRadius: 4, background: "#e0f2fe", cursor: "pointer", color: "#0284c7" }}
+                                    onClick={() => handleLoadSnapshotSession(s)}>
+                                    ↩ Revisar
+                                  </button>
+                                )}
+
+                                {/* Concluir — opens proper dialog for em_andamento sessions */}
+                                {s.status === "em_andamento" && (
+                                  <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #16a34a", borderRadius: 4, background: "#dcfce7", cursor: "pointer", color: "#16a34a" }}
+                                    onClick={() => {
+                                      setFinalizeStatus("aprovado");
+                                      setFinalizeNotes(s.conclusionNotes ?? "");
+                                      setFinalizeDialog({ id: s.id, name: s.name });
+                                    }}>
+                                    <ClipboardCheck style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Concluir
+                                  </button>
+                                )}
+
+                                {/* Reabrir — move back to em_andamento */}
+                                {(s.status === "aprovado" || s.status === "reprovado") && (
+                                  <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #f59e0b", borderRadius: 4, background: "#fef9c3", cursor: "pointer", color: "#92400e" }}
+                                    onClick={() => {
+                                      setFinalizeStatus("em_andamento");
+                                      setFinalizeNotes(s.conclusionNotes ?? "");
+                                      setFinalizeDialog({ id: s.id, name: s.name });
+                                    }}>
+                                    ✎ Alterar status
+                                  </button>
                                 )}
 
                                 {/* Emit Laudo */}
@@ -4675,6 +4802,130 @@ export default function HplcSimulator() {
           </div>
         );
       })()}
+
+      {/* ── Finalization dialog (Concluir análise) ───────────────────────────── */}
+      {finalizeDialog && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 9998,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 10, padding: "24px 28px", width: 420, maxWidth: "90vw",
+            boxShadow: "0 8px 40px rgba(0,0,0,0.22)", fontFamily: "Courier New, monospace",
+          }}>
+            <div style={{ fontSize: 15, fontWeight: "bold", color: "#1d4ed8", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+              <ClipboardCheck style={{ width: 16, height: 16 }} /> Concluir Análise
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 18 }}>
+              Sessão: <b style={{ color: "#334155" }}>{finalizeDialog.name}</b>
+            </div>
+
+            {/* Status selector */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: "bold", color: "#334155", marginBottom: 8 }}>Resultado da análise:</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {([
+                  ["em_andamento", "Em Análise", "#1d4ed8", "#dbeafe"],
+                  ["aprovado",     "Aprovado",   "#16a34a", "#dcfce7"],
+                  ["reprovado",    "Reprovado",  "#dc2626", "#fee2e2"],
+                ] as const).map(([val, label, color, bg]) => (
+                  <button
+                    key={val}
+                    onClick={() => setFinalizeStatus(val)}
+                    style={{
+                      flex: 1, padding: "10px 4px", borderRadius: 6, cursor: "pointer",
+                      border: finalizeStatus === val ? `2px solid ${color}` : "1px solid #d1d5db",
+                      background: finalizeStatus === val ? bg : "#f9fafb",
+                      color: finalizeStatus === val ? color : "#6b7280",
+                      fontFamily: "Courier New, monospace", fontSize: 11,
+                      fontWeight: finalizeStatus === val ? "bold" : "normal",
+                      transition: "all 0.12s",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 10, color: "#64748b", display: "block", marginBottom: 4 }}>
+                Observações / justificativa (opcional):
+              </label>
+              <textarea
+                value={finalizeNotes}
+                onChange={e => setFinalizeNotes(e.target.value)}
+                rows={3}
+                placeholder="Descreva condições da análise, desvios encontrados, justificativas..."
+                style={{
+                  width: "100%", fontFamily: "Courier New, monospace", fontSize: 11,
+                  padding: "6px 8px", border: "1px solid #d1d5db", borderRadius: 4,
+                  resize: "vertical", boxSizing: "border-box", outline: "none",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                style={{ fontSize: 11, padding: "7px 16px", border: "1px solid #cbd5e1", borderRadius: 5, background: "#f8fafc", cursor: "pointer", color: "#475569" }}
+                onClick={() => setFinalizeDialog(null)}>
+                Cancelar
+              </button>
+              <button
+                style={{
+                  fontSize: 11, padding: "7px 20px", border: "none", borderRadius: 5, cursor: "pointer", color: "#fff", fontWeight: "bold",
+                  background: finalizeStatus === "aprovado" ? "#16a34a" : finalizeStatus === "reprovado" ? "#dc2626" : "#1d4ed8",
+                }}
+                onClick={() => {
+                  handleConcludeSession(finalizeDialog.id, finalizeStatus, finalizeNotes);
+                  if (finalizeDialog.id === currentSnapshotSessionId && finalizeStatus !== "em_andamento") {
+                    setCurrentSnapshotSessionId(null);
+                  }
+                  setFinalizeDialog(null);
+                }}>
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Nova Análise confirmation dialog ─────────────────────────────────── */}
+      {newAnalysisDialog && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 9998,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 10, padding: "24px 28px", width: 380, maxWidth: "90vw",
+            boxShadow: "0 8px 40px rgba(0,0,0,0.22)", fontFamily: "Courier New, monospace",
+          }}>
+            <div style={{ fontSize: 15, fontWeight: "bold", color: "#334155", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+              <Plus style={{ width: 16, height: 16 }} /> Iniciar Nova Análise
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.6, marginBottom: 20 }}>
+              Isso vai redefinir o cromatograma para os valores padrão.<br />
+              {currentSnapshotSessionId
+                ? <span style={{ color: "#16a34a" }}>✓ A análise atual já está salva no Painel.</span>
+                : <span style={{ color: "#f59e0b" }}>⚠ A análise atual <b>não</b> foi confirmada e não está no Painel.</span>
+              }
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                style={{ fontSize: 11, padding: "7px 16px", border: "1px solid #cbd5e1", borderRadius: 5, background: "#f8fafc", cursor: "pointer", color: "#475569" }}
+                onClick={() => setNewAnalysisDialog(false)}>
+                Cancelar
+              </button>
+              <button
+                style={{ fontSize: 11, padding: "7px 20px", border: "none", borderRadius: 5, background: "#1d4ed8", cursor: "pointer", color: "#fff", fontWeight: "bold" }}
+                onClick={handleNewAnalysis}>
+                Iniciar Nova
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Password-protected delete session dialog ─────────────────────────── */}
       {deleteSessionDialog && (
