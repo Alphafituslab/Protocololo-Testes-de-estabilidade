@@ -140,7 +140,12 @@ interface Formula {
 
 // ─── Analysis Session types ───────────────────────────────────────────────────
 
-const RUN_COLORS = ["#1560bd", "#dc2626", "#16a34a", "#9333ea", "#ea580c"];
+const RUN_COLORS = [
+  "#1560bd", "#dc2626", "#16a34a", "#9333ea", "#ea580c",
+  "#0891b2", "#b45309", "#be185d", "#4d7c0f", "#6366f1",
+  "#0f766e", "#c2410c", "#7c3aed", "#065f46", "#9f1239",
+];
+const runColor = (index: number) => RUN_COLORS[index % RUN_COLORS.length];
 
 interface AnalysisRun {
   id: string;
@@ -1982,7 +1987,7 @@ export default function HplcSimulator() {
     if (!currentSessionId) return;
     setAnalysisSessions(ss => {
       const session = ss.find(s => s.id === currentSessionId);
-      if (!session || session.runs.length >= 5) return ss;
+      if (!session) return ss;
       const runIndex = session.runs.length;
       const run: AnalysisRun = {
         id: uid(),
@@ -1991,7 +1996,7 @@ export default function HplcSimulator() {
         createdAt: new Date().toISOString(),
         peaks: applyRunVariation([...peaks], runIndex),
         sample: { ...sample },
-        color: RUN_COLORS[runIndex],
+        color: runColor(runIndex),
       };
       const updated = ss.map(s => s.id === currentSessionId ? { ...s, runs: [...s.runs, run] } : s);
       saveSessions(updated);
@@ -2002,7 +2007,7 @@ export default function HplcSimulator() {
   const handleDeleteRun = (sessionId: string, runId: string) => {
     setAnalysisSessions(ss => {
       const updated = ss.map(s => s.id === sessionId
-        ? { ...s, runs: s.runs.filter(r => r.id !== runId).map((r, i) => ({ ...r, runNumber: i + 1, label: `R${i + 1}`, color: RUN_COLORS[i] })) }
+        ? { ...s, runs: s.runs.filter(r => r.id !== runId).map((r, i) => ({ ...r, runNumber: i + 1, label: `R${i + 1}`, color: runColor(i) })) }
         : s);
       saveSessions(updated);
       return updated;
@@ -2639,13 +2644,9 @@ export default function HplcSimulator() {
                           Configure os picos no cromatograma e clique "Registrar" para salvar a corrida atual.
                         </div>
                         <Button size="sm" className="w-full h-7 text-xs gap-1 mb-2"
-                          disabled={session.runs.length >= 5}
                           onClick={handleRegisterRun}>
                           <Download className="h-3 w-3" /> Registrar Corrida {session.runs.length + 1}
                         </Button>
-                        {session.runs.length >= 5 && (
-                          <div style={{ fontSize: 9, color: "#ea580c", fontFamily: "Courier New, monospace", textAlign: "center" }}>Limite de 5 corridas atingido</div>
-                        )}
                         <div className="space-y-1 mt-1">
                           {session.runs.map(r => (
                             <div key={r.id} style={{
