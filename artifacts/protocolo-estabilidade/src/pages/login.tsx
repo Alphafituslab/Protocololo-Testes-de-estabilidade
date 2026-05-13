@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/auth-context";
 import { ShieldCheck, Eye, EyeOff, Loader2 } from "lucide-react";
@@ -21,13 +21,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (user) { window.location.href = "/"; return; }
-    fetch("/api/auth/setup-needed")
-      .then((r) => r.json())
-      .then((d: { setupNeeded: boolean }) => setSetupNeeded(d.setupNeeded))
-      .catch(() => setSetupNeeded(false));
-  }, [user, navigate]);
+  const pendingRedirect = useRef<string | null>(null);
 
   function popRedirect(): string {
     try {
@@ -37,13 +31,27 @@ export default function LoginPage() {
     return "/";
   }
 
+  useEffect(() => {
+    if (user) {
+      const dest = pendingRedirect.current ?? popRedirect();
+      pendingRedirect.current = null;
+      navigate(dest);
+      return;
+    }
+    fetch("/api/auth/setup-needed")
+      .then((r) => r.json())
+      .then((d: { setupNeeded: boolean }) => setSetupNeeded(d.setupNeeded))
+      .catch(() => setSetupNeeded(false));
+  }, [user, navigate]);
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+    pendingRedirect.current = popRedirect();
     try {
       await login(username, password);
-      window.location.href = popRedirect();
     } catch (err) {
+      pendingRedirect.current = null;
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
       setLoading(false);
     }
@@ -56,6 +64,7 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
+    pendingRedirect.current = popRedirect();
     try {
       const res = await fetch("/api/auth/setup", {
         method: "POST",
@@ -67,8 +76,8 @@ export default function LoginPage() {
         throw new Error((d as { error?: string }).error ?? "Erro ao configurar.");
       }
       await login(username, password);
-      window.location.href = popRedirect();
     } catch (err) {
+      pendingRedirect.current = null;
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
       setLoading(false);
     }

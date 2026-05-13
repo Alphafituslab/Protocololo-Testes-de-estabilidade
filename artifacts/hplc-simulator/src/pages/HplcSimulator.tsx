@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
-import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download, Users, ShieldCheck, ShieldOff, ToggleLeft, ToggleRight, LayoutDashboard, ImageDown, ClipboardCheck, ClipboardX, ScrollText, Activity, ImageIcon, Eye, EyeOff } from "lucide-react";
+import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download, Users, ShieldCheck, ShieldOff, ToggleLeft, ToggleRight, LayoutDashboard, ImageDown, ClipboardCheck, ClipboardX, ScrollText, Activity, ImageIcon, Eye, EyeOff, ClipboardPaste } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useLocation } from "wouter";
 
@@ -320,6 +320,126 @@ function linearRegression(pts: { x: number; y: number }[]) {
 }
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
+
+// ─── ChemStation text parser ──────────────────────────────────────────────────
+
+function parseChemStationBlock(text: string): {
+  sample: Partial<SampleInfo>;
+  detector: Partial<DetectorInfo>;
+  newPeaks: Peak[];
+} {
+  const sample: Partial<SampleInfo> = {};
+  const detector: Partial<DetectorInfo> = {};
+  const newPeaks: Peak[] = [];
+  let lastChangedCount = 0;
+  const lines = text.split('\n');
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || /^={3,}$/.test(line) || /^-{3,}$/.test(line)) continue;
+
+    // Data File / Arquivo de dados
+    const dfM = line.match(/^(?:Data\s*File|Arquivo\s+de\s+dados)\s+(.+)/i);
+    if (dfM) { sample.dataFile = dfM[1].trim(); continue; }
+
+    // Sample Name / Nome da amostra
+    const snM = line.match(/^(?:Sample\s*Name|Nome\s+da\s+amostra)\s*:\s*(.+)/i);
+    if (snM) { sample.sampleName = snM[1].trim(); continue; }
+
+    // Acq Operator / Operador de aquisição (may share line with Seq Line)
+    const opM = line.match(/(?:Acquisition\s+Operator|Operador\s+de\s+aquisi[çc][aã]o)\s*:\s*(\S+)/i);
+    if (opM) sample.acqOperator = opM[1].trim();
+
+    // Seq Line / Linha de sequência
+    const seqM = line.match(/(?:Sequence\s*Line|Linha\s+de\s+sequ[eê]ncia)\s*:\s*(\S+)/i);
+    if (seqM) sample.seqLine = seqM[1].trim();
+
+    // Acq Instrument / Instrumento de aquisição
+    const instrM = line.match(/(?:Acquisition\s+Instrument|Instrumento\s+de\s+aquisi[çc][aã]o)\s*:\s*(.+?)(?:\s{2,}|\s+(?:Location|Localiza[çc][aã]o)\s*:|$)/i);
+    if (instrM) sample.acqInstrument = instrM[1].trim();
+
+    // Location / Localização
+    const locM = line.match(/(?:Location|Localiza[çc][aã]o)\s*:\s*(.+)/i);
+    if (locM) sample.location = locM[1].trim();
+
+    // Injection Date / Data da injeção
+    const dateM = line.match(/(?:Injection\s*Date|Data\s+da\s+inje[çc][aã]o)\s*:\s*(\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2})/i);
+    if (dateM) sample.injectionDate = dateM[1].trim();
+
+    // Injection number / Injeção
+    const injNM = line.match(/(?:^|[\s;,])(?:Injection|Inje[çc][aã]o)\s*:\s*(\d+)/i);
+    if (injNM) sample.inj = injNM[1].trim();
+
+    // Injection Volume / Volume injetado
+    const volM = line.match(/(?:Injected\s*Volume|Volume\s+injetado)\s*:\s*([\d,\.]+\s*µl)/i);
+    if (volM) sample.injVolume = volM[1].replace(',', '.').trim();
+
+    // Acq Method / Método de aquisição
+    const acqM = line.match(/^(?:Acquisition\s*Method|M[eé]todo\s+de\s+aquisi[çc][aã]o)\s*:\s*(.+)/i);
+    if (acqM) { sample.acqMethod = acqM[1].trim(); continue; }
+
+    // Analysis Method / Método de análise
+    const anaM = line.match(/^(?:Analysis\s*Method|M[eé]todo\s+de\s+an[aá]lise)\s*:\s*(.+)/i);
+    if (anaM) { sample.analysisMethod = anaM[1].trim(); continue; }
+
+    // Last Changed / Última alteração (appears twice: acq then ana)
+    const lcM = line.match(/(?:Last\s+Changed|[UÚ]ltima\s+altera[çc][aã]o)\s*:\s*(.+?)\s+(?:by|por)\s+(\S+)/i);
+    if (lcM) {
+      lastChangedCount++;
+      const val = `${lcM[1].trim()} por ${lcM[2].trim()}`;
+      if (lastChangedCount === 1) sample.lastChanged1 = val;
+      else sample.lastChanged2 = val;
+    }
+
+    // Signal / Sinal: "DAD1 A, Sig=290,4 Ref=360,100"
+    const sigM = line.match(/(?:Signal|Sinal)\s*\d*\s*:\s*(.+)/i);
+    if (sigM) {
+      const s = sigM[1].trim();
+      const namePart = s.split(',')[0].trim();
+      if (namePart) detector.signalName = namePart;
+      const wM = s.match(/Sig=([0-9]+(?:[,\.][0-9]*)?)/i);
+      const rM = s.match(/Ref=([0-9]+(?:[,\.][0-9]*)?)/i);
+      if (wM) detector.sigWavelength = parseFloat(wM[1].replace(',', '.'));
+      if (rM) detector.refWavelength = parseFloat(rM[1].replace(',', '.'));
+    }
+
+    // Peak row: "retTime peakType area [amtPerArea amount name]"
+    // e.g. "2.431 VB 872.10504 3.92764e-2 34.25311 B6"
+    const peakM = line.match(/^\s*([\d,\.]+)\s+([A-Z]{2,3})\s+([\d,\.]+(?:[eE][+-]?\d+)?)\s*(.*)?$/);
+    if (peakM) {
+      const rt = parseFloat(peakM[1].replace(',', '.'));
+      const type = peakM[2].toUpperCase();
+      const area = parseFloat(peakM[3].replace(',', '.'));
+      if (rt > 0 && rt < 200 && area > 0) {
+        const parts = (peakM[4] ?? '').trim().split(/\s+/).filter(Boolean);
+        let amtPerArea = 0, amount = 0, name = '';
+        if (parts.length >= 3) {
+          const p0 = parseFloat(parts[0].replace(',', '.'));
+          const p1 = parseFloat(parts[1].replace(',', '.'));
+          if (!isNaN(p0) && !isNaN(p1)) { amtPerArea = p0; amount = p1; name = parts.slice(2).join(' '); }
+          else { name = parts.join(' '); }
+        } else if (parts.length === 2) {
+          const p0 = parseFloat(parts[0].replace(',', '.'));
+          const p1 = parseFloat(parts[1].replace(',', '.'));
+          if (!isNaN(p0) && !isNaN(p1)) { amount = p1; }
+          else if (!isNaN(p0)) { amount = p0; name = parts[1]; }
+          else { name = parts.join(' '); }
+        } else if (parts.length === 1) {
+          const p0 = parseFloat(parts[0].replace(',', '.'));
+          if (!isNaN(p0)) amount = p0; else name = parts[0];
+        }
+        newPeaks.push({
+          id: uid(), name: name.trim(),
+          peakType: ['BB','BV','VB','VV'].includes(type) ? type : 'BB',
+          grp: '', retentionTime: rt, height: 200, width: 0.030, asymmetry: 1.1,
+          amtPerArea, amount, manualArea: area, peakNoise: 0, printSelected: true,
+        });
+      }
+    }
+  }
+
+  return { sample, detector, newPeaks };
+}
 
 function fmtSci2(n: number, exp: number) {
   // format as e.g. "3.92764e-2"
@@ -1507,6 +1627,9 @@ export default function HplcSimulator() {
   const [deleteSessionPwd, setDeleteSessionPwd] = useState("");
   const [deleteSessionError, setDeleteSessionError] = useState<string | null>(null);
   const [deleteSessionLoading, setDeleteSessionLoading] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importReplacesPeaks, setImportReplacesPeaks] = useState(true);
 
   // Load heavy image data after first paint so it doesn't block initial render
   useEffect(() => {
@@ -2287,6 +2410,20 @@ export default function HplcSimulator() {
                   ] as [keyof SampleInfo, string][]).map(([k, label]) => (
                     <SmallField key={k} label={label} value={sample[k]} onChange={sField(k)} />
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => { setImportText(""); setShowImportDialog(true); }}
+                    style={{
+                      marginTop: 6, width: "100%", display: "flex", alignItems: "center",
+                      justifyContent: "center", gap: 4, padding: "3px 0",
+                      fontFamily: "Courier New, monospace", fontSize: 9.5, color: "#1d4ed8",
+                      background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 3,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <ClipboardPaste style={{ width: 11, height: 11 }} />
+                    Importar texto ChemStation
+                  </button>
                 </ControlBox>
 
                 {/* Detector */}
@@ -4029,6 +4166,86 @@ export default function HplcSimulator() {
         style={{ display: "none" }}
         onChange={handlePeakFileChange}
       />
+
+      {/* ── ChemStation import dialog ────────────────────────────────────────── */}
+      {showImportDialog && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 9999,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: "16px",
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 10, padding: "20px 24px",
+            width: "100%", maxWidth: 640, boxShadow: "0 8px 40px rgba(0,0,0,0.22)",
+            fontFamily: "Courier New, monospace",
+          }}>
+            <div style={{ fontSize: 14, fontWeight: "bold", color: "#1d4ed8", marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
+              <ClipboardPaste style={{ width: 15, height: 15 }} /> Importar texto ChemStation
+            </div>
+            <p style={{ fontSize: 10, color: "#64748b", marginBottom: 10, lineHeight: 1.5 }}>
+              Cole abaixo o texto copiado do relatório ChemStation (português ou inglês).
+              Os campos de Sample Info, Detector e Picos serão preenchidos automaticamente.
+            </p>
+            <textarea
+              value={importText}
+              onChange={e => setImportText(e.target.value)}
+              placeholder={"Arquivo de dados C:\\CHEM32\\1\\DATA\\...\nNome da amostra: ...\nOperador de aquisição: ..."}
+              style={{
+                width: "100%", height: 240, fontFamily: "Courier New, monospace",
+                fontSize: 10, padding: "8px", border: "1px solid #d1d5db", borderRadius: 4,
+                resize: "vertical", outline: "none", lineHeight: 1.45, background: "#f9fafb",
+                boxSizing: "border-box",
+              }}
+              autoFocus
+            />
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, marginBottom: 14 }}>
+              <input
+                type="checkbox"
+                id="importReplaces"
+                checked={importReplacesPeaks}
+                onChange={e => setImportReplacesPeaks(e.target.checked)}
+                style={{ accentColor: "#1d4ed8", width: 12, height: 12 }}
+              />
+              <label htmlFor="importReplaces" style={{ fontSize: 10, color: "#334155", cursor: "pointer" }}>
+                Substituir picos existentes pelos picos do texto importado
+              </label>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setShowImportDialog(false)}
+                style={{
+                  padding: "5px 16px", fontSize: 11, border: "1px solid #d1d5db",
+                  borderRadius: 4, background: "#fff", cursor: "pointer", color: "#334155",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={!importText.trim()}
+                onClick={() => {
+                  const { sample: s, detector: d, newPeaks } = parseChemStationBlock(importText);
+                  if (Object.keys(s).length > 0) setSample(prev => ({ ...prev, ...s }));
+                  if (Object.keys(d).length > 0) setDetector(prev => ({ ...prev, ...d }));
+                  if (newPeaks.length > 0) {
+                    if (importReplacesPeaks) setPeaks(newPeaks);
+                    else setPeaks(prev => [...prev, ...newPeaks]);
+                  }
+                  markDirty();
+                  setShowImportDialog(false);
+                }}
+                style={{
+                  padding: "5px 16px", fontSize: 11, border: "none",
+                  borderRadius: 4, background: importText.trim() ? "#1d4ed8" : "#93c5fd",
+                  cursor: importText.trim() ? "pointer" : "not-allowed", color: "#fff", fontWeight: "bold",
+                }}
+              >
+                Aplicar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Password-protected delete session dialog ─────────────────────────── */}
       {deleteSessionDialog && (
