@@ -2402,7 +2402,7 @@ export default function ProtocolDetail() {
         <TabsList>
           <TabsTrigger value="info" data-testid="tab-info">Informações</TabsTrigger>
           <TabsTrigger value="lots" data-testid="tab-lots">Lotes</TabsTrigger>
-          <TabsTrigger value="results" data-testid="tab-results">Resultados Analisados</TabsTrigger>
+          <TabsTrigger value="results" data-testid="tab-results">Resultado das Análises</TabsTrigger>
           <TabsTrigger value="kinetics" data-testid="tab-kinetics">Cinética</TabsTrigger>
           <TabsTrigger value="metodologia" data-testid="tab-metodologia">Metodologia</TabsTrigger>
           <TabsTrigger value="historico" data-testid="tab-historico"><History className="h-3.5 w-3.5 mr-1" />Histórico</TabsTrigger>
