@@ -2785,7 +2785,13 @@ export default function HplcSimulator() {
                           if (!c) return;
                           setSample(s => {
                             const newAcq = c.method || s.acqMethod;
-                            return { ...s, sampleName: c.name, acqMethod: newAcq, analysisMethod: syncMethodPeer("acqMethod", newAcq, s.analysisMethod) };
+                            const newFilename = c.name.trim().toUpperCase() + ".M";
+                            return {
+                              ...s,
+                              sampleName: c.name,
+                              acqMethod: applyMethodFilename(newAcq, newFilename),
+                              analysisMethod: applyMethodFilename(s.analysisMethod, newFilename),
+                            };
                           });
                           setDetector(d => ({ ...d, sigWavelength: c.wavelength }));
                           setCalib(cb => ({ ...cb, compoundName: c.name, expRT: c.expectedRT }));
@@ -3044,15 +3050,38 @@ export default function HplcSimulator() {
 
                 {/* Y-axis (mAU) scale control */}
                 <ControlBox title="Escala Y (mAU)">
-                  <label className="flex items-center gap-2 cursor-pointer mb-2">
+                  {/* Auto/manual toggle */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={detector.yAxisAuto ?? true}
+                        onChange={e => { setDetector(d => ({ ...d, yAxisAuto: e.target.checked })); markDirty(); }}
+                        className="h-3 w-3 accent-blue-600"
+                      />
+                      <span style={{ fontFamily: "Courier New, monospace", fontSize: 9.5 }}>Auto</span>
+                    </label>
+                    <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: (detector.yAxisAuto ?? true) ? "#888" : "#1d4ed8", fontWeight: 600 }}>
+                      {(detector.yAxisAuto ?? true) ? `${yMaxAuto} mAU (auto)` : `${detector.yAxisMax ?? 2000} mAU`}
+                    </span>
+                  </div>
+                  {/* Quick Y-max slider — moving it disables auto-scale */}
+                  <div style={{ marginBottom: 6 }}>
                     <input
-                      type="checkbox"
-                      checked={detector.yAxisAuto ?? true}
-                      onChange={e => { setDetector(d => ({ ...d, yAxisAuto: e.target.checked })); markDirty(); }}
-                      className="h-3 w-3 accent-blue-600"
+                      type="range" min="50" max="5000" step="50"
+                      value={(detector.yAxisAuto ?? true) ? yMaxAuto : (detector.yAxisMax ?? 2000)}
+                      onChange={e => {
+                        const v = parseFloat(e.target.value) || 2000;
+                        setDetector(d => ({ ...d, yAxisAuto: false, yAxisMax: v }));
+                        markDirty();
+                      }}
+                      className="w-full h-2 accent-blue-600"
                     />
-                    <span style={{ fontFamily: "Courier New, monospace", fontSize: 9.5 }}>Escala automática</span>
-                  </label>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa", marginTop: 1 }}>
+                      <span>50</span><span>5000 mAU</span>
+                    </div>
+                  </div>
+                  {/* Precise number inputs when manual */}
                   {!(detector.yAxisAuto ?? true) && (
                     <>
                       <SmallField
@@ -3068,11 +3097,6 @@ export default function HplcSimulator() {
                         type="number"
                       />
                     </>
-                  )}
-                  {(detector.yAxisAuto ?? true) && (
-                    <p style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888" }}>
-                      Atual: 0 – {yMaxAuto} mAU (automático)
-                    </p>
                   )}
                 </ControlBox>
 
