@@ -1784,6 +1784,12 @@ export default function HplcSimulator() {
   const [deleteSessionPwd, setDeleteSessionPwd] = useState("");
   const [deleteSessionError, setDeleteSessionError] = useState<string | null>(null);
   const [deleteSessionLoading, setDeleteSessionLoading] = useState(false);
+  // Master-password unlock for concluded sessions
+  const [unlockedSessionId, setUnlockedSessionId] = useState<string | null>(null);
+  const [masterAuthDialog, setMasterAuthDialog] = useState<{ onSuccess: () => void } | null>(null);
+  const [masterAuthInput, setMasterAuthInput] = useState("");
+  const [masterAuthError, setMasterAuthError] = useState<string | null>(null);
+  const [masterAuthLoading, setMasterAuthLoading] = useState(false);
   const [currentSnapshotSessionId, setCurrentSnapshotSessionId] = useState<string | null>(null);
   const [savePngDialog, setSavePngDialog] = useState<{ sessionId: string; redirectToGallery: boolean } | null>(null);
   const [savePngCertNum, setSavePngCertNum] = useState("");
@@ -2493,6 +2499,33 @@ export default function HplcSimulator() {
   const handleDeleteSession = (id: string) => {
     setAnalysisSessions(ss => { const u = ss.filter(s => s.id !== id); saveSessions(u); return u; });
     if (currentSessionId === id) setCurrentSessionId(null);
+    if (unlockedSessionId === id) setUnlockedSessionId(null);
+  };
+
+  const handleMasterAuth = async () => {
+    if (!masterAuthDialog) return;
+    setMasterAuthLoading(true);
+    setMasterAuthError(null);
+    try {
+      const token = sessionStorage.getItem("alphafitus_token") ?? "";
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password: masterAuthInput }),
+      });
+      if (!res.ok) {
+        const data = await res.json() as { error?: string };
+        setMasterAuthError(data.error ?? "Senha Master incorreta.");
+        return;
+      }
+      masterAuthDialog.onSuccess();
+      setMasterAuthDialog(null);
+      setMasterAuthInput("");
+    } catch {
+      setMasterAuthError("Erro ao verificar senha.");
+    } finally {
+      setMasterAuthLoading(false);
+    }
   };
 
   const openDeleteSessionDialog = (id: string, name: string) => {
@@ -2528,6 +2561,10 @@ export default function HplcSimulator() {
   };
 
   const handleConcludeSession = (sessionId: string, status: "em_andamento" | "aprovado" | "reprovado", notes?: string) => {
+    // When concluding (locking), clear any active master unlock for that session
+    if (status !== "em_andamento") {
+      setUnlockedSessionId(prev => prev === sessionId ? null : prev);
+    }
     setAnalysisSessions(ss => {
       const updated = ss.map(s => s.id === sessionId ? {
         ...s,
@@ -2566,10 +2603,11 @@ export default function HplcSimulator() {
     setProductName("");
     prevCalibNameRef.current = DEFAULT_CALIB.compoundName;
     setCurrentSnapshotSessionId(null);
+    setUnlockedSessionId(null);
     setIsDirty(false);
     setConfirmed(false);
     saveState({ peaks: DEFAULT_PEAKS, sample: DEFAULT_SAMPLE, detector: DEFAULT_DETECTOR, standards: DEFAULT_STANDARDS, calib: DEFAULT_CALIB, activeCompounds: DEFAULT_ACTIVE_COMPOUNDS, productName: "" });
-    setPage("chromatogram");
+    setPage("painel");
     setNewAnalysisDialog(false);
   };
 
@@ -2658,6 +2696,20 @@ export default function HplcSimulator() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   const MONO: React.CSSProperties = { fontFamily: "Courier New, monospace" };
+
+  // ── Session lock derived values ────────────────────────────────────────────
+  // When the snapshot session linked to the current chromatogram was concluded
+  // (aprovado / reprovado / laudo_emitido), every editing page is locked until
+  // the user authenticates with the Master password.
+  const snapshotSession = currentSnapshotSessionId
+    ? analysisSessions.find(s => s.id === currentSnapshotSessionId) ?? null
+    : null;
+  const snapshotIsLocked = !!(
+    snapshotSession &&
+    snapshotSession.status !== "em_andamento" &&
+    unlockedSessionId !== currentSnapshotSessionId
+  );
+  const LOCK_PAGES: PageMode[] = ["chromatogram", "report", "ativos", "lotes", "padrao"];
 
   return (
     <div style={{ minHeight: "100vh", background: "#e8e8e8", padding: "12px 8px" }}>
@@ -3568,7 +3620,47 @@ export default function HplcSimulator() {
         )}
 
         {/* ── RIGHT: Agilent report paper ──────────────────────────────────── */}
-        <div style={{ flex: 1, background: "#fff", border: "1px solid #bbb", boxShadow: "0 2px 8px rgba(0,0,0,.18)", padding: "28px 32px 20px", minWidth: 0, ...MONO, fontSize: 11.5 }}>
+        <div style={{ flex: 1, background: "#fff", border: "1px solid #bbb", boxShadow: "0 2px 8px rgba(0,0,0,.18)", padding: "28px 32px 20px", minWidth: 0, ...MONO, fontSize: 11.5, position: "relative", overflow: "hidden" }}>
+
+          {/* ── SESSION LOCK OVERLAY — blocks editing when session is concluded ── */}
+          {snapshotIsLocked && LOCK_PAGES.includes(page) && (
+            <div style={{
+              position: "absolute", inset: 0, zIndex: 200,
+              background: "rgba(15,23,42,0.72)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              backdropFilter: "blur(3px)",
+            }}>
+              <div style={{ background: "#fff", borderRadius: 14, padding: "32px 40px", textAlign: "center", maxWidth: 430, boxShadow: "0 8px 40px rgba(0,0,0,0.35)", fontFamily: "Courier New, monospace" }}>
+                <div style={{ fontSize: 38, marginBottom: 12 }}>🔒</div>
+                <div style={{ fontWeight: "bold", fontSize: 15, color: "#1e293b", marginBottom: 6 }}>Análise Encerrada</div>
+                <div style={{ fontSize: 11, color: "#475569", marginBottom: 8, lineHeight: 1.7 }}>
+                  <b>{snapshotSession?.name}</b> foi concluída como{" "}
+                  <b style={{ color: snapshotSession?.status === "aprovado" ? "#16a34a" : snapshotSession?.status === "reprovado" ? "#dc2626" : "#7c3aed" }}>
+                    {snapshotSession?.status === "aprovado" ? "Aprovado" : snapshotSession?.status === "reprovado" ? "Reprovado" : "Laudo Emitido"}
+                  </b>.
+                </div>
+                <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 24, lineHeight: 1.6 }}>
+                  A edição de qualquer etapa desta análise requer<br />autenticação com a senha Master.
+                </div>
+                <button
+                  onClick={() => {
+                    setMasterAuthDialog({ onSuccess: () => setUnlockedSessionId(currentSnapshotSessionId ?? "") });
+                    setMasterAuthInput("");
+                    setMasterAuthError(null);
+                  }}
+                  style={{ background: "#1d4ed8", color: "#fff", border: "none", borderRadius: 8, padding: "11px 30px", fontWeight: "bold", cursor: "pointer", fontSize: 12, fontFamily: "Courier New, monospace", boxShadow: "0 2px 8px rgba(29,78,216,0.4)", display: "block", width: "100%", marginBottom: 10 }}
+                >
+                  🔑 Desbloquear com Senha Master
+                </button>
+                <button
+                  onClick={() => setPage("painel")}
+                  style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 10, fontFamily: "Courier New, monospace", textDecoration: "underline" }}
+                >
+                  ← Voltar ao Painel
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── PAINEL / DASHBOARD PAGE ───────────────────────────────────── */}
           {page === "painel" && (() => {
@@ -3729,11 +3821,24 @@ export default function HplcSimulator() {
                                   → Abrir
                                 </button>
 
-                                {/* Revisar — loads snapshot back into chromatogram */}
+                                {/* Revisar — loads snapshot; concluded sessions require Master password */}
                                 {s.snapshotState && (
                                   <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #0284c7", borderRadius: 4, background: "#e0f2fe", cursor: "pointer", color: "#0284c7" }}
-                                    onClick={() => handleLoadSnapshotSession(s)}>
-                                    ↩ Revisar
+                                    onClick={() => {
+                                      if (s.status !== "em_andamento") {
+                                        setMasterAuthDialog({
+                                          onSuccess: () => {
+                                            setUnlockedSessionId(s.id);
+                                            handleLoadSnapshotSession(s);
+                                          },
+                                        });
+                                        setMasterAuthInput("");
+                                        setMasterAuthError(null);
+                                      } else {
+                                        handleLoadSnapshotSession(s);
+                                      }
+                                    }}>
+                                    {s.status !== "em_andamento" ? "🔒 Revisar" : "↩ Revisar"}
                                   </button>
                                 )}
 
@@ -5581,6 +5686,55 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                   setFinalizeDialog(null);
                 }}>
                 Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Master Password authentication dialog ─────────────────────────────── */}
+      {masterAuthDialog && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 9999,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 12, padding: "28px 32px", width: 360, maxWidth: "90vw",
+            boxShadow: "0 8px 40px rgba(0,0,0,0.3)", fontFamily: "Courier New, monospace",
+          }}>
+            <div style={{ fontSize: 15, fontWeight: "bold", color: "#1d4ed8", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+              🔑 Autenticação Master
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 18, lineHeight: 1.6 }}>
+              Esta análise está encerrada. Insira a senha Master para liberar a edição desta sessão.
+            </div>
+            <input
+              type="password"
+              autoFocus
+              value={masterAuthInput}
+              onChange={e => { setMasterAuthInput(e.target.value); setMasterAuthError(null); }}
+              onKeyDown={e => { if (e.key === "Enter") handleMasterAuth(); }}
+              placeholder="Senha Master"
+              style={{
+                width: "100%", padding: "9px 12px", border: `1px solid ${masterAuthError ? "#dc2626" : "#cbd5e1"}`,
+                borderRadius: 6, fontFamily: "Courier New, monospace", fontSize: 12, marginBottom: 8,
+                boxSizing: "border-box", outline: "none",
+              }}
+            />
+            {masterAuthError && (
+              <div style={{ fontSize: 10, color: "#dc2626", marginBottom: 10 }}>⚠ {masterAuthError}</div>
+            )}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
+              <button
+                style={{ fontSize: 11, padding: "7px 16px", border: "1px solid #cbd5e1", borderRadius: 5, background: "#f8fafc", cursor: "pointer", color: "#475569" }}
+                onClick={() => { setMasterAuthDialog(null); setMasterAuthInput(""); setMasterAuthError(null); }}>
+                Cancelar
+              </button>
+              <button
+                disabled={masterAuthLoading || !masterAuthInput}
+                style={{ fontSize: 11, padding: "7px 20px", border: "none", borderRadius: 5, background: masterAuthLoading ? "#93c5fd" : "#1d4ed8", cursor: masterAuthLoading ? "not-allowed" : "pointer", color: "#fff", fontWeight: "bold" }}
+                onClick={handleMasterAuth}>
+                {masterAuthLoading ? "Verificando..." : "Desbloquear"}
               </button>
             </div>
           </div>
