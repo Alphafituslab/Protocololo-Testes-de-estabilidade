@@ -3880,7 +3880,7 @@ export default function HplcSimulator() {
               >
                 <div style={{ fontSize: 11, marginBottom: 2 }}>mAU</div>
                 {/* Drag hint tooltip — hidden when printing */}
-                {!draggingPeakId && peakStats.some(p => p.name) && (
+                {!draggingPeakId && peakStats.some(p => !p.locked) && (
                   <div className="no-print" style={{ position: "absolute", bottom: 28, left: 54, fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace", pointerEvents: "none" }}>
                     ← arraste o pico para ajustar o TR →
                   </div>
@@ -3903,17 +3903,17 @@ export default function HplcSimulator() {
 
                     {/* Integration boundary lines removed — hidden on screen and print */}
 
-                    {/* Name + RT label above named peaks, plus RT-only label for any
-                        unnamed/ghost peak that is currently being dragged */}
+                    {/* Name + RT label above named peaks (any type), plus RT-only label
+                        for any unnamed peak that is currently being dragged */}
                     {peakStats
-                      .filter(p => (p.name && !p.isGhost) || p.id === draggingPeakId)
+                      .filter(p => p.name || p.id === draggingPeakId)
                       .map(p => (
                         <ReferenceLine key={`rt-${p.id}`} x={p.retentionTime} stroke="none"
                           label={(props: { viewBox?: { x: number; y: number } }) => (
                             <PeakLabel
                               viewBox={props.viewBox}
                               rt={p.retentionTime}
-                              name={p.name || (p.isGhost ? "👻" : "?")}
+                              name={p.name || (p.isGhost ? "👻" : undefined)}
                               dragging={draggingPeakId === p.id}
                             />
                           )} />
@@ -5429,9 +5429,10 @@ export default function HplcSimulator() {
               {/* Header */}
               <div style={{ padding: "8px 12px 6px", borderBottom: "1px solid #f1f5f9", background: "#f8fafc" }}>
                 <div style={{ fontWeight: "bold", color: "#1e293b", fontSize: 11 }}>
-                  {peak.name ? peak.name : `RT ${peak.retentionTime.toFixed(3)} min`}
+                  {peak.name ? peak.name : peak.isGhost ? `👻 TR ${peak.retentionTime.toFixed(3)} min` : `TR ${peak.retentionTime.toFixed(3)} min`}
                 </div>
                 {peak.name && <div style={{ color: "#64748b", fontSize: 9.5 }}>TR: {peak.retentionTime.toFixed(3)} min</div>}
+                {peak.isGhost && !peak.name && <div style={{ color: "#7c3aed", fontSize: 9, marginTop: 1 }}>Pico fantasma</div>}
                 {peak.locked && <div style={{ color: "#f59e0b", fontSize: 9, fontWeight: "bold", marginTop: 2 }}>🔒 TRAVADO</div>}
               </div>
               {/* Menu items */}
