@@ -800,6 +800,15 @@ function PeakEditorDialog({ peak, onSave, children, controlledOpen, onControlled
     if (isControlled) { if (!v) onControlledClose?.(); }
     else setInternalOpen(v);
   };
+  // When the controlled dialog transitions from closed → open, reload draft from the
+  // current peak prop. This replaces the previous key={editingPeakId} remount pattern
+  // and avoids the Radix portal insertBefore crash caused by conditional unmounting.
+  useEffect(() => {
+    if (isControlled && controlledOpen) {
+      setDraft(peakToStrings(peak));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controlledOpen]); // intentionally only on open-transition, not on every peak change
   const field = (key: keyof Peak) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDraft(d => ({ ...d, [key]: e.target.value }));
   const noiseVal = parseFloat(draft.peakNoise) || 0;
@@ -1781,21 +1790,26 @@ export default function HplcSimulator() {
   const [peakContextMenu, setPeakContextMenu] = useState<{ x: number; y: number; peakId: string } | null>(null);
   const [editingPeakId, setEditingPeakId] = useState<string | null>(null);
   const [editorDialogOpen, setEditorDialogOpen] = useState(false);
+  // Holds the peak being edited. Never reset to null after first use so the
+  // PeakEditorDialog component stays mounted permanently (Radix portal must not
+  // be unmounted while open — that is the root cause of the insertBefore crash).
+  const dialogPeakRef = useRef<Peak | null>(null);
 
-  // Open the peak editor dialog from the context menu.
+  // Open the peak editor dialog from the context menu or sidebar button.
   const openEditorDialog = (id: string) => {
+    const pk = peaks.find(p => p.id === id);
+    if (!pk) return;
+    dialogPeakRef.current = pk; // stable reference used by always-mounted dialog
     setEditingPeakId(id);
     setEditorDialogOpen(true);
   };
 
-  // Close the peak editor dialog gracefully:
-  // 1. Set open=false so Radix can run its unmount animation.
-  // 2. Clear editingPeakId on the NEXT event-loop tick so the PeakEditorDialog
-  //    component stays in the tree while Radix disposes its portal — this prevents
-  //    the "insertBefore / removeChild" DOM crash.
+  // Close the peak editor dialog. No setTimeout needed — the dialog stays in the
+  // React tree permanently (dialogPeakRef guards it), so Radix can finish its
+  // close animation without any DOM/virtual-DOM mismatch.
   const closeEditorDialog = () => {
     setEditorDialogOpen(false);
-    setTimeout(() => setEditingPeakId(null), 200);
+    setEditingPeakId(null);
   };
   const [finalizeDialog, setFinalizeDialog] = useState<{ id: string; name: string } | null>(null);
   const [finalizeStatus, setFinalizeStatus] = useState<"em_andamento" | "aprovado" | "reprovado">("aprovado");
@@ -3110,13 +3124,14 @@ export default function HplcSimulator() {
                             ? <LockOpen className="h-3 w-3 text-amber-500" />
                             : <Lock className="h-3 w-3 text-gray-400" />}
                         </Button>
-                        {/* Always mounted to avoid Radix Dialog unmount crash when locking */}
-                        <PeakEditorDialog peak={p} onSave={savePeak}>
-                          <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
-                            style={{ visibility: p.locked ? "hidden" : "visible" }}>
-                            <Settings className="h-3 w-3" />
-                          </Button>
-                        </PeakEditorDialog>
+                        {/* Opens the single always-mounted controlled dialog — no inline
+                            PeakEditorDialog per-peak (that caused the insertBefore crash) */}
+                        <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                          title="Editar pico"
+                          style={{ visibility: p.locked ? "hidden" : "visible" }}
+                          onClick={() => { if (!p.locked) openEditorDialog(p.id); }}>
+                          <Settings className="h-3 w-3" />
+                        </Button>
                         <Button size="sm" variant="ghost" className="h-5 w-5 p-0 hover:text-red-500"
                           title={p.locked ? "Pico travado — desbloqueie para excluir" : "Excluir pico"}
                           disabled={!!p.locked}
@@ -5403,20 +5418,18 @@ export default function HplcSimulator() {
         );
       })()}
 
-      {/* ── Peak editor dialog — opened via context menu (right-click) ───────── */}
-      {editingPeakId && (() => {
-        const ep = peaks.find(p => p.id === editingPeakId);
-        if (!ep) return null;
-        return (
-          <PeakEditorDialog
-            key={editingPeakId}
-            peak={ep}
-            onSave={savePeak}
-            controlledOpen={editorDialogOpen}
-            onControlledClose={closeEditorDialog}
-          />
-        );
-      })()}
+      {/* ── Peak editor dialog — opened via context menu or sidebar ⚙ button ── */}
+      {/* Always mounted once a peak has been edited (dialogPeakRef guards it).
+          NEVER conditionally unmounted — that is what causes the Radix portal
+          "insertBefore" DOM crash. open/close is controlled via editorDialogOpen. */}
+      {dialogPeakRef.current && (
+        <PeakEditorDialog
+          peak={dialogPeakRef.current}
+          onSave={savePeak}
+          controlledOpen={editorDialogOpen}
+          onControlledClose={closeEditorDialog}
+        />
+      )}
 
       {deleteSessionDialog && (
         <div style={{
