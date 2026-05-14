@@ -1184,16 +1184,16 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start gap-x-6 gap-y-1">
         <p className="text-xs text-muted-foreground">
           Clique em qualquer célula para digitar o resultado. Use{" "}
           <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">C</kbd> = Conforme ·{" "}
           <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">NC</kbd> = Não Conforme ·{" "}
           <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">N/A</kbd> = Não aplicável ·{" "}
-          <kbd className="px-1 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-700 text-xs">AR</kbd> = Aprovado com Ressalva.
+          <kbd className="px-1 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-700 text-xs">AR</kbd> = Aprovado com Ressalva.{" "}
           Confirme com Enter ou OK.
         </p>
-        <p className="text-xs text-primary/70 whitespace-nowrap shrink-0">Parâmetros e critérios são editáveis. Clique para alterar.</p>
+        <p className="text-xs text-primary/70 whitespace-nowrap">Parâmetros e critérios são editáveis. Clique para alterar.</p>
       </div>
 
       {categories.map(({ label, key }) => {
@@ -1204,18 +1204,30 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
             <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
+                  {/* Row 1 — sticky columns (rowSpan=2) + one cell per lot (colSpan=periods) */}
+                  <TableRow className="bg-muted border-b border-border/40">
+                    <TableHead rowSpan={2} className="w-44 text-xs sticky left-0 z-20 bg-muted border-r border-border/60 align-middle">Parametro</TableHead>
+                    <TableHead rowSpan={2} className="w-52 text-xs sticky left-44 z-20 bg-muted border-r border-border/60 align-middle">Criterio</TableHead>
+                    <TableHead rowSpan={2} className="w-6 text-xs sticky left-[24rem] z-20 bg-muted border-r border-border/40 align-middle"></TableHead>
+                    {lots.map((lot) => (
+                      <TableHead
+                        key={lot.id}
+                        colSpan={PERIODS.length}
+                        className="text-xs text-center font-semibold whitespace-nowrap px-3 py-1.5 border-l border-border/30"
+                      >
+                        {lot.lotNumber}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                  {/* Row 2 — period sub-headers (T0 / T3 / T6) per lot */}
                   <TableRow className="bg-muted">
-                    {/* Sticky: Parameter column */}
-                    <TableHead className="w-44 text-xs sticky left-0 z-20 bg-muted border-r border-border/60">Parametro</TableHead>
-                    {/* Sticky: Criterion column — wider so no text is clipped */}
-                    <TableHead className="w-52 text-xs sticky left-44 z-20 bg-muted border-r border-border/60">Criterio</TableHead>
-                    {/* Sticky: delete-button column — left = w-44 + w-52 = 11rem + 13rem = 24rem */}
-                    <TableHead className="w-6 text-xs sticky left-[24rem] z-20 bg-muted border-r border-border/40"></TableHead>
                     {lots.map((lot) =>
                       PERIODS.map((period) => (
-                        <TableHead key={`${lot.id}-${period}`} className="text-xs text-center min-w-28">
-                          <div className="font-medium">{lot.lotNumber}</div>
-                          <div className="text-muted-foreground font-normal">T{period}</div>
+                        <TableHead
+                          key={`${lot.id}-${period}`}
+                          className="text-xs text-center font-normal text-muted-foreground min-w-28 py-1 border-l border-border/20 first:border-l-0"
+                        >
+                          T{period}
                         </TableHead>
                       ))
                     )}
