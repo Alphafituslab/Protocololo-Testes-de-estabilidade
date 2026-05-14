@@ -1204,11 +1204,11 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
             <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
-                  {/* Row 1 — sticky columns (rowSpan=2) + one cell per lot (colSpan=periods) */}
-                  <TableRow className="bg-muted border-b border-border/40">
-                    <TableHead rowSpan={2} className="w-44 text-xs sticky left-0 z-20 bg-muted border-r border-border/60 align-middle">Parametro</TableHead>
-                    <TableHead rowSpan={2} className="w-52 text-xs sticky left-44 z-20 bg-muted border-r border-border/60 align-middle">Criterio</TableHead>
-                    <TableHead rowSpan={2} className="w-6 text-xs sticky left-[24rem] z-20 bg-muted border-r border-border/40 align-middle"></TableHead>
+                  {/* Row 1 — sticky columns + one cell per lot (colSpan=periods) */}
+                  <TableRow className="bg-muted">
+                    <TableHead className="w-44 text-xs sticky left-0 z-20 bg-muted border-r border-border/60 align-bottom pb-1">Parametro</TableHead>
+                    <TableHead className="w-52 text-xs sticky left-44 z-20 bg-muted border-r border-border/60 align-bottom pb-1">Criterio</TableHead>
+                    <TableHead className="w-6 text-xs sticky left-[24rem] z-20 bg-muted border-r border-border/40 align-bottom pb-1"></TableHead>
                     {lots.map((lot) => (
                       <TableHead
                         key={lot.id}
@@ -1219,13 +1219,17 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                       </TableHead>
                     ))}
                   </TableRow>
-                  {/* Row 2 — period sub-headers (T0 / T3 / T6) per lot */}
-                  <TableRow className="bg-muted">
+                  {/* Row 2 — sticky placeholder cells + period sub-headers (T0 / T3 / T6) per lot.
+                      Sticky cells here (NOT rowSpan) prevent T0 from sliding behind them on scroll. */}
+                  <TableRow className="bg-muted border-b border-border/40">
+                    <TableHead className="w-44 sticky left-0 z-20 bg-muted border-r border-border/60 py-0.5"></TableHead>
+                    <TableHead className="w-52 sticky left-44 z-20 bg-muted border-r border-border/60 py-0.5"></TableHead>
+                    <TableHead className="w-6 sticky left-[24rem] z-20 bg-muted border-r border-border/40 py-0.5"></TableHead>
                     {lots.map((lot) =>
                       PERIODS.map((period) => (
                         <TableHead
                           key={`${lot.id}-${period}`}
-                          className="text-xs text-center font-normal text-muted-foreground min-w-28 py-1 border-l border-border/20 first:border-l-0"
+                          className="text-xs text-center font-normal text-muted-foreground min-w-28 py-1 border-l border-border/20"
                         >
                           T{period}
                         </TableHead>
