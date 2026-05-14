@@ -3058,13 +3058,13 @@ export default function HplcSimulator() {
                       <SmallField
                         label="Y mín (mAU)"
                         value={String(detector.yAxisMin ?? 0)}
-                        onChange={v => { setDetector(d => ({ ...d, yAxisMin: parseFloat(v) || 0 })); markDirty(); }}
+                        onChange={e => { setDetector(d => ({ ...d, yAxisMin: parseFloat(e.target.value) || 0 })); markDirty(); }}
                         type="number"
                       />
                       <SmallField
                         label="Y máx (mAU)"
                         value={String(detector.yAxisMax ?? 2000)}
-                        onChange={v => { setDetector(d => ({ ...d, yAxisMax: parseFloat(v) || 2000 })); markDirty(); }}
+                        onChange={e => { setDetector(d => ({ ...d, yAxisMax: parseFloat(e.target.value) || 2000 })); markDirty(); }}
                         type="number"
                       />
                     </>
@@ -3851,15 +3851,7 @@ export default function HplcSimulator() {
                       axisLine={{ stroke: "#333" }} tickLine={{ stroke: "#333" }} width={46} />
                     <Tooltip content={<ChromTooltip />} />
 
-                    {/* Integration boundary lines — dashed verticals at peak start/end */}
-                    {peakStats.filter(p => p.name).flatMap(p => {
-                      const lo = parseFloat((p.retentionTime - 3.8 * p.width).toFixed(4));
-                      const hi = parseFloat((p.retentionTime + 3.8 * p.width * p.asymmetry).toFixed(4));
-                      return [
-                        <ReferenceLine key={`il-${p.id}`} x={lo} stroke="#999" strokeWidth={0.8} strokeDasharray="3 2" />,
-                        <ReferenceLine key={`ir-${p.id}`} x={hi} stroke="#999" strokeWidth={0.8} strokeDasharray="3 2" />,
-                      ];
-                    })}
+                    {/* Integration boundary lines removed — hidden on screen and print */}
 
                     {/* Name + RT label above each named (non-ghost) peak; highlighted when dragging */}
                     {peakStats.filter(p => p.name && !p.isGhost).map(p => (
