@@ -1831,6 +1831,18 @@ export default function HplcSimulator() {
 
   const markDirty = useCallback(() => { setIsDirty(true); setConfirmed(false); }, []);
 
+  // Auto-persist to localStorage 400 ms after any state change so peaks survive
+  // page refresh without requiring "Confirmar". Confirmar still creates snapshots.
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      saveState({ peaks, sample, detector, standards, calib, activeCompounds, productName });
+    }, 400);
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peaks, sample, detector, standards, calib, activeCompounds, productName]);
+
   // Tracks the compound name as of the last confirm, so we can cascade renames
   const prevCalibNameRef = useRef(calib.compoundName);
 
@@ -1923,7 +1935,7 @@ export default function HplcSimulator() {
     const innerW = rect.width - CM_LEFT - CM_RIGHT;
     const mouseX = e.clientX - rect.left;
     let best: { id: string; dist: number } | null = null;
-    for (const p of peaks.filter(pp => pp.name && !pp.locked)) {
+    for (const p of peaks.filter(pp => !pp.locked)) {
       const px = CM_LEFT + (p.retentionTime / detector.runTime) * innerW;
       const d = Math.abs(mouseX - px);
       if (d < 16 && (!best || d < best.dist)) best = { id: p.id, dist: d };
@@ -1957,7 +1969,15 @@ export default function HplcSimulator() {
     if (!peakDragRef.current) return;
     const newRT = xToTime(e.clientX);
     const pid = peakDragRef.current.peakId;
-    setPeaks(ps => ps.map(p => p.id === pid ? { ...p, retentionTime: newRT } : p));
+    // Guard: if the peak was locked while dragging, abort the drag
+    setPeaks(ps => {
+      const target = ps.find(p => p.id === pid);
+      if (!target || target.locked) {
+        peakDragRef.current = null;
+        return ps;
+      }
+      return ps.map(p => p.id === pid ? { ...p, retentionTime: newRT } : p);
+    });
   }, [xToTime]);
 
   const handleChartMouseUp = useCallback(() => {
@@ -2092,7 +2112,7 @@ export default function HplcSimulator() {
       amtPerArea: 0,
       amount: 0,
       manualArea: 0,
-      peakNoise: parseFloat((0.65 + Math.random() * 0.30).toFixed(2)),  // rough/defective
+      peakNoise: parseFloat((0.85 + Math.random() * 0.15).toFixed(2)),  // very rough/defective
       retentionTime: clampedRT,
       height: tallest ? Math.round(tallest.height * (0.25 + Math.random() * 0.35)) : Math.round(10 + Math.random() * 40),
       width: tallest ? parseFloat((tallest.width * (1.1 + Math.random() * 0.6)).toFixed(3)) : parseFloat((0.05 + Math.random() * 0.10).toFixed(3)),
@@ -2115,6 +2135,12 @@ export default function HplcSimulator() {
     // Close the editor dialog gracefully instead of abruptly removing it from
     // the tree — this prevents the Radix portal "insertBefore" DOM crash.
     if (editingPeakId === id) closeEditorDialog();
+    // If the peak being locked is currently dragged, stop the drag immediately
+    // so the peak stays at its current position and doesn't drift on next mousemove.
+    if (draggingPeakId === id) {
+      peakDragRef.current = null;
+      setDraggingPeakId(null);
+    }
     markDirty();
   };
 
@@ -3877,17 +3903,20 @@ export default function HplcSimulator() {
 
                     {/* Integration boundary lines removed — hidden on screen and print */}
 
-                    {/* Name + RT label above each named (non-ghost) peak; highlighted when dragging */}
-                    {peakStats.filter(p => p.name && !p.isGhost).map(p => (
-                      <ReferenceLine key={`rt-${p.id}`} x={p.retentionTime} stroke="none"
-                        label={(props: { viewBox?: { x: number; y: number } }) => (
-                          <PeakLabel
-                            viewBox={props.viewBox}
-                            rt={p.retentionTime}
-                            name={p.name}
-                            dragging={draggingPeakId === p.id}
-                          />
-                        )} />
+                    {/* Name + RT label above named peaks, plus RT-only label for any
+                        unnamed/ghost peak that is currently being dragged */}
+                    {peakStats
+                      .filter(p => (p.name && !p.isGhost) || p.id === draggingPeakId)
+                      .map(p => (
+                        <ReferenceLine key={`rt-${p.id}`} x={p.retentionTime} stroke="none"
+                          label={(props: { viewBox?: { x: number; y: number } }) => (
+                            <PeakLabel
+                              viewBox={props.viewBox}
+                              rt={p.retentionTime}
+                              name={p.name || (p.isGhost ? "👻" : "?")}
+                              dragging={draggingPeakId === p.id}
+                            />
+                          )} />
                     ))}
 
                     {/* Standard reference peak — dashed orange line */}
