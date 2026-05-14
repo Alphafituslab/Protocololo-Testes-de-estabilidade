@@ -1202,7 +1202,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
           <div key={key}>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">{label}</h3>
             <div className="rounded-md border overflow-x-auto">
-              <Table>
+              <Table style={{ width: "max-content", minWidth: "100%" }}>
                 <TableHeader>
                   {/* Row 1 — sticky columns + one cell per lot (colSpan=periods) */}
                   <TableRow className="bg-muted">
@@ -1225,15 +1225,21 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                     <TableHead className="w-44 sticky left-0 z-20 bg-muted border-r border-border/60 py-0.5"></TableHead>
                     <TableHead className="w-52 sticky left-44 z-20 bg-muted border-r border-border/60 py-0.5"></TableHead>
                     <TableHead className="w-6 sticky left-[24rem] z-20 bg-muted border-r border-border/40 py-0.5"></TableHead>
-                    {lots.map((lot) =>
-                      PERIODS.map((period) => (
-                        <TableHead
-                          key={`${lot.id}-${period}`}
-                          className="text-xs text-center font-normal text-muted-foreground min-w-28 py-1 border-l border-border/20"
-                        >
-                          T{period}
-                        </TableHead>
-                      ))
+                    {lots.map((lot, lotIdx) =>
+                      PERIODS.map((period, pidx) => {
+                        const isFirstT0 = lotIdx === 0 && pidx === 0;
+                        return (
+                          <TableHead
+                            key={`${lot.id}-${period}`}
+                            className={[
+                              "text-xs text-center font-normal text-muted-foreground min-w-28 py-1 border-l border-border/20",
+                              isFirstT0 ? "sticky left-[25.5rem] z-20 bg-muted border-r border-border/60" : "",
+                            ].join(" ")}
+                          >
+                            T{period}
+                          </TableHead>
+                        );
+                      })
                     )}
                   </TableRow>
                 </TableHeader>
@@ -1299,15 +1305,20 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                           ×
                         </button>
                       </TableCell>
-                      {lots.map((lot) =>
-                        PERIODS.map((period) => {
+                      {lots.map((lot, lotIdx) =>
+                        PERIODS.map((period, pidx) => {
                           const cellResult = getResult(lot.id, period, param.parameter);
                           const isNC = !protocolIsAR && cellResult?.status === "nao_conforme";
                           const isNCtreatedAsAR = protocolIsAR && cellResult?.status === "nao_conforme";
+                          const isFirstT0 = lotIdx === 0 && pidx === 0;
                           return (
                             <TableCell
                               key={`${lot.id}-${period}`}
-                              className={`py-1 text-center align-middle ${isNC ? "bg-red-200 border-x border-red-400" : isNCtreatedAsAR ? "bg-amber-100 border-x border-amber-300" : ""}`}
+                              className={[
+                                "py-1 text-center align-middle",
+                                isNC ? "bg-red-200 border-x border-red-400" : isNCtreatedAsAR ? "bg-amber-100 border-x border-amber-300" : "",
+                                isFirstT0 ? `sticky left-[25.5rem] z-10 border-r border-border/60 ${stickyBg}` : "",
+                              ].join(" ")}
                             >
                               <InlineCell
                                 lotId={lot.id}
