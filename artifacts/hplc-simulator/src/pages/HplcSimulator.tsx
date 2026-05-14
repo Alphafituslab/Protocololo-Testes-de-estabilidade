@@ -240,6 +240,7 @@ interface PadraoConfig {
   smpArea: number;         // mAU·s — area of the sample peak
   smpDeclaredAmountUg: number; // µg — theoretical/declared amount (for purity %)
   notes: string;
+  selectedLotIds: string[];  // operator-selected lots to show in report (empty = show all)
 }
 
 // ─── Math ─────────────────────────────────────────────────────────────────────
@@ -1068,7 +1069,7 @@ function saveCompoundCalibrations(c: Record<string, CompoundCalibration>) {
 const PADRAO_KEY = "hplc_padrao_config_v1";
 const DEFAULT_PADRAO_CONFIG: PadraoConfig = {
   compoundName: "", stdPeakName: "", stdArea: 0, stdAmountUg: 0, stdPurity: 100,
-  smpPeakName: "", smpArea: 0, smpDeclaredAmountUg: 0, notes: "",
+  smpPeakName: "", smpArea: 0, smpDeclaredAmountUg: 0, notes: "", selectedLotIds: [],
 };
 function loadPadraoConfig(): PadraoConfig {
   try { return { ...DEFAULT_PADRAO_CONFIG, ...(JSON.parse(localStorage.getItem(PADRAO_KEY) ?? "{}") as Partial<PadraoConfig>) }; }
@@ -1822,9 +1823,15 @@ export default function HplcSimulator() {
   const [finalizeNotes, setFinalizeNotes] = useState("");
   const [newAnalysisDialog, setNewAnalysisDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  // Inline lot registration form (Lotes tab)
+  const [inlineLotNumber, setInlineLotNumber] = useState("");
+  const [inlineLotNotes, setInlineLotNotes] = useState("");
   const [importText, setImportText] = useState("");
   const [importReplacesPeaks, setImportReplacesPeaks] = useState(true);
-  const [padraoConfig, setPadraoConfig] = useState<PadraoConfig>(() => loadPadraoConfig());
+  const [padraoConfig, setPadraoConfig] = useState<PadraoConfig>(() => {
+    const cfg = loadPadraoConfig();
+    return { ...DEFAULT_PADRAO_CONFIG, ...cfg, selectedLotIds: cfg.selectedLotIds ?? [] };
+  });
   const updatePadrao = useCallback((patch: Partial<PadraoConfig>) => {
     setPadraoConfig(prev => { const next = { ...prev, ...patch }; savePadraoConfig(next); return next; });
   }, []);
@@ -4190,12 +4197,19 @@ export default function HplcSimulator() {
                 </div>
               </div>
 
-              {/* Per-compound Calibration Tables — show only compounds with identified peaks */}
+              {/* Per-compound Calibration Tables — only show the compound selected/configured in the chromatogram */}
               {activeCompounds
                 .filter(compound => {
+                  // Filter 1: must match calib.compoundName (the compound selected at start)
+                  if (calib.compoundName.trim()) {
+                    const n = compound.name.toLowerCase();
+                    const cn = calib.compoundName.toLowerCase().trim();
+                    if (!n.includes(cn) && !cn.includes(n)) return false;
+                  }
+                  // Filter 2: must have calibration standards defined
                   const cc = getCC(compound.id);
                   if (cc.standards.length === 0) return false;
-                  // Show only compounds that have a matching peak in the current chromatogram
+                  // Filter 3: must have a matching peak in the current chromatogram
                   return peaks.some(p =>
                     (p.name && (
                       p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
@@ -4838,16 +4852,54 @@ export default function HplcSimulator() {
                   </div>
                 </div>
 
-                {/* Add lot button */}
-                <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
-                  <AddLotDialog onSave={handleAddLot}>
-                    <Button size="sm" className="h-7 text-xs gap-1">
-                      <Plus className="h-3 w-3" /> Registrar Lote Atual
-                    </Button>
-                  </AddLotDialog>
-                  <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888" }}>
-                    Salva o cromatograma atual como um novo lote desta fórmula.
-                  </span>
+                {/* Inline lot registration form */}
+                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "14px 16px", marginBottom: 16 }}>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#1e293b", marginBottom: 10 }}>
+                    Registrar Novo Lote
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                    <div>
+                      <label style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b", display: "block", marginBottom: 3 }}>Nº do Lote *</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: LOT-2025-001"
+                        value={inlineLotNumber}
+                        onChange={e => setInlineLotNumber(e.target.value)}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 11, padding: "5px 9px", border: "1px solid #cbd5e1", borderRadius: 5, width: "100%", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b", display: "block", marginBottom: 3 }}>Observações</label>
+                      <input
+                        type="text"
+                        placeholder="Opcional"
+                        value={inlineLotNotes}
+                        onChange={e => setInlineLotNotes(e.target.value)}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 11, padding: "5px 9px", border: "1px solid #cbd5e1", borderRadius: 5, width: "100%", boxSizing: "border-box" }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <button
+                      disabled={!inlineLotNumber.trim()}
+                      onClick={() => {
+                        if (!inlineLotNumber.trim()) return;
+                        handleAddLot(inlineLotNumber.trim(), inlineLotNotes.trim());
+                        setInlineLotNumber("");
+                        setInlineLotNotes("");
+                      }}
+                      style={{
+                        fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold",
+                        padding: "6px 16px", background: inlineLotNumber.trim() ? "#1d4ed8" : "#94a3b8",
+                        color: "#fff", border: "none", borderRadius: 5, cursor: inlineLotNumber.trim() ? "pointer" : "not-allowed",
+                      }}
+                    >
+                      + Registrar Lote Atual
+                    </button>
+                    <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8" }}>
+                      Salva o cromatograma atual com os picos configurados como novo lote desta fórmula.
+                    </span>
+                  </div>
                 </div>
 
                 {/* Lots results table */}
@@ -5045,7 +5097,7 @@ export default function HplcSimulator() {
         const hasData = stdArea > 0 && smpArea > 0 && padraoConfig.stdAmountUg > 0;
         const relativeTeor = padraoConfig.stdAmountUg > 0 ? (foundAmountUg / padraoConfig.stdAmountUg) * 100 : 0;
 
-        // Lots matching the selected compound
+        // All lots matching the selected compound
         const relevantLots = lots.filter(lot =>
           padraoConfig.compoundName
             ? lot.results.some(r =>
@@ -5053,6 +5105,16 @@ export default function HplcSimulator() {
                 padraoConfig.compoundName.toLowerCase().includes(r.compoundName.toLowerCase()))
             : lot.results.length > 0
         );
+
+        // Operator-filtered lots (selectedLotIds empty = show all)
+        const displayLots = padraoConfig.selectedLotIds.length > 0
+          ? relevantLots.filter(l => padraoConfig.selectedLotIds.includes(l.id))
+          : relevantLots;
+
+        const toggleLotSelection = (id: string) => {
+          const cur = padraoConfig.selectedLotIds;
+          updatePadrao({ selectedLotIds: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] });
+        };
 
         // Auto-fill Padrão fields from the current chromatogram + active compound data
         const autoFillPadrao = () => {
@@ -5097,7 +5159,7 @@ export default function HplcSimulator() {
         const handlePrintPadrao = () => {
           const w = window.open('', '_blank', 'width=940,height=820');
           if (!w) return;
-          const lotsRows = relevantLots.map(lot => {
+          const lotsRows = displayLots.map(lot => {
             const r = lot.results.find(res =>
               padraoConfig.compoundName
                 ? res.compoundName.toLowerCase().includes(padraoConfig.compoundName.toLowerCase())
@@ -5443,52 +5505,119 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               </div>
             </div>
 
-            {/* ─ Analyzed lots matching the compound ─ */}
+            {/* ─ Lot selector + analyzed lots table ─ */}
             {relevantLots.length > 0 && (
-              <div style={{ ...CARD, marginBottom: 18 }}>
-                <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#475569", marginBottom: 8 }}>
-                  Lotes Analisados{padraoConfig.compoundName ? ` — ${padraoConfig.compoundName}` : ""}
-                  <span style={{ fontWeight: "normal", fontSize: 9, color: "#94a3b8", marginLeft: 8 }}>
-                    {relevantLots.length} lote{relevantLots.length !== 1 ? "s" : ""} · registrados na aba Lotes
-                  </span>
-                </div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 10.5 }}>
-                  <thead>
-                    <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                      {["Lote", "Data", "Amostra", "Área (mAU·s)", "Conc. (µg/ml)", "Conformidade"].map(h => (
-                        <th key={h} style={{ padding: "5px 8px", textAlign: h === "Lote" || h === "Amostra" ? "left" : "right", color: "#475569", fontWeight: 700 }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {relevantLots.map((lot, i) => {
-                      const r = lot.results.find(res =>
-                        padraoConfig.compoundName
-                          ? res.compoundName.toLowerCase().includes(padraoConfig.compoundName.toLowerCase())
-                          : true
-                      );
-                      const statusColor = r?.inSpec === null ? "#1d4ed8" : r?.inSpec ? "#166534" : "#b91c1c";
-                      const statusBg = r?.inSpec === null ? "#eff6ff" : r?.inSpec ? "#dcfce7" : "#fee2e2";
+              <>
+                {/* Lot selector — operator picks which lots go into the report */}
+                <div style={{ ...CARD, marginBottom: 12 }}>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#475569", marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
+                    Seleção de Lotes para o Relatório
+                    <span style={{ fontWeight: "normal", fontSize: 9, color: "#94a3b8" }}>
+                      {padraoConfig.selectedLotIds.length === 0
+                        ? `Todos os ${relevantLots.length} lote${relevantLots.length !== 1 ? "s" : ""} selecionados`
+                        : `${padraoConfig.selectedLotIds.length} de ${relevantLots.length} selecionado${padraoConfig.selectedLotIds.length !== 1 ? "s" : ""}`}
+                    </span>
+                    {padraoConfig.selectedLotIds.length > 0 && (
+                      <button
+                        onClick={() => updatePadrao({ selectedLotIds: [] })}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "1px 7px", border: "1px solid #e2e8f0", borderRadius: 3, background: "#f8fafc", cursor: "pointer", color: "#94a3b8", marginLeft: "auto" }}
+                      >
+                        Limpar seleção (todos)
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {relevantLots.map(lot => {
+                      const selected = padraoConfig.selectedLotIds.length === 0 || padraoConfig.selectedLotIds.includes(lot.id);
+                      const checked = padraoConfig.selectedLotIds.includes(lot.id);
                       return (
-                        <tr key={lot.id} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                          <td style={{ padding: "5px 8px", fontWeight: 700 }}>{lot.lotNumber}</td>
-                          <td style={{ padding: "5px 8px", textAlign: "right", color: "#64748b" }}>{new Date(lot.createdAt).toLocaleDateString("pt-BR")}</td>
-                          <td style={{ padding: "5px 8px", color: "#475569" }}>{lot.sample.sampleName || "—"}</td>
-                          <td style={{ padding: "5px 8px", textAlign: "right" }}>{r ? r.area.toFixed(3) : "—"}</td>
-                          <td style={{ padding: "5px 8px", textAlign: "right" }}>{r ? r.concentration.toFixed(3) : "—"}</td>
-                          <td style={{ padding: "5px 8px", textAlign: "right" }}>
-                            {r ? (
-                              <span style={{ padding: "2px 6px", borderRadius: 3, background: statusBg, color: statusColor, fontSize: 9, fontWeight: "bold" }}>
-                                {r.inSpec === null ? "N/A" : r.inSpec ? "✓ Conforme" : "✗ Não Conforme"}
-                              </span>
-                            ) : "—"}
-                          </td>
-                        </tr>
+                        <label
+                          key={lot.id}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 5, cursor: "pointer",
+                            fontFamily: "Courier New, monospace", fontSize: 10,
+                            padding: "4px 10px", borderRadius: 4,
+                            border: `1px solid ${selected ? "#93c5fd" : "#e2e8f0"}`,
+                            background: selected ? "#eff6ff" : "#f8fafc",
+                            color: selected ? "#1d4ed8" : "#94a3b8",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={padraoConfig.selectedLotIds.length === 0 || checked}
+                            onChange={() => {
+                              if (padraoConfig.selectedLotIds.length === 0) {
+                                // Going from "all" to "specific" — select all except this one
+                                updatePadrao({ selectedLotIds: relevantLots.filter(l => l.id !== lot.id).map(l => l.id) });
+                              } else {
+                                toggleLotSelection(lot.id);
+                              }
+                            }}
+                            style={{ accentColor: "#1d4ed8" }}
+                          />
+                          <span style={{ fontWeight: "bold" }}>{lot.lotNumber}</span>
+                          <span style={{ color: "#94a3b8", fontSize: 9 }}>{new Date(lot.createdAt).toLocaleDateString("pt-BR")}</span>
+                        </label>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8", marginTop: 8 }}>
+                    Desmarque lotes para excluí-los do relatório impresso. Selecione apenas um para análise individual.
+                  </div>
+                </div>
+
+                {/* Analyzed lots table — shows only displayLots */}
+                <div style={{ ...CARD, marginBottom: 18 }}>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#475569", marginBottom: 8 }}>
+                    Lotes Analisados{padraoConfig.compoundName ? ` — ${padraoConfig.compoundName}` : ""}
+                    <span style={{ fontWeight: "normal", fontSize: 9, color: "#94a3b8", marginLeft: 8 }}>
+                      {displayLots.length} lote{displayLots.length !== 1 ? "s" : ""} no relatório
+                    </span>
+                  </div>
+                  {displayLots.length === 0 ? (
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#94a3b8", padding: "10px 0" }}>
+                      Nenhum lote selecionado. Marque pelo menos um lote acima.
+                    </div>
+                  ) : (
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 10.5 }}>
+                      <thead>
+                        <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
+                          {["Lote", "Data", "Amostra", "Área (mAU·s)", "Conc. (µg/ml)", "Conformidade"].map(h => (
+                            <th key={h} style={{ padding: "5px 8px", textAlign: h === "Lote" || h === "Amostra" ? "left" : "right", color: "#475569", fontWeight: 700 }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {displayLots.map((lot, i) => {
+                          const r = lot.results.find(res =>
+                            padraoConfig.compoundName
+                              ? res.compoundName.toLowerCase().includes(padraoConfig.compoundName.toLowerCase())
+                              : true
+                          );
+                          const statusColor = r?.inSpec === null ? "#1d4ed8" : r?.inSpec ? "#166534" : "#b91c1c";
+                          const statusBg = r?.inSpec === null ? "#eff6ff" : r?.inSpec ? "#dcfce7" : "#fee2e2";
+                          return (
+                            <tr key={lot.id} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                              <td style={{ padding: "5px 8px", fontWeight: 700 }}>{lot.lotNumber}</td>
+                              <td style={{ padding: "5px 8px", textAlign: "right", color: "#64748b" }}>{new Date(lot.createdAt).toLocaleDateString("pt-BR")}</td>
+                              <td style={{ padding: "5px 8px", color: "#475569" }}>{lot.sample.sampleName || "—"}</td>
+                              <td style={{ padding: "5px 8px", textAlign: "right" }}>{r ? r.area.toFixed(3) : "—"}</td>
+                              <td style={{ padding: "5px 8px", textAlign: "right" }}>{r ? r.concentration.toFixed(3) : "—"}</td>
+                              <td style={{ padding: "5px 8px", textAlign: "right" }}>
+                                {r ? (
+                                  <span style={{ padding: "2px 6px", borderRadius: 3, background: statusBg, color: statusColor, fontSize: 9, fontWeight: "bold" }}>
+                                    {r.inSpec === null ? "N/A" : r.inSpec ? "✓ Conforme" : "✗ Não Conforme"}
+                                  </span>
+                                ) : "—"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </>
             )}
 
             {/* Multi-peak visual reference */}
