@@ -40,12 +40,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch { return null; }
   });
   const [token, setToken] = useState<string | null>(() => {
-    try { return store.get(TOKEN_KEY); } catch { return null; }
+    try {
+      const t = store.get(TOKEN_KEY);
+      // Set the token getter synchronously during state initialisation so that
+      // React Query requests fired on the very first render already carry the
+      // Authorization header. Without this, the getter would only be wired up
+      // after the first useEffect flush, causing a 401 flash on page reload.
+      if (t) setAuthTokenGetter(() => t);
+      return t;
+    } catch { return null; }
   });
   // isLoading is always false: we initialise synchronously, no async step needed.
   const isLoading = false;
 
-  // Wire up the API client token getter whenever the token changes.
+  // Keep the token getter in sync whenever the token changes after mount
+  // (login / logout flows that do NOT trigger a full page reload).
   useEffect(() => {
     setAuthTokenGetter(token ? () => token : null);
   }, [token]);
