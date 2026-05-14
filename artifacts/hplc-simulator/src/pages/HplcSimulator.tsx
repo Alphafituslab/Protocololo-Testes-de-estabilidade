@@ -60,10 +60,14 @@ interface DetectorInfo {
   refBandwidth: number;
   runTime: number;      // min
   // Baseline appearance
-  baselineNoise: number;  // mAU — high-frequency noise amplitude (0 = flat)
-  baselineDrift: number;  // mAU — linear upward drift over full run
-  baselinePulse: number;  // mAU — pump pulsation ripple
-  lineWidth: number;      // px — thickness of the chromatogram trace
+  baselineNoise: number;       // mAU — high-frequency noise amplitude (0 = flat)
+  baselineDrift: number;       // mAU — linear upward drift over full run
+  baselinePulse: number;       // mAU — pump pulsation ripple
+  baselineWander: number;      // mAU — slow sinusoidal baseline oscillation (gradient effect)
+  shotNoise: number;           // 0-1  — signal-proportional noise (LC/MS counting statistics)
+  baselineHump: number;        // mAU — broad column-bleed background hump
+  broadeningFactor: number;    // 0-1  — RT-dependent peak width increase (van Deemter)
+  lineWidth: number;           // px — thickness of the chromatogram trace
   // Y-axis (mAU) scale
   yAxisAuto: boolean;     // true = auto-scale; false = use yAxisMin/yAxisMax
   yAxisMin: number;       // mAU — manual lower limit
@@ -288,24 +292,34 @@ function idSeed(id: string): number {
 }
 
 // Per-peak surface roughness: deterministic noise proportional to local Gaussian amplitude
-// Returns a multiplier offset so the Gaussian shape is preserved but roughened
+// Returns a multiplier offset so the Gaussian shape is preserved but roughened.
+// Five octaves give a realistic multi-scale texture (fine + coarse heterogeneity).
 function peakNoiseAt(i: number, seed: number, localAmp: number, peakNoise: number): number {
   if (peakNoise <= 0 || localAmp < 0.5) return 0;
-  // Three octaves of layered noise, different frequency per octave to mimic column heterogeneity
-  const n1 = pseudoNoise(i * 7 + seed % 997);
-  const n2 = pseudoNoise(i * 23 + (seed >> 3) % 1987);
-  const n3 = pseudoNoise(i * 71 + (seed >> 6) % 4003);
-  const raw = n1 * 0.55 + n2 * 0.30 + n3 * 0.15;
-  // Scale: at peakNoise=1, roughness ≈ 8% of local amplitude
-  return raw * peakNoise * 0.08 * localAmp;
+  const n1 = pseudoNoise(i * 7   + seed % 997);
+  const n2 = pseudoNoise(i * 23  + (seed >> 3)  % 1987);
+  const n3 = pseudoNoise(i * 71  + (seed >> 6)  % 4003);
+  const n4 = pseudoNoise(i * 157 + (seed >> 9)  % 7001);
+  const n5 = pseudoNoise(i * 13  + (seed >> 12) % 3001);
+  const raw = n1 * 0.38 + n2 * 0.26 + n3 * 0.18 + n4 * 0.11 + n5 * 0.07;
+  // At peakNoise=1 → roughness ≈ 10% of local amplitude
+  return raw * peakNoise * 0.10 * localAmp;
 }
 
 function buildChromatogram(
   peaks: Peak[], runTime: number, pts = 6000,
   noiseAmp = 1.8, driftAmp = 1.2, pulseAmp = 0.35,
+  wanderAmp = 0,       // mAU — slow sinusoidal baseline oscillation
+  shotNoise = 0,       // 0-1  — signal-proportional noise (LC/MS counting statistics)
+  humpAmp = 0,         // mAU — broad column-bleed background hump
+  broadeningFactor = 0, // 0-1 — RT-dependent peak broadening (van Deemter)
 ) {
   const dt = runTime / pts;
   const pulseFreq = 1.6;   // cycles / min
+
+  // Hump: broad Gaussian centered at ~65% of run time (gradient / column-bleed)
+  const humpCenter = runTime * 0.65;
+  const humpSigma  = runTime * 0.18;
 
   // Pre-compute per-peak seeds once
   const peakSeeds = peaks.map(p => idSeed(p.id));
@@ -313,26 +327,50 @@ function buildChromatogram(
   return Array.from({ length: pts + 1 }, (_, i) => {
     const t = i * dt;
 
-    // Sum all user-defined peaks (with optional surface roughness)
+    // Sum all user-defined peaks (with optional surface roughness + RT broadening)
     let signal = 0;
     for (let pi = 0; pi < peaks.length; pi++) {
       const p = peaks[pi];
-      const localAmp = gaussian(t, p.retentionTime, p.width, p.height, p.asymmetry);
+      // van Deemter broadening: peaks widen linearly with retention time
+      const effWidth = broadeningFactor > 0
+        ? p.width * (1 + broadeningFactor * (p.retentionTime / runTime))
+        : p.width;
+      const localAmp = gaussian(t, p.retentionTime, effWidth, p.height, p.asymmetry);
       signal += localAmp + peakNoiseAt(i, peakSeeds[pi], localAmp, p.peakNoise ?? 0);
     }
 
-    // Correlated baseline noise (2-octave layering for natural feel)
-    const n1 = pseudoNoise(i);
-    const n2 = pseudoNoise(i * 3 + 4999);
-    const noise = noiseAmp * (n1 * 0.65 + n2 * 0.35);
+    // Shot noise — proportional to √signal, mimics LC/MS photon/ion counting statistics
+    const shot = shotNoise > 0 && signal > 1
+      ? pseudoNoise(i * 997 + 3333) * shotNoise * Math.sqrt(signal) * 0.5
+      : 0;
 
-    // Slight linear baseline drift
+    // Multi-octave correlated baseline noise (4 octaves → more realistic texture)
+    const n1 = pseudoNoise(i);
+    const n2 = pseudoNoise(i * 3  + 4999);
+    const n3 = pseudoNoise(i * 11 + 8888);
+    const n4 = pseudoNoise(i * 37 + 1234);
+    const noise = noiseAmp * (n1 * 0.50 + n2 * 0.28 + n3 * 0.14 + n4 * 0.08);
+
+    // Slow baseline wander: two sinusoids at different periods (visible in gradient LC)
+    const wander = wanderAmp > 0
+      ? wanderAmp * (
+          Math.sin(2 * Math.PI * 2.3 * t / runTime + 0.8) * 0.60 +
+          Math.sin(2 * Math.PI * 4.7 * t / runTime + 2.1) * 0.40
+        )
+      : 0;
+
+    // Linear baseline drift
     const drift = driftAmp * (t / runTime);
 
     // Pump pressure pulsation
     const pulse = pulseAmp * Math.sin(2 * Math.PI * pulseFreq * t);
 
-    const total = signal + noise + drift + pulse;
+    // Column bleed / matrix hump — broad Gaussian background
+    const hump = humpAmp > 0
+      ? humpAmp * Math.exp(-((t - humpCenter) ** 2) / (2 * humpSigma * humpSigma))
+      : 0;
+
+    const total = signal + shot + noise + wander + drift + pulse + hump;
     return { time: parseFloat(t.toFixed(4)), signal: parseFloat(Math.max(0, total).toFixed(3)) };
   });
 }
@@ -561,6 +599,10 @@ const DEFAULT_DETECTOR: DetectorInfo = {
   baselineNoise: 1.8,
   baselineDrift: 1.2,
   baselinePulse: 0.35,
+  baselineWander: 0,
+  shotNoise: 0,
+  baselineHump: 0,
+  broadeningFactor: 0,
   lineWidth: 1.0,
   yAxisAuto: true,
   yAxisMin: 0,
@@ -1075,7 +1117,7 @@ function buildChromatogramPng(
     const cW = W - ML_c - 36;
     const runTime = formula.detector.runTime;
     const det = formula.detector;
-    const chrom = buildChromatogram(run.peaks, runTime, 1600, det.baselineNoise ?? 1.8, det.baselineDrift ?? 1.2, det.baselinePulse ?? 0.35);
+    const chrom = buildChromatogram(run.peaks, runTime, 1600, det.baselineNoise ?? 1.8, det.baselineDrift ?? 1.2, det.baselinePulse ?? 0.35, det.baselineWander ?? 0, det.shotNoise ?? 0, det.baselineHump ?? 0, det.broadeningFactor ?? 0);
     const maxSig = Math.max(10, ...chrom.map(p => p.signal)) * 1.1;
 
     const xS = (t: number) => ML_c + (t / runTime) * cW;
@@ -1915,8 +1957,8 @@ export default function HplcSimulator() {
   // ── Chromatogram data ────────────────────────────────────────────────────────
 
   const chromatogram = useMemo(
-    () => buildChromatogram(peaks, detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse),
-    [peaks, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse],
+    () => buildChromatogram(peaks, detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander ?? 0, detector.shotNoise ?? 0, detector.baselineHump ?? 0, detector.broadeningFactor ?? 0),
+    [peaks, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander, detector.shotNoise, detector.baselineHump, detector.broadeningFactor],
   );
 
   // Standard reference peak overlay — simulates the mid-level calibration standard
@@ -1930,7 +1972,7 @@ export default function HplcSimulator() {
     const stdPeakObj: Peak = {
       ...namedPeak, id: "std-ovl", name: "STD", height: stdHeight, manualArea: 0,
     };
-    const chrom = buildChromatogram([stdPeakObj], detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse);
+    const chrom = buildChromatogram([stdPeakObj], detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander ?? 0, detector.shotNoise ?? 0, detector.baselineHump ?? 0, detector.broadeningFactor ?? 0);
     return { chrom, midStd, namedPeak, stdHeight, level: Math.floor(sorted.length / 2) + 1, total: sorted.length };
   }, [showStdPeak, standards, peaks, calib.compoundName, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse]);
 
@@ -2169,7 +2211,7 @@ export default function HplcSimulator() {
     markDirty();
   };
   const dField = (k: keyof DetectorInfo) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const numericKeys: (keyof DetectorInfo)[] = ["runTime", "sigWavelength", "sigBandwidth", "refWavelength", "refBandwidth", "baselineNoise", "baselineDrift", "baselinePulse", "lineWidth"];
+    const numericKeys: (keyof DetectorInfo)[] = ["runTime", "sigWavelength", "sigBandwidth", "refWavelength", "refBandwidth", "baselineNoise", "baselineDrift", "baselinePulse", "baselineWander", "shotNoise", "baselineHump", "broadeningFactor", "lineWidth"];
     setDetector(d => ({ ...d, [k]: numericKeys.includes(k) ? parseFloat(e.target.value) || 0 : e.target.value }));
     markDirty();
   };
@@ -2890,10 +2932,85 @@ export default function HplcSimulator() {
                       <span>0 = sem pulso</span><span>5 = forte</span>
                     </div>
                   </div>
+                  {/* Baseline Wander slider */}
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                      <span>Ondulação lenta (mAU)</span>
+                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineWander ?? 0).toFixed(2)}</span>
+                    </div>
+                    <input type="range" min="0" max="8" step="0.1"
+                      value={detector.baselineWander ?? 0}
+                      onChange={e => { setDetector(d => ({ ...d, baselineWander: parseFloat(e.target.value) })); markDirty(); }}
+                      className="w-full h-2 accent-blue-600" />
+                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                      <span>0 = sem oscilação</span><span>8 = gradiente forte</span>
+                    </div>
+                  </div>
+                  {/* Shot Noise slider */}
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                      <span>Ruído proporcional / shot (LC-MS)</span>
+                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.shotNoise ?? 0).toFixed(2)}</span>
+                    </div>
+                    <input type="range" min="0" max="1" step="0.01"
+                      value={detector.shotNoise ?? 0}
+                      onChange={e => { setDetector(d => ({ ...d, shotNoise: parseFloat(e.target.value) })); markDirty(); }}
+                      className="w-full h-2 accent-blue-600" />
+                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                      <span>0 = DAD/UV</span><span>1 = MS TIC intenso</span>
+                    </div>
+                  </div>
+                  {/* Hump slider */}
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                      <span>Hump coluna / matriz (mAU)</span>
+                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineHump ?? 0).toFixed(0)}</span>
+                    </div>
+                    <input type="range" min="0" max="120" step="1"
+                      value={detector.baselineHump ?? 0}
+                      onChange={e => { setDetector(d => ({ ...d, baselineHump: parseFloat(e.target.value) })); markDirty(); }}
+                      className="w-full h-2 accent-blue-600" />
+                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                      <span>0 = sem hump</span><span>120 = column bleed</span>
+                    </div>
+                  </div>
+                  {/* Broadening slider */}
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                      <span>Alargamento c/ RT — van Deemter</span>
+                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.broadeningFactor ?? 0).toFixed(2)}</span>
+                    </div>
+                    <input type="range" min="0" max="1" step="0.01"
+                      value={detector.broadeningFactor ?? 0}
+                      onChange={e => { setDetector(d => ({ ...d, broadeningFactor: parseFloat(e.target.value) })); markDirty(); }}
+                      className="w-full h-2 accent-blue-600" />
+                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                      <span>0 = sem alargamento</span><span>1 = picos dobram largura</span>
+                    </div>
+                  </div>
+                  {/* Noise presets */}
+                  <div style={{ marginBottom: 6 }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 4 }}>Presets rápidos:</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      {([
+                        { label: "DAD limpo",   vals: { baselineNoise: 0.6, baselineDrift: 0.3, baselinePulse: 0.1, baselineWander: 0,   shotNoise: 0,    baselineHump: 0,  broadeningFactor: 0.1 } },
+                        { label: "HPLC/VWD",    vals: { baselineNoise: 1.8, baselineDrift: 1.2, baselinePulse: 0.35,baselineWander: 0.8, shotNoise: 0,    baselineHump: 0,  broadeningFactor: 0.25 } },
+                        { label: "LC-MS TIC",   vals: { baselineNoise: 2.5, baselineDrift: 0.5, baselinePulse: 0.1, baselineWander: 2.0, shotNoise: 0.5,  baselineHump: 20, broadeningFactor: 0.3 } },
+                        { label: "Gradiente",   vals: { baselineNoise: 2.0, baselineDrift: 3.0, baselinePulse: 0.2, baselineWander: 2.5, shotNoise: 0.15, baselineHump: 50, broadeningFactor: 0.45 } },
+                        { label: "GC/FID",      vals: { baselineNoise: 0.4, baselineDrift: 0.2, baselinePulse: 0,   baselineWander: 0,   shotNoise: 0,    baselineHump: 0,  broadeningFactor: 0.05 } },
+                      ] as { label: string; vals: Partial<DetectorInfo> }[]).map(pr => (
+                        <button key={pr.label} type="button"
+                          onClick={() => { setDetector(d => ({ ...d, ...pr.vals })); markDirty(); }}
+                          style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, padding: "2px 6px", border: "1px solid #bbb", borderRadius: 3, background: "#f0f4ff", cursor: "pointer", color: "#1d4ed8", whiteSpace: "nowrap" }}>
+                          {pr.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   {/* Reset button */}
                   <button
                     type="button"
-                    onClick={() => { setDetector(d => ({ ...d, baselineNoise: 1.8, baselineDrift: 1.2, baselinePulse: 0.35, lineWidth: 1.0 })); markDirty(); }}
+                    onClick={() => { setDetector(d => ({ ...d, baselineNoise: 1.8, baselineDrift: 1.2, baselinePulse: 0.35, baselineWander: 0, shotNoise: 0, baselineHump: 0, broadeningFactor: 0, lineWidth: 1.0 })); markDirty(); }}
                     style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 8px", border: "1px solid #bbb", borderRadius: 3, background: "#f9fafb", cursor: "pointer", color: "#555", marginTop: 4 }}
                   >
                     ↺ Restaurar padrão
@@ -4175,7 +4292,7 @@ export default function HplcSimulator() {
             const runTime = sessionFormula.detector.runTime;
             const pts = 2000;
             const visibleRuns = session.runs.filter(r => !r.hidden);
-            const allChrom = visibleRuns.map(r => buildChromatogram(r.peaks, runTime, pts, sessionFormula.detector.baselineNoise ?? 1.8, sessionFormula.detector.baselineDrift ?? 1.2, sessionFormula.detector.baselinePulse ?? 0.35));
+            const allChrom = visibleRuns.map(r => buildChromatogram(r.peaks, runTime, pts, sessionFormula.detector.baselineNoise ?? 1.8, sessionFormula.detector.baselineDrift ?? 1.2, sessionFormula.detector.baselinePulse ?? 0.35, sessionFormula.detector.baselineWander ?? 0, sessionFormula.detector.shotNoise ?? 0, sessionFormula.detector.baselineHump ?? 0, sessionFormula.detector.broadeningFactor ?? 0));
             const overlayData: Record<string, number>[] = allChrom.length > 0
               ? allChrom[0].map((pt, i) => {
                   const row: Record<string, number> = { time: pt.time };
