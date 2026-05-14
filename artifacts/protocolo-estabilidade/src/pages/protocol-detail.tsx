@@ -408,6 +408,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [editLot, setEditLot] = useState<typeof lots[number] | null>(null);
+  const [lastAdded, setLastAdded] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof lotSchema>>({
     resolver: zodResolver(lotSchema),
@@ -417,14 +418,15 @@ function LotsTab({ protocolId }: { protocolId: number }) {
   const createLot = useCreateLot({
     mutation: {
       onSuccess: () => {
-        // Keep dialog open so the user can add more lots sequentially.
-        // Reset the form for the next entry and refresh the list.
+        const justAdded = form.getValues().lotNumber;
+        setLastAdded(justAdded);
         form.reset({ lotNumber: "", manufacturingDate: "", quantity: 20, notes: "" });
-        toast({ title: "Lote adicionado" });
+        toast({ title: `Lote ${justAdded} adicionado` });
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
           queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
-        }, 0);
+          form.setFocus("lotNumber");
+        }, 50);
       },
     },
   });
@@ -469,6 +471,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
 
   const openNew = () => {
     setEditLot(null);
+    setLastAdded(null);
     form.reset({ lotNumber: "", manufacturingDate: "", quantity: 20, notes: "" });
     setOpen(true);
   };
@@ -556,6 +559,14 @@ function LotsTab({ protocolId }: { protocolId: number }) {
             )}
           </DialogHeader>
 
+          {/* Success feedback — shown right after a lot is added */}
+          {!editLot && lastAdded && (
+            <div className="flex items-center gap-2 rounded-md bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-700">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600" />
+              <span>Lote <strong className="font-mono">{lastAdded}</strong> cadastrado. Preencha os campos abaixo para adicionar o próximo.</span>
+            </div>
+          )}
+
           {/* Already-added lots list (visible only when creating, not editing) */}
           {!editLot && lots.length > 0 && (
             <div className="rounded-md border bg-muted/30 px-3 py-2 space-y-1 max-h-36 overflow-y-auto">
@@ -564,7 +575,9 @@ function LotsTab({ protocolId }: { protocolId: number }) {
               </p>
               {lots.map((lot) => (
                 <div key={lot.id} className="flex items-center justify-between text-xs">
-                  <span className="font-mono font-medium text-foreground">{lot.lotNumber}</span>
+                  <span className={`font-mono font-medium ${lot.lotNumber === lastAdded ? "text-green-700" : "text-foreground"}`}>
+                    {lot.lotNumber === lastAdded && "✓ "}{lot.lotNumber}
+                  </span>
                   <span className="text-muted-foreground">{lot.manufacturingDate} · {lot.quantity} un.</span>
                 </div>
               ))}
@@ -728,6 +741,14 @@ function InlineCell({
   );
   const [observation, setObservation] = useState(result?.observation ?? "");
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!editing) {
+      setValue(result?.result ?? "");
+      setStatus((result?.status as "conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva") ?? "conforme");
+      setObservation(result?.observation ?? "");
+    }
+  }, [result, editing]);
   const { toast } = useToast();
 
   const upsertResult = useUpsertResult({
@@ -2278,6 +2299,7 @@ export default function ProtocolDetail() {
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
   const [deletePasswordOpen, setDeletePasswordOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("info");
 
   const { data: protocol, isLoading } = useGetProtocol(numId, {
     query: { enabled: !!id, queryKey: getGetProtocolQueryKey(numId) },
@@ -2501,7 +2523,7 @@ export default function ProtocolDetail() {
         );
       })()}
 
-      <Tabs defaultValue="info" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="info" data-testid="tab-info">Informações</TabsTrigger>
           <TabsTrigger value="lots" data-testid="tab-lots">Lotes</TabsTrigger>
