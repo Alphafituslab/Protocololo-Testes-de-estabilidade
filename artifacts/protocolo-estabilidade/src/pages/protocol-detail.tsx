@@ -417,11 +417,9 @@ function LotsTab({ protocolId }: { protocolId: number }) {
   const createLot = useCreateLot({
     mutation: {
       onSuccess: () => {
-        // Close dialog and reset form first so the portal unmounts cleanly,
-        // then defer cache invalidation to a separate tick to avoid the
-        // React "insertBefore" reconciliation error.
-        setOpen(false);
-        form.reset();
+        // Keep dialog open so the user can add more lots sequentially.
+        // Reset the form for the next entry and refresh the list.
+        form.reset({ lotNumber: "", manufacturingDate: "", quantity: 20, notes: "" });
         toast({ title: "Lote adicionado" });
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
@@ -548,10 +546,31 @@ function LotsTab({ protocolId }: { protocolId: number }) {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editLot ? "Editar Lote" : "Adicionar Lote"}</DialogTitle>
+            <DialogTitle>{editLot ? "Editar Lote" : "Adicionar Lotes"}</DialogTitle>
+            {!editLot && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Preencha e clique em <strong>Adicionar</strong> para cada lote. Clique em <strong>Fechar</strong> quando terminar.
+              </p>
+            )}
           </DialogHeader>
+
+          {/* Already-added lots list (visible only when creating, not editing) */}
+          {!editLot && lots.length > 0 && (
+            <div className="rounded-md border bg-muted/30 px-3 py-2 space-y-1 max-h-36 overflow-y-auto">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                Lotes cadastrados ({lots.length})
+              </p>
+              {lots.map((lot) => (
+                <div key={lot.id} className="flex items-center justify-between text-xs">
+                  <span className="font-mono font-medium text-foreground">{lot.lotNumber}</span>
+                  <span className="text-muted-foreground">{lot.manufacturingDate} · {lot.quantity} un.</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField control={form.control} name="lotNumber" render={({ field }) => (
@@ -584,8 +603,10 @@ function LotsTab({ protocolId }: { protocolId: number }) {
                   <FormMessage />
                 </FormItem>
               )} />
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+              <div className="flex justify-between gap-2">
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                  {editLot ? "Cancelar" : "Fechar"}
+                </Button>
                 <Button type="submit" disabled={createLot.isPending || updateLot.isPending}>
                   {(createLot.isPending || updateLot.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   {editLot ? "Salvar" : "Adicionar"}
@@ -1162,13 +1183,13 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
             <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/40">
+                  <TableRow className="bg-muted">
                     {/* Sticky: Parameter column */}
-                    <TableHead className="w-44 text-xs sticky left-0 z-20 bg-muted/40 border-r border-border/60">Parametro</TableHead>
+                    <TableHead className="w-44 text-xs sticky left-0 z-20 bg-muted border-r border-border/60">Parametro</TableHead>
                     {/* Sticky: Criterion column — wider so no text is clipped */}
-                    <TableHead className="w-52 text-xs sticky left-44 z-20 bg-muted/40 border-r border-border/60">Criterio</TableHead>
-                    {/* Sticky: delete-button column */}
-                    <TableHead className="w-6 text-xs sticky left-[23rem] z-20 bg-muted/40 border-r border-border/40"></TableHead>
+                    <TableHead className="w-52 text-xs sticky left-44 z-20 bg-muted border-r border-border/60">Criterio</TableHead>
+                    {/* Sticky: delete-button column — left = w-44 + w-52 = 11rem + 13rem = 24rem */}
+                    <TableHead className="w-6 text-xs sticky left-[24rem] z-20 bg-muted border-r border-border/40"></TableHead>
                     {lots.map((lot) =>
                       PERIODS.map((period) => (
                         <TableHead key={`${lot.id}-${period}`} className="text-xs text-center min-w-28">
@@ -1230,8 +1251,8 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                           placeholder="Critério de aceitação"
                         />
                       </TableCell>
-                      {/* Sticky: delete-button cell */}
-                      <TableCell className={`py-1 px-1 text-center sticky left-[23rem] z-10 border-r border-border/40 ${stickyBg}`}>
+                      {/* Sticky: delete-button cell — left = 11rem + 13rem = 24rem */}
+                      <TableCell className={`py-1 px-1 text-center sticky left-[24rem] z-10 border-r border-border/40 ${stickyBg}`}>
                         <button
                           type="button"
                           onClick={() => removeParam(param.uid)}
@@ -1602,6 +1623,9 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                 <span className="text-lg font-semibold text-green-700">meses</span>
               </div>
               <p className="text-xs text-green-700 mt-1">valor adotado no produto</p>
+              <p className="text-[11px] text-green-600/80 mt-0.5 flex items-center gap-1 justify-end">
+                <span>✓</span> Este valor é exibido no Certificado de Análise
+              </p>
             </div>
           </div>
         </CardContent>
