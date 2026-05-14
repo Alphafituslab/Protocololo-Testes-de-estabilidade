@@ -1738,6 +1738,23 @@ export default function HplcSimulator() {
   const [savePngCertNum, setSavePngCertNum] = useState("");
   const [peakContextMenu, setPeakContextMenu] = useState<{ x: number; y: number; peakId: string } | null>(null);
   const [editingPeakId, setEditingPeakId] = useState<string | null>(null);
+  const [editorDialogOpen, setEditorDialogOpen] = useState(false);
+
+  // Open the peak editor dialog from the context menu.
+  const openEditorDialog = (id: string) => {
+    setEditingPeakId(id);
+    setEditorDialogOpen(true);
+  };
+
+  // Close the peak editor dialog gracefully:
+  // 1. Set open=false so Radix can run its unmount animation.
+  // 2. Clear editingPeakId on the NEXT event-loop tick so the PeakEditorDialog
+  //    component stays in the tree while Radix disposes its portal — this prevents
+  //    the "insertBefore / removeChild" DOM crash.
+  const closeEditorDialog = () => {
+    setEditorDialogOpen(false);
+    setTimeout(() => setEditingPeakId(null), 200);
+  };
   const [finalizeDialog, setFinalizeDialog] = useState<{ id: string; name: string } | null>(null);
   const [finalizeStatus, setFinalizeStatus] = useState<"em_andamento" | "aprovado" | "reprovado">("aprovado");
   const [finalizeNotes, setFinalizeNotes] = useState("");
@@ -2039,7 +2056,9 @@ export default function HplcSimulator() {
   const savePeak = (updated: Peak) => { setPeaks(ps => ps.map(p => p.id === updated.id ? updated : p)); markDirty(); };
   const toggleLockPeak = (id: string) => {
     setPeaks(ps => ps.map(p => p.id === id ? { ...p, locked: !p.locked } : p));
-    if (editingPeakId === id) setEditingPeakId(null);
+    // Close the editor dialog gracefully instead of abruptly removing it from
+    // the tree — this prevents the Radix portal "insertBefore" DOM crash.
+    if (editingPeakId === id) closeEditorDialog();
     markDirty();
   };
 
@@ -5231,7 +5250,7 @@ export default function HplcSimulator() {
               <div style={{ padding: "4px 0" }}>
                 {!peak.locked && (
                   <button
-                    onClick={() => { setEditingPeakId(peak.id); setPeakContextMenu(null); }}
+                    onClick={() => { openEditorDialog(peak.id); setPeakContextMenu(null); }}
                     style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 11, fontFamily: "Courier New, monospace", color: "#1d4ed8", textAlign: "left" }}
                     onMouseEnter={e => (e.currentTarget.style.background = "#eff6ff")}
                     onMouseLeave={e => (e.currentTarget.style.background = "none")}>
@@ -5276,8 +5295,8 @@ export default function HplcSimulator() {
             key={editingPeakId}
             peak={ep}
             onSave={savePeak}
-            controlledOpen={true}
-            onControlledClose={() => setEditingPeakId(null)}
+            controlledOpen={editorDialogOpen}
+            onControlledClose={closeEditorDialog}
           />
         );
       })()}
