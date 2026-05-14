@@ -31,6 +31,7 @@ interface Peak {
   attachedFile?: string;    // filename of imported data file
   printSelected?: boolean;  // include in printed report (default = true)
   locked?: boolean;         // if true: peak cannot be moved, edited or deleted
+  isGhost?: boolean;        // ghost/phantom peak — overlapping, imperfect shape, no label
 }
 
 interface SampleInfo {
@@ -63,6 +64,10 @@ interface DetectorInfo {
   baselineDrift: number;  // mAU — linear upward drift over full run
   baselinePulse: number;  // mAU — pump pulsation ripple
   lineWidth: number;      // px — thickness of the chromatogram trace
+  // Y-axis (mAU) scale
+  yAxisAuto: boolean;     // true = auto-scale; false = use yAxisMin/yAxisMax
+  yAxisMin: number;       // mAU — manual lower limit
+  yAxisMax: number;       // mAU — manual upper limit
 }
 
 interface CalibStandard {
@@ -557,6 +562,9 @@ const DEFAULT_DETECTOR: DetectorInfo = {
   baselineDrift: 1.2,
   baselinePulse: 0.35,
   lineWidth: 1.0,
+  yAxisAuto: true,
+  yAxisMin: 0,
+  yAxisMax: 2000,
 };
 
 const DEFAULT_STANDARDS: CalibStandard[] = [
@@ -1925,11 +1933,12 @@ export default function HplcSimulator() {
   );
   const totalAmount = peakStats.filter(p => p.amount > 0).reduce((s, p) => s + p.amount, 0);
 
-  const yMax = useMemo(() => {
+  const yMaxAuto = useMemo(() => {
     const max = Math.max(...chromatogram.map(d => d.signal), 10);
     const computed = Math.ceil(max * 1.15 / 50) * 50;
     return Math.max(computed, 2000); // always at least 2000 mAU so peak labels are never cut
   }, [chromatogram]);
+  const yMax = detector.yAxisAuto ? yMaxAuto : Math.max(detector.yAxisMax, 50);
 
   const xTicks = useMemo(() => {
     const t: number[] = [];
@@ -1995,6 +2004,32 @@ export default function HplcSimulator() {
     markDirty();
   }, [detector.runTime, markDirty]);
 
+  const addGhostPeak = useCallback(() => {
+    // Place ghost near the tallest existing peak, or random if none
+    const tallest = peaks.length > 0 ? peaks.reduce((a, b) => a.height > b.height ? a : b) : null;
+    const baseRT = tallest
+      ? parseFloat((tallest.retentionTime + (Math.random() > 0.5 ? 1 : -1) * (0.08 + Math.random() * 0.18)).toFixed(3))
+      : parseFloat((1 + Math.random() * (detector.runTime - 2)).toFixed(3));
+    const clampedRT = Math.max(0.1, Math.min(detector.runTime * 0.97, baseRT));
+    setPeaks(ps => [...ps, {
+      id: uid(),
+      name: "",                               // no label shown
+      peakType: "BB",
+      grp: "",
+      amtPerArea: 0,
+      amount: 0,
+      manualArea: 0,
+      peakNoise: parseFloat((0.65 + Math.random() * 0.30).toFixed(2)),  // rough/defective
+      retentionTime: clampedRT,
+      height: tallest ? Math.round(tallest.height * (0.25 + Math.random() * 0.35)) : Math.round(10 + Math.random() * 40),
+      width: tallest ? parseFloat((tallest.width * (1.1 + Math.random() * 0.6)).toFixed(3)) : parseFloat((0.05 + Math.random() * 0.10).toFixed(3)),
+      asymmetry: parseFloat((0.6 + Math.random() * 1.2).toFixed(2)),    // irregular shape
+      isGhost: true,
+      printSelected: false,
+    }]);
+    markDirty();
+  }, [peaks, detector.runTime, markDirty]);
+
   const removePeak = (id: string) => {
     const peak = peaks.find(p => p.id === id);
     if (peak?.locked) return;
@@ -2002,7 +2037,11 @@ export default function HplcSimulator() {
     markDirty();
   };
   const savePeak = (updated: Peak) => { setPeaks(ps => ps.map(p => p.id === updated.id ? updated : p)); markDirty(); };
-  const toggleLockPeak = (id: string) => { setPeaks(ps => ps.map(p => p.id === id ? { ...p, locked: !p.locked } : p)); markDirty(); };
+  const toggleLockPeak = (id: string) => {
+    setPeaks(ps => ps.map(p => p.id === id ? { ...p, locked: !p.locked } : p));
+    if (editingPeakId === id) setEditingPeakId(null);
+    markDirty();
+  };
 
   const addStandard = () => {
     const n = standards.length + 1;
@@ -2589,6 +2628,9 @@ export default function HplcSimulator() {
           <Plus className="h-3.5 w-3.5" /> Nova Análise
         </Button>
 
+        <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => window.location.reload()}>
+          ↺ Atualizar
+        </Button>
         <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => window.print()}>
           <Printer className="h-3.5 w-3.5" /> Imprimir / PDF
         </Button>
@@ -2839,6 +2881,40 @@ export default function HplcSimulator() {
                   </button>
                 </ControlBox>
 
+                {/* Y-axis (mAU) scale control */}
+                <ControlBox title="Escala Y (mAU)">
+                  <label className="flex items-center gap-2 cursor-pointer mb-2">
+                    <input
+                      type="checkbox"
+                      checked={detector.yAxisAuto ?? true}
+                      onChange={e => { setDetector(d => ({ ...d, yAxisAuto: e.target.checked })); markDirty(); }}
+                      className="h-3 w-3 accent-blue-600"
+                    />
+                    <span style={{ fontFamily: "Courier New, monospace", fontSize: 9.5 }}>Escala automática</span>
+                  </label>
+                  {!(detector.yAxisAuto ?? true) && (
+                    <>
+                      <SmallField
+                        label="Y mín (mAU)"
+                        value={String(detector.yAxisMin ?? 0)}
+                        onChange={v => { setDetector(d => ({ ...d, yAxisMin: parseFloat(v) || 0 })); markDirty(); }}
+                        type="number"
+                      />
+                      <SmallField
+                        label="Y máx (mAU)"
+                        value={String(detector.yAxisMax ?? 2000)}
+                        onChange={v => { setDetector(d => ({ ...d, yAxisMax: parseFloat(v) || 2000 })); markDirty(); }}
+                        type="number"
+                      />
+                    </>
+                  )}
+                  {(detector.yAxisAuto ?? true) && (
+                    <p style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888" }}>
+                      Atual: 0 – {yMaxAuto} mAU (automático)
+                    </p>
+                  )}
+                </ControlBox>
+
                 {/* Ext. Std. Report meta — sorted by, calib date, multiplier, dilution */}
                 <ControlBox title="Ext. Std. Report — Meta">
                   <SmallField label="Sorted By" value={calib.sortedBy} onChange={cField("sortedBy")} />
@@ -2849,9 +2925,17 @@ export default function HplcSimulator() {
 
                 {/* Peaks */}
                 <ControlBox title="Picos" extra={
-                  <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2" onClick={addPeak}>
-                    <Plus className="h-3 w-3" /> Add
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2" onClick={addPeak}>
+                      <Plus className="h-3 w-3" /> Add
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2"
+                      style={{ borderColor: "#a78bfa", color: "#7c3aed" }}
+                      title="Adicionar pico fantasma (sobreposição rugosa)"
+                      onClick={addGhostPeak}>
+                      👻
+                    </Button>
+                  </div>
                 }>
                   <p style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 4 }}>
                     Clique em ⚙ para editar · arraste no gráfico para mover.<br />
@@ -2861,7 +2945,7 @@ export default function HplcSimulator() {
                     <div key={p.id} className="group mb-2"
                       onContextMenu={e => { e.preventDefault(); setPeakContextMenu({ x: e.clientX, y: e.clientY, peakId: p.id }); }}>
                       <div className="flex items-center gap-1 rounded px-1 py-0.5 hover:bg-gray-50"
-                        style={{ background: p.locked ? "#fef9ec" : undefined, borderLeft: p.locked ? "2px solid #f59e0b" : "2px solid transparent" }}>
+                        style={{ background: p.locked ? "#fef9ec" : p.isGhost ? "#f5f3ff" : undefined, borderLeft: p.locked ? "2px solid #f59e0b" : p.isGhost ? "2px solid #a78bfa" : "2px solid transparent" }}>
                         <input
                           type="checkbox"
                           title="Incluir na impressão"
@@ -2877,7 +2961,8 @@ export default function HplcSimulator() {
                         />
                         <span style={{ ...MONO, fontSize: 9.5, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {p.locked && <Lock style={{ display: "inline", width: 9, height: 9, color: "#f59e0b", marginRight: 3, verticalAlign: "middle" }} />}
-                          {p.retentionTime.toFixed(3)} {p.name ? `(${p.name})` : "—"}
+                          {p.isGhost && <span style={{ marginRight: 3 }}>👻</span>}
+                          {p.retentionTime.toFixed(3)} {p.isGhost ? <span style={{ color: "#7c3aed" }}>fantasma</span> : p.name ? `(${p.name})` : "—"}
                           {p.manualArea > 0
                             ? <span style={{ color: "#1d4ed8" }}> ✎{p.manualArea.toFixed(2)}</span>
                             : <span style={{ color: "#888" }}> ~{p.computedArea.toFixed(1)}</span>}
@@ -3599,7 +3684,7 @@ export default function HplcSimulator() {
                       tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
                       label={{ value: "min", position: "right", offset: 8, fontFamily: "Courier New, monospace", fontSize: 11 }}
                       axisLine={{ stroke: "#333" }} tickLine={{ stroke: "#333" }} />
-                    <YAxis domain={[0, yMax]} ticks={yTicks}
+                    <YAxis domain={[detector.yAxisAuto ? 0 : (detector.yAxisMin ?? 0), yMax]} ticks={yTicks}
                       tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
                       axisLine={{ stroke: "#333" }} tickLine={{ stroke: "#333" }} width={46} />
                     <Tooltip content={<ChromTooltip />} />
@@ -3614,8 +3699,8 @@ export default function HplcSimulator() {
                       ];
                     })}
 
-                    {/* Name + RT label above each named peak; highlighted when dragging */}
-                    {peakStats.filter(p => p.name).map(p => (
+                    {/* Name + RT label above each named (non-ghost) peak; highlighted when dragging */}
+                    {peakStats.filter(p => p.name && !p.isGhost).map(p => (
                       <ReferenceLine key={`rt-${p.id}`} x={p.retentionTime} stroke="none"
                         label={(props: { viewBox?: { x: number; y: number } }) => (
                           <PeakLabel
