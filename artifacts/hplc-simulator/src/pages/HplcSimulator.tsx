@@ -2230,7 +2230,18 @@ export default function HplcSimulator() {
     markDirty();
   };
   const cField = (k: keyof CalibInfo) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCalib(c => ({ ...c, [k]: (["expRT"] as (keyof CalibInfo)[]).includes(k) ? parseFloat(e.target.value) || 0 : e.target.value }));
+    const val = e.target.value;
+    setCalib(c => ({ ...c, [k]: (["expRT"] as (keyof CalibInfo)[]).includes(k) ? parseFloat(val) || 0 : val }));
+    // When compound name changes, auto-sync the .M filename in both method paths.
+    // e.g. compound "B6" → analysisMethod ends in \B6.M; "Vitamina D" → \VITAMINA D.M
+    if (k === "compoundName" && val.trim()) {
+      const newFilename = val.trim().toUpperCase() + ".M";
+      setSample(s => ({
+        ...s,
+        analysisMethod: applyMethodFilename(s.analysisMethod, newFilename),
+        acqMethod:      applyMethodFilename(s.acqMethod,      newFilename),
+      }));
+    }
     markDirty();
   };
 
