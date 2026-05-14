@@ -1974,6 +1974,7 @@ export default function HplcSimulator() {
       const target = ps.find(p => p.id === pid);
       if (!target || target.locked) {
         peakDragRef.current = null;
+        setDraggingPeakId(null);
         return ps;
       }
       return ps.map(p => p.id === pid ? { ...p, retentionTime: newRT } : p);
@@ -2137,7 +2138,8 @@ export default function HplcSimulator() {
     if (editingPeakId === id) closeEditorDialog();
     // If the peak being locked is currently dragged, stop the drag immediately
     // so the peak stays at its current position and doesn't drift on next mousemove.
-    if (draggingPeakId === id) {
+    // Check both state value and ref directly to cover batched-update edge cases.
+    if (peakDragRef.current?.peakId === id || draggingPeakId === id) {
       peakDragRef.current = null;
       setDraggingPeakId(null);
     }
@@ -4083,8 +4085,20 @@ export default function HplcSimulator() {
                 </div>
               </div>
 
-              {/* Per-compound Calibration Tables */}
-              {activeCompounds.map(compound => {
+              {/* Per-compound Calibration Tables — show only compounds with identified peaks */}
+              {activeCompounds
+                .filter(compound => {
+                  const cc = getCC(compound.id);
+                  if (cc.standards.length === 0) return false;
+                  // Show only compounds that have a matching peak in the current chromatogram
+                  return peaks.some(p =>
+                    (p.name && (
+                      p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
+                      compound.name.toLowerCase().includes(p.name.toLowerCase())
+                    )) || Math.abs(p.retentionTime - compound.expectedRT) < compound.rtTol * 2
+                  );
+                })
+                .map(compound => {
                 const cc = getCC(compound.id);
                 if (cc.standards.length === 0) return null;
                 const compReg = linearRegression(cc.standards.map(s => ({ x: s.amount, y: s.area })));
@@ -4924,6 +4938,110 @@ export default function HplcSimulator() {
           ? (foundAmountUg / padraoConfig.smpDeclaredAmountUg) * 100
           : null;
         const hasData = stdArea > 0 && smpArea > 0 && padraoConfig.stdAmountUg > 0;
+        const relativeTeor = padraoConfig.stdAmountUg > 0 ? (foundAmountUg / padraoConfig.stdAmountUg) * 100 : 0;
+
+        // Lots matching the selected compound
+        const relevantLots = lots.filter(lot =>
+          padraoConfig.compoundName
+            ? lot.results.some(r =>
+                r.compoundName.toLowerCase().includes(padraoConfig.compoundName.toLowerCase()) ||
+                padraoConfig.compoundName.toLowerCase().includes(r.compoundName.toLowerCase()))
+            : lot.results.length > 0
+        );
+
+        // Auto-fill Padrão fields from the current chromatogram + active compound data
+        const autoFillPadrao = () => {
+          for (const compound of activeCompounds) {
+            const matchingPeak = peakList.find(p =>
+              (p.name && (
+                p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
+                compound.name.toLowerCase().includes(p.name.toLowerCase())
+              )) || Math.abs(p.retentionTime - compound.expectedRT) < compound.rtTol
+            );
+            if (matchingPeak) {
+              const cc = getCC(compound.id);
+              const sortedStds = [...cc.standards].sort((a, b) => a.amount - b.amount);
+              const midStd = sortedStds[Math.floor(sortedStds.length / 2)] ?? sortedStds[0];
+              const smpA = parseFloat(getArea(matchingPeak).toFixed(5));
+              updatePadrao({
+                compoundName: compound.name,
+                stdPeakName: midStd ? `Nível ${midStd.level} — cal. ${compound.name}` : compound.name,
+                stdArea: midStd ? parseFloat(midStd.area.toFixed(5)) : smpA,
+                stdAmountUg: midStd ? parseFloat(midStd.amount.toFixed(4)) : parseFloat((compound.amtPerArea * smpA).toFixed(4)),
+                stdPurity: 99.5,
+                smpPeakName: matchingPeak.name || `TR ${matchingPeak.retentionTime.toFixed(3)} min`,
+                smpArea: smpA,
+                smpDeclaredAmountUg: compound.amtPerArea > 0 && smpA > 0
+                  ? parseFloat((compound.amtPerArea * smpA * 1000).toFixed(4))
+                  : 0,
+              });
+              return;
+            }
+          }
+          // Fallback: fill sample area from the largest peak
+          const largest = peakList.reduce<Peak | null>((b, p) => (!b || getArea(p) > getArea(b)) ? p : b, null);
+          if (largest) {
+            updatePadrao({
+              smpPeakName: largest.name || `TR ${largest.retentionTime.toFixed(3)} min`,
+              smpArea: parseFloat(getArea(largest).toFixed(5)),
+            });
+          }
+        };
+
+        // Print/PDF export for the Resultado section
+        const handlePrintPadrao = () => {
+          const w = window.open('', '_blank', 'width=940,height=820');
+          if (!w) return;
+          const lotsRows = relevantLots.map(lot => {
+            const r = lot.results.find(res =>
+              padraoConfig.compoundName
+                ? res.compoundName.toLowerCase().includes(padraoConfig.compoundName.toLowerCase())
+                : true
+            );
+            const statusTxt = r ? (r.inSpec === null ? 'N/A' : r.inSpec ? 'Conforme' : 'Não Conforme') : '—';
+            return `<tr><td>${lot.lotNumber}</td><td>${new Date(lot.createdAt).toLocaleDateString('pt-BR')}</td><td>${lot.sample.sampleName || '—'}</td><td style="text-align:right">${r ? r.area.toFixed(3) : '—'}</td><td style="text-align:right">${r ? r.concentration.toFixed(3) : '—'}</td><td style="text-align:center">${statusTxt}</td></tr>`;
+          }).join('');
+          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Resultado — Quantificação por Padrão Externo</title><style>
+body{font-family:'Courier New',monospace;font-size:11px;padding:24px;color:#111}
+h1{font-size:14px;border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:10px}
+h2{font-size:12px;margin-top:18px;border-bottom:1px solid #ccc;padding-bottom:3px}
+p{margin:2px 0}table{width:100%;border-collapse:collapse;margin-top:8px}
+th,td{padding:5px 9px;border:1px solid #d1d5db}th{background:#f1f5f9;font-weight:700}
+.cards{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+.card{border:1.5px solid #e2e8f0;border-radius:6px;padding:8px 12px;min-width:110px}
+.big{font-size:19px;font-weight:bold}.lbl{font-size:9px;color:#64748b;margin-top:1px}
+.ok{color:#16a34a}.warn{color:#d97706}.bad{color:#dc2626}
+footer{font-size:9px;color:#999;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:6px}
+@media print{@page{margin:1.5cm}}</style></head><body>
+<h1>Resultado — Quantificação por Padrão Externo</h1>
+<p><strong>Composto:</strong> ${padraoConfig.compoundName || '—'} &nbsp;&nbsp; <strong>Método:</strong> Padrão Externo (single-point)</p>
+<p><strong>Amostra:</strong> ${sample.sampleName} &nbsp;&nbsp; <strong>Operador:</strong> ${sample.acqOperator} &nbsp;&nbsp; <strong>Data:</strong> ${sample.injectionDate}</p>
+${hasData ? `<h2>Resultados</h2><div class="cards">
+<div class="card"><div class="big ${purityVsStd >= 98 ? 'ok' : purityVsStd >= 90 ? 'warn' : 'bad'}">${purityVsStd.toFixed(2)}%</div><div class="lbl">Pureza vs. Padrão (área)</div></div>
+${purityVsDecl !== null ? `<div class="card"><div class="big ${purityVsDecl >= 98 ? 'ok' : purityVsDecl >= 90 ? 'warn' : 'bad'}">${purityVsDecl.toFixed(2)}%</div><div class="lbl">Pureza vs. Declarado</div></div>` : ''}
+<div class="card"><div class="big ${relativeTeor >= 98 ? 'ok' : relativeTeor >= 90 ? 'warn' : 'bad'}">${relativeTeor.toFixed(2)}%</div><div class="lbl">% do Ativo vs. Padrão (µg)</div></div>
+<div class="card"><div class="big">${foundAmountUg.toFixed(4)} µg</div><div class="lbl">Teor encontrado</div></div>
+</div>
+<table><thead><tr><th>Parâmetro</th><th>Padrão</th><th>Amostra</th><th>Razão (A/S)</th></tr></thead><tbody>
+<tr><td>Composto</td><td>${padraoConfig.compoundName || '—'}</td><td>${padraoConfig.smpPeakName || '—'}</td><td></td></tr>
+<tr><td>Área (mAU·s)</td><td>${stdArea.toFixed(5)}</td><td>${smpArea.toFixed(5)}</td><td>${ratio.toFixed(6)}</td></tr>
+<tr><td>Massa injetada (µg)</td><td>${padraoConfig.stdAmountUg.toFixed(4)}</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
+<tr><td>Pureza certificada / encontrada (%)</td><td>${padraoConfig.stdPurity.toFixed(2)}</td><td>${purityVsStd.toFixed(2)}</td><td></td></tr>
+<tr><td>% do Ativo vs. Padrão (µg)</td><td>100.00</td><td>${relativeTeor.toFixed(2)}</td><td></td></tr>
+${purityVsDecl !== null ? `<tr><td>Pureza vs. Declarado (%)</td><td>—</td><td>${purityVsDecl.toFixed(2)}</td><td></td></tr>` : ''}
+<tr><td>Teor encontrado (µg)</td><td>—</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
+<tr><td>Teor encontrado (mg)</td><td>—</td><td>${foundAmountMg.toFixed(6)}</td><td></td></tr>
+</tbody></table>
+<p style="font-size:10px;color:#64748b;margin-top:8px">Fórmula: Teor (µg) = (Área Amostra ÷ Área Padrão) × Massa Padrão (µg) × (Pureza ÷ 100)</p>`
+: '<p style="color:#999;margin-top:10px">Dados insuficientes para calcular o resultado.</p>'}
+${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
+<table><thead><tr><th>Lote</th><th>Data</th><th>Amostra</th><th>Área (mAU·s)</th><th>Conc. (µg/ml)</th><th>Conformidade</th></tr></thead><tbody>${lotsRows}</tbody></table>` : ''}
+<footer>Gerado em ${new Date().toLocaleString('pt-BR')} · HPLC Agilent ChemStation Simulator</footer>
+</body></html>`;
+          w.document.write(html);
+          w.document.close();
+          setTimeout(() => w.print(), 400);
+        };
 
         const ROW: React.CSSProperties = { display: "grid", gridTemplateColumns: "160px 1fr", gap: "6px 12px", alignItems: "center", marginBottom: 6 };
         const LBL: React.CSSProperties = { fontFamily: "Courier New, monospace", fontSize: 11, color: "#64748b", textAlign: "right" };
@@ -5008,6 +5126,12 @@ export default function HplcSimulator() {
               </span>
               <div style={{ flex: 1 }} />
               <button
+                onClick={handlePrintPadrao}
+                style={{ fontFamily: "Courier New, monospace", fontSize: 10, padding: "3px 10px", border: "1px solid #3b82f6", borderRadius: 4, background: "#eff6ff", cursor: "pointer", color: "#1d4ed8", fontWeight: "bold" }}
+              >
+                📄 Exportar PDF
+              </button>
+              <button
                 onClick={() => updatePadrao({ ...DEFAULT_PADRAO_CONFIG })}
                 style={{ fontFamily: "Courier New, monospace", fontSize: 10, padding: "3px 10px", border: "1px solid #e2e8f0", borderRadius: 4, background: "#f8fafc", cursor: "pointer", color: "#64748b" }}
               >
@@ -5056,6 +5180,19 @@ export default function HplcSimulator() {
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1560bd", marginTop: 4 }}>
                     ✓ Pico capturado: {padraoConfig.stdPeakName}
                   </div>
+                )}
+                {peakList.length > 0 && (
+                  <button
+                    onClick={autoFillPadrao}
+                    style={{
+                      marginTop: 10, width: "100%", padding: "7px 10px",
+                      border: "1px solid #6366f1", borderRadius: 5, background: "#eef2ff",
+                      cursor: "pointer", fontFamily: "Courier New, monospace", fontSize: 10,
+                      color: "#4338ca", fontWeight: "bold",
+                    }}
+                  >
+                    ⚡ Preencher automaticamente do cromatograma
+                  </button>
                 )}
               </div>
 
@@ -5128,6 +5265,13 @@ export default function HplcSimulator() {
                     )}
                     <ResultCell value={`${foundAmountUg.toFixed(4)} µg`} label="Teor encontrado (µg)" />
                     <ResultCell value={`${foundAmountMg.toFixed(6)} mg`} label="Teor encontrado (mg)" />
+                    {padraoConfig.stdAmountUg > 0 && (
+                      <ResultCell
+                        value={`${relativeTeor.toFixed(2)} %`}
+                        label="% do Ativo vs. Padrão (µg)"
+                        color={relativeTeor >= 98 ? "#16a34a" : relativeTeor >= 90 ? "#d97706" : "#dc2626"}
+                      />
+                    )}
                   </div>
 
                   {/* Detailed table */}
@@ -5150,6 +5294,7 @@ export default function HplcSimulator() {
                         ...(purityVsDecl !== null ? [{ label: "Pureza vs. declarado (%)", std: "—", smp: purityVsDecl.toFixed(2), ratio: "" }] : []),
                         { label: "Teor encontrado (µg)", std: "—", smp: foundAmountUg.toFixed(4), ratio: "" },
                         { label: "Teor encontrado (mg)", std: "—", smp: foundAmountMg.toFixed(6), ratio: "" },
+                        ...(padraoConfig.stdAmountUg > 0 ? [{ label: "% do Ativo vs. Padrão (µg)", std: "100.00", smp: relativeTeor.toFixed(2), ratio: "" }] : []),
                       ].map((row, i) => (
                         <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                           <td style={{ padding: "5px 10px", color: "#334155" }}>{row.label}</td>
@@ -5171,6 +5316,75 @@ export default function HplcSimulator() {
                 </>
               )}
             </div>
+
+            {/* ─ Analysis context (sample info from chromatogram tab) ─ */}
+            <div style={{ ...CARD, marginBottom: 18 }}>
+              <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#475569", marginBottom: 8 }}>
+                Contexto da Análise — Informações da Amostra
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: "4px 12px", fontFamily: "Courier New, monospace", fontSize: 10 }}>
+                <span style={{ color: "#94a3b8", textAlign: "right" }}>Nome da amostra:</span>
+                <span style={{ color: "#0f172a" }}>{sample.sampleName || "—"}</span>
+                <span style={{ color: "#94a3b8", textAlign: "right" }}>Operador:</span>
+                <span style={{ color: "#0f172a" }}>{sample.acqOperator || "—"}</span>
+                <span style={{ color: "#94a3b8", textAlign: "right" }}>Data injeção:</span>
+                <span style={{ color: "#0f172a" }}>{sample.injectionDate || "—"}</span>
+                <span style={{ color: "#94a3b8", textAlign: "right" }}>Método:</span>
+                <span style={{ color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {sample.acqMethod ? sample.acqMethod.split("\\").pop() || sample.acqMethod : "—"}
+                </span>
+                <span style={{ color: "#94a3b8", textAlign: "right" }}>Vol. injeção:</span>
+                <span style={{ color: "#0f172a" }}>{sample.injVolume || "—"}</span>
+              </div>
+            </div>
+
+            {/* ─ Analyzed lots matching the compound ─ */}
+            {relevantLots.length > 0 && (
+              <div style={{ ...CARD, marginBottom: 18 }}>
+                <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#475569", marginBottom: 8 }}>
+                  Lotes Analisados{padraoConfig.compoundName ? ` — ${padraoConfig.compoundName}` : ""}
+                  <span style={{ fontWeight: "normal", fontSize: 9, color: "#94a3b8", marginLeft: 8 }}>
+                    {relevantLots.length} lote{relevantLots.length !== 1 ? "s" : ""} · registrados na aba Lotes
+                  </span>
+                </div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 10.5 }}>
+                  <thead>
+                    <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
+                      {["Lote", "Data", "Amostra", "Área (mAU·s)", "Conc. (µg/ml)", "Conformidade"].map(h => (
+                        <th key={h} style={{ padding: "5px 8px", textAlign: h === "Lote" || h === "Amostra" ? "left" : "right", color: "#475569", fontWeight: 700 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {relevantLots.map((lot, i) => {
+                      const r = lot.results.find(res =>
+                        padraoConfig.compoundName
+                          ? res.compoundName.toLowerCase().includes(padraoConfig.compoundName.toLowerCase())
+                          : true
+                      );
+                      const statusColor = r?.inSpec === null ? "#1d4ed8" : r?.inSpec ? "#166534" : "#b91c1c";
+                      const statusBg = r?.inSpec === null ? "#eff6ff" : r?.inSpec ? "#dcfce7" : "#fee2e2";
+                      return (
+                        <tr key={lot.id} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                          <td style={{ padding: "5px 8px", fontWeight: 700 }}>{lot.lotNumber}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "right", color: "#64748b" }}>{new Date(lot.createdAt).toLocaleDateString("pt-BR")}</td>
+                          <td style={{ padding: "5px 8px", color: "#475569" }}>{lot.sample.sampleName || "—"}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "right" }}>{r ? r.area.toFixed(3) : "—"}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "right" }}>{r ? r.concentration.toFixed(3) : "—"}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "right" }}>
+                            {r ? (
+                              <span style={{ padding: "2px 6px", borderRadius: 3, background: statusBg, color: statusColor, fontSize: 9, fontWeight: "bold" }}>
+                                {r.inSpec === null ? "N/A" : r.inSpec ? "✓ Conforme" : "✗ Não Conforme"}
+                              </span>
+                            ) : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* Multi-peak visual reference */}
             {peakList.length > 0 && (
