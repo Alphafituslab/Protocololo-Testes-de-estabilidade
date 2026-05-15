@@ -800,8 +800,8 @@ function stringsToPeak(base: Peak, s: Record<keyof Peak, string>): Peak {
   return result;
 }
 
-function PeakEditorDialog({ peak, onSave, children, controlledOpen, onControlledClose }: {
-  peak: Peak; onSave: (p: Peak) => void; children?: React.ReactNode;
+function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, onControlledClose }: {
+  peak: Peak; onSave: (p: Peak) => void; onPreview?: (p: Peak) => void; children?: React.ReactNode;
   controlledOpen?: boolean; onControlledClose?: () => void;
 }) {
   const [draft, setDraft] = useState<Record<keyof Peak, string>>(() => peakToStrings(peak));
@@ -822,6 +822,14 @@ function PeakEditorDialog({ peak, onSave, children, controlledOpen, onControlled
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [controlledOpen]);
+
+  // Live preview — propagate every draft change to the parent so the
+  // chromatogram updates in real-time without requiring a Save click.
+  useEffect(() => {
+    if (!open || !onPreview) return;
+    onPreview(stringsToPeak(peak, draft));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, open]);
 
   const field = (key: keyof Peak) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDraft(d => ({ ...d, [key]: e.target.value }));
@@ -1004,7 +1012,11 @@ function PeakEditorDialog({ peak, onSave, children, controlledOpen, onControlled
             Área = 0 → calculada automaticamente.<br />
             Área &gt; 0 → valor exato no relatório.
           </p>
-          <Button type="submit" className="w-full" size="sm">Salvar</Button>
+          <div className="flex gap-2 pt-1">
+            <Button type="button" variant="outline" className="flex-1" size="sm"
+              onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" className="flex-1" size="sm">Salvar</Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
@@ -1934,6 +1946,9 @@ export default function HplcSimulator() {
   // PeakEditorDialog component stays mounted permanently (Radix portal must not
   // be unmounted while open — that is the root cause of the insertBefore crash).
   const dialogPeakRef = useRef<Peak | null>(null);
+  // Live preview peak — substitutes the real peak in the chromatogram while
+  // the editor dialog is open, giving real-time visual feedback.
+  const [previewPeak, setPreviewPeak] = useState<Peak | null>(null);
 
   // Open the peak editor dialog from the context menu or sidebar button.
   const openEditorDialog = (id: string) => {
@@ -1947,9 +1962,11 @@ export default function HplcSimulator() {
   // Close the peak editor dialog. No setTimeout needed — the dialog stays in the
   // React tree permanently (dialogPeakRef guards it), so Radix can finish its
   // close animation without any DOM/virtual-DOM mismatch.
+  // Also clear the live preview so the chromatogram reverts to saved state on cancel.
   const closeEditorDialog = () => {
     setEditorDialogOpen(false);
     setEditingPeakId(null);
+    setPreviewPeak(null);
   };
   const [finalizeDialog, setFinalizeDialog] = useState<{ id: string; name: string } | null>(null);
   const [finalizeStatus, setFinalizeStatus] = useState<"em_andamento" | "aprovado" | "reprovado">("aprovado");
@@ -2140,9 +2157,16 @@ export default function HplcSimulator() {
 
   // ── Chromatogram data ────────────────────────────────────────────────────────
 
+  // While the peak editor is open, substitute the preview version of the peak
+  // so the chromatogram reflects every slider/input change in real time.
+  const peaksForDisplay = useMemo(
+    () => previewPeak ? peaks.map(p => p.id === previewPeak.id ? previewPeak : p) : peaks,
+    [peaks, previewPeak],
+  );
+
   const chromatogram = useMemo(
-    () => buildChromatogram(peaks, detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander ?? 0, detector.shotNoise ?? 0, detector.baselineHump ?? 0, detector.broadeningFactor ?? 0, detector.baselineOffset ?? 0, detector.baselinePulseFreq ?? 1.6),
-    [peaks, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander, detector.shotNoise, detector.baselineHump, detector.broadeningFactor, detector.baselineOffset, detector.baselinePulseFreq],
+    () => buildChromatogram(peaksForDisplay, detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander ?? 0, detector.shotNoise ?? 0, detector.baselineHump ?? 0, detector.broadeningFactor ?? 0, detector.baselineOffset ?? 0, detector.baselinePulseFreq ?? 1.6),
+    [peaksForDisplay, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander, detector.shotNoise, detector.baselineHump, detector.broadeningFactor, detector.baselineOffset, detector.baselinePulseFreq],
   );
 
   // Standard reference peak overlay — simulates the mid-level calibration standard
@@ -6251,6 +6275,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
         <PeakEditorDialog
           peak={dialogPeakRef.current}
           onSave={savePeak}
+          onPreview={setPreviewPeak}
           controlledOpen={editorDialogOpen}
           onControlledClose={closeEditorDialog}
         />
