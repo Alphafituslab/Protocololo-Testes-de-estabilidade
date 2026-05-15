@@ -95,6 +95,15 @@ interface CalibInfo {
   curveType: string;
   origin: string;
   weight: string;
+  relRefWindow?: string;
+  absRefWindow?: string;
+  relNonRefWindow?: string;
+  absNonRefWindow?: string;
+  uncalibratedPeaks?: string;
+  partialCalibration?: string;
+  correctAllRetTimes?: string;
+  avgResponse?: string;
+  avgRetentionTime?: string;
 }
 
 interface CompoundCalibration {
@@ -626,6 +635,15 @@ const DEFAULT_CALIB: CalibInfo = {
   curveType: "Linear",
   origin: "Included",
   weight: "Equal",
+  relRefWindow: "5.000 %",
+  absRefWindow: "0.000 min",
+  relNonRefWindow: "5.000 %",
+  absNonRefWindow: "0.000 min",
+  uncalibratedPeaks: "not reported",
+  partialCalibration: "Yes, identified peaks are recalibrated",
+  correctAllRetTimes: "No, only for identified peaks",
+  avgResponse: "Average all calibrations",
+  avgRetentionTime: "Floating Average New 75%",
 };
 
 const DEFAULT_ACTIVE_COMPOUNDS: ActiveCompound[] = [
@@ -4551,41 +4569,82 @@ export default function HplcSimulator() {
 
                 return (
                   <div key={compound.id} style={{ marginTop: 24 }}>
-                    <SectionTitle title={`Calibration Table — ${compound.name}`} />
 
-                    <div style={{ marginTop: 6 }}>
-                      <div>{"    Calib. Data Modified   :      " + cc.calib.calibDataModified}</div>
-                      <div style={{ marginTop: 6 }}>
-                        <div>{"    Curve Type             :      " + cc.calib.curveType}</div>
-                        <div>{"    Origin                 :      " + cc.calib.origin}</div>
-                        <div>{"    Weight                 :      " + cc.calib.weight}</div>
-                      </div>
-                      <div style={{ marginTop: 8 }}>{"    Signal 1: " + signalLabel}</div>
-                    </div>
+                    {/* Method line */}
+                    <div style={{ whiteSpace: "pre", wordBreak: "break-all" }}>{"Method " + sample.analysisMethod}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
 
-                    <div style={{ marginTop: 10 }}>
-                      <div style={{ whiteSpace: "pre" }}>{"    RetTime    Lvl  Amount      Area     Amt/Area Ref Grp Name"}</div>
-                      <div style={{ whiteSpace: "pre" }}>{"     [min] Sig     [ug/ml]"}</div>
-                      <div style={{ whiteSpace: "pre" }}>{"    " + "-".repeat(65)}</div>
-                      {[...cc.standards].sort((a, b) => a.amount - b.amount).map((s, i) => {
-                        const amtPerArea = s.area > 0 ? s.amount / s.area : 0;
-                        if (i === 0) {
-                          return (
-                            <div key={s.id} style={{ whiteSpace: "pre" }}>
-                              {"    " + expRT.toFixed(3).padStart(7) + " 1 " + (i + 1).toString().padStart(2) + "  " +
-                                s.amount.toFixed(5).padStart(12) + " " + s.area.toFixed(5).padStart(10) + " " + fmtSci2(amtPerArea, -2).padStart(12) + "         " + compound.name}
-                            </div>
-                          );
-                        }
+                    {/* ====== Calibration Table ====== */}
+                    <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    " + " ".repeat(26) + "Calibration Table"}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
+
+                    {/* Parameters block */}
+                    <div style={{ whiteSpace: "pre" }}>{"    Calib. Data Modified   :      " + cc.calib.calibDataModified}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    Rel. Reference Window :       " + (cc.calib.relRefWindow ?? "5.000 %")}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    Abs. Reference Window :       " + (cc.calib.absRefWindow ?? "0.000 min")}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    Rel. Non-ref. Window :        " + (cc.calib.relNonRefWindow ?? "5.000 %")}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    Abs. Non-ref. Window :        " + (cc.calib.absNonRefWindow ?? "0.000 min")}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    Uncalibrated Peaks    :       " + (cc.calib.uncalibratedPeaks ?? "not reported")}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    Partial Calibration   :       " + (cc.calib.partialCalibration ?? "Yes, identified peaks are recalibrated")}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    Correct All Ret. Times:       " + (cc.calib.correctAllRetTimes ?? "No, only for identified peaks")}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    Curve Type             :      " + cc.calib.curveType}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    Origin                 :      " + cc.calib.origin}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    Weight                 :      " + cc.calib.weight}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    Recalibration Settings:"}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    Average Response      :       " + (cc.calib.avgResponse ?? "Average all calibrations")}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    Average Retention Time:       " + (cc.calib.avgRetentionTime ?? "Floating Average New 75%")}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    Calibration Report Options :"}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"        Printout of recalibrations within a sequence:"}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"            Calibration Table after Recalibration"}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"            Normal Report after Recalibration"}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"        If the sequence is done with bracketing:"}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"            Results of first cycle (ending previous bracket)"}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    Signal 1: " + signalLabel}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
+
+                    {/* Data table */}
+                    <div style={{ whiteSpace: "pre" }}>{"    RetTime    Lvl  Amount      Area     Amt/Area Ref Grp Name"}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"     [min] Sig     [ug/ml]"}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    -------|--|--|----------|----------|----------|---|--|---------------"}</div>
+                    {[...cc.standards].sort((a, b) => a.amount - b.amount).map((s, i) => {
+                      const amtPerArea = s.area > 0 ? s.amount / s.area : 0;
+                      if (i === 0) {
                         return (
                           <div key={s.id} style={{ whiteSpace: "pre" }}>
-                            {"              " + (i + 1).toString().padStart(2) + "  " +
-                              s.amount.toFixed(5).padStart(12) + " " + s.area.toFixed(5).padStart(10) + " " + fmtSci2(amtPerArea, -2).padStart(12)}
+                            {"    " + expRT.toFixed(3).padStart(7) + " 1 " + (i + 1).toString() +
+                              s.amount.toFixed(5).padStart(13) + " " + s.area.toFixed(5).padStart(9) + " " +
+                              fmtSci2(amtPerArea, -2).padStart(10) + "         " + compound.name}
                           </div>
                         );
-                      })}
-                    </div>
+                      }
+                      return (
+                        <div key={s.id} style={{ whiteSpace: "pre" }}>
+                          {"                 " + (i + 1).toString() +
+                            s.amount.toFixed(5).padStart(10) + " " + s.area.toFixed(5) + " " + fmtSci2(amtPerArea, -2)}
+                        </div>
+                      );
+                    })}
 
+                    {/* === Peak Sum Table === */}
+                    <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    " + " ".repeat(27) + "Peak Sum Table"}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    ***No Entries in table***"}</div>
+                    <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
+
+                    {/* ── Calibration Curves chart — visual aid ── */}
                     <div style={{ marginTop: 20 }}>
                       <SectionTitle title={`Calibration Curves — ${compound.name}`} />
                     </div>
