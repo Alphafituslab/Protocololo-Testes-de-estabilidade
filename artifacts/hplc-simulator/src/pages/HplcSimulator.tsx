@@ -2031,6 +2031,18 @@ export default function HplcSimulator() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peaks, sample, detector, standards, calib, activeCompounds, productName]);
 
+  useEffect(() => {
+    const prevTitle = document.title;
+    const before = () => { document.title = ""; };
+    const after = () => { document.title = prevTitle; };
+    window.addEventListener("beforeprint", before);
+    window.addEventListener("afterprint", after);
+    return () => {
+      window.removeEventListener("beforeprint", before);
+      window.removeEventListener("afterprint", after);
+    };
+  }, []);
+
   // Tracks the compound name as of the last confirm, so we can cascade renames
   const prevCalibNameRef = useRef(calib.compoundName);
 
@@ -4557,21 +4569,6 @@ export default function HplcSimulator() {
                 const compReg = linearRegression(cc.standards.map(s => ({ x: s.amount, y: s.area })));
                 const compCalibXMax = Math.max(...cc.standards.map(s => s.amount), 1) * 1.15;
                 const compCalibYMax = Math.max(...cc.standards.map(s => s.area), 1) * 1.2;
-                const compCalibChartData = (() => {
-                  const sorted = [...cc.standards].sort((a, b) => a.amount - b.amount);
-                  const regPts = Array.from({ length: 80 }, (_, i) => {
-                    const x = (i / 79) * compCalibXMax;
-                    return { x: parseFloat(x.toFixed(4)), reg: compReg.slope * x + compReg.intercept, pt: undefined as number | undefined };
-                  });
-                  sorted.forEach(s => {
-                    const nearest = regPts.reduce((best, _p, i) =>
-                      Math.abs(regPts[i].x - s.amount) < Math.abs(regPts[best].x - s.amount) ? i : best, 0);
-                    regPts[nearest].x = s.amount;
-                    regPts[nearest].reg = compReg.slope * s.amount + compReg.intercept;
-                    regPts[nearest].pt = s.area;
-                  });
-                  return regPts;
-                })();
                 const expRT = cc.calib.expRT > 0 ? cc.calib.expRT : compound.expectedRT;
 
                 return (
@@ -4651,54 +4648,73 @@ export default function HplcSimulator() {
                     <div style={{ whiteSpace: "pre" }}>{"    ***No Entries in table***"}</div>
                     <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
 
-                    {/* ── Calibration Curves chart — visual aid ── */}
+                    {/* ── Calibration Curves chart — pure SVG (print-safe) ── */}
                     <div style={{ marginTop: 20 }}>
                       <SectionTitle title={`Calibration Curves — ${compound.name}`} />
                     </div>
 
                     <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginTop: 8 }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, marginBottom: 0 }}>Area</div>
-                        <ResponsiveContainer width="100%" height={200}>
-                          <ComposedChart data={compCalibChartData} margin={{ top: 8, right: 16, left: 8, bottom: 30 }}>
-                            <CartesianGrid strokeDasharray="2 2" stroke="#ccc" />
-                            <XAxis dataKey="x" type="number" domain={[0, compCalibXMax]}
-                              tickFormatter={v => v.toFixed(0)}
-                              tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
-                              axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }}
-                              label={{ value: "Amount[ug/ml]", position: "insideBottom", offset: -16, fontFamily: "Courier New, monospace", fontSize: 10 }} />
-                            <YAxis type="number" domain={[0, compCalibYMax]}
-                              tickFormatter={v => v.toFixed(0)}
-                              tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
-                              axisLine={{ stroke: "#444" }} tickLine={{ stroke: "#444" }} width={52} />
-                            <Tooltip content={({ active, payload }) => {
-                              if (!active || !payload?.length) return null;
-                              const d = payload[0]?.payload as { x: number; pt?: number };
-                              return (
-                                <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, background: "#fff", border: "1px solid #333", padding: "4px 8px" }}>
-                                  <div>Amount: {d.x.toFixed(3)} ug/ml</div>
-                                  {d.pt !== undefined && <div>Area: {d.pt.toFixed(3)} mAU*s</div>}
-                                </div>
-                              );
-                            }} />
-                            {cc.standards.map(s => (
-                              <ReferenceLine key={`vx-${s.id}`} x={s.amount} stroke="#aaa" strokeDasharray="4 3" strokeWidth={0.8} />
-                            ))}
-                            {cc.standards.map(s => (
-                              <ReferenceLine key={`hy-${s.id}`} y={s.area} stroke="#aaa" strokeDasharray="4 3" strokeWidth={0.8} />
-                            ))}
-                            <Line dataKey="reg" stroke="#333" strokeWidth={1.2} dot={false} isAnimationActive={false} connectNulls legendType="none" />
-                            <Line dataKey="pt" stroke="#333" strokeWidth={1}
-                              dot={(props: { cx: number; cy: number; value?: number }) =>
-                                props.value !== undefined
-                                  ? <circle key={`d${props.cx}`} cx={props.cx} cy={props.cy} r={4} fill="#fff" stroke="#333" strokeWidth={1.5} />
-                                  : <g key={`de${props.cx}`} />
-                              }
-                              activeDot={false} isAnimationActive={false} connectNulls={false} legendType="none" />
-                          </ComposedChart>
-                        </ResponsiveContainer>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 11, marginBottom: 2, fontFamily: "Courier New, monospace" }}>Area</div>
+                        {(() => {
+                          const svgW = 360, svgH = 210;
+                          const mL = 52, mR = 12, mT = 8, mB = 36;
+                          const iW = svgW - mL - mR;
+                          const iH = svgH - mT - mB;
+                          const xs = (v: number) => mL + (v / compCalibXMax) * iW;
+                          const ys = (v: number) => mT + iH - (Math.min(Math.max(v, 0), compCalibYMax) / compCalibYMax) * iH;
+                          const sorted = [...cc.standards].sort((a, b) => a.amount - b.amount);
+                          const yTicks = Array.from({ length: 5 }, (_, i) => Math.round(compCalibYMax * i / 4));
+                          const rawStep = compCalibXMax / 4;
+                          const xStep = rawStep >= 20 ? Math.round(rawStep / 10) * 10 : rawStep >= 10 ? Math.round(rawStep / 5) * 5 : Math.max(1, Math.round(rawStep));
+                          const xTicks: number[] = [];
+                          for (let x = 0; x <= compCalibXMax + 0.01; x += xStep) xTicks.push(Math.round(x));
+                          if (xTicks[xTicks.length - 1] !== Math.round(compCalibXMax)) xTicks.push(Math.round(compCalibXMax));
+                          const ry0 = Math.max(0, compReg.intercept);
+                          const ry1 = compReg.slope * compCalibXMax + compReg.intercept;
+                          return (
+                            <svg width={svgW} height={svgH} style={{ fontFamily: "Courier New, monospace", overflow: "visible", display: "block" }}>
+                              {/* Y grid lines */}
+                              {yTicks.map(t => (
+                                <line key={`yg-${t}`} x1={mL} y1={ys(t)} x2={mL + iW} y2={ys(t)} stroke="#ddd" strokeWidth={0.5} />
+                              ))}
+                              {/* Dashed guide lines from each data point to axes */}
+                              {sorted.map(s => (
+                                <g key={`gl-${s.id}`}>
+                                  <line x1={xs(s.amount)} y1={mT} x2={xs(s.amount)} y2={ys(s.area)} stroke="#bbb" strokeDasharray="3 2" strokeWidth={0.7} />
+                                  <line x1={mL} y1={ys(s.area)} x2={xs(s.amount)} y2={ys(s.area)} stroke="#bbb" strokeDasharray="3 2" strokeWidth={0.7} />
+                                </g>
+                              ))}
+                              {/* Axis lines */}
+                              <line x1={mL} y1={mT} x2={mL} y2={mT + iH} stroke="#444" strokeWidth={1} />
+                              <line x1={mL} y1={mT + iH} x2={mL + iW} y2={mT + iH} stroke="#444" strokeWidth={1} />
+                              {/* Y ticks + labels */}
+                              {yTicks.map(t => (
+                                <g key={`yt-${t}`}>
+                                  <line x1={mL - 3} y1={ys(t)} x2={mL} y2={ys(t)} stroke="#444" strokeWidth={0.8} />
+                                  <text x={mL - 5} y={ys(t) + 3} textAnchor="end" fontSize={9} fill="#333">{t.toFixed(0)}</text>
+                                </g>
+                              ))}
+                              {/* X ticks + labels */}
+                              {xTicks.map(t => (
+                                <g key={`xt-${t}`}>
+                                  <line x1={xs(t)} y1={mT + iH} x2={xs(t)} y2={mT + iH + 3} stroke="#444" strokeWidth={0.8} />
+                                  <text x={xs(t)} y={mT + iH + 13} textAnchor="middle" fontSize={9} fill="#333">{t.toFixed(0)}</text>
+                                </g>
+                              ))}
+                              {/* X axis label */}
+                              <text x={mL + iW / 2} y={svgH - 3} textAnchor="middle" fontSize={10} fill="#333">Amount[ug/ml]</text>
+                              {/* Regression line */}
+                              <line x1={xs(0)} y1={ys(ry0)} x2={xs(compCalibXMax)} y2={ys(ry1)} stroke="#333" strokeWidth={1.2} />
+                              {/* Data point circles */}
+                              {sorted.map(s => (
+                                <circle key={`pt-${s.id}`} cx={xs(s.amount)} cy={ys(s.area)} r={4} fill="white" stroke="#333" strokeWidth={1.5} />
+                              ))}
+                            </svg>
+                          );
+                        })()}
                       </div>
-                      <div style={{ minWidth: 190, paddingTop: 20, fontSize: 11 }}>
+                      <div style={{ minWidth: 190, paddingTop: 20, fontSize: 11, fontFamily: "Courier New, monospace" }}>
                         <div>{compound.name} at exp. RT: {expRT.toFixed(3)}</div>
                         <div style={{ marginTop: 4 }}>{signalLabel}</div>
                         <div style={{ marginTop: 8 }}>{"Correlation:            " + compReg.r.toFixed(5)}</div>
@@ -4711,7 +4727,7 @@ export default function HplcSimulator() {
                       </div>
                     </div>
 
-                    <div style={{ marginTop: 4, fontSize: 10, color: "#555", paddingLeft: 8 }}>
+                    <div style={{ marginTop: 4, fontSize: 10, color: "#555", paddingLeft: 8, fontFamily: "Courier New, monospace" }}>
                       {[...cc.standards].sort((a, b) => a.amount - b.amount).map((s, i) => (
                         <span key={s.id} style={{ marginRight: 12 }}>{i + 1} = {s.amount.toFixed(0)} ug/ml</span>
                       ))}
