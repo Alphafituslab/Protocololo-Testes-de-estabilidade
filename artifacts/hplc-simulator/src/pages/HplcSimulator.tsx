@@ -68,6 +68,8 @@ interface DetectorInfo {
   shotNoise: number;           // 0-1  — signal-proportional noise (LC/MS counting statistics)
   baselineHump: number;        // mAU — broad column-bleed background hump
   broadeningFactor: number;    // 0-1  — RT-dependent peak width increase (van Deemter)
+  baselineOffset: number;      // mAU — constant vertical shift of the entire baseline
+  baselinePulseFreq: number;   // cycles/min — pump pulsation frequency (default ~1.6)
   lineWidth: number;           // px — thickness of the chromatogram trace
   // Y-axis (mAU) scale
   yAxisAuto: boolean;     // true = auto-scale; false = use yAxisMin/yAxisMax
@@ -311,13 +313,15 @@ function peakNoiseAt(i: number, seed: number, localAmp: number, peakNoise: numbe
 function buildChromatogram(
   peaks: Peak[], runTime: number, pts = 6000,
   noiseAmp = 1.8, driftAmp = 1.2, pulseAmp = 0.35,
-  wanderAmp = 0,       // mAU — slow sinusoidal baseline oscillation
-  shotNoise = 0,       // 0-1  — signal-proportional noise (LC/MS counting statistics)
-  humpAmp = 0,         // mAU — broad column-bleed background hump
+  wanderAmp = 0,        // mAU — slow sinusoidal baseline oscillation
+  shotNoise = 0,        // 0-1  — signal-proportional noise (LC/MS counting statistics)
+  humpAmp = 0,          // mAU — broad column-bleed background hump
   broadeningFactor = 0, // 0-1 — RT-dependent peak broadening (van Deemter)
+  baselineOffset = 0,   // mAU — constant vertical baseline shift
+  pulseFreqHz = 1.6,    // cycles/min — pump pulsation frequency
 ) {
   const dt = runTime / pts;
-  const pulseFreq = 1.6;   // cycles / min
+  const pulseFreq = pulseFreqHz;
 
   // Hump: broad Gaussian centered at ~65% of run time (gradient / column-bleed)
   const humpCenter = runTime * 0.65;
@@ -382,7 +386,7 @@ function buildChromatogram(
       ? humpAmp * Math.exp(-((t - humpCenter) ** 2) / (2 * humpSigma * humpSigma))
       : 0;
 
-    const total = signal + shot + noise + wander + drift + pulse + hump;
+    const total = signal + shot + noise + wander + drift + pulse + hump + baselineOffset;
     return { time: parseFloat(t.toFixed(4)), signal: parseFloat(Math.max(0, total).toFixed(3)) };
   });
 }
@@ -594,6 +598,8 @@ const DEFAULT_DETECTOR: DetectorInfo = {
   shotNoise: 0,
   baselineHump: 0,
   broadeningFactor: 0,
+  baselineOffset: 0,
+  baselinePulseFreq: 1.6,
   lineWidth: 1.0,
   yAxisAuto: true,
   yAxisMin: 0,
@@ -800,44 +806,99 @@ function PeakEditorDialog({ peak, onSave, children, controlledOpen, onControlled
 }) {
   const [draft, setDraft] = useState<Record<keyof Peak, string>>(() => peakToStrings(peak));
   const [internalOpen, setInternalOpen] = useState(false);
+  // Draggable position — null means use default Radix centering
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen! : internalOpen;
   const setOpen = (v: boolean) => {
     if (isControlled) { if (!v) onControlledClose?.(); }
     else setInternalOpen(v);
   };
-  // When the controlled dialog transitions from closed → open, reload draft from the
-  // current peak prop. This replaces the previous key={editingPeakId} remount pattern
-  // and avoids the Radix portal insertBefore crash caused by conditional unmounting.
   useEffect(() => {
     if (isControlled && controlledOpen) {
       setDraft(peakToStrings(peak));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [controlledOpen]); // intentionally only on open-transition, not on every peak change
+  }, [controlledOpen]);
+
   const field = (key: keyof Peak) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDraft(d => ({ ...d, [key]: e.target.value }));
-  const noiseVal = parseFloat(draft.peakNoise) || 0;
+
+  // ── Drag-to-move via the title bar ──────────────────────────────────────────
+  const handleDragStart = (e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest("button")) return; // don't drag on close button
+    e.preventDefault();
+    const current = pos ?? {
+      x: window.innerWidth  / 2 - 160,
+      y: window.innerHeight / 2 - 250,
+    };
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: current.x, origY: current.y };
+    const handleMove = (me: MouseEvent) => {
+      if (!dragRef.current) return;
+      setPos({
+        x: dragRef.current.origX + (me.clientX - dragRef.current.startX),
+        y: dragRef.current.origY + (me.clientY - dragRef.current.startY),
+      });
+    };
+    const handleUp = () => {
+      dragRef.current = null;
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+  };
+
+  const noiseVal  = parseFloat(draft.peakNoise  as string) || 0;
+  const heightVal = parseFloat(draft.height     as string) || 100;
+  const widthVal  = parseFloat(draft.width      as string) || 0.10;
+  const asymVal   = parseFloat(draft.asymmetry  as string) || 1.0;
+  const inclVal   = parseFloat(draft.inclination as string) || 0;
+
   const openDialog = () => { setDraft(peakToStrings(peak)); setInternalOpen(true); };
   const trigger = children ? React.cloneElement(
     React.Children.only(children) as React.ReactElement<React.HTMLAttributes<HTMLElement>>,
     { onClick: openDialog },
   ) : null;
+
+  // Position override — placed precisely, no Radix centering transform
+  const posStyle: React.CSSProperties = pos ? {
+    position: "fixed",
+    top:  Math.max(10, Math.min(pos.y, window.innerHeight - 80)),
+    left: Math.max(10, Math.min(pos.x, window.innerWidth  - 340)),
+    transform: "none",
+    margin: 0,
+  } : {};
+
   return (
     <>
       {trigger}
       <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-xs overflow-y-auto max-h-[85vh]">
-        <DialogHeader><DialogTitle style={{ fontFamily: "Courier New, monospace" }}>Editar Pico</DialogTitle></DialogHeader>
+      <DialogContent
+        className="max-w-xs overflow-y-auto max-h-[90vh]"
+        style={posStyle}
+      >
+        {/* Draggable header — cursor changes to indicate grab */}
+        <DialogHeader
+          onMouseDown={handleDragStart}
+          style={{ cursor: pos ? "grabbing" : "grab", userSelect: "none" }}
+        >
+          <DialogTitle style={{ fontFamily: "Courier New, monospace", fontSize: 13 }}>
+            ≡ Editar Pico
+          </DialogTitle>
+          <p style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 0 }}>
+            Arraste este cabeçalho para mover o painel
+          </p>
+        </DialogHeader>
+
         <form onSubmit={e => { e.preventDefault(); onSave(stringsToPeak(peak, draft)); setOpen(false); }} className="space-y-2 pt-1">
           {([
             ["name", "Nome (ex: B6)", "text"],
             ["retentionTime", "Ret. Time [min]", "number"],
             ["peakType", "Tipo (VB/BB/BV/BB)", "text"],
             ["manualArea", "Área [mAU*s] (0 = calculada)", "number"],
-            ["height", "Altura pico (mAU) — visual", "number"],
-            ["width", "Largura σ (min) — visual", "number"],
-            ["asymmetry", "Assimetria — visual", "number"],
             ["amtPerArea", "Amt/Area (ex: 0.03927)", "number"],
             ["amount", "Amount [ug/ml]", "number"],
             ["grp", "Grupo", "text"],
@@ -853,26 +914,75 @@ function PeakEditorDialog({ peak, onSave, children, controlledOpen, onControlled
             </div>
           ))}
 
-          {/* Peak inclination/tilt slider */}
+          {/* ── Altura slider ─────────────────────────────────── */}
+          <div className="pt-1">
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs text-muted-foreground">Altura do pico (mAU)</Label>
+              <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
+                {heightVal.toFixed(0)}
+              </span>
+            </div>
+            <input type="range" min="1" max="2500" step="1"
+              value={heightVal}
+              onChange={e => setDraft(d => ({ ...d, height: e.target.value }))}
+              className="w-full h-2 accent-blue-600" />
+            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 1 }}>
+              <span>1 mAU</span><span>2500 mAU</span>
+            </div>
+          </div>
+
+          {/* ── Largura slider ────────────────────────────────── */}
+          <div className="pt-1">
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs text-muted-foreground">Largura σ (min)</Label>
+              <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
+                {widthVal.toFixed(3)}
+              </span>
+            </div>
+            <input type="range" min="0.005" max="2.0" step="0.005"
+              value={widthVal}
+              onChange={e => setDraft(d => ({ ...d, width: e.target.value }))}
+              className="w-full h-2 accent-blue-600" />
+            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 1 }}>
+              <span>0.005 = estreito</span><span>2.0 = largo</span>
+            </div>
+          </div>
+
+          {/* ── Assimetria slider ─────────────────────────────── */}
+          <div className="pt-1">
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs text-muted-foreground">Assimetria (tailing/fronting)</Label>
+              <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
+                {asymVal < 0.99 ? `${asymVal.toFixed(2)} ← fronting` : asymVal > 1.01 ? `${asymVal.toFixed(2)} → tailing` : "1.00 simétrico"}
+              </span>
+            </div>
+            <input type="range" min="0.3" max="4.0" step="0.05"
+              value={asymVal}
+              onChange={e => setDraft(d => ({ ...d, asymmetry: e.target.value }))}
+              className="w-full h-2 accent-blue-600" />
+            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 1 }}>
+              <span>← fronting 0.3</span><span>tailing 4.0 →</span>
+            </div>
+          </div>
+
+          {/* ── Inclinação slider ─────────────────────────────── */}
           <div className="pt-1">
             <div className="flex justify-between items-center mb-1">
               <Label className="text-xs text-muted-foreground">Inclinação do pico</Label>
               <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
-                {(() => { const v = parseFloat(draft.inclination as string) || 0; return v === 0 ? "neutro" : v > 0 ? `+${v.toFixed(1)} →` : `${v.toFixed(1)} ←`; })()}
+                {inclVal === 0 ? "neutro" : inclVal > 0 ? `+${inclVal.toFixed(1)} →` : `${inclVal.toFixed(1)} ←`}
               </span>
             </div>
-            <input
-              type="range" min="-5" max="5" step="0.1"
-              value={parseFloat(draft.inclination as string) || 0}
+            <input type="range" min="-5" max="5" step="0.1"
+              value={inclVal}
               onChange={e => setDraft(d => ({ ...d, inclination: e.target.value }))}
-              className="w-full h-2 accent-blue-600"
-            />
+              className="w-full h-2 accent-blue-600" />
             <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 1 }}>
               <span>← inclina esquerda</span><span>inclina direita →</span>
             </div>
           </div>
 
-          {/* Peak surface roughness slider */}
+          {/* ── Rugosidade slider ─────────────────────────────── */}
           <div className="pt-1">
             <div className="flex justify-between items-center mb-1">
               <Label className="text-xs text-muted-foreground">Rugosidade do pico</Label>
@@ -881,20 +991,18 @@ function PeakEditorDialog({ peak, onSave, children, controlledOpen, onControlled
                 {" "}({noiseVal.toFixed(2)})
               </span>
             </div>
-            <input
-              type="range" min="0" max="1" step="0.01"
+            <input type="range" min="0" max="1" step="0.01"
               value={noiseVal}
               onChange={e => setDraft(d => ({ ...d, peakNoise: e.target.value }))}
-              className="w-full h-2 accent-blue-600"
-            />
+              className="w-full h-2 accent-blue-600" />
             <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 1 }}>
               <span>0 = Gaussiano perfeito</span><span>1 = muito rugoso</span>
             </div>
           </div>
 
           <p className="text-xs text-muted-foreground pt-1">
-            Área = 0 → calculada automaticamente pelo modelo Gaussiano.<br />
-            Área &gt; 0 → valor exato usado no relatório.
+            Área = 0 → calculada automaticamente.<br />
+            Área &gt; 0 → valor exato no relatório.
           </p>
           <Button type="submit" className="w-full" size="sm">Salvar</Button>
         </form>
@@ -1151,7 +1259,7 @@ function buildChromatogramPng(
     const cW = W - ML_c - 36;
     const runTime = formula.detector.runTime;
     const det = formula.detector;
-    const chrom = buildChromatogram(run.peaks, runTime, 1600, det.baselineNoise ?? 1.8, det.baselineDrift ?? 1.2, det.baselinePulse ?? 0.35, det.baselineWander ?? 0, det.shotNoise ?? 0, det.baselineHump ?? 0, det.broadeningFactor ?? 0);
+    const chrom = buildChromatogram(run.peaks, runTime, 1600, det.baselineNoise ?? 1.8, det.baselineDrift ?? 1.2, det.baselinePulse ?? 0.35, det.baselineWander ?? 0, det.shotNoise ?? 0, det.baselineHump ?? 0, det.broadeningFactor ?? 0, det.baselineOffset ?? 0, det.baselinePulseFreq ?? 1.6);
     const maxSig = Math.max(10, ...chrom.map(p => p.signal)) * 1.1;
 
     const xS = (t: number) => ML_c + (t / runTime) * cW;
@@ -2033,8 +2141,8 @@ export default function HplcSimulator() {
   // ── Chromatogram data ────────────────────────────────────────────────────────
 
   const chromatogram = useMemo(
-    () => buildChromatogram(peaks, detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander ?? 0, detector.shotNoise ?? 0, detector.baselineHump ?? 0, detector.broadeningFactor ?? 0),
-    [peaks, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander, detector.shotNoise, detector.baselineHump, detector.broadeningFactor],
+    () => buildChromatogram(peaks, detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander ?? 0, detector.shotNoise ?? 0, detector.baselineHump ?? 0, detector.broadeningFactor ?? 0, detector.baselineOffset ?? 0, detector.baselinePulseFreq ?? 1.6),
+    [peaks, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander, detector.shotNoise, detector.baselineHump, detector.broadeningFactor, detector.baselineOffset, detector.baselinePulseFreq],
   );
 
   // Standard reference peak overlay — simulates the mid-level calibration standard
@@ -2048,7 +2156,7 @@ export default function HplcSimulator() {
     const stdPeakObj: Peak = {
       ...namedPeak, id: "std-ovl", name: "STD", height: stdHeight, manualArea: 0,
     };
-    const chrom = buildChromatogram([stdPeakObj], detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander ?? 0, detector.shotNoise ?? 0, detector.baselineHump ?? 0, detector.broadeningFactor ?? 0);
+    const chrom = buildChromatogram([stdPeakObj], detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander ?? 0, detector.shotNoise ?? 0, detector.baselineHump ?? 0, detector.broadeningFactor ?? 0, detector.baselineOffset ?? 0, detector.baselinePulseFreq ?? 1.6);
     return { chrom, midStd, namedPeak, stdHeight, level: Math.floor(sorted.length / 2) + 1, total: sorted.length };
   }, [showStdPeak, standards, peaks, calib.compoundName, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse]);
 
@@ -3132,6 +3240,34 @@ export default function HplcSimulator() {
                       className="w-full h-2 accent-blue-600" />
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
                       <span>0 = sem alargamento</span><span>1 = picos dobram largura</span>
+                    </div>
+                  </div>
+                  {/* Baseline offset slider */}
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                      <span>Deslocamento vertical (mAU)</span>
+                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineOffset ?? 0).toFixed(0)}</span>
+                    </div>
+                    <input type="range" min="-200" max="200" step="1"
+                      value={detector.baselineOffset ?? 0}
+                      onChange={e => { setDetector(d => ({ ...d, baselineOffset: parseFloat(e.target.value) })); markDirty(); }}
+                      className="w-full h-2 accent-blue-600" />
+                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                      <span>−200 mAU</span><span>0 = sem desvio</span><span>+200 mAU</span>
+                    </div>
+                  </div>
+                  {/* Pulse frequency slider */}
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                      <span>Frequência da bomba (ciclos/min)</span>
+                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselinePulseFreq ?? 1.6).toFixed(1)}</span>
+                    </div>
+                    <input type="range" min="0.2" max="8.0" step="0.1"
+                      value={detector.baselinePulseFreq ?? 1.6}
+                      onChange={e => { setDetector(d => ({ ...d, baselinePulseFreq: parseFloat(e.target.value) })); markDirty(); }}
+                      className="w-full h-2 accent-blue-600" />
+                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                      <span>0.2 = pulsação lenta</span><span>8.0 = bomba rápida</span>
                     </div>
                   </div>
                   {/* Noise presets */}
