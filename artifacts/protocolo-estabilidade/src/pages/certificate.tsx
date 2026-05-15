@@ -1116,6 +1116,11 @@ export default function CertificatePage() {
       </div>
 
       <style>{`
+        @page {
+          size: A4;
+          margin: 0;
+        }
+
         @media print {
           body * { visibility: hidden; }
           #certificate-document,

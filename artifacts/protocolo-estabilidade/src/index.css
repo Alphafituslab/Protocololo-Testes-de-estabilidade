@@ -110,3 +110,9 @@
     @apply font-sans antialiased bg-background text-foreground text-sm;
   }
 }
+
+/* Remove browser URL/date headers and footers from all printed pages */
+@page {
+  size: A4;
+  margin: 0;
+}
