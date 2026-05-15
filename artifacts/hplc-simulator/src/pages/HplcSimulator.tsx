@@ -51,6 +51,7 @@ interface SampleInfo {
   lastChanged2: string;
   reportDate: string;    // date shown in footer (editable)
   softwareRev: string;   // software version string shown in footer
+  signalLabelOverride?: string; // when set, overrides the full "DAD1 A, Sig=... (...)" line
 }
 
 interface DetectorInfo {
@@ -568,6 +569,7 @@ const DEFAULT_PEAKS: Peak[] = [
 
 const DEFAULT_SAMPLE: SampleInfo = {
   dataFile: "C:\\CHEM32\\1\\DATA\\TESTE B6-290 2025-04-23 12-55-35\\009-0901.D",
+  signalLabelOverride: "",
   sampleName: "Amostra atual A",
   acqOperator: "EDSON",
   seqLine: "9",
@@ -1949,6 +1951,8 @@ export default function HplcSimulator() {
   // Live preview peak — substitutes the real peak in the chromatogram while
   // the editor dialog is open, giving real-time visual feedback.
   const [previewPeak, setPreviewPeak] = useState<Peak | null>(null);
+  // Controls inline editing of the full signal label line on the chromatogram overlay
+  const [signalLabelEditing, setSignalLabelEditing] = useState(false);
 
   // Open the peak editor dialog from the context menu or sidebar button.
   const openEditorDialog = (id: string) => {
@@ -2249,6 +2253,10 @@ export default function HplcSimulator() {
   // ── Signal label ─────────────────────────────────────────────────────────────
 
   const signalLabel = `${detector.signalName}, Sig=${detector.sigWavelength},${detector.sigBandwidth} Ref=${detector.refWavelength},${detector.refBandwidth}`;
+  // Full line that appears on chromatogram and in reports — can be overridden by user
+  const fullSignalLine = (sample.signalLabelOverride ?? "").trim() !== ""
+    ? sample.signalLabelOverride!
+    : `${signalLabel} (${sample.dataFile})`;
 
   // ── Now ───────────────────────────────────────────────────────────────────────
 
@@ -3030,12 +3038,19 @@ export default function HplcSimulator() {
                         onChange={e => {
                           const c = activeCompounds.find(ac => ac.id === e.target.value);
                           if (!c) return;
+                          const now2 = new Date();
+                          const pad2 = (n: number) => String(n).padStart(2, "0");
+                          const datePart2 = `${now2.getFullYear()}-${pad2(now2.getMonth() + 1)}-${pad2(now2.getDate())} ${pad2(now2.getHours())}-${pad2(now2.getMinutes())}-${pad2(now2.getSeconds())}`;
                           setSample(s => {
+                            const seq = String(parseInt(s.seqLine) || 1).padStart(3, "0");
                             const newAcq = c.method || s.acqMethod;
                             const newFilename = c.name.trim().toUpperCase() + ".M";
+                            const newDataFile = `C:\\CHEM32\\1\\DATA\\TESTE ${c.name}-${c.wavelength} ${datePart2}\\${seq}-${seq}01.D`;
                             return {
                               ...s,
                               sampleName: c.name,
+                              dataFile: newDataFile,
+                              signalLabelOverride: "",
                               acqMethod: applyMethodFilename(newAcq, newFilename),
                               analysisMethod: applyMethodFilename(s.analysisMethod, newFilename),
                             };
@@ -3097,7 +3112,7 @@ export default function HplcSimulator() {
                     ["inj", "Inj #"],
                     ["injVolume", "Inj Volume"],
                   ] as [keyof SampleInfo, string][]).map(([k, label]) => (
-                    <SmallField key={k} label={label} value={sample[k]} onChange={sField(k)} />
+                    <SmallField key={k} label={label} value={sample[k] ?? ""} onChange={sField(k)} />
                   ))}
                   {/* Method sync group */}
                   <div style={{ border: "1px solid #bfdbfe", borderRadius: 5, padding: "5px 6px", marginTop: 4, background: "#eff6ff" }}>
@@ -3113,7 +3128,7 @@ export default function HplcSimulator() {
                     ["reportDate", "Data do Relatório (rodapé)"],
                     ["softwareRev", "Versão Software (rodapé)"],
                   ] as [keyof SampleInfo, string][]).map(([k, label]) => (
-                    <SmallField key={k} label={label} value={sample[k]} onChange={sField(k)} />
+                    <SmallField key={k} label={label} value={sample[k] ?? ""} onChange={sField(k)} />
                   ))}
                   <button
                     type="button"
@@ -4210,7 +4225,7 @@ export default function HplcSimulator() {
               <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged1}</div>
               <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Analysis Method : " + sample.analysisMethod}</div>
               <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged2}</div>
-              <div style={{ whiteSpace: "pre", wordBreak: "break-all" }}>{"              " + signalLabel + " (" + sample.dataFile + ")"}</div>
+              <div style={{ whiteSpace: "pre", wordBreak: "break-all" }}>{"              " + fullSignalLine}</div>
               <Div />
 
               {/* Chromatogram chart */}
@@ -4234,16 +4249,67 @@ export default function HplcSimulator() {
                 <style>{`.hplc-main-chart .recharts-wrapper svg { overflow: visible; }`}</style>
                 <div className="hplc-main-chart" style={{ position: "relative" }}>
                 {/* Signal label overlay inside chart — blue, matches ChemStation annotation */}
-                <div style={{
-                  position: "absolute", top: 3, left: 4, right: 20,
-                  fontSize: 9, fontFamily: "Courier New, monospace",
-                  color: "#1560bd", fontWeight: 600,
-                  zIndex: 20, pointerEvents: "none",
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  background: "rgba(255,255,255,0.88)", padding: "0 3px", borderRadius: 2,
-                  maxWidth: "calc(100% - 24px)",
-                }}>
-                  {signalLabel} ({sample.dataFile})
+                {signalLabelEditing ? (
+                  <div style={{
+                    position: "absolute", top: 2, left: 4, right: 20,
+                    zIndex: 20, display: "flex", alignItems: "center", gap: 3,
+                  }}>
+                    <input
+                      autoFocus
+                      value={sample.signalLabelOverride ?? ""}
+                      placeholder={`${signalLabel} (${sample.dataFile})`}
+                      onChange={e => setSample(s => ({ ...s, signalLabelOverride: e.target.value }))}
+                      onBlur={() => setSignalLabelEditing(false)}
+                      onKeyDown={e => { if (e.key === "Enter" || e.key === "Escape") setSignalLabelEditing(false); }}
+                      style={{
+                        flex: 1, fontSize: 9, fontFamily: "Courier New, monospace",
+                        color: "#1560bd", fontWeight: 600,
+                        border: "1px solid #1560bd", borderRadius: 2,
+                        background: "rgba(255,255,255,0.97)", padding: "1px 4px",
+                        outline: "none",
+                      }}
+                    />
+                    {(sample.signalLabelOverride ?? "").trim() !== "" && (
+                      <button
+                        onMouseDown={e => { e.preventDefault(); setSample(s => ({ ...s, signalLabelOverride: "" })); }}
+                        title="Restaurar texto automático"
+                        style={{ fontSize: 8, padding: "1px 3px", cursor: "pointer", borderRadius: 2, border: "1px solid #ccc", background: "#f5f5f5", color: "#555" }}
+                      >↺</button>
+                    )}
+                  </div>
+                ) : (
+                  <div
+                    className="no-print"
+                    title="Clique para editar"
+                    onClick={() => setSignalLabelEditing(true)}
+                    style={{
+                      position: "absolute", top: 3, left: 4, right: 20,
+                      fontSize: 9, fontFamily: "Courier New, monospace",
+                      color: "#1560bd", fontWeight: 600,
+                      zIndex: 20, cursor: "text",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      background: "rgba(255,255,255,0.88)", padding: "0 3px", borderRadius: 2,
+                      maxWidth: "calc(100% - 24px)",
+                    }}
+                  >
+                    {fullSignalLine}
+                    <span style={{ marginLeft: 4, opacity: 0.4, fontSize: 8 }}>✎</span>
+                  </div>
+                )}
+                {/* Print version — always static */}
+                <div
+                  className="print-only"
+                  style={{
+                    position: "absolute", top: 3, left: 4, right: 20,
+                    fontSize: 9, fontFamily: "Courier New, monospace",
+                    color: "#1560bd", fontWeight: 600,
+                    zIndex: 20, pointerEvents: "none",
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    background: "rgba(255,255,255,0.88)", padding: "0 3px", borderRadius: 2,
+                    maxWidth: "calc(100% - 24px)",
+                  }}
+                >
+                  {fullSignalLine}
                 </div>
                 <ResponsiveContainer width="100%" height={360}>
                   <ComposedChart data={mergedChrom} margin={{ top: 75, right: 16, left: 8, bottom: 24 }}>
@@ -4397,7 +4463,7 @@ export default function HplcSimulator() {
               <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged1}</div>
               <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Analysis Method : " + sample.analysisMethod}</div>
               <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged2}</div>
-              <div style={{ whiteSpace: "pre", wordBreak: "break-all" }}>{"              " + signalLabel + " (" + sample.dataFile + ")"}</div>
+              <div style={{ whiteSpace: "pre", wordBreak: "break-all" }}>{"              " + fullSignalLine}</div>
               <Div />
 
               {/* External Standard Report — only print-selected peaks */}
