@@ -362,7 +362,7 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
     { label: "Período (meses)", value: protocol.studyPeriodMonths?.toString() },
     { label: "Intervalos de Teste", value: protocol.testIntervals },
     { label: "Elaboração", value: protocol.elaboratedBy },
-    { label: "Aprovação", value: protocol.approvedBy },
+    { label: "Elaborado", value: protocol.approvedBy },
     { label: "Emitido por", value: protocol.issuedBy },
     { label: "Analista Sênior", value: protocol.seniorAnalyst },
   ];

@@ -348,7 +348,7 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="approvedBy" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Aprovação</FormLabel>
+                  <FormLabel>Elaborado</FormLabel>
                   <FormControl><Input data-testid="input-approvedBy" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
