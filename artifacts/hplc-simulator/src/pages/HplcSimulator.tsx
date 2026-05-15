@@ -2157,14 +2157,17 @@ export default function HplcSimulator() {
     if (!peakDragRef.current) return;
     const newRT = xToTime(e.clientX);
     const pid = peakDragRef.current.peakId;
-    // Guard: if the peak was locked while dragging, abort the drag
+    // Guard: if the peak was locked while dragging, skip position update.
+    // Side-effects (clearing peakDragRef / setDraggingPeakId) must NOT run
+    // inside the setPeaks updater — that would trigger a React error
+    // ("Cannot update a component while rendering a different component").
+    // They are handled outside, via the locked-check below and mouseup.
+    // The updater returns ps unchanged when the peak is locked or missing,
+    // so the peak position is not updated.  Drag cleanup (peakDragRef / draggingPeakId)
+    // is handled by handleChartMouseUp and toggleLockPeak — never inside the updater.
     setPeaks(ps => {
       const target = ps.find(p => p.id === pid);
-      if (!target || target.locked) {
-        peakDragRef.current = null;
-        setDraggingPeakId(null);
-        return ps;
-      }
+      if (!target || target.locked) return ps;
       return ps.map(p => p.id === pid ? { ...p, retentionTime: newRT } : p);
     });
   }, [xToTime]);
