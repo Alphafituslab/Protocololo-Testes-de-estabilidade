@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/auth-context";
 import { ShieldCheck, Eye, EyeOff, Loader2 } from "lucide-react";
@@ -31,11 +31,18 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Tracks when handleLogin/handleSetup is responsible for navigation so that
+  // the useEffect below doesn't also call navigate() and cause a double render
+  // (which briefly mounts Dashboard and fires unauthenticated queries).
+  const hardNavPending = useRef(false);
+
   // If the user already has a valid session (loaded from sessionStorage on mount),
   // use Wouter navigate — no race condition here since auth-context has already
   // committed the user state before this effect runs.
+  // When a hard navigation (window.location.replace) is already scheduled we
+  // skip the soft navigate to avoid the race condition.
   useEffect(() => {
-    if (user) {
+    if (user && !hardNavPending.current) {
       navigate("/");
     }
   }, [user]);
@@ -53,9 +60,10 @@ export default function LoginPage() {
     const dest = popRedirect();
     try {
       await login(username, password);
-      // Use a hard navigation so the page reloads and auth-context reads
-      // the fresh token from sessionStorage. This avoids the React batching
-      // race where ProtectedRoute renders before setUser() commits.
+      // Signal that we are about to do a hard navigation so the useEffect
+      // above does not also call navigate() and briefly mount the Dashboard
+      // (which would fire queries and flash an error before the reload).
+      hardNavPending.current = true;
       const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
       const path = dest === "/" ? "" : dest;
       window.location.replace(base + path || "/");
@@ -83,6 +91,7 @@ export default function LoginPage() {
         throw new Error((d as { error?: string }).error ?? "Erro ao configurar.");
       }
       await login(username, password);
+      hardNavPending.current = true;
       const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
       window.location.replace(base || "/");
     } catch (err) {
