@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey } from "@workspace/api-client-react";
+import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, Lock, Unlock, History } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -132,6 +132,7 @@ type ShowSections = {
   textoLotes: boolean;
   infoAdicionais: boolean;
   conclusao: boolean;
+  cineticaProtocolo: boolean;
   fundamentacaoCinetica: boolean;
 };
 
@@ -140,6 +141,7 @@ const SECTION_LABELS: { key: keyof ShowSections; label: string }[] = [
   { key: "textoLotes", label: "Texto Lotes Piloto" },
   { key: "infoAdicionais", label: "Informações Adicionais" },
   { key: "conclusao", label: "Conclusão" },
+  { key: "cineticaProtocolo", label: "Parâmetros Cinéticos e Validade" },
   { key: "fundamentacaoCinetica", label: "Fundamentação Cinética" },
 ];
 
@@ -155,6 +157,7 @@ export default function CertificatePage() {
     textoLotes: true,
     infoAdicionais: true,
     conclusao: true,
+    cineticaProtocolo: true,
     fundamentacaoCinetica: true,
   });
 
@@ -201,6 +204,10 @@ export default function CertificatePage() {
 
   const { data: lotsRaw = [] } = useListLots(Number(id), {
     query: { enabled: !!id, queryKey: getListLotsQueryKey(Number(id)) },
+  });
+
+  const { data: kineticsData } = useGetKinetics(Number(id), {
+    query: { enabled: !!id, queryKey: getGetKineticsQueryKey(Number(id)) },
   });
 
   // Sync analyses from API + localStorage every time cert (re)loads.
@@ -639,7 +646,7 @@ export default function CertificatePage() {
               )}
               {(cert as any).capsuleComposition && (
                 <div className="flex gap-2">
-                  <dt className="text-gray-500 min-w-20">Composição da Cápsula:</dt>
+                  <dt className="text-gray-500 shrink-0 whitespace-nowrap">Composição da Cápsula:</dt>
                   <dd>{(cert as any).capsuleComposition}</dd>
                 </div>
               )}
@@ -674,26 +681,30 @@ export default function CertificatePage() {
                 {envUnlocked ? "Desbloqueado" : "Protegido"}
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-500">Amostragem — Temp.:</span>
+                <span className="text-gray-500 shrink-0">Condições ambientais durante amostragem — Temperatura:</span>
                 {envUnlocked
                   ? <CertEditField value={tempAmostragem} onChange={setTempAmostragem} className="w-20 text-xs" />
                   : <span className="font-medium">{tempAmostragem}</span>
                 }
-                <span className="text-gray-500 ml-2">Umid.:</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-gray-500 shrink-0">Condições ambientais durante amostragem — Umidade:</span>
                 {envUnlocked
                   ? <CertEditField value={umidAmostragem} onChange={setUmidAmostragem} className="w-20 text-xs" />
                   : <span className="font-medium">{umidAmostragem}</span>
                 }
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-500">Recebimento — Temp.:</span>
+                <span className="text-gray-500 shrink-0">Condições de recebimento da amostra — Temperatura:</span>
                 {envUnlocked
                   ? <CertEditField value={tempRecebimento} onChange={setTempRecebimento} className="w-20 text-xs" />
                   : <span className="font-medium">{tempRecebimento}</span>
                 }
-                <span className="text-gray-500 ml-2">Umid.:</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-gray-500 shrink-0">Condições de recebimento da amostra — Umidade:</span>
                 {envUnlocked
                   ? <CertEditField value={umidRecebimento} onChange={setUmidRecebimento} className="w-20 text-xs" />
                   : <span className="font-medium">{umidRecebimento}</span>
@@ -833,6 +844,88 @@ export default function CertificatePage() {
           </div>
           {cert.issueDate && <span className="ml-auto text-gray-500 text-xs">DATA: {cert.issueDate}</span>}
         </div>
+
+        {show.cineticaProtocolo && (() => {
+          const kParams = kineticsData?.parameters ?? [];
+          const validParams = kParams.filter(p => p !== null && p.k != null && p.k > 0) as NonNullable<typeof kParams[number]>[];
+          const limiting = kineticsData?.limitingParameter ?? null;
+          const estimatedMonths = kineticsData?.estimatedShelfLifeMonths ?? null;
+          const recommendedMonths = kineticsData?.recommendedValidityMonths ?? null;
+          const practicedMonths = (cert as any).validityMonths as number | null ?? null;
+          const hasData = validParams.length > 0;
+
+          return (
+            <div className="mb-6 rounded border border-blue-200 bg-blue-50/40 p-4 text-xs text-gray-700 space-y-3">
+              <p className="font-semibold text-gray-800 uppercase tracking-wide text-[11px]">Parâmetros Cinéticos e Estimativa de Validade</p>
+              {!hasData ? (
+                <p className="text-gray-400 italic">Dados cinéticos insuficientes (requer resultados de teor nos tempos T3 e T6).</p>
+              ) : (
+                <>
+                  <table className="w-full text-[10px] border-collapse">
+                    <thead>
+                      <tr className="bg-blue-100/60">
+                        <th className="border border-blue-200 px-2 py-1 text-left font-semibold">Ativo</th>
+                        <th className="border border-blue-200 px-2 py-1 text-center font-semibold">T0 (%)</th>
+                        <th className="border border-blue-200 px-2 py-1 text-center font-semibold">T3 (%)</th>
+                        <th className="border border-blue-200 px-2 py-1 text-center font-semibold">T6 (%)</th>
+                        <th className="border border-blue-200 px-2 py-1 text-center font-semibold">k (mês⁻¹)</th>
+                        <th className="border border-blue-200 px-2 py-1 text-center font-semibold">Validade Calc. (meses)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {validParams.map(p => {
+                        const isLimiting = p.parameter === limiting;
+                        return (
+                          <tr key={p.parameter} className={isLimiting ? "bg-amber-50" : ""}>
+                            <td className={`border border-blue-200 px-2 py-1 font-medium ${isLimiting ? "text-amber-800" : ""}`}>
+                              {p.parameter}{isLimiting && <span className="ml-1 text-amber-600 font-bold">★</span>}
+                            </td>
+                            <td className="border border-blue-200 px-2 py-1 text-center">{p.t0 != null ? p.t0.toFixed(2) : "—"}</td>
+                            <td className="border border-blue-200 px-2 py-1 text-center">{p.t3 != null ? p.t3.toFixed(2) : "—"}</td>
+                            <td className="border border-blue-200 px-2 py-1 text-center">{p.t6 != null ? p.t6.toFixed(2) : "—"}</td>
+                            <td className="border border-blue-200 px-2 py-1 text-center font-mono">{p.k != null ? p.k.toFixed(5) : "—"}</td>
+                            <td className="border border-blue-200 px-2 py-1 text-center font-semibold">
+                              {p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(1) : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  <div className="grid grid-cols-2 gap-4 pt-1">
+                    <div className="space-y-1">
+                      {limiting && (
+                        <p><span className="text-gray-500">Ativo com maior degradação: </span><span className="font-semibold text-amber-700">★ {limiting}</span></p>
+                      )}
+                      {estimatedMonths != null && (
+                        <p><span className="text-gray-500">Validade calculada (ICH Q1A): </span><span className="font-semibold">{estimatedMonths.toFixed(1)} meses</span></p>
+                      )}
+                      {recommendedMonths != null && (
+                        <p><span className="text-gray-500">Validade recomendada: </span><span className="font-semibold">{recommendedMonths} meses</span></p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      {practicedMonths != null && (
+                        <p><span className="text-gray-500">Validade praticada (rótulo): </span><span className="font-semibold">{practicedMonths} meses</span></p>
+                      )}
+                      {practicedMonths != null && recommendedMonths != null && (
+                        <p>
+                          <span className="text-gray-500">Situação: </span>
+                          {practicedMonths <= recommendedMonths
+                            ? <span className="font-semibold text-green-700">✓ Compatível — validade praticada ≤ validade calculada</span>
+                            : <span className="font-semibold text-red-700">⚠ Atenção — validade praticada excede a calculada</span>
+                          }
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-[9px] text-gray-400 pt-1">★ Parâmetro limitante — menor validade estimada. Limiar ICH Q1A(R2): 80% do valor inicial (T0).</p>
+                </>
+              )}
+            </div>
+          );
+        })()}
 
         {show.fundamentacaoCinetica && (
           <div className="mb-6 rounded border border-gray-200 bg-gray-50 p-4 text-xs text-gray-700 space-y-3">
