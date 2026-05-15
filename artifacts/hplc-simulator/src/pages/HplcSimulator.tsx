@@ -4455,10 +4455,12 @@ export default function HplcSimulator() {
                       </div>
                     );
                   })}
-                  <div style={{ whiteSpace: "pre" }}>{"    "}</div>
+                  <div style={{ whiteSpace: "pre" }}>{""}</div>
                   <div style={{ whiteSpace: "pre" }}>
-                    {"    Totals :                              " + totalAmount.toFixed(5).padStart(12)}
+                    {"    Totals :                                                                             " + totalAmount.toFixed(5)}
                   </div>
+                  <div style={{ whiteSpace: "pre" }}>{""}</div>
+                  <div style={{ whiteSpace: "pre" }}>{""}</div>
                 </div>
               </div>
             </>
@@ -4516,11 +4518,13 @@ export default function HplcSimulator() {
                       </div>
                     );
                   })}
-                  <div style={{ whiteSpace: "pre" }}>{"    "}</div>
+                  <div style={{ whiteSpace: "pre" }}>{""}</div>
                   <div style={{ whiteSpace: "pre" }}>
-                    {"    Totals :                              " +
-                      peakStats.filter(p => p.printSelected !== false && p.amount > 0).reduce((s, p) => s + p.amount, 0).toFixed(5).padStart(12)}
+                    {"    Totals :                                                                             " +
+                      peakStats.filter(p => p.printSelected !== false && p.amount > 0).reduce((s, p) => s + p.amount, 0).toFixed(5)}
                   </div>
+                  <div style={{ whiteSpace: "pre" }}>{""}</div>
+                  <div style={{ whiteSpace: "pre" }}>{""}</div>
                 </div>
               </div>
 
@@ -4714,7 +4718,17 @@ export default function HplcSimulator() {
               })}
 
               <div style={{ marginTop: 20 }}>
-                <SectionTitle title="*** End of Report ***" />
+                <Div />
+                <div style={{ whiteSpace: "pre" }}>{center("*** End of Report ***")}</div>
+              </div>
+
+              {/* Footer line — matches ChemStation page footer */}
+              <div style={{ marginTop: 20, whiteSpace: "pre", fontSize: 9 }}>
+                {[
+                  sample.acqInstrument,
+                  new Date().toLocaleString("en-US", { month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true }),
+                  sample.acqOperator,
+                ].join(" ").padEnd(88) + "Page   1 of 1"}
               </div>
 
               {/* Saved chromatogram image viewer — shown when an image is selected in the left panel */}
@@ -4723,15 +4737,15 @@ export default function HplcSimulator() {
                 if (!img) return null;
                 return (
                   <div style={{ marginTop: 24 }}>
-                    <SectionTitle title="Cromatograma Salvo" />
+                    <SectionTitle title="Saved Chromatogram" />
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 8 }}>
-                      <div><b>Sessão:</b> {img.sessionName}</div>
-                      <div><b>Salvo em:</b> {new Date(img.createdAt).toLocaleString("pt-BR")}</div>
+                      <div><b>Session:</b> {img.sessionName}</div>
+                      <div><b>Saved at:</b> {new Date(img.createdAt).toLocaleString("en-US")}</div>
                     </div>
                     <div style={{ border: "1px solid #d1d5db", borderRadius: 4, overflow: "hidden", background: "#f9fafb" }}>
                       <img
                         src={img.imageData}
-                        alt={`Cromatograma — ${img.sessionName}`}
+                        alt={`Chromatogram — ${img.sessionName}`}
                         style={{ width: "100%", height: "auto", display: "block" }}
                       />
                     </div>
@@ -4743,11 +4757,11 @@ export default function HplcSimulator() {
                         onClick={() => {
                           const a = document.createElement("a");
                           a.href = img.imageData;
-                          a.download = `cromatograma_${img.sessionName.replace(/\s+/g, "_")}.png`;
+                          a.download = `chromatogram_${img.sessionName.replace(/\s+/g, "_")}.png`;
                           a.click();
                         }}
                       >
-                        <Download className="h-3 w-3" /> Baixar PNG
+                        <Download className="h-3 w-3" /> Download PNG
                       </Button>
                       <Button
                         size="sm"
@@ -4755,7 +4769,7 @@ export default function HplcSimulator() {
                         className="h-7 text-xs"
                         onClick={() => setReportSelectedImageId(null)}
                       >
-                        Fechar
+                        Close
                       </Button>
                     </div>
                   </div>
