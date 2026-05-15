@@ -547,29 +547,8 @@ function fmtArea(n: number) { return n.toFixed(5); }
 // Non-quantified peaks: manualArea=0 (auto-calculated by Gaussian model).
 // B6 peak uses exact area/amount from Sample A report.
 const DEFAULT_PEAKS: Peak[] = [
-  // Early matrix peak
-  { id: uid(), name: "", retentionTime: 1.623, height: 22,   width: 0.012, asymmetry: 1.35, peakType: "BB", manualArea: 0,           amtPerArea: 0,         amount: 0,        grp: "", peakNoise: 0 },
-  // Matrix peak cluster pre-B6
-  { id: uid(), name: "", retentionTime: 2.049, height: 28,   width: 0.013, asymmetry: 1.25, peakType: "BB", manualArea: 0,           amtPerArea: 0,         amount: 0,        grp: "", peakNoise: 0 },
-  { id: uid(), name: "", retentionTime: 2.164, height: 58,   width: 0.014, asymmetry: 1.18, peakType: "BB", manualArea: 0,           amtPerArea: 0,         amount: 0,        grp: "", peakNoise: 0 },
-  // ── B6 analyte — VB integration, exact area/amount from Amostra A report ──
-  { id: uid(), name: "B6", retentionTime: 2.408, height: 750, width: 0.014, asymmetry: 1.22, peakType: "VB", manualArea: 1585.83862, amtPerArea: 3.95781e-2, amount: 62.76442, grp: "", peakNoise: 0 },
-  // Post-B6 cluster (matrix / degradation products)
-  { id: uid(), name: "", retentionTime: 2.596, height: 48,   width: 0.013, asymmetry: 1.15, peakType: "BB", manualArea: 0,           amtPerArea: 0,         amount: 0,        grp: "", peakNoise: 0 },
-  { id: uid(), name: "", retentionTime: 2.748, height: 82,   width: 0.014, asymmetry: 1.20, peakType: "BB", manualArea: 0,           amtPerArea: 0,         amount: 0,        grp: "", peakNoise: 0 },
-  { id: uid(), name: "", retentionTime: 2.826, height: 82,   width: 0.014, asymmetry: 1.18, peakType: "BB", manualArea: 0,           amtPerArea: 0,         amount: 0,        grp: "", peakNoise: 0 },
-  { id: uid(), name: "", retentionTime: 3.238, height: 68,   width: 0.015, asymmetry: 1.15, peakType: "BB", manualArea: 0,           amtPerArea: 0,         amount: 0,        grp: "", peakNoise: 0 },
-  // Dominant excipient/solvent peak — tallest in run (~1748 mAU)
-  { id: uid(), name: "", retentionTime: 3.406, height: 1748, width: 0.016, asymmetry: 1.10, peakType: "BB", manualArea: 0,           amtPerArea: 0,         amount: 0,        grp: "", peakNoise: 0 },
-  // Post-dominant cluster
-  { id: uid(), name: "", retentionTime: 3.707, height: 58,   width: 0.015, asymmetry: 1.20, peakType: "BB", manualArea: 0,           amtPerArea: 0,         amount: 0,        grp: "", peakNoise: 0 },
-  { id: uid(), name: "", retentionTime: 3.836, height: 58,   width: 0.015, asymmetry: 1.18, peakType: "BB", manualArea: 0,           amtPerArea: 0,         amount: 0,        grp: "", peakNoise: 0 },
-  // Mid-run matrix peaks
-  { id: uid(), name: "", retentionTime: 4.992, height: 92,   width: 0.018, asymmetry: 1.15, peakType: "BB", manualArea: 0,           amtPerArea: 0,         amount: 0,        grp: "", peakNoise: 0 },
-  // Late matrix peaks — slightly broader with higher retention
-  { id: uid(), name: "", retentionTime: 5.829, height: 248,  width: 0.022, asymmetry: 1.12, peakType: "BB", manualArea: 0,           amtPerArea: 0,         amount: 0,        grp: "", peakNoise: 0 },
-  { id: uid(), name: "", retentionTime: 7.321, height: 118,  width: 0.026, asymmetry: 1.10, peakType: "BB", manualArea: 0,           amtPerArea: 0,         amount: 0,        grp: "", peakNoise: 0 },
-  { id: uid(), name: "", retentionTime: 8.648, height: 82,   width: 0.028, asymmetry: 1.08, peakType: "BB", manualArea: 0,           amtPerArea: 0,         amount: 0,        grp: "", peakNoise: 0 },
+  // Single example peak — configure o nome, TR e altura conforme o analito
+  { id: uid(), name: "", retentionTime: 2.408, height: 750, width: 0.014, asymmetry: 1.22, peakType: "BB", manualArea: 0, amtPerArea: 0, amount: 0, grp: "", peakNoise: 0 },
 ];
 
 const DEFAULT_SAMPLE: SampleInfo = {
