@@ -856,7 +856,17 @@ export default function CertificatePage() {
 
           return (
             <div className="mb-6 rounded border border-blue-200 bg-blue-50/40 p-4 text-xs text-gray-700 space-y-3">
-              <p className="font-semibold text-gray-800 uppercase tracking-wide text-[11px]">Parâmetros Cinéticos e Estimativa de Validade</p>
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-gray-800 uppercase tracking-wide text-[11px]">Parâmetros Cinéticos e Estimativa de Validade</p>
+                <button
+                  type="button"
+                  onClick={() => toggle("cineticaProtocolo")}
+                  className="print:hidden flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded border transition-colors border-blue-300 bg-blue-100 text-blue-700 hover:bg-blue-200"
+                  title="Clique para ocultar/mostrar este bloco na impressão"
+                >
+                  <span>✕ Ocultar na impressão</span>
+                </button>
+              </div>
               {!hasData ? (
                 <p className="text-gray-400 italic">Dados cinéticos insuficientes (requer resultados de teor nos tempos T3 e T6).</p>
               ) : (
@@ -896,7 +906,7 @@ export default function CertificatePage() {
                   <div className="grid grid-cols-2 gap-4 pt-1">
                     <div className="space-y-1">
                       {limiting && (
-                        <p><span className="text-gray-500">Ativo com maior degradação: </span><span className="font-semibold text-amber-700">★ {limiting}</span></p>
+                        <p><span className="text-gray-500">Ativo com maior degradação no período: </span><span className="font-semibold text-amber-700">★ {limiting}</span></p>
                       )}
                       {estimatedMonths != null && (
                         <p><span className="text-gray-500">Validade calculada (ICH Q1A): </span><span className="font-semibold">{estimatedMonths.toFixed(1)} meses</span></p>
