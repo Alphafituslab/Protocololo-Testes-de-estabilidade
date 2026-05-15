@@ -165,6 +165,8 @@ export default function CertificatePage() {
   const [photosExpanded, setPhotosExpanded] = useState(false);
   const [includeHistory, setIncludeHistory] = useState(true);
   const [historyExpanded, setHistoryExpanded] = useState(false);
+  const [cineticaExpanded, setCineticaExpanded] = useState(true);
+  const [fundamentacaoExpanded, setFundamentacaoExpanded] = useState(true);
 
   // Environmental conditions — persisted in localStorage so edits survive navigation
   const ENV_KEY = `cert_env_${id}`;
@@ -845,7 +847,7 @@ export default function CertificatePage() {
           {cert.issueDate && <span className="ml-auto text-gray-500 text-xs">DATA: {cert.issueDate}</span>}
         </div>
 
-        {show.cineticaProtocolo && (() => {
+        {(() => {
           const kParams = kineticsData?.parameters ?? [];
           const validParams = kParams.filter(p => p !== null && p.k != null && p.k > 0) as NonNullable<typeof kParams[number]>[];
           const limiting = kineticsData?.limitingParameter ?? null;
@@ -855,96 +857,142 @@ export default function CertificatePage() {
           const hasData = validParams.length > 0;
 
           return (
-            <div className="mb-6 rounded border border-blue-200 bg-blue-50/40 p-4 text-xs text-gray-700 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="font-semibold text-gray-800 uppercase tracking-wide text-[11px]">Parâmetros Cinéticos e Estimativa de Validade</p>
-                <button
-                  type="button"
-                  onClick={() => toggle("cineticaProtocolo")}
-                  className="print:hidden flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded border transition-colors border-blue-300 bg-blue-100 text-blue-700 hover:bg-blue-200"
-                  title="Clique para ocultar/mostrar este bloco na impressão"
-                >
-                  <span>✕ Ocultar na impressão</span>
-                </button>
+            <div className={`mb-6 rounded border border-blue-200 overflow-hidden text-xs text-gray-700 ${!show.cineticaProtocolo ? "print:hidden" : ""}`}>
+              {/* Accordion header — screen only */}
+              <div
+                className="print:hidden flex items-center justify-between px-4 py-2 bg-blue-50 border-b border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors select-none"
+                onClick={() => setCineticaExpanded(v => !v)}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-800 uppercase tracking-wide text-[11px]">Parâmetros Cinéticos e Estimativa de Validade</span>
+                  {!cineticaExpanded && (
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${show.cineticaProtocolo ? "bg-green-50 border-green-300 text-green-700" : "bg-gray-100 border-gray-300 text-gray-500"}`}>
+                      {show.cineticaProtocolo ? "✓ Na impressão" : "✗ Oculto na impressão"}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); toggle("cineticaProtocolo"); }}
+                    className={`flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded border transition-colors ${show.cineticaProtocolo ? "border-blue-300 bg-blue-100 text-blue-700 hover:bg-blue-200" : "border-green-300 bg-green-100 text-green-700 hover:bg-green-200"}`}
+                    title="Clique para incluir/ocultar este bloco na impressão"
+                  >
+                    {show.cineticaProtocolo ? "✕ Ocultar na impressão" : "✓ Incluir na impressão"}
+                  </button>
+                  {cineticaExpanded ? <ChevronUp className="h-4 w-4 text-blue-500" /> : <ChevronDown className="h-4 w-4 text-blue-500" />}
+                </div>
               </div>
-              {!hasData ? (
-                <p className="text-gray-400 italic">Dados cinéticos insuficientes (requer resultados de teor nos tempos T3 e T6).</p>
-              ) : (
-                <>
-                  <table className="w-full text-[10px] border-collapse">
-                    <thead>
-                      <tr className="bg-blue-100/60">
-                        <th className="border border-blue-200 px-2 py-1 text-left font-semibold">Ativo</th>
-                        <th className="border border-blue-200 px-2 py-1 text-center font-semibold">T0 (%)</th>
-                        <th className="border border-blue-200 px-2 py-1 text-center font-semibold">T3 (%)</th>
-                        <th className="border border-blue-200 px-2 py-1 text-center font-semibold">T6 (%)</th>
-                        <th className="border border-blue-200 px-2 py-1 text-center font-semibold">k (mês⁻¹)</th>
-                        <th className="border border-blue-200 px-2 py-1 text-center font-semibold">Validade Calc. (meses)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {validParams.map(p => {
-                        const isLimiting = p.parameter === limiting;
-                        return (
-                          <tr key={p.parameter} className={isLimiting ? "bg-amber-50" : ""}>
-                            <td className={`border border-blue-200 px-2 py-1 font-medium ${isLimiting ? "text-amber-800" : ""}`}>
-                              {p.parameter}{isLimiting && <span className="ml-1 text-amber-600 font-bold">★</span>}
-                            </td>
-                            <td className="border border-blue-200 px-2 py-1 text-center">{p.t0 != null ? p.t0.toFixed(2) : "—"}</td>
-                            <td className="border border-blue-200 px-2 py-1 text-center">{p.t3 != null ? p.t3.toFixed(2) : "—"}</td>
-                            <td className="border border-blue-200 px-2 py-1 text-center">{p.t6 != null ? p.t6.toFixed(2) : "—"}</td>
-                            <td className="border border-blue-200 px-2 py-1 text-center font-mono">{p.k != null ? p.k.toFixed(5) : "—"}</td>
-                            <td className="border border-blue-200 px-2 py-1 text-center font-semibold">
-                              {p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(1) : "—"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
 
-                  <div className="grid grid-cols-2 gap-4 pt-1">
-                    <div className="space-y-1">
-                      {limiting && (
-                        <p><span className="text-gray-500">Ativo com maior degradação no período: </span><span className="font-semibold text-amber-700">★ {limiting}</span></p>
-                      )}
-                      {estimatedMonths != null && (
-                        <p><span className="text-gray-500">Validade calculada (ICH Q1A): </span><span className="font-semibold">{estimatedMonths.toFixed(1)} meses</span></p>
-                      )}
-                      {recommendedMonths != null && (
-                        <p><span className="text-gray-500">Validade recomendada: </span><span className="font-semibold">{recommendedMonths} meses</span></p>
-                      )}
+              {/* Content — hidden on screen when collapsed, but always printed when show=true */}
+              <div className={`bg-blue-50/40 p-4 space-y-3 ${!cineticaExpanded ? "hidden print:block" : ""}`}>
+                <p className="font-semibold text-gray-800 uppercase tracking-wide text-[11px] hidden print:block">Parâmetros Cinéticos e Estimativa de Validade</p>
+                {!hasData ? (
+                  <p className="text-gray-400 italic">Dados cinéticos insuficientes (requer resultados de teor nos tempos T3 e T6).</p>
+                ) : (
+                  <>
+                    <table className="w-full text-[10px] border-collapse">
+                      <thead>
+                        <tr className="bg-blue-100/60">
+                          <th className="border border-blue-200 px-2 py-1 text-left font-semibold">Ativo</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold">T0 (%)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold">T3 (%)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold">T6 (%)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold">k (mês⁻¹)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold">Validade Calc. (meses)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {validParams.map(p => {
+                          const isLimiting = p.parameter === limiting;
+                          return (
+                            <tr key={p.parameter} className={isLimiting ? "bg-amber-50" : ""}>
+                              <td className={`border border-blue-200 px-2 py-1 font-medium ${isLimiting ? "text-amber-800" : ""}`}>
+                                {p.parameter}{isLimiting && <span className="ml-1 text-amber-600 font-bold">★</span>}
+                              </td>
+                              <td className="border border-blue-200 px-2 py-1 text-center">{p.t0 != null ? p.t0.toFixed(2) : "—"}</td>
+                              <td className="border border-blue-200 px-2 py-1 text-center">{p.t3 != null ? p.t3.toFixed(2) : "—"}</td>
+                              <td className="border border-blue-200 px-2 py-1 text-center">{p.t6 != null ? p.t6.toFixed(2) : "—"}</td>
+                              <td className="border border-blue-200 px-2 py-1 text-center font-mono">{p.k != null ? p.k.toFixed(5) : "—"}</td>
+                              <td className="border border-blue-200 px-2 py-1 text-center font-semibold">
+                                {p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(1) : "—"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+
+                    <div className="grid grid-cols-2 gap-4 pt-1">
+                      <div className="space-y-1">
+                        {limiting && (
+                          <p><span className="text-gray-500">Ativo com maior degradação no período: </span><span className="font-semibold text-amber-700">★ {limiting}</span></p>
+                        )}
+                        {estimatedMonths != null && (
+                          <p><span className="text-gray-500">Validade calculada (ICH Q1A): </span><span className="font-semibold">{estimatedMonths.toFixed(1)} meses</span></p>
+                        )}
+                        {recommendedMonths != null && (
+                          <p><span className="text-gray-500">Validade recomendada: </span><span className="font-semibold">{recommendedMonths} meses</span></p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        {practicedMonths != null && (
+                          <p><span className="text-gray-500">Validade praticada (rótulo): </span><span className="font-semibold">{practicedMonths} meses</span></p>
+                        )}
+                        {practicedMonths != null && recommendedMonths != null && (
+                          <p>
+                            <span className="text-gray-500">Situação: </span>
+                            {practicedMonths <= recommendedMonths
+                              ? <span className="font-semibold text-green-700">✓ Compatível — validade praticada ≤ validade calculada</span>
+                              : <span className="font-semibold text-red-700">⚠ Atenção — validade praticada excede a calculada</span>
+                            }
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      {practicedMonths != null && (
-                        <p><span className="text-gray-500">Validade praticada (rótulo): </span><span className="font-semibold">{practicedMonths} meses</span></p>
-                      )}
-                      {practicedMonths != null && recommendedMonths != null && (
-                        <p>
-                          <span className="text-gray-500">Situação: </span>
-                          {practicedMonths <= recommendedMonths
-                            ? <span className="font-semibold text-green-700">✓ Compatível — validade praticada ≤ validade calculada</span>
-                            : <span className="font-semibold text-red-700">⚠ Atenção — validade praticada excede a calculada</span>
-                          }
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-[9px] text-gray-400 pt-1">★ Parâmetro limitante — menor validade estimada. Limiar ICH Q1A(R2): 80% do valor inicial (T0).</p>
-                </>
-              )}
+                    <p className="text-[9px] text-gray-400 pt-1">★ Parâmetro limitante — menor validade estimada. Limiar ICH Q1A(R2): 80% do valor inicial (T0).</p>
+                  </>
+                )}
+              </div>
             </div>
           );
         })()}
 
-        {show.fundamentacaoCinetica && (
-          <div className="mb-6 rounded border border-gray-200 bg-gray-50 p-4 text-xs text-gray-700 space-y-3">
-            <p className="font-semibold text-gray-800 uppercase tracking-wide">Fundamentação do Modelo Cinético</p>
+        <div className={`mb-6 rounded border border-gray-200 overflow-hidden text-xs text-gray-700 ${!show.fundamentacaoCinetica ? "print:hidden" : ""}`}>
+          {/* Accordion header — screen only */}
+          <div
+            className="print:hidden flex items-center justify-between px-4 py-2 bg-gray-100 border-b border-gray-200 cursor-pointer hover:bg-gray-200 transition-colors select-none"
+            onClick={() => setFundamentacaoExpanded(v => !v)}
+          >
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-800 uppercase tracking-wide text-[11px]">Fundamentação do Modelo Cinético</span>
+              {!fundamentacaoExpanded && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${show.fundamentacaoCinetica ? "bg-green-50 border-green-300 text-green-700" : "bg-gray-100 border-gray-300 text-gray-500"}`}>
+                  {show.fundamentacaoCinetica ? "✓ Na impressão" : "✗ Oculto na impressão"}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); toggle("fundamentacaoCinetica"); }}
+                className={`flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded border transition-colors ${show.fundamentacaoCinetica ? "border-gray-400 bg-gray-200 text-gray-700 hover:bg-gray-300" : "border-green-300 bg-green-100 text-green-700 hover:bg-green-200"}`}
+                title="Clique para incluir/ocultar este bloco na impressão"
+              >
+                {show.fundamentacaoCinetica ? "✕ Ocultar na impressão" : "✓ Incluir na impressão"}
+              </button>
+              {fundamentacaoExpanded ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
+            </div>
+          </div>
+
+          {/* Content — hidden on screen when collapsed, but always printed when show=true */}
+          <div className={`bg-gray-50 p-4 space-y-3 ${!fundamentacaoExpanded ? "hidden print:block" : ""}`}>
+            <p className="font-semibold text-gray-800 uppercase tracking-wide hidden print:block">Fundamentação do Modelo Cinético</p>
             <p className="leading-relaxed">Para a estimativa do tempo de validade do produto, foi empregado o modelo cinético de degradação de primeira ordem, amplamente descrito na literatura para substâncias bioativas submetidas à avaliação de estabilidade sob condições de estresse controlado, como temperatura e umidade.</p>
             <p className="font-mono bg-white border border-gray-200 rounded px-3 py-1.5 inline-block">C<sub>t</sub> = C<sub>0</sub> · e<sup>−kt</sup></p>
             <p className="font-mono bg-white border border-gray-200 rounded px-3 py-1.5 inline-block ml-4">k = A · e<sup>−E<sub>a</sub>/RT</sup></p>
           </div>
-        )}
+        </div>
 
         <div className="grid grid-cols-2 gap-8 pt-4 border-t border-gray-300">
           {cert.issuedBy && (
