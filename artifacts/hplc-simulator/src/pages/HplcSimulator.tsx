@@ -28,6 +28,7 @@ interface Peak {
   amount: number;       // ug/ml
   grp: string;
   peakNoise: number;        // 0 = perfect Gaussian; 1 = max roughness
+  inclination?: number;     // -5..+5 — tilts the peak baseline (positive = right side higher)
   attachedFile?: string;    // filename of imported data file
   printSelected?: boolean;  // include in printed report (default = true)
   locked?: boolean;         // if true: peak cannot be moved, edited or deleted
@@ -338,6 +339,16 @@ function buildChromatogram(
         : p.width;
       const localAmp = gaussian(t, p.retentionTime, effWidth, p.height, p.asymmetry);
       signal += localAmp + peakNoiseAt(i, peakSeeds[pi], localAmp, p.peakNoise ?? 0);
+      // Peak inclination — tilts the peak by adding a linear ramp under the Gaussian envelope
+      if ((p.inclination ?? 0) !== 0) {
+        const incl = p.inclination!;
+        const span = effWidth * 5;
+        const deltaT = t - p.retentionTime;
+        if (Math.abs(deltaT) < span) {
+          const envelope = localAmp / Math.max(p.height, 1);
+          signal += incl * p.height * 0.45 * (deltaT / span) * envelope;
+        }
+      }
     }
 
     // Shot noise — proportional to √signal, mimics LC/MS photon/ion counting statistics
@@ -751,7 +762,7 @@ function PeakLabel({ viewBox, rt, name, dragging }: {
 
 // ─── Peak editor ──────────────────────────────────────────────────────────────
 
-const PEAK_NUM_KEYS: (keyof Peak)[] = ["retentionTime", "height", "width", "asymmetry", "manualArea", "amtPerArea", "amount", "peakNoise"];
+const PEAK_NUM_KEYS: (keyof Peak)[] = ["retentionTime", "height", "width", "asymmetry", "manualArea", "amtPerArea", "amount", "peakNoise", "inclination"];
 
 function peakToStrings(p: Peak): Record<keyof Peak, string> {
   return Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v)])) as Record<keyof Peak, string>;
@@ -826,6 +837,25 @@ function PeakEditorDialog({ peak, onSave, children, controlledOpen, onControlled
               />
             </div>
           ))}
+
+          {/* Peak inclination/tilt slider */}
+          <div className="pt-1">
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs text-muted-foreground">Inclinação do pico</Label>
+              <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
+                {(() => { const v = parseFloat(draft.inclination as string) || 0; return v === 0 ? "neutro" : v > 0 ? `+${v.toFixed(1)} →` : `${v.toFixed(1)} ←`; })()}
+              </span>
+            </div>
+            <input
+              type="range" min="-5" max="5" step="0.1"
+              value={parseFloat(draft.inclination as string) || 0}
+              onChange={e => setDraft(d => ({ ...d, inclination: e.target.value }))}
+              className="w-full h-2 accent-blue-600"
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 1 }}>
+              <span>← inclina esquerda</span><span>inclina direita →</span>
+            </div>
+          </div>
 
           {/* Peak surface roughness slider */}
           <div className="pt-1">
@@ -1751,6 +1781,7 @@ export default function HplcSimulator() {
   const [savedImages, setSavedImages] = useState<HplcSavedImage[]>([]);
   const [compoundCalibrations, setCompoundCalibrations] = useState<Record<string, CompoundCalibration>>(() => loadCompoundCalibrations());
   const [selectedCalibCompoundId, setSelectedCalibCompoundId] = useState<string | null>(null);
+  const [reportSelectedImageId, setReportSelectedImageId] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileTargetPeakIdRef = useRef<string | null>(null);
@@ -2128,9 +2159,9 @@ export default function HplcSimulator() {
   const savePeak = (updated: Peak) => { setPeaks(ps => ps.map(p => p.id === updated.id ? updated : p)); markDirty(); };
   const toggleLockPeak = (id: string) => {
     setPeaks(ps => ps.map(p => p.id === id ? { ...p, locked: !p.locked } : p));
-    // Close the editor dialog gracefully instead of abruptly removing it from
-    // the tree — this prevents the Radix portal "insertBefore" DOM crash.
-    if (editingPeakId === id) closeEditorDialog();
+    // Close the editor dialog gracefully — deferred so we never trigger a
+    // React state update mid-render (which would throw a batching error).
+    if (editingPeakId === id) setTimeout(() => closeEditorDialog(), 0);
     // If the peak being locked is currently dragged, stop the drag immediately
     // so the peak stays at its current position and doesn't drift on next mousemove.
     // Check both state value and ref directly to cover batched-update edge cases.
@@ -2991,13 +3022,13 @@ export default function HplcSimulator() {
                       <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{detector.baselineNoise.toFixed(2)}</span>
                     </div>
                     <input
-                      type="range" min="0" max="10" step="0.1"
+                      type="range" min="0" max="50" step="0.1"
                       value={detector.baselineNoise}
                       onChange={e => { setDetector(d => ({ ...d, baselineNoise: parseFloat(e.target.value) })); markDirty(); }}
                       className="w-full h-2 accent-blue-600"
                     />
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
-                      <span>0 = plana</span><span>10 = muito ruidosa</span>
+                      <span>0 = plana</span><span>50 = extrema</span>
                     </div>
                   </div>
                   {/* Drift slider */}
@@ -3007,13 +3038,13 @@ export default function HplcSimulator() {
                       <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{detector.baselineDrift.toFixed(2)}</span>
                     </div>
                     <input
-                      type="range" min="0" max="15" step="0.1"
+                      type="range" min="0" max="80" step="0.5"
                       value={detector.baselineDrift}
                       onChange={e => { setDetector(d => ({ ...d, baselineDrift: parseFloat(e.target.value) })); markDirty(); }}
                       className="w-full h-2 accent-blue-600"
                     />
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
-                      <span>0 = linear</span><span>15 = deriva alta</span>
+                      <span>0 = linear</span><span>80 = extrema</span>
                     </div>
                   </div>
                   {/* Pulse slider */}
@@ -3023,13 +3054,13 @@ export default function HplcSimulator() {
                       <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{detector.baselinePulse.toFixed(2)}</span>
                     </div>
                     <input
-                      type="range" min="0" max="5" step="0.05"
+                      type="range" min="0" max="20" step="0.1"
                       value={detector.baselinePulse}
                       onChange={e => { setDetector(d => ({ ...d, baselinePulse: parseFloat(e.target.value) })); markDirty(); }}
                       className="w-full h-2 accent-blue-600"
                     />
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
-                      <span>0 = sem pulso</span><span>5 = forte</span>
+                      <span>0 = sem pulso</span><span>20 = forte</span>
                     </div>
                   </div>
                   {/* Baseline Wander slider */}
@@ -3038,12 +3069,12 @@ export default function HplcSimulator() {
                       <span>Ondulação lenta (mAU)</span>
                       <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineWander ?? 0).toFixed(2)}</span>
                     </div>
-                    <input type="range" min="0" max="8" step="0.1"
+                    <input type="range" min="0" max="30" step="0.5"
                       value={detector.baselineWander ?? 0}
                       onChange={e => { setDetector(d => ({ ...d, baselineWander: parseFloat(e.target.value) })); markDirty(); }}
                       className="w-full h-2 accent-blue-600" />
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
-                      <span>0 = sem oscilação</span><span>8 = gradiente forte</span>
+                      <span>0 = sem oscilação</span><span>30 = gradiente intenso</span>
                     </div>
                   </div>
                   {/* Shot Noise slider */}
@@ -3066,12 +3097,12 @@ export default function HplcSimulator() {
                       <span>Hump coluna / matriz (mAU)</span>
                       <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineHump ?? 0).toFixed(0)}</span>
                     </div>
-                    <input type="range" min="0" max="120" step="1"
+                    <input type="range" min="0" max="500" step="5"
                       value={detector.baselineHump ?? 0}
                       onChange={e => { setDetector(d => ({ ...d, baselineHump: parseFloat(e.target.value) })); markDirty(); }}
                       className="w-full h-2 accent-blue-600" />
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
-                      <span>0 = sem hump</span><span>120 = column bleed</span>
+                      <span>0 = sem hump</span><span>500 = column bleed</span>
                     </div>
                   </div>
                   {/* Broadening slider */}
@@ -3384,6 +3415,50 @@ export default function HplcSimulator() {
                     <SmallField label="Calib. Data Modified" value={calib.calibDataModified} onChange={cField("calibDataModified")} />
                     <SmallField label="Multiplier" value={calib.multiplier} onChange={cField("multiplier")} />
                     <SmallField label="Dilution" value={calib.dilution} onChange={cField("dilution")} />
+                  </ControlBox>
+
+                  {/* Saved chromatogram viewer */}
+                  <ControlBox title="Cromatogramas Salvos">
+                    {savedImages.length === 0 ? (
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", lineHeight: 1.5 }}>
+                        Nenhuma imagem salva.<br />
+                        Salve cromatogramas pela câmera na aba de análise.
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6 }}>
+                          Clique para visualizar no relatório:
+                        </div>
+                        {savedImages.map(img => (
+                          <div
+                            key={img.id}
+                            onClick={() => setReportSelectedImageId(img.id === reportSelectedImageId ? null : img.id)}
+                            style={{
+                              padding: "5px 8px", marginBottom: 4, borderRadius: 3, cursor: "pointer",
+                              background: img.id === reportSelectedImageId ? "#dbeafe" : "#f8fafc",
+                              border: `1px solid ${img.id === reportSelectedImageId ? "#93c5fd" : "#e2e8f0"}`,
+                              fontFamily: "Courier New, monospace",
+                            }}
+                          >
+                            <div style={{ fontWeight: "bold", color: "#1d4ed8", fontSize: 9.5, marginBottom: 1 }}>{img.sessionName}</div>
+                            <div style={{ fontSize: 8.5, color: "#666" }}>{new Date(img.createdAt).toLocaleString("pt-BR")}</div>
+                            {img.id === reportSelectedImageId && (
+                              <div style={{ fontSize: 8, color: "#1d4ed8", marginTop: 2 }}>▼ visível no relatório</div>
+                            )}
+                          </div>
+                        ))}
+                        {reportSelectedImageId && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full h-7 text-xs mt-1"
+                            onClick={() => setReportSelectedImageId(null)}
+                          >
+                            Ocultar imagem
+                          </Button>
+                        )}
+                      </>
+                    )}
                   </ControlBox>
                 </>
               );
@@ -3982,7 +4057,11 @@ export default function HplcSimulator() {
                 )}
                 {/* overflow:visible lets vertical peak labels render above the plot margin */}
                 <style>{`.hplc-main-chart .recharts-wrapper svg { overflow: visible; }`}</style>
-                <div className="hplc-main-chart">
+                <div className="hplc-main-chart" style={{ position: "relative" }}>
+                {/* Signal label overlay inside chart — matches ChemStation top-left annotation */}
+                <div style={{ position: "absolute", top: 3, left: 54, right: 20, fontSize: 9, fontFamily: "Courier New, monospace", color: "#444", zIndex: 10, pointerEvents: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {signalLabel} ({sample.dataFile})
+                </div>
                 <ResponsiveContainer width="100%" height={360}>
                   <ComposedChart data={mergedChrom} margin={{ top: 75, right: 16, left: 8, bottom: 24 }}>
                     <CartesianGrid strokeDasharray="2 2" stroke="#e2e2e2" />
@@ -4329,6 +4408,51 @@ export default function HplcSimulator() {
               <div style={{ marginTop: 20 }}>
                 <SectionTitle title="*** End of Report ***" />
               </div>
+
+              {/* Saved chromatogram image viewer — shown when an image is selected in the left panel */}
+              {reportSelectedImageId && (() => {
+                const img = savedImages.find(i => i.id === reportSelectedImageId);
+                if (!img) return null;
+                return (
+                  <div style={{ marginTop: 24 }}>
+                    <SectionTitle title="Cromatograma Salvo" />
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 8 }}>
+                      <div><b>Sessão:</b> {img.sessionName}</div>
+                      <div><b>Salvo em:</b> {new Date(img.createdAt).toLocaleString("pt-BR")}</div>
+                    </div>
+                    <div style={{ border: "1px solid #d1d5db", borderRadius: 4, overflow: "hidden", background: "#f9fafb" }}>
+                      <img
+                        src={img.imageData}
+                        alt={`Cromatograma — ${img.sessionName}`}
+                        style={{ width: "100%", height: "auto", display: "block" }}
+                      />
+                    </div>
+                    <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1"
+                        onClick={() => {
+                          const a = document.createElement("a");
+                          a.href = img.imageData;
+                          a.download = `cromatograma_${img.sessionName.replace(/\s+/g, "_")}.png`;
+                          a.click();
+                        }}
+                      >
+                        <Download className="h-3 w-3" /> Baixar PNG
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs"
+                        onClick={() => setReportSelectedImageId(null)}
+                      >
+                        Fechar
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           )}
 
