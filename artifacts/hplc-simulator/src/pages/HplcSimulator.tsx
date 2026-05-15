@@ -730,9 +730,20 @@ function PeakLabel({ viewBox, rt, name, dragging }: {
   if (!viewBox) return null;
   const { x, y } = viewBox;
   const color = dragging ? "#e05" : "#1560bd";
-  // Anchor point for both labels: just below the top of the margin space.
-  // With margin.top=75, y is the SVG top of the plot. Labels go upward (negative offset).
-  const ay = y - 6; // anchor y — within the top margin, safe from clipping
+  // Anchor y just below the top of the chart margin (margin.top = 75).
+  // Labels extend UPWARD from here.  maxH caps how far up they go so they
+  // never escape the margin area or overlap the signal-label overlay at top≈3.
+  const ay = y - 6;
+  // Leave the top 18 px for the signal-label overlay, so maxH ≤ ay - 18.
+  const maxH = Math.max(ay - 18, 20);
+
+  // RT string is always ~8 chars; name can be long — both are clamped to maxH.
+  const rtStr = rt.toFixed(3);
+  const rtNatural = rtStr.length * 5.5;
+  const rtLen = Math.min(rtNatural, maxH);
+
+  const nameNatural = (name?.length ?? 0) * 5.5;
+  const nameLen = Math.min(nameNatural, maxH);
 
   return (
     <g>
@@ -741,9 +752,11 @@ function PeakLabel({ viewBox, rt, name, dragging }: {
         x={x + 3} y={ay}
         textAnchor="start"
         transform={`rotate(-90, ${x + 3}, ${ay})`}
+        textLength={rtLen}
+        lengthAdjust="spacingAndGlyphs"
         style={{ fontFamily: "Courier New, monospace", fontSize: 9.5, fill: dragging ? "#e05" : "#666", pointerEvents: "none" }}
       >
-        {rt.toFixed(3)}
+        {rtStr}
       </text>
       {/* Compound name — vertical, second column to the right of RT */}
       {name && (
@@ -751,6 +764,8 @@ function PeakLabel({ viewBox, rt, name, dragging }: {
           x={x + 14} y={ay}
           textAnchor="start"
           transform={`rotate(-90, ${x + 14}, ${ay})`}
+          textLength={nameLen}
+          lengthAdjust="spacingAndGlyphs"
           style={{ fontFamily: "Courier New, monospace", fontSize: 9, fill: color, fontWeight: "bold", pointerEvents: "none" }}
         >
           {name}
@@ -4058,8 +4073,16 @@ export default function HplcSimulator() {
                 {/* overflow:visible lets vertical peak labels render above the plot margin */}
                 <style>{`.hplc-main-chart .recharts-wrapper svg { overflow: visible; }`}</style>
                 <div className="hplc-main-chart" style={{ position: "relative" }}>
-                {/* Signal label overlay inside chart — matches ChemStation top-left annotation */}
-                <div style={{ position: "absolute", top: 3, left: 54, right: 20, fontSize: 9, fontFamily: "Courier New, monospace", color: "#444", zIndex: 10, pointerEvents: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {/* Signal label overlay inside chart — blue, matches ChemStation annotation */}
+                <div style={{
+                  position: "absolute", top: 3, left: 4, right: 20,
+                  fontSize: 9, fontFamily: "Courier New, monospace",
+                  color: "#1560bd", fontWeight: 600,
+                  zIndex: 20, pointerEvents: "none",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  background: "rgba(255,255,255,0.88)", padding: "0 3px", borderRadius: 2,
+                  maxWidth: "calc(100% - 24px)",
+                }}>
                   {signalLabel} ({sample.dataFile})
                 </div>
                 <ResponsiveContainer width="100%" height={360}>
