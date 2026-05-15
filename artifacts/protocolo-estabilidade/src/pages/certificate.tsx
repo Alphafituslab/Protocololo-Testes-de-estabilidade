@@ -174,8 +174,11 @@ export default function CertificatePage() {
   const [tempRecebimento, setTempRecebimentoRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").tempRecebimento ?? "22,8°C"; } catch { return "22,8°C"; }
   });
+  const [umidRecebimento, setUmidRecebimentoRaw] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").umidRecebimento ?? "60% UR"; } catch { return "60% UR"; }
+  });
 
-  const saveEnv = (patch: Partial<{ tempAmostragem: string; umidAmostragem: string; tempRecebimento: string }>) => {
+  const saveEnv = (patch: Partial<{ tempAmostragem: string; umidAmostragem: string; tempRecebimento: string; umidRecebimento: string }>) => {
     try {
       const current = JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}");
       localStorage.setItem(ENV_KEY, JSON.stringify({ ...current, ...patch }));
@@ -184,6 +187,7 @@ export default function CertificatePage() {
   const setTempAmostragem = (v: string) => { setTempAmostragemRaw(v); saveEnv({ tempAmostragem: v }); };
   const setUmidAmostragem = (v: string) => { setUmidAmostragemRaw(v); saveEnv({ umidAmostragem: v }); };
   const setTempRecebimento = (v: string) => { setTempRecebimentoRaw(v); saveEnv({ tempRecebimento: v }); };
+  const setUmidRecebimento = (v: string) => { setUmidRecebimentoRaw(v); saveEnv({ umidRecebimento: v }); };
 
   // Environmental conditions are password-protected
   const { unlock } = useUnlock();
@@ -633,6 +637,12 @@ export default function CertificatePage() {
                   <dd>{cert.lotNumbers.join(", ")}</dd>
                 </div>
               )}
+              {(cert as any).capsuleComposition && (
+                <div className="flex gap-2">
+                  <dt className="text-gray-500 min-w-20">Composição da Cápsula:</dt>
+                  <dd>{(cert as any).capsuleComposition}</dd>
+                </div>
+              )}
             </dl>
           </div>
         </div>
@@ -683,6 +693,11 @@ export default function CertificatePage() {
                   ? <CertEditField value={tempRecebimento} onChange={setTempRecebimento} className="w-20 text-xs" />
                   : <span className="font-medium">{tempRecebimento}</span>
                 }
+                <span className="text-gray-500 ml-2">Umid.:</span>
+                {envUnlocked
+                  ? <CertEditField value={umidRecebimento} onChange={setUmidRecebimento} className="w-20 text-xs" />
+                  : <span className="font-medium">{umidRecebimento}</span>
+                }
               </div>
             </div>
           </div>
@@ -696,7 +711,7 @@ export default function CertificatePage() {
               <tr className="bg-gray-100">
                 <th className="border border-gray-300 px-2 py-2 text-left font-semibold uppercase tracking-wide w-28">Analise</th>
                 <th className="border border-gray-300 px-2 py-2 text-left font-semibold uppercase tracking-wide">Metodo</th>
-                <th className="border border-gray-300 px-2 py-2 text-left font-semibold uppercase tracking-wide w-28">Especificacoes</th>
+                <th className="border border-gray-300 px-2 py-2 text-left font-semibold uppercase tracking-wide w-28">Critérios de Aceitação</th>
                 <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-20">Resultado</th>
                 <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-24">Status</th>
                 <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-10 print:hidden">

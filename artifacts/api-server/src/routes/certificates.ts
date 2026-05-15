@@ -157,6 +157,7 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     city,
     productName: protocol.productName,
     presentation: protocol.productType ?? null,
+    capsuleComposition: protocol.capsuleComposition ?? null,
     validityMonths: protocol.validityMonths ?? null,
     lotNumbers: lots.map((l) => l.lotNumber),
     analyses,

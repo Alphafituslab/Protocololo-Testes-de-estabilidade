@@ -324,8 +324,11 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
   const [tempRecebimento, setTempRecebimentoRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").tempRecebimento ?? "22,8°C"; } catch { return "22,8°C"; }
   });
+  const [umidRecebimento, setUmidRecebimentoRaw] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").umidRecebimento ?? "60% UR"; } catch { return "60% UR"; }
+  });
 
-  const saveEnv = (patch: Partial<{ tempAmostragem: string; umidAmostragem: string; tempRecebimento: string }>) => {
+  const saveEnv = (patch: Partial<{ tempAmostragem: string; umidAmostragem: string; tempRecebimento: string; umidRecebimento: string }>) => {
     try {
       const current = JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}");
       localStorage.setItem(ENV_KEY, JSON.stringify({ ...current, ...patch }));
@@ -334,6 +337,7 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
   const setTempAmostragem = (v: string) => { setTempAmostragemRaw(v); saveEnv({ tempAmostragem: v }); };
   const setUmidAmostragem = (v: string) => { setUmidAmostragemRaw(v); saveEnv({ umidAmostragem: v }); };
   const setTempRecebimento = (v: string) => { setTempRecebimentoRaw(v); saveEnv({ tempRecebimento: v }); };
+  const setUmidRecebimento = (v: string) => { setUmidRecebimentoRaw(v); saveEnv({ umidRecebimento: v }); };
 
   const fieldsTop = [
     { label: "Número do Certificado", value: protocol.certNumber },
@@ -389,6 +393,12 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
             value={tempRecebimento}
             onChange={setTempRecebimento}
             placeholder="ex: 22,8°C"
+          />
+          <EditableInfoField
+            label="Condições de recebimento da amostra — Umidade"
+            value={umidRecebimento}
+            onChange={setUmidRecebimento}
+            placeholder="ex: 60% UR"
           />
         </div>
       </div>
@@ -1207,7 +1217,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                   {/* Row 1 — sticky columns + one cell per lot (colSpan=periods) */}
                   <TableRow className="bg-muted">
                     <TableHead className="w-44 text-xs sticky left-0 z-20 bg-muted border-r border-border/60 align-bottom pb-1">Parametro</TableHead>
-                    <TableHead className="w-52 text-xs sticky left-44 z-20 bg-muted border-r border-border/60 align-bottom pb-1">Criterio</TableHead>
+                    <TableHead className="w-52 text-xs sticky left-44 z-20 bg-muted border-r border-border/60 align-bottom pb-1">Critérios de Aceitação</TableHead>
                     <TableHead className="w-6 text-xs sticky left-[24rem] z-20 bg-muted border-r border-border/40 align-bottom pb-1"></TableHead>
                     {lots.map((lot) => (
                       <TableHead
@@ -2025,9 +2035,10 @@ function FinalizeSection({
 
   const isAlreadyFinalized = status === "aprovado" || status === "reprovado" || status === "aprovado_com_ressalva";
 
-  // Se há não-conformes, força reprovado independentemente do status salvo
+  // Se há não-conformes e o status salvo NÃO é aprovado_com_ressalva, força reprovado.
+  // AR (aprovado_com_ressalva) é exatamente para protocolos com NC que o operador aprova com ressalva.
   const savedRawStatus = (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento") ?? "em_andamento";
-  const initStatus: "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento" = hasNonConformes ? "reprovado" : savedRawStatus;
+  const initStatus: "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento" = (hasNonConformes && savedRawStatus !== "aprovado_com_ressalva") ? "reprovado" : savedRawStatus;
   const form = useForm<z.infer<typeof finalizeSchema>>({
     resolver: zodResolver(finalizeSchema),
     defaultValues: {
@@ -2065,7 +2076,7 @@ function FinalizeSection({
       if (currentProgressPercent != null) {
         form.setValue("progressPercent", currentProgressPercent);
       }
-    } else if ((finalStatusWatch === "aprovado" || finalStatusWatch === "aprovado_com_ressalva") && hasNonConformes) {
+    } else if (finalStatusWatch === "aprovado" && hasNonConformes) {
       setBlockingError("Protocolo fora das especificações de liberação. Existem parâmetros não conformes na aba Resultados.");
       const current = form.getValues("conclusion")?.trim() ?? "";
       const isDefaultOrEmpty = !current || Object.values(CONCLUSION_DEFAULTS).some(d => d === current);
@@ -2085,8 +2096,8 @@ function FinalizeSection({
   const handleOpenChange = (next: boolean) => {
     if (next) {
       const rawSaved = (currentFinalStatus as "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento") ?? "em_andamento";
-      // Protocolo com não-conformes → sempre abre como reprovado automaticamente
-      const effectiveStatus: "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento" = hasNonConformes ? "reprovado" : rawSaved;
+      // Protocolo com não-conformes e sem AR → abre como reprovado. Se já era AR, mantém AR.
+      const effectiveStatus: "aprovado" | "reprovado" | "aprovado_com_ressalva" | "em_andamento" = (hasNonConformes && rawSaved !== "aprovado_com_ressalva") ? "reprovado" : rawSaved;
       form.reset({
         finalStatus: effectiveStatus,
         conclusion: currentConclusion ?? CONCLUSION_DEFAULTS[effectiveStatus] ?? "",
@@ -2097,7 +2108,7 @@ function FinalizeSection({
       });
       // Reprovado já está selecionado quando há não-conformes; blockingError só aparece
       // se o usuário ALTERAR manualmente para aprovado (tratado pelo useEffect abaixo).
-      if ((effectiveStatus === "aprovado" || effectiveStatus === "aprovado_com_ressalva") && hasNonConformes) {
+      if (effectiveStatus === "aprovado" && hasNonConformes) {
         setBlockingError("Protocolo fora das especificações de liberação. Existem parâmetros não conformes na aba Resultados.");
       } else {
         setBlockingError(null);

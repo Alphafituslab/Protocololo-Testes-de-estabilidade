@@ -1823,9 +1823,12 @@ export default function HplcSimulator() {
   const [finalizeNotes, setFinalizeNotes] = useState("");
   const [newAnalysisDialog, setNewAnalysisDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
-  // Inline lot registration form (Lotes tab)
-  const [inlineLotNumber, setInlineLotNumber] = useState("");
-  const [inlineLotNotes, setInlineLotNotes] = useState("");
+  // Inline lot registration form (Lotes tab) — supports up to 3 simultaneous lots
+  const [inlineLots, setInlineLots] = useState([
+    { lotNumber: "", notes: "" },
+    { lotNumber: "", notes: "" },
+    { lotNumber: "", notes: "" },
+  ]);
   const [importText, setImportText] = useState("");
   const [importReplacesPeaks, setImportReplacesPeaks] = useState(true);
   const [padraoConfig, setPadraoConfig] = useState<PadraoConfig>(() => {
@@ -4852,52 +4855,59 @@ export default function HplcSimulator() {
                   </div>
                 </div>
 
-                {/* Inline lot registration form */}
+                {/* Inline lot registration form — up to 3 lots at once */}
                 <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "14px 16px", marginBottom: 16 }}>
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#1e293b", marginBottom: 10 }}>
-                    Registrar Novo Lote
+                    Registrar Lotes
+                    <span style={{ fontWeight: "normal", color: "#94a3b8", marginLeft: 8 }}>Preencha até 3 lotes e clique em Registrar</span>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-                    <div>
-                      <label style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b", display: "block", marginBottom: 3 }}>Nº do Lote *</label>
+                  {/* Header row */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 4 }}>
+                    <label style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b" }}>Nº do Lote *</label>
+                    <label style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b" }}>Observações</label>
+                  </div>
+                  {/* 3 lot rows */}
+                  {inlineLots.map((lot, idx) => (
+                    <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 6 }}>
                       <input
                         type="text"
-                        placeholder="Ex: LOT-2025-001"
-                        value={inlineLotNumber}
-                        onChange={e => setInlineLotNumber(e.target.value)}
+                        placeholder={`Ex: LOT-2025-00${idx + 1}`}
+                        value={lot.lotNumber}
+                        onChange={e => setInlineLots(prev => prev.map((l, i) => i === idx ? { ...l, lotNumber: e.target.value } : l))}
                         style={{ fontFamily: "Courier New, monospace", fontSize: 11, padding: "5px 9px", border: "1px solid #cbd5e1", borderRadius: 5, width: "100%", boxSizing: "border-box" }}
                       />
-                    </div>
-                    <div>
-                      <label style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b", display: "block", marginBottom: 3 }}>Observações</label>
                       <input
                         type="text"
                         placeholder="Opcional"
-                        value={inlineLotNotes}
-                        onChange={e => setInlineLotNotes(e.target.value)}
+                        value={lot.notes}
+                        onChange={e => setInlineLots(prev => prev.map((l, i) => i === idx ? { ...l, notes: e.target.value } : l))}
                         style={{ fontFamily: "Courier New, monospace", fontSize: 11, padding: "5px 9px", border: "1px solid #cbd5e1", borderRadius: 5, width: "100%", boxSizing: "border-box" }}
                       />
                     </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <button
-                      disabled={!inlineLotNumber.trim()}
-                      onClick={() => {
-                        if (!inlineLotNumber.trim()) return;
-                        handleAddLot(inlineLotNumber.trim(), inlineLotNotes.trim());
-                        setInlineLotNumber("");
-                        setInlineLotNotes("");
-                      }}
-                      style={{
-                        fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold",
-                        padding: "6px 16px", background: inlineLotNumber.trim() ? "#1d4ed8" : "#94a3b8",
-                        color: "#fff", border: "none", borderRadius: 5, cursor: inlineLotNumber.trim() ? "pointer" : "not-allowed",
-                      }}
-                    >
-                      + Registrar Lote Atual
-                    </button>
+                  ))}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+                    {(() => {
+                      const filledLots = inlineLots.filter(l => l.lotNumber.trim());
+                      const hasAny = filledLots.length > 0;
+                      return (
+                        <button
+                          disabled={!hasAny}
+                          onClick={() => {
+                            filledLots.forEach(l => handleAddLot(l.lotNumber.trim(), l.notes.trim()));
+                            setInlineLots([{ lotNumber: "", notes: "" }, { lotNumber: "", notes: "" }, { lotNumber: "", notes: "" }]);
+                          }}
+                          style={{
+                            fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold",
+                            padding: "6px 16px", background: hasAny ? "#1d4ed8" : "#94a3b8",
+                            color: "#fff", border: "none", borderRadius: 5, cursor: hasAny ? "pointer" : "not-allowed",
+                          }}
+                        >
+                          + Registrar {filledLots.length > 1 ? `${filledLots.length} Lotes` : "Lote"}
+                        </button>
+                      );
+                    })()}
                     <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8" }}>
-                      Salva o cromatograma atual com os picos configurados como novo lote desta fórmula.
+                      Salva o cromatograma atual com os picos configurados para cada lote informado.
                     </span>
                   </div>
                 </div>
