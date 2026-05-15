@@ -3687,13 +3687,12 @@ export default function HplcSimulator() {
                 </div>
 
                 {/* Stat cards — clickable to filter the session list below */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 24 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 24 }}>
                   {[
                     { label: "Total", value: total, bg: "#f8fafc", color: "#334155", Icon: Activity, filter: null },
                     { label: "Em Análise", value: emAndamento, bg: "#dbeafe", color: "#1d4ed8", Icon: FlaskConical, filter: "em_andamento" },
                     { label: "Aprovados", value: aprovados, bg: "#dcfce7", color: "#16a34a", Icon: ClipboardCheck, filter: "aprovado" },
                     { label: "Reprovados", value: reprovados, bg: "#fee2e2", color: "#dc2626", Icon: ClipboardX, filter: "reprovado" },
-                    { label: "Laudos", value: laudos, bg: "#f3e8ff", color: "#7c3aed", Icon: ScrollText, filter: "laudo_emitido" },
                   ].map(({ label, value, bg, color, Icon, filter }) => {
                     const isActive = panelStatusFilter === filter;
                     return (
