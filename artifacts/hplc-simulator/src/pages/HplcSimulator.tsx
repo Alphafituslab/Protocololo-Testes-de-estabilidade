@@ -670,7 +670,7 @@ const DEFAULT_PEAKS: Peak[] = [
 const DEFAULT_SAMPLE: SampleInfo = {
   dataFile: "C:\\CHEM32\\1\\DATA\\TESTE B6-290 2025-04-23 12-55-35\\009-0901.D",
   signalLabelOverride: "",
-  sampleName: "Amostra atual A",
+  sampleName: "Current Sample A",
   acqOperator: "EDSON",
   seqLine: "9",
   acqInstrument: "Instrument 1",
@@ -1007,22 +1007,22 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
           style={{ cursor: pos ? "grabbing" : "grab", userSelect: "none" }}
         >
           <DialogTitle style={{ fontFamily: "Courier New, monospace", fontSize: 13 }}>
-            ≡ Editar Pico
+            ≡ Edit Peak
           </DialogTitle>
           <p style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 0 }}>
-            Arraste este cabeçalho para mover o painel
+            Drag this header to move the panel
           </p>
         </DialogHeader>
 
         <form onSubmit={e => { e.preventDefault(); onSave(stringsToPeak(peak, draft)); setOpen(false); }} className="space-y-2 pt-1">
           {([
-            ["name", "Nome (ex: B6)", "text"],
+            ["name", "Name (ex: B6)", "text"],
             ["retentionTime", "Ret. Time [min]", "number"],
-            ["peakType", "Tipo (VB/BB/BV/BB)", "text"],
-            ["manualArea", "Área [mAU*s] (0 = calculada)", "number"],
+            ["peakType", "Type (VB/BB/BV/BB)", "text"],
+            ["manualArea", "Area [mAU*s] (0 = computed)", "number"],
             ["amtPerArea", "Amt/Area (ex: 0.03927)", "number"],
             ["amount", "Amount [ug/ml]", "number"],
-            ["grp", "Grupo", "text"],
+            ["grp", "Group", "text"],
           ] as [keyof Peak, string, string][]).map(([k, label, type]) => (
             <div key={k} className="space-y-0.5">
               <Label className="text-xs text-muted-foreground">{label}</Label>
@@ -1038,7 +1038,7 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
           {/* ── Altura slider ─────────────────────────────────── */}
           <div className="pt-1">
             <div className="flex justify-between items-center mb-1">
-              <Label className="text-xs text-muted-foreground">Altura do pico (mAU)</Label>
+              <Label className="text-xs text-muted-foreground">Peak Height (mAU)</Label>
               <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
                 {heightVal.toFixed(0)}
               </span>
@@ -1055,7 +1055,7 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
           {/* ── Largura slider ────────────────────────────────── */}
           <div className="pt-1">
             <div className="flex justify-between items-center mb-1">
-              <Label className="text-xs text-muted-foreground">Largura σ (min)</Label>
+              <Label className="text-xs text-muted-foreground">Width σ (min)</Label>
               <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
                 {widthVal.toFixed(3)}
               </span>
@@ -1065,16 +1065,16 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
               onChange={e => setDraft(d => ({ ...d, width: e.target.value }))}
               className="w-full h-2 accent-blue-600" />
             <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 1 }}>
-              <span>0.005 = estreito</span><span>2.0 = largo</span>
+              <span>0.005 = narrow</span><span>2.0 = wide</span>
             </div>
           </div>
 
           {/* ── Assimetria slider ─────────────────────────────── */}
           <div className="pt-1">
             <div className="flex justify-between items-center mb-1">
-              <Label className="text-xs text-muted-foreground">Assimetria (tailing/fronting)</Label>
+              <Label className="text-xs text-muted-foreground">Asymmetry (tailing/fronting)</Label>
               <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
-                {asymVal < 0.99 ? `${asymVal.toFixed(2)} ← fronting` : asymVal > 1.01 ? `${asymVal.toFixed(2)} → tailing` : "1.00 simétrico"}
+                {asymVal < 0.99 ? `${asymVal.toFixed(2)} ← fronting` : asymVal > 1.01 ? `${asymVal.toFixed(2)} → tailing` : "1.00 symmetric"}
               </span>
             </div>
             <input type="range" min="0.3" max="4.0" step="0.05"
@@ -1089,9 +1089,9 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
           {/* ── Inclinação slider ─────────────────────────────── */}
           <div className="pt-1">
             <div className="flex justify-between items-center mb-1">
-              <Label className="text-xs text-muted-foreground">Inclinação do pico</Label>
+              <Label className="text-xs text-muted-foreground">Peak Tilt</Label>
               <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
-                {inclVal === 0 ? "neutro" : inclVal > 0 ? `+${inclVal.toFixed(1)} →` : `${inclVal.toFixed(1)} ←`}
+                {inclVal === 0 ? "neutral" : inclVal > 0 ? `+${inclVal.toFixed(1)} →` : `${inclVal.toFixed(1)} ←`}
               </span>
             </div>
             <input type="range" min="-5" max="5" step="0.1"
@@ -1099,16 +1099,16 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
               onChange={e => setDraft(d => ({ ...d, inclination: e.target.value }))}
               className="w-full h-2 accent-blue-600" />
             <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 1 }}>
-              <span>← inclina esquerda</span><span>inclina direita →</span>
+              <span>← tilts left</span><span>tilts right →</span>
             </div>
           </div>
 
           {/* ── Rugosidade slider ─────────────────────────────── */}
           <div className="pt-1">
             <div className="flex justify-between items-center mb-1">
-              <Label className="text-xs text-muted-foreground">Rugosidade do pico</Label>
+              <Label className="text-xs text-muted-foreground">Peak Roughness</Label>
               <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
-                {noiseVal === 0 ? "perfeito" : noiseVal < 0.3 ? "leve" : noiseVal < 0.65 ? "moderado" : "intenso"}
+                {noiseVal === 0 ? "perfect" : noiseVal < 0.3 ? "light" : noiseVal < 0.65 ? "moderate" : "heavy"}
                 {" "}({noiseVal.toFixed(2)})
               </span>
             </div>
@@ -1122,13 +1122,13 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
           </div>
 
           <p className="text-xs text-muted-foreground pt-1">
-            Área = 0 → calculada automaticamente.<br />
-            Área &gt; 0 → valor exato no relatório.
+            Area = 0 → computed automatically.<br />
+            Area &gt; 0 → exact value used in report.
           </p>
           <div className="flex gap-2 pt-1">
             <Button type="button" variant="outline" className="flex-1" size="sm"
-              onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button type="submit" className="flex-1" size="sm">Salvar</Button>
+              onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="submit" className="flex-1" size="sm">Save</Button>
           </div>
         </form>
       </DialogContent>
@@ -1198,24 +1198,24 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle style={{ fontFamily: "Courier New, monospace" }}>
-            {compound.name || "Novo Ativo"}
+            {compound.name || "New Compound"}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={e => { e.preventDefault(); onSave(stringsToCompound(compound, draft)); setOpen(false); }} className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-1">
           {([
-            ["name",         "Nome do Composto",        "text",   "col-span-2"],
-            ["notes",        "Notas / Fórmula",         "text",   "col-span-2"],
-            ["method",       "Método (.M)",             "text",   "col-span-2"],
-            ["wavelength",   "λ Sinal (nm)",            "number", ""],
+            ["name",         "Compound Name",           "text",   "col-span-2"],
+            ["notes",        "Notes / Formula",         "text",   "col-span-2"],
+            ["method",       "Method (.M)",             "text",   "col-span-2"],
+            ["wavelength",   "λ Signal (nm)",           "number", ""],
             ["waveTol",      "±Tol λ (nm)",             "number", ""],
-            ["expectedRT",   "TR Esperado (min)",       "number", ""],
-            ["rtTol",        "±Tol TR (min)",           "number", ""],
+            ["expectedRT",   "Expected RT (min)",       "number", ""],
+            ["rtTol",        "±Tol RT (min)",           "number", ""],
             ["amtPerArea",   "Amt/Area (ug/ml/mAU*s)",  "number", "col-span-2"],
-            ["units",        "Unidades",                "text",   ""],
-            ["typicalWidth", "Largura σ (min)",         "number", ""],
-            ["typicalAsym",  "Assimetria",              "number", ""],
-            ["specMin",      "Spec Mín (ug/ml, 0=N/A)", "number", ""],
-            ["specMax",      "Spec Máx (ug/ml, 0=N/A)", "number", ""],
+            ["units",        "Units",                   "text",   ""],
+            ["typicalWidth", "Width σ (min)",           "number", ""],
+            ["typicalAsym",  "Asymmetry",               "number", ""],
+            ["specMin",      "Spec Min (ug/ml, 0=N/A)", "number", ""],
+            ["specMax",      "Spec Max (ug/ml, 0=N/A)", "number", ""],
           ] as [keyof ActiveCompound, string, string, string][]).map(([k, label, type, cls]) => (
             <div key={k} className={cls || ""}>
               <Label className="text-xs text-muted-foreground font-mono">{label}</Label>
@@ -1224,7 +1224,7 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
             </div>
           ))}
           <Button type="submit" className="w-full col-span-2 mt-2" size="sm">
-            Salvar Ativo
+            Save Compound
           </Button>
         </form>
       </DialogContent>
@@ -1467,22 +1467,22 @@ function buildChromatogramPng(
     const det = formula.detector;
 
     // --- Header ---
-    txt("Arquivo de dados  " + run.sample.dataFile); nl();
-    txt("Nome da amostra: " + run.sample.sampleName); nl(2);
+    txt("Data File  " + run.sample.dataFile); nl();
+    txt("Sample Name: " + run.sample.sampleName); nl(2);
 
     sep();
 
     // --- Operator block ---
     const pad = (s: string, n: number) => s.padEnd(n);
-    txt(`    Operador de aquisição   : ${pad(run.sample.acqOperator, 28)}Linha de sequência :  ${run.sample.seqLine}`); nl();
-    txt(`    Instrumento de aquisição: ${pad(run.sample.acqInstrument, 28)}Localização        : ${run.sample.location}`); nl();
-    txt(`    Data da injeção         : ${pad(run.sample.injectionDate, 36)}Injeção :  ${run.sample.inj}`); nl();
-    txt(`    ${" ".repeat(55)}Volume injetado : ${run.sample.injVolume}`); nl();
-    txt(`    Método de aquisição     : ${run.sample.acqMethod}`); nl();
-    txt(`    Última alteração        : ${run.sample.lastChanged1}`); nl();
-    txt(`    Método de análise       : ${run.sample.analysisMethod}`); nl();
-    txt(`    Última alteração        : ${run.sample.lastChanged2}`); nl();
-    txt(`                      (modificado após o carregamento)`); nl(2);
+    txt(`    Acq. Operator   : ${pad(run.sample.acqOperator, 28)}Seq. Line :  ${run.sample.seqLine}`); nl();
+    txt(`    Acq. Instrument : ${pad(run.sample.acqInstrument, 28)}Location  : ${run.sample.location}`); nl();
+    txt(`    Injection Date  : ${pad(run.sample.injectionDate, 36)}Inj :  ${run.sample.inj}`); nl();
+    txt(`    ${" ".repeat(55)}Inj Volume : ${run.sample.injVolume}`); nl();
+    txt(`    Acq. Method     : ${run.sample.acqMethod}`); nl();
+    txt(`    Last changed    : ${run.sample.lastChanged1}`); nl();
+    txt(`    Analysis Method : ${run.sample.analysisMethod}`); nl();
+    txt(`    Last changed    : ${run.sample.lastChanged2}`); nl();
+    txt(`                      (modified after loading)`); nl(2);
 
     sep();
 
@@ -1536,7 +1536,7 @@ function buildChromatogramPng(
 
     const compounds = formula.activeCompounds ?? [];
     if (compounds.length > 0) {
-      txt(`${"Compound Name".padEnd(22)}  ${"CAS".padEnd(12)}  ${"Conc [mg/mL]".padEnd(14)}  ${"Nominal".padEnd(10)}  Teor%`); nl();
+      txt(`${"Compound Name".padEnd(22)}  ${"CAS".padEnd(12)}  ${"Conc [mg/mL]".padEnd(14)}  ${"Nominal".padEnd(10)}  Assay%`); nl();
       ctx.fillStyle = "#888"; txt("-".repeat(80)); ctx.fillStyle = "#000"; nl();
 
       compounds.forEach(compound => {
@@ -1549,10 +1549,10 @@ function buildChromatogramPng(
           const { calcConc, teorPct } = calcTeorPct(area, compound, stdEntry);
           const nominal = stdEntry?.nominalConc ?? 0;
           txt(
-            `${compound.name.padEnd(22)}  ${"".padEnd(12)}  ${calcConc.toFixed(4).padEnd(14)}  ${nominal > 0 ? nominal.toFixed(4).padEnd(10) : "N/D".padEnd(10)}  ${teorPct !== null ? teorPct.toFixed(2) + " %" : "N/D"}`
+            `${compound.name.padEnd(22)}  ${"".padEnd(12)}  ${calcConc.toFixed(4).padEnd(14)}  ${nominal > 0 ? nominal.toFixed(4).padEnd(10) : "N/A".padEnd(10)}  ${teorPct !== null ? teorPct.toFixed(2) + " %" : "N/A"}`
           );
         } else {
-          txt(`${compound.name.padEnd(22)}  ${"".padEnd(12)}  ${"Not Found".padEnd(14)}  ${"N/D".padEnd(10)}  N/D`);
+          txt(`${compound.name.padEnd(22)}  ${"".padEnd(12)}  ${"Not Found".padEnd(14)}  ${"N/A".padEnd(10)}  N/A`);
         }
         nl();
       });
@@ -1565,7 +1565,7 @@ function buildChromatogramPng(
 
   // ── Multi-run summary ────────────────────────────────────────────────────
   if (session.runs.length > 1) {
-    txt(`SUMÁRIO DA SESSÃO: ${session.name}`, ML, "#1d4ed8", FONT_BOLD); nl(2);
+    txt(`SESSION SUMMARY: ${session.name}`, ML, "#1d4ed8", FONT_BOLD); nl(2);
     sep();
 
     const compounds = formula.activeCompounds ?? [];
@@ -1586,7 +1586,7 @@ function buildChromatogramPng(
             ? Math.sqrt(vals.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / (vals.length - 1))
             : 0;
           const cv = mean > 0 ? (sd / mean) * 100 : 0;
-          txt(`${compound.name}  —  Média = ${mean.toFixed(2)} %    DP = ${sd.toFixed(3)}    %CV = ${cv.toFixed(2)} %    (n = ${vals.length})`, ML, "#000", FONT_BOLD); nl();
+          txt(`${compound.name}  —  Mean = ${mean.toFixed(2)} %    SD = ${sd.toFixed(3)}    %CV = ${cv.toFixed(2)} %    (n = ${vals.length})`, ML, "#000", FONT_BOLD); nl();
 
           session.runs.forEach((run, ri) => {
             const p = run.peaks.find(p => Math.abs(p.retentionTime - compound.expectedRT) <= compound.rtTol);
@@ -1595,7 +1595,7 @@ function buildChromatogramPng(
             const stdEntry = formulaStd?.entries.find(e => e.compoundId === compound.id) ?? null;
             const { calcConc, teorPct } = calcTeorPct(area, compound, stdEntry);
             txt(
-              `   ${run.label}:  Área = ${area.toFixed(4).padEnd(12)}  Conc = ${calcConc.toFixed(4)} mg/mL  Teor = ${teorPct !== null ? teorPct.toFixed(2) + " %" : "N/D"}`
+              `   ${run.label}:  Area = ${area.toFixed(4).padEnd(12)}  Conc = ${calcConc.toFixed(4)} mg/mL  Assay = ${teorPct !== null ? teorPct.toFixed(2) + " %" : "N/A"}`
             ); nl();
           });
           nl();
@@ -1604,14 +1604,14 @@ function buildChromatogramPng(
       sep();
     } else {
       // No compounds — just list peak areas per run
-      txt(`${"Corrida".padEnd(10)}  ${"Pico".padEnd(24)}  ${"RT (min)".padEnd(10)}  ${"Área (mAU*s)".padEnd(14)}  Area%`); nl();
+      txt(`${"Run".padEnd(10)}  ${"Peak".padEnd(24)}  ${"RT (min)".padEnd(10)}  ${"Area (mAU*s)".padEnd(14)}  Area%`); nl();
       ctx.fillStyle = "#888"; txt("-".repeat(80)); ctx.fillStyle = "#000"; nl();
       session.runs.forEach(run => {
         const peaks = [...run.peaks].filter(p => p.height > 0.5).sort((a, b) => a.retentionTime - b.retentionTime);
         const tot = peaks.reduce((s, p) => s + (p.manualArea > 0 ? p.manualArea : computeArea(p)), 0);
         peaks.forEach(p => {
           const area = p.manualArea > 0 ? p.manualArea : computeArea(p);
-          txt(`${run.label.padEnd(10)}  ${(p.name || "—").padEnd(24)}  ${p.retentionTime.toFixed(3).padEnd(10)}  ${area.toFixed(5).padEnd(14)}  ${tot > 0 ? ((area / tot) * 100).toFixed(3) : "N/D"}`); nl();
+          txt(`${run.label.padEnd(10)}  ${(p.name || "—").padEnd(24)}  ${p.retentionTime.toFixed(3).padEnd(10)}  ${area.toFixed(5).padEnd(14)}  ${tot > 0 ? ((area / tot) * 100).toFixed(3) : "N/A"}`); nl();
         });
       });
       sep();
@@ -1621,22 +1621,22 @@ function buildChromatogramPng(
   // ── Status footer ────────────────────────────────────────────────────────
   nl();
   const statusLabel: Record<string, string> = {
-    em_andamento: "EM ANÁLISE", aprovado: "APROVADO",
-    reprovado: "REPROVADO", laudo_emitido: "LAUDO EMITIDO",
+    em_andamento: "IN PROGRESS", aprovado: "APPROVED",
+    reprovado: "REJECTED", laudo_emitido: "REPORT ISSUED",
   };
   const statusColor: Record<string, string> = {
     em_andamento: "#1d4ed8", aprovado: "#16a34a",
     reprovado: "#dc2626", laudo_emitido: "#7c3aed",
   };
   txt(
-    `Resultado da Sessão: ${statusLabel[session.status] ?? session.status}`,
+    `Session Result: ${statusLabel[session.status] ?? session.status}`,
     ML, statusColor[session.status] ?? "#000", FONT_BOLD,
   ); nl();
   if (session.concludedAt) {
-    txt(`Concluído em: ${new Date(session.concludedAt).toLocaleString("pt-BR")}`, ML, "#666"); nl();
+    txt(`Concluded at: ${new Date(session.concludedAt).toLocaleString("en-US")}`, ML, "#666"); nl();
   }
   if (session.laudoEmittedAt) {
-    txt(`Laudo emitido em: ${new Date(session.laudoEmittedAt).toLocaleString("pt-BR")}`, ML, "#666"); nl();
+    txt(`Report issued at: ${new Date(session.laudoEmittedAt).toLocaleString("en-US")}`, ML, "#666"); nl();
   }
 
   y += 24;
@@ -1709,18 +1709,18 @@ function SaveFormulaDialog({ onSave, children }: { onSave: (name: string, descri
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle className="font-mono">Salvar como Fórmula</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-mono">Save as Formula</DialogTitle></DialogHeader>
         <form onSubmit={e => { e.preventDefault(); if (!name.trim()) return; onSave(name.trim(), description.trim()); setOpen(false); setName(""); setDescription(""); }} className="space-y-3 pt-1">
           <div>
-            <Label className="text-xs text-muted-foreground font-mono">Nome da Fórmula *</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Multivitamínico V1" className="h-7 text-xs font-mono mt-1" />
+            <Label className="text-xs text-muted-foreground font-mono">Formula Name *</Label>
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Multivitamin V1" className="h-7 text-xs font-mono mt-1" />
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground font-mono">Descrição (opcional)</Label>
-            <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: Cápsulas 500mg — formulação padrão" className="h-7 text-xs font-mono mt-1" />
+            <Label className="text-xs text-muted-foreground font-mono">Description (optional)</Label>
+            <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: Capsules 500mg — standard formulation" className="h-7 text-xs font-mono mt-1" />
           </div>
           <Button type="submit" className="w-full" size="sm" disabled={!name.trim()}>
-            Salvar Fórmula
+            Save Formula
           </Button>
         </form>
       </DialogContent>
@@ -1738,19 +1738,19 @@ function AddLotDialog({ onSave, children }: { onSave: (lotNumber: string, notes:
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle className="font-mono">Registrar Lote Analisado</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-mono">Register Analyzed Lot</DialogTitle></DialogHeader>
         <form onSubmit={e => { e.preventDefault(); if (!lotNumber.trim()) return; onSave(lotNumber.trim(), notes.trim()); setOpen(false); setLotNumber(""); setNotes(""); }} className="space-y-3 pt-1">
           <div>
-            <Label className="text-xs text-muted-foreground font-mono">Número do Lote *</Label>
+            <Label className="text-xs text-muted-foreground font-mono">Lot Number *</Label>
             <Input value={lotNumber} onChange={e => setLotNumber(e.target.value)} placeholder="Ex: LOT-2025-001" className="h-7 text-xs font-mono mt-1" />
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground font-mono">Observações (opcional)</Label>
-            <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex: Amostra Pote A — 2ª corrida" className="h-7 text-xs font-mono mt-1" />
+            <Label className="text-xs text-muted-foreground font-mono">Notes (optional)</Label>
+            <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex: Sample Pot A — 2nd run" className="h-7 text-xs font-mono mt-1" />
           </div>
-          <p className="text-xs text-muted-foreground font-mono">O cromatograma atual (picos configurados) será salvo como resultado deste lote.</p>
+          <p className="text-xs text-muted-foreground font-mono">The current chromatogram (configured peaks) will be saved as this lot's result.</p>
           <Button type="submit" className="w-full" size="sm" disabled={!lotNumber.trim()}>
-            Registrar Lote
+            Register Lot
           </Button>
         </form>
       </DialogContent>
@@ -1842,19 +1842,19 @@ function NewSessionDialog({ formulas, onSave, children }: {
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-mono text-sm">
-            Configuração Prévia da Análise
+            Pre-Analysis Configuration
           </DialogTitle>
           <p className="text-xs text-muted-foreground font-mono">
-            Preencha os dados antes de iniciar a sessão. Os valores são lembrados para a próxima análise.
+            Fill in the data before starting the session. Values are remembered for the next analysis.
           </p>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-1.5 pt-1">
 
           {/* ── SESSÃO ─────────────────────────────────────────────── */}
-          {section("Sessão de Análise")}
+          {section("Analysis Session")}
 
           <div className="flex items-center gap-2">
-            <Label className="text-xs font-mono text-muted-foreground w-36 shrink-0 text-right">Fórmula / Método *</Label>
+            <Label className="text-xs font-mono text-muted-foreground w-36 shrink-0 text-right">Formula / Method *</Label>
             <select
               value={d.formulaId}
               onChange={set("formulaId")}
@@ -1864,33 +1864,33 @@ function NewSessionDialog({ formulas, onSave, children }: {
               {formulas.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
           </div>
-          {field("Nome da Sessão", "sessionName", "Ex: Análise LOT-2025-001", true)}
+          {field("Session Name", "sessionName", "Ex: Analysis LOT-2025-001", true)}
 
           {/* ── AMOSTRA ────────────────────────────────────────────── */}
-          {section("Informações da Amostra")}
+          {section("Sample Information")}
 
-          {field("Nome da Amostra", "sampleName", "Ex: VITAMINA D3 500mg cáp")}
-          {field("Nº Lote / Batch", "lotNumber", "Ex: LOT-2025-042")}
-          {field("Seq. Line (nº inj.)", "seqLine", "1")}
-          {field("Local / Vial", "location", "Ex: Vial 1")}
+          {field("Sample Name", "sampleName", "Ex: VITAMIN D3 500mg cap")}
+          {field("Lot No. / Batch", "lotNumber", "Ex: LOT-2025-042")}
+          {field("Seq. Line (inj. no.)", "seqLine", "1")}
+          {field("Location / Vial", "location", "Ex: Vial 1")}
 
-          {/* ── INSTRUMENTO / MÉTODO ───────────────────────────────── */}
-          {section("Instrumento e Método")}
+          {/* ── INSTRUMENT / METHOD ───────────────────────────────── */}
+          {section("Instrument and Method")}
 
-          {field("Operador", "acqOperator", "Nome do analista", true)}
-          {field("Instrumento", "acqInstrument", "Instrument 1")}
-          {field("Volume de Injeção", "injVolume", "10.0 µl")}
-          {field("Método de Aquisição", "acqMethod", "C:\\CHEM32\\METHODS\\...")}
-          {field("Método de Análise", "analysisMethod", "C:\\CHEM32\\METHODS\\...")}
+          {field("Operator", "acqOperator", "Analyst name", true)}
+          {field("Instrument", "acqInstrument", "Instrument 1")}
+          {field("Injection Volume", "injVolume", "10.0 µl")}
+          {field("Acq. Method", "acqMethod", "C:\\CHEM32\\METHODS\\...")}
+          {field("Analysis Method", "analysisMethod", "C:\\CHEM32\\METHODS\\...")}
 
-          {/* ── OBSERVAÇÕES ────────────────────────────────────────── */}
-          {section("Observações")}
+          {/* ── NOTES ────────────────────────────────────────────── */}
+          {section("Notes")}
           <div className="flex items-start gap-2">
-            <Label className="text-xs font-mono text-muted-foreground w-36 shrink-0 text-right pt-1">Obs.</Label>
+            <Label className="text-xs font-mono text-muted-foreground w-36 shrink-0 text-right pt-1">Notes</Label>
             <textarea
               value={d.notes}
               onChange={set("notes")}
-              placeholder="Condições especiais, desvios, referências..."
+              placeholder="Special conditions, deviations, references..."
               rows={2}
               className="flex-1 text-xs font-mono border border-input rounded px-2 py-1 bg-background resize-none"
             />
@@ -1898,10 +1898,10 @@ function NewSessionDialog({ formulas, onSave, children }: {
 
           <div className="pt-3 border-t">
             <Button type="submit" className="w-full" size="sm" disabled={!canSubmit}>
-              <FlaskConical className="h-3.5 w-3.5 mr-2" /> Iniciar Análise
+              <FlaskConical className="h-3.5 w-3.5 mr-2" /> Start Analysis
             </Button>
             <p className="text-xs text-center text-muted-foreground font-mono mt-1.5">
-              Até 5 corridas (injeções) por sessão · Cromatogramas sobrepostos + Teor%
+              Up to 5 runs (injections) per session · Overlaid chromatograms + Assay%
             </p>
           </div>
         </form>
@@ -1959,42 +1959,42 @@ function SetStandardDialog({ compounds, existing, onSave, children }: {
     <Dialog open={open} onOpenChange={handleOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle className="font-mono">Configurar Padrão de Referência</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-mono">Configure Reference Standard</DialogTitle></DialogHeader>
         <form onSubmit={e => { e.preventDefault(); handleSave(); }} className="space-y-3 pt-1 max-h-[60vh] overflow-y-auto">
           <p className="text-xs text-muted-foreground font-mono">
-            Para cada composto, informe a concentração nominal (declarada na fórmula) e, opcionalmente, os dados do padrão externo.
+            For each compound, enter the nominal concentration (as declared in the formula) and optionally the external standard data.
           </p>
           {compounds.map(c => (
             <div key={c.id} className="border rounded p-2 space-y-1.5">
               <div className="text-xs font-mono font-bold">{c.name} <span className="text-muted-foreground font-normal">({c.units})</span></div>
               <div className="grid grid-cols-3 gap-1.5">
                 <div>
-                  <Label className="text-[10px] text-muted-foreground font-mono">Conc. Nominal *</Label>
+                  <Label className="text-[10px] text-muted-foreground font-mono">Nominal Conc. *</Label>
                   <Input type="number" step="any" value={entries[c.id]?.nominalConc ?? ""}
                     onChange={e => setField(c.id, "nominalConc", e.target.value)}
                     className="h-6 text-xs font-mono px-1" placeholder="ug/ml" />
                 </div>
                 <div>
-                  <Label className="text-[10px] text-muted-foreground font-mono">Área Padrão</Label>
+                  <Label className="text-[10px] text-muted-foreground font-mono">Std Area</Label>
                   <Input type="number" step="any" value={entries[c.id]?.stdArea ?? ""}
                     onChange={e => setField(c.id, "stdArea", e.target.value)}
                     className="h-6 text-xs font-mono px-1" placeholder="mAU*s" />
                 </div>
                 <div>
-                  <Label className="text-[10px] text-muted-foreground font-mono">Conc. Padrão</Label>
+                  <Label className="text-[10px] text-muted-foreground font-mono">Std Conc.</Label>
                   <Input type="number" step="any" value={entries[c.id]?.stdConc ?? ""}
                     onChange={e => setField(c.id, "stdConc", e.target.value)}
                     className="h-6 text-xs font-mono px-1" placeholder="ug/ml" />
                 </div>
               </div>
-              <div className="text-[9px] text-muted-foreground font-mono">Área Padrão = 0 → usa Amt/Area da calibração</div>
+              <div className="text-[9px] text-muted-foreground font-mono">Std Area = 0 → uses Amt/Area from calibration</div>
             </div>
           ))}
           <div>
-            <Label className="text-xs text-muted-foreground font-mono">Observações</Label>
+            <Label className="text-xs text-muted-foreground font-mono">Notes</Label>
             <Input value={notes} onChange={e => setNotes(e.target.value)} className="h-7 text-xs font-mono mt-1" />
           </div>
-          <Button type="submit" className="w-full" size="sm">Salvar Padrão</Button>
+          <Button type="submit" className="w-full" size="sm">Save Standard</Button>
         </form>
       </DialogContent>
     </Dialog>
@@ -2215,7 +2215,7 @@ export default function HplcSimulator() {
     saveState(snapshotState);
 
     // ── Also upsert a snapshot session so the Painel always reflects the latest confirmed state ──
-    const sessionName = productName.trim() || sample.sampleName.trim() || `Análise ${new Date().toLocaleDateString("pt-BR")}`;
+    const sessionName = productName.trim() || sample.sampleName.trim() || `Analysis ${new Date().toLocaleDateString("en-US")}`;
     const now = new Date().toISOString();
 
     const existingSnapshot = currentSnapshotSessionId
@@ -2597,7 +2597,7 @@ export default function HplcSimulator() {
       return nameMatch || rtMatch;
     });
     if (!matchPeak) {
-      window.alert(`Nenhum pico encontrado para "${compound.name}" no cromatograma atual.\nConfigure um pico com TR ≈ ${compound.expectedRT} min ou com o nome do composto.`);
+      window.alert(`No peak found for "${compound.name}" in the current chromatogram.\nConfigure a peak with RT ≈ ${compound.expectedRT} min or with the compound name.`);
       return;
     }
     const area = parseFloat((matchPeak.manualArea > 0 ? matchPeak.manualArea : computeArea(matchPeak)).toFixed(4));
@@ -2618,7 +2618,7 @@ export default function HplcSimulator() {
       return nameMatch || rtMatch;
     });
     if (!matchPeak) {
-      window.alert(`Configure um pico para "${compound.name}" (TR ≈ ${compound.expectedRT} min) antes de simular a curva.`);
+      window.alert(`Configure a peak for "${compound.name}" (RT ≈ ${compound.expectedRT} min) before simulating the curve.`);
       return;
     }
     const refArea = matchPeak.manualArea > 0 ? matchPeak.manualArea : computeArea(matchPeak);
@@ -2711,7 +2711,7 @@ export default function HplcSimulator() {
 
   const addActiveCompound = () => {
     setActiveCompounds(cs => [...cs, {
-      id: uid(), name: "Novo Ativo", wavelength: detector.sigWavelength, waveTol: 8,
+      id: uid(), name: "New Compound", wavelength: detector.sigWavelength, waveTol: 8,
       expectedRT: 2.0, rtTol: 0.15, typicalWidth: 0.030, typicalAsym: 1.15,
       amtPerArea: 0.03, units: "ug/ml", specMin: 0, specMax: 0,
       method: "", notes: "",
@@ -2767,7 +2767,7 @@ export default function HplcSimulator() {
     setUserListError(null);
     try {
       const res = await fetch("/api/users", { headers: { "Authorization": `Bearer ${token}` } });
-      if (!res.ok) throw new Error("Erro ao carregar usuários.");
+      if (!res.ok) throw new Error("Error loading users.");
       setUserList(await res.json() as UserRecord[]);
     } catch (e) {
       setUserListError((e as Error).message);
@@ -2943,7 +2943,7 @@ export default function HplcSimulator() {
       });
       if (!res.ok) {
         const data = await res.json() as { error?: string };
-        setMasterAuthError(data.error ?? "Senha Master incorreta.");
+        setMasterAuthError(data.error ?? "Incorrect Master password.");
         return;
       }
       masterAuthDialog.onSuccess();
@@ -2975,7 +2975,7 @@ export default function HplcSimulator() {
       });
       if (!res.ok) {
         const data = await res.json() as { error?: string };
-        setDeleteSessionError(data.error ?? "Senha incorreta.");
+        setDeleteSessionError(data.error ?? "Incorrect password.");
         return;
       }
       handleDeleteSession(deleteSessionDialog.id);
@@ -3149,14 +3149,14 @@ export default function HplcSimulator() {
         <div className="flex-1" />
         <div style={{ display: "flex", border: "1px solid #bbb", borderRadius: 4, overflow: "hidden" }}>
           {(([
-            ["painel", "Painel", LayoutDashboard, false],
-            ["chromatogram", "Cromatograma", BarChart3, false],
-            ["ativos", "Ativos", Database, false],
-            ["lotes", "Lotes", Layers, false],
-            ["analise", "Análise", FlaskConical, false],
-            ["padrao", "Padrão", Scale, false],
-            ["report", "Relatório", FileText, false],
-            ["usuarios", "Usuários", Users, true],
+            ["painel", "Panel", LayoutDashboard, false],
+            ["chromatogram", "Chromatogram", BarChart3, false],
+            ["ativos", "Compounds", Database, false],
+            ["lotes", "Lots", Layers, false],
+            ["analise", "Analysis", FlaskConical, false],
+            ["padrao", "Standard", Scale, false],
+            ["report", "Report", FileText, false],
+            ["usuarios", "Users", Users, true],
           ] as [PageMode, string, React.ElementType, boolean][]).filter(([,, , adminOnly]) => !adminOnly || isAdmin)).map(([mode, label, Icon], idx) => (
             <button key={mode} onClick={() => {
               setPage(mode);
@@ -3183,12 +3183,12 @@ export default function HplcSimulator() {
             className="h-8 text-xs gap-1.5 bg-amber-500 hover:bg-amber-600 text-white shadow-md"
             onClick={handleConfirm}
           >
-            <Check className="h-3.5 w-3.5" /> Confirmar alterações
+            <Check className="h-3.5 w-3.5" /> Confirm changes
           </Button>
         )}
         {confirmed && !isDirty && (
           <span className="flex items-center gap-1 text-xs text-green-700 font-medium px-2">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Salvo no Painel
+            <CheckCircle2 className="h-3.5 w-3.5" /> Saved to Panel
           </span>
         )}
 
@@ -3207,30 +3207,30 @@ export default function HplcSimulator() {
                 setFinalizeDialog({ id: activeSnap.id, name: activeSnap.name });
               }}
             >
-              <ClipboardCheck className="h-3.5 w-3.5" /> Concluir
+              <ClipboardCheck className="h-3.5 w-3.5" /> Conclude
             </Button>
           ) : null;
         })()}
 
-        {/* ── Nova Análise ── */}
+        {/* ── New Analysis ── */}
         <Button
           size="sm"
           variant="outline"
           className="h-8 text-xs gap-1.5"
           onClick={() => setNewAnalysisDialog(true)}
         >
-          <Plus className="h-3.5 w-3.5" /> Nova Análise
+          <Plus className="h-3.5 w-3.5" /> New Analysis
         </Button>
 
         <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" disabled={!canUndo} onClick={handleUndo}
-          title="Desfazer última alteração (Ctrl+Z)">
-          ↩ Desfazer
+          title="Undo last change (Ctrl+Z)">
+          ↩ Undo
         </Button>
         <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => window.location.reload()}>
-          ↺ Atualizar
+          ↺ Refresh
         </Button>
         <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => window.print()}>
-          <Printer className="h-3.5 w-3.5" /> Imprimir / PDF
+          <Printer className="h-3.5 w-3.5" /> Print / PDF
         </Button>
         {user && (
           <div className="flex items-center gap-2 border-l border-gray-300 pl-3 ml-1">
@@ -3288,7 +3288,7 @@ export default function HplcSimulator() {
                   {activeCompounds.length > 0 && (
                     <div className="mb-2 pb-2 border-b border-blue-100">
                       <label className="text-xs font-mono font-bold text-blue-700">
-                        Buscar Ativo →
+                        Find Compound →
                       </label>
                       <select
                         defaultValue=""
@@ -3374,7 +3374,7 @@ export default function HplcSimulator() {
                   {/* Method sync group */}
                   <div style={{ border: "1px solid #bfdbfe", borderRadius: 5, padding: "5px 6px", marginTop: 4, background: "#eff6ff" }}>
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#1d4ed8", fontWeight: "bold", marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                      ⟷ Métodos sincronizados — alterar um atualiza o outro automaticamente
+                      ⟷ Synchronized methods — changing one updates the other automatically
                     </div>
                     <SmallField label="Acq. Method" value={sample.acqMethod} onChange={sField("acqMethod")} />
                     <SmallField label="Last changed (Acq.)" value={sample.lastChanged1} onChange={sField("lastChanged1")} />
@@ -3382,8 +3382,8 @@ export default function HplcSimulator() {
                     <SmallField label="Last changed (Ana.)" value={sample.lastChanged2} onChange={sField("lastChanged2")} />
                   </div>
                   {([
-                    ["reportDate", "Data do Relatório (rodapé)"],
-                    ["softwareRev", "Versão Software (rodapé)"],
+                    ["reportDate", "Report Date (footer)"],
+                    ["softwareRev", "Software Version (footer)"],
                   ] as [keyof SampleInfo, string][]).map(([k, label]) => (
                     <SmallField key={k} label={label} value={sample[k] ?? ""} onChange={sField(k)} />
                   ))}
@@ -3399,12 +3399,12 @@ export default function HplcSimulator() {
                     }}
                   >
                     <ClipboardPaste style={{ width: 11, height: 11 }} />
-                    Importar texto ChemStation
+                    Import ChemStation text
                   </button>
                 </ControlBox>
 
                 {/* Detector */}
-                <ControlBox title="Detector / Sinal">
+                <ControlBox title="Detector / Signal">
                   <SmallField label="Signal Name (ex: DAD1 A)" value={detector.signalName} onChange={dField("signalName")} />
                   <SmallField label="Sig Wavelength (nm)" value={String(detector.sigWavelength)} onChange={dField("sigWavelength")} type="number" />
                   <SmallField label="Sig Bandwidth" value={String(detector.sigBandwidth)} onChange={dField("sigBandwidth")} type="number" />
@@ -3569,11 +3569,11 @@ export default function HplcSimulator() {
                   {/* Initial baseline instability */}
                   <div style={{ marginBottom: 8, borderTop: "1px dashed #d1d5db", paddingTop: 8 }}>
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#888", marginBottom: 6, fontStyle: "italic" }}>
-                      Instabilidade inicial — linha de base errática no início da corrida:
+                      Initial instability — erratic baseline at the start of the run:
                     </div>
                     <div style={{ marginBottom: 8 }}>
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
-                        <span>Desvio inicial (mAU)</span>
+                        <span>Initial offset (mAU)</span>
                         <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineStartOffset ?? 0).toFixed(0)}</span>
                       </div>
                       <input type="range" min="-300" max="300" step="5"
@@ -3623,7 +3623,7 @@ export default function HplcSimulator() {
                     onClick={() => { setDetector(d => ({ ...d, baselineNoise: 1.8, baselineDrift: 1.2, baselinePulse: 0.35, baselineWander: 0, shotNoise: 0, baselineHump: 0, broadeningFactor: 0, lineWidth: 1.0 })); markDirty(); }}
                     style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 8px", border: "1px solid #bbb", borderRadius: 3, background: "#f9fafb", cursor: "pointer", color: "#555", marginTop: 4 }}
                   >
-                    ↺ Restaurar padrão
+                    ↺ Restore defaults
                   </button>
                 </ControlBox>
 
@@ -3688,22 +3688,22 @@ export default function HplcSimulator() {
                 </ControlBox>
 
                 {/* Peaks */}
-                <ControlBox title="Picos" extra={
+                <ControlBox title="Peaks" extra={
                   <div className="flex gap-1">
                     <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2" onClick={addPeak}>
                       <Plus className="h-3 w-3" /> Add
                     </Button>
                     <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2"
                       style={{ borderColor: "#a78bfa", color: "#7c3aed" }}
-                      title="Adicionar pico fantasma (sobreposição rugosa)"
+                      title="Add ghost peak (rough overlap)"
                       onClick={addGhostPeak}>
                       👻
                     </Button>
                   </div>
                 }>
                   <p style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 4 }}>
-                    Clique em ⚙ para editar · arraste no gráfico para mover.<br />
-                    <span style={{ color: "#1d4ed8" }}>☑ = incluir na impressão</span>
+                    Click ⚙ to edit · drag on graph to move.<br />
+                    <span style={{ color: "#1d4ed8" }}>☑ = include in print</span>
                   </p>
                   {peakStats.map((p) => (
                     <div key={p.id} className="group mb-2"
@@ -3712,7 +3712,7 @@ export default function HplcSimulator() {
                         style={{ background: p.locked ? "#fef9ec" : p.isGhost ? "#f5f3ff" : undefined, borderLeft: p.locked ? "2px solid #f59e0b" : p.isGhost ? "2px solid #a78bfa" : "2px solid transparent" }}>
                         <input
                           type="checkbox"
-                          title="Incluir na impressão"
+                          title="Include in print"
                           checked={p.printSelected !== false}
                           disabled={!!p.locked}
                           onChange={e => {
@@ -3726,13 +3726,13 @@ export default function HplcSimulator() {
                         <span style={{ ...MONO, fontSize: 9.5, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {p.locked && <Lock style={{ display: "inline", width: 9, height: 9, color: "#f59e0b", marginRight: 3, verticalAlign: "middle" }} />}
                           {p.isGhost && <span style={{ marginRight: 3 }}>👻</span>}
-                          {p.retentionTime.toFixed(3)} {p.isGhost ? <span style={{ color: "#7c3aed" }}>fantasma</span> : p.name ? `(${p.name})` : "—"}
+                          {p.retentionTime.toFixed(3)} {p.isGhost ? <span style={{ color: "#7c3aed" }}>ghost</span> : p.name ? `(${p.name})` : "—"}
                           {p.manualArea > 0
                             ? <span style={{ color: "#1d4ed8" }}> ✎{p.manualArea.toFixed(2)}</span>
                             : <span style={{ color: "#888" }}> ~{p.computedArea.toFixed(1)}</span>}
                         </span>
                         <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
-                          title={p.locked ? "Desbloquear pico" : "Travar pico"}
+                          title={p.locked ? "Unlock peak" : "Lock peak"}
                           onClick={() => toggleLockPeak(p.id)}>
                           {p.locked
                             ? <LockOpen className="h-3 w-3 text-amber-500" />
@@ -3741,13 +3741,13 @@ export default function HplcSimulator() {
                         {/* Opens the single always-mounted controlled dialog — no inline
                             PeakEditorDialog per-peak (that caused the insertBefore crash) */}
                         <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
-                          title="Editar pico"
+                          title="Edit peak"
                           style={{ visibility: p.locked ? "hidden" : "visible" }}
                           onClick={() => { if (!p.locked) openEditorDialog(p.id); }}>
                           <Settings className="h-3 w-3" />
                         </Button>
                         <Button size="sm" variant="ghost" className="h-5 w-5 p-0 hover:text-red-500"
-                          title={p.locked ? "Pico travado — desbloqueie para excluir" : "Excluir pico"}
+                          title={p.locked ? "Peak locked — unlock to delete" : "Delete peak"}
                           disabled={!!p.locked}
                           onClick={() => removePeak(p.id)}>
                           <Trash2 className="h-3 w-3" />
@@ -3782,20 +3782,20 @@ export default function HplcSimulator() {
                         onChange={e => setShowStdPeak(e.target.checked)}
                         className="h-3 w-3 accent-orange-500"
                       />
-                      <span className="text-xs font-mono font-bold text-orange-600">Mostrar Padrão</span>
+                      <span className="text-xs font-mono font-bold text-orange-600">Show Standard</span>
                     </label>
                     {showStdPeak && standards.length === 0 && (
                       <p style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 4 }}>
-                        Adicione padrões de calibração na aba Relatório → Padrões de Calibração.
+                        Add calibration standards in the Report tab → Standards.
                       </p>
                     )}
                     {stdPeakInfo && (
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginTop: 6, lineHeight: 1.7 }}>
-                        <div style={{ color: "#f97316", fontWeight: "bold" }}>── Padrão Nível {stdPeakInfo.level}/{stdPeakInfo.total} ──</div>
+                        <div style={{ color: "#f97316", fontWeight: "bold" }}>── Standard Level {stdPeakInfo.level}/{stdPeakInfo.total} ──</div>
                         <div>Amount: <b>{stdPeakInfo.midStd.amount.toFixed(3)} µg/mL</b></div>
-                        <div>Área std: <b>{stdPeakInfo.midStd.area.toFixed(3)} mAU·s</b></div>
-                        <div>Altura simulada: {stdPeakInfo.stdHeight.toFixed(1)} mAU</div>
-                        <div>TR: {stdPeakInfo.namedPeak.retentionTime.toFixed(3)} min</div>
+                        <div>Std Area: <b>{stdPeakInfo.midStd.area.toFixed(3)} mAU·s</b></div>
+                        <div>Simulated Height: {stdPeakInfo.stdHeight.toFixed(1)} mAU</div>
+                        <div>RT: {stdPeakInfo.namedPeak.retentionTime.toFixed(3)} min</div>
                         {(() => {
                           const samplePeak = peakStats.find(p => p.name === calib.compoundName) ?? peakStats.find(p => p.name);
                           if (!samplePeak) return null;
@@ -3805,10 +3805,10 @@ export default function HplcSimulator() {
                           return (
                             <>
                               <div style={{ marginTop: 4, borderTop: "1px solid #e5e7eb", paddingTop: 4 }}>
-                                <div>Área amostra: {sampleArea.toFixed(3)} mAU·s</div>
-                                <div>Razão A/Aₛₜ𝒹: {ratio !== null ? ratio.toFixed(4) : "—"}</div>
+                                <div>Sample Area: {sampleArea.toFixed(3)} mAU·s</div>
+                                <div>Ratio A/Aₛₜ𝒹: {ratio !== null ? ratio.toFixed(4) : "—"}</div>
                                 <div style={{ color: "#166534", fontWeight: "bold" }}>
-                                  Conc. calculada: {conc !== null ? conc.toFixed(3) + " µg/mL" : "—"}
+                                  Calc. Conc.: {conc !== null ? conc.toFixed(3) + " µg/mL" : "—"}
                                 </div>
                               </div>
                             </>
@@ -3828,14 +3828,14 @@ export default function HplcSimulator() {
               return (
                 <>
                   {/* Compound selector */}
-                  <ControlBox title="Calibração por Composto">
+                  <ControlBox title="Calibration by Compound">
                     {activeCompounds.length === 0 ? (
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa" }}>
-                        Adicione compostos na aba Ativos primeiro.
+                        Add compounds in the Active Compounds tab first.
                       </div>
                     ) : (
                       <>
-                        <label style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", display: "block", marginBottom: 2 }}>Composto:</label>
+                        <label style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", display: "block", marginBottom: 2 }}>Compound:</label>
                         <select
                           value={calibCompoundId ?? ""}
                           onChange={e => setSelectedCalibCompoundId(e.target.value)}
@@ -3860,15 +3860,15 @@ export default function HplcSimulator() {
 
                   {/* Standards for selected compound */}
                   {calibCompound && cc && (
-                    <ControlBox title={`Padrões — ${calibCompound.name}`} extra={
+                    <ControlBox title={`Standards — ${calibCompound.name}`} extra={
                       <div className="flex gap-1 flex-wrap">
                         <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2"
-                          title="Simula as áreas de todos os níveis proporcionalmente ao pico atual no cromatograma"
+                          title="Simulates areas for all levels proportionally to the current chromatogram peak"
                           onClick={() => simulateCalibCurve(calibCompound.id)}>
-                          ⚡ Simular
+                          ⚡ Simulate
                         </Button>
                         <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2"
-                          title="Copia estes padrões para os Padrões Globais — sincroniza overlay do cromatograma"
+                          title="Copy these standards to Global Standards — syncs chromatogram overlay"
                           onClick={() => {
                             const ccData = getCC(calibCompound.id);
                             if (ccData.standards.length === 0) return;
@@ -3886,7 +3886,7 @@ export default function HplcSimulator() {
                     }>
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 4, lineHeight: 1.6 }}>
                         Amount [ug/ml] / Area [mAU*s]<br />
-                        <span style={{ color: "#1d4ed8" }}>📥 Capturar</span> — lê a área do pico atual do cromatograma
+                        <span style={{ color: "#1d4ed8" }}>📥 Capture</span> — reads area from current chromatogram peak
                       </div>
                       {[...cc.standards].sort((a, b) => a.amount - b.amount).map((s, i) => (
                         <div key={s.id} className="flex items-center gap-1 group mb-1.5">
@@ -3903,7 +3903,7 @@ export default function HplcSimulator() {
                                 className="h-5 text-xs font-mono px-1 flex-1" placeholder="Area (mAU*s)" />
                               <button
                                 type="button"
-                                title="Capturar área do pico atual do cromatograma para este nível"
+                                title="Capture current chromatogram peak area for this level"
                                 onClick={() => captureCalibArea(calibCompound.id, s.id)}
                                 style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "1px 5px", border: "1px solid #ccc", borderRadius: 3, background: "#f9fafb", cursor: "pointer", color: "#333", flexShrink: 0, whiteSpace: "nowrap" }}
                               >
@@ -3920,7 +3920,7 @@ export default function HplcSimulator() {
                       {/* Concentração nominal declarada para cálculo de pureza */}
                       <div className="mt-2 pt-2 border-t border-gray-100">
                         <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 3 }}>
-                          Conc. Nominal (ug/ml) — para pureza %:
+                          Nominal Conc. (ug/ml) — for purity %:
                         </div>
                         <Input type="number" step="any"
                           value={cc.calib.nominalConc ?? ""}
@@ -3959,9 +3959,9 @@ export default function HplcSimulator() {
 
                     if (purityRows.length === 0) return null;
                     return (
-                      <ControlBox title="Teor de Pureza (Curva de Calibração)">
+                      <ControlBox title="Purity Assay (Calibration Curve)">
                         <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6, lineHeight: 1.6 }}>
-                          Concentração calculada pela curva de calibração e teor de pureza vs. nominal.
+                          Concentration calculated from calibration curve and purity assay vs. nominal.
                         </div>
                         {purityRows.map(row => {
                           const pct = row.purityPct;
@@ -3972,18 +3972,18 @@ export default function HplcSimulator() {
                                 {row.compound.name}
                               </div>
                               <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", lineHeight: 1.8 }}>
-                                <div>Área detectada: <b>{row.area.toFixed(2)} mAU·s</b></div>
-                                <div>Conc. calculada: <b>{row.calcConc.toFixed(4)} {row.compound.units}</b></div>
+                                <div>Detected Area: <b>{row.area.toFixed(2)} mAU·s</b></div>
+                                <div>Calc. Conc.: <b>{row.calcConc.toFixed(4)} {row.compound.units}</b></div>
                                 {row.nominalConc > 0 && (
                                   <div>Nominal: <b>{row.nominalConc.toFixed(4)} {row.compound.units}</b></div>
                                 )}
                               </div>
                               {/* Regression stats — update live as standards change */}
                               <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#334155", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 3, padding: "4px 6px", marginTop: 5, lineHeight: 1.85 }}>
-                                <div style={{ color: "#0f172a", fontWeight: "bold", marginBottom: 2 }}>Curva de Calibração</div>
-                                <div>Correlação (r): <b style={{ color: row.r >= 0.999 ? "#16a34a" : row.r >= 0.99 ? "#d97706" : "#dc2626" }}>{row.r.toFixed(5)}</b></div>
+                                <div style={{ color: "#0f172a", fontWeight: "bold", marginBottom: 2 }}>Calibration Curve</div>
+                                <div>Correlation (r): <b style={{ color: row.r >= 0.999 ? "#16a34a" : row.r >= 0.99 ? "#d97706" : "#dc2626" }}>{row.r.toFixed(5)}</b></div>
                                 <div>R²: <b>{row.r2.toFixed(5)}</b></div>
-                                <div>Desvio padrão residual: <b>{row.residStdDev.toFixed(5)}</b></div>
+                                <div>Residual Std Dev: <b>{row.residStdDev.toFixed(5)}</b></div>
                                 <div style={{ marginTop: 3 }}>y = mx + b</div>
                                 <div style={{ paddingLeft: 8 }}>m = <b>{row.slope.toFixed(5)}</b></div>
                                 <div style={{ paddingLeft: 8 }}>b = <b>{row.intercept.toFixed(5)}</b></div>
@@ -3991,11 +3991,11 @@ export default function HplcSimulator() {
                               {pct !== null ? (
                                 <div style={{ marginTop: 5, padding: "4px 6px", background: pct >= 98 ? "#f0fdf4" : pct >= 80 ? "#fffbeb" : "#fef2f2", borderRadius: 3, textAlign: "center" }}>
                                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 14, fontWeight: "bold", color: pctColor }}>{pct.toFixed(2)}%</div>
-                                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: pctColor }}>Teor de pureza</div>
+                                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: pctColor }}>Purity</div>
                                 </div>
                               ) : (
                                 <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#888", marginTop: 4, textAlign: "center" }}>
-                                  Defina a Conc. Nominal acima para calcular pureza %
+                                  Set Nominal Conc. above to calculate purity %
                                 </div>
                               )}
                             </div>
@@ -4014,16 +4014,16 @@ export default function HplcSimulator() {
                   </ControlBox>
 
                   {/* Saved chromatogram viewer */}
-                  <ControlBox title="Cromatogramas Salvos">
+                  <ControlBox title="Saved Chromatograms">
                     {savedImages.length === 0 ? (
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", lineHeight: 1.5 }}>
-                        Nenhuma imagem salva.<br />
-                        Salve cromatogramas pela câmera na aba de análise.
+                        No saved images.<br />
+                        Save chromatograms via the camera button in the Analysis tab.
                       </div>
                     ) : (
                       <>
                         <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6 }}>
-                          Clique para visualizar no relatório:
+                          Click to display in report:
                         </div>
                         {savedImages.map(img => (
                           <div
@@ -4039,7 +4039,7 @@ export default function HplcSimulator() {
                             <div style={{ fontWeight: "bold", color: "#1d4ed8", fontSize: 9.5, marginBottom: 1 }}>{img.sessionName}</div>
                             <div style={{ fontSize: 8.5, color: "#666" }}>{new Date(img.createdAt).toLocaleString("pt-BR")}</div>
                             {img.id === reportSelectedImageId && (
-                              <div style={{ fontSize: 8, color: "#1d4ed8", marginTop: 2 }}>▼ visível no relatório</div>
+                              <div style={{ fontSize: 8, color: "#1d4ed8", marginTop: 2 }}>▼ visible in report</div>
                             )}
                           </div>
                         ))}
@@ -4050,7 +4050,7 @@ export default function HplcSimulator() {
                             className="w-full h-7 text-xs mt-1"
                             onClick={() => setReportSelectedImageId(null)}
                           >
-                            Ocultar imagem
+                            Hide image
                           </Button>
                         )}
                       </>
@@ -4062,26 +4062,26 @@ export default function HplcSimulator() {
 
             {page === "ativos" && (
               <>
-                <ControlBox title="Banco de Ativos">
+                <ControlBox title="Active Compounds">
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6, lineHeight: 1.5 }}>
-                    Defina compostos e propriedades HPLC. "Auto-identificar" nomeia picos cujo λ e TR coincidem.
+                    Define compounds and HPLC properties. "Auto-identify" names peaks whose λ and RT match.
                   </div>
                   <Button size="sm" className="w-full h-7 text-xs gap-1 mb-2" onClick={addActiveCompound}>
-                    <Plus className="h-3 w-3" /> Adicionar Ativo
+                    <Plus className="h-3 w-3" /> Add Compound
                   </Button>
                   <Button size="sm" variant="outline" className="w-full h-7 text-xs gap-1" onClick={autoIdentifyPeaks}>
-                    <Zap className="h-3 w-3" /> Auto-identificar Picos
+                    <Zap className="h-3 w-3" /> Auto-identify Peaks
                   </Button>
                   {lastIdentified.length > 0 && (
                     <div style={{ marginTop: 6, fontSize: 9, color: "#166534", fontFamily: "Courier New, monospace" }}>
-                      Identificados: {lastIdentified.join(", ")}
+                      Identified: {lastIdentified.join(", ")}
                     </div>
                   )}
                 </ControlBox>
-                <ControlBox title="Detector Atual">
+                <ControlBox title="Current Detector">
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555" }}>
-                    λ sinal: <b>{detector.sigWavelength} nm</b><br />
-                    Correspondência por: λ ± tolerância E TR ± tolerância
+                    λ signal: <b>{detector.sigWavelength} nm</b><br />
+                    Match by: λ ± tolerance AND RT ± tolerance
                   </div>
                 </ControlBox>
               </>
@@ -4093,25 +4093,25 @@ export default function HplcSimulator() {
               const std = sessionFormula ? formulaStandards.find(s => s.formulaId === sessionFormula.id) ?? null : null;
               return (
                 <>
-                  <ControlBox title="Sessões de Análise">
+                  <ControlBox title="Analysis Sessions">
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6, lineHeight: 1.5 }}>
-                      Cada sessão registra até 5 injeções independentes com cromatogramas sobrepostos e cálculo de teor (%).
+                      Each session records up to 5 independent injections with overlaid chromatograms and assay (%) calculation.
                     </div>
                     {formulas.length === 0 ? (
                       <div style={{ fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace" }}>
-                        Salve uma fórmula no menu "Lotes" antes de criar uma sessão de análise.
+                        Save a formula in the "Lots" menu before creating an analysis session.
                       </div>
                     ) : (
                       <NewSessionDialog formulas={formulas} onSave={handleCreateSession}>
                         <Button size="sm" className="w-full h-7 text-xs gap-1 mb-2">
-                          <Plus className="h-3 w-3" /> Nova Sessão
+                          <Plus className="h-3 w-3" /> New Session
                         </Button>
                       </NewSessionDialog>
                     )}
                     <div className="space-y-1 mt-1">
                       {analysisSessions.length === 0 && (
                         <div style={{ fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace", textAlign: "center", padding: "6px 0" }}>
-                          Nenhuma sessão criada
+                          No sessions created
                         </div>
                       )}
                       {analysisSessions.map(s => {
@@ -4124,12 +4124,12 @@ export default function HplcSimulator() {
                             background: isActive ? "#eff6ff" : "#fafafa",
                           }}>
                             <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, fontWeight: "bold", color: isActive ? "#1d4ed8" : "#333" }}>{s.name}</div>
-                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", marginTop: 1 }}>{fName} · {s.runs.length}/5 corridas</div>
-                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa" }}>{new Date(s.createdAt).toLocaleDateString("pt-BR")}</div>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", marginTop: 1 }}>{fName} · {s.runs.length}/5 runs</div>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa" }}>{new Date(s.createdAt).toLocaleDateString("en-US")}</div>
                             <div className="flex gap-1 mt-1">
                               <Button size="sm" variant="destructive" className="h-5 text-xs px-1.5 flex-1 opacity-70"
                                 onClick={e => { e.stopPropagation(); openDeleteSessionDialog(s.id, s.name); }}>
-                                <Trash2 className="h-2.5 w-2.5 mr-0.5" /> Excluir
+                                <Trash2 className="h-2.5 w-2.5 mr-0.5" /> Delete
                               </Button>
                             </div>
                           </div>
@@ -4140,13 +4140,13 @@ export default function HplcSimulator() {
 
                   {session && sessionFormula && (
                     <>
-                      <ControlBox title={`Corridas — ${session.name}`}>
+                      <ControlBox title={`Runs — ${session.name}`}>
                         <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6 }}>
-                          Configure os picos no cromatograma e clique "Registrar" para salvar a corrida atual.
+                          Configure peaks in the chromatogram and click "Register" to save the current run.
                         </div>
                         <Button size="sm" className="w-full h-7 text-xs gap-1 mb-2"
                           onClick={handleRegisterRun}>
-                          <Download className="h-3 w-3" /> Registrar Corrida {session.runs.length + 1}
+                          <Download className="h-3 w-3" /> Register Run {session.runs.length + 1}
                         </Button>
                         <div className="space-y-1 mt-1">
                           {session.runs.map(r => (
@@ -4162,61 +4162,61 @@ export default function HplcSimulator() {
                               <div style={{ flex: 1 }}>
                                 <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, fontWeight: "bold", color: r.hidden ? "#aaa" : "#111" }}>
                                   {r.label}
-                                  {r.hidden && <span style={{ fontWeight: 400, fontSize: 8, color: "#bbb", marginLeft: 4 }}>oculto</span>}
+                                  {r.hidden && <span style={{ fontWeight: 400, fontSize: 8, color: "#bbb", marginLeft: 4 }}>hidden</span>}
                                 </div>
                                 <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#999" }}>
-                                  {new Date(r.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                                  {new Date(r.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
                                 </div>
                               </div>
                               {/* Toggle visibility */}
                               <Button size="sm" variant="ghost" className="h-5 w-5 p-0"
-                                title={r.hidden ? "Mostrar corrida" : "Ocultar corrida"}
+                                title={r.hidden ? "Show run" : "Hide run"}
                                 style={{ color: r.hidden ? "#9ca3af" : "#3b82f6" }}
                                 onClick={() => handleToggleRunHidden(session.id, r.id)}>
                                 {r.hidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                               </Button>
                               {/* Delete */}
                               <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-red-400 hover:text-red-600"
-                                title="Excluir corrida"
+                                title="Delete run"
                                 onClick={() => handleDeleteRun(session.id, r.id)}>
                                 <Trash2 className="h-3 w-3" />
                               </Button>
                             </div>
                           ))}
                           {session.runs.length === 0 && (
-                            <div style={{ fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace", textAlign: "center", padding: "6px 0" }}>Nenhuma corrida registrada</div>
+                            <div style={{ fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace", textAlign: "center", padding: "6px 0" }}>No runs registered</div>
                           )}
                         </div>
                       </ControlBox>
 
-                      <ControlBox title="Padrão de Referência">
+                      <ControlBox title="Reference Standard">
                         {std ? (
                           <div style={{ fontFamily: "Courier New, monospace", fontSize: 9 }}>
-                            <div style={{ color: "#166534", fontWeight: "bold", marginBottom: 4 }}>✓ Padrão salvo</div>
+                            <div style={{ color: "#166534", fontWeight: "bold", marginBottom: 4 }}>✓ Standard saved</div>
                             {std.entries.map(e => (
                               <div key={e.compoundId} style={{ marginBottom: 3, padding: "3px 5px", background: "#f0fdf4", borderRadius: 3, border: "1px solid #bbf7d0" }}>
                                 <div style={{ fontWeight: "bold" }}>{e.compoundName}</div>
                                 <div style={{ color: "#555" }}>Nominal: {e.nominalConc} {e.units}</div>
-                                {e.stdArea > 0 && <div style={{ color: "#555" }}>Std área: {e.stdArea} / conc: {e.stdConc}</div>}
+                                {e.stdArea > 0 && <div style={{ color: "#555" }}>Std area: {e.stdArea} / conc: {e.stdConc}</div>}
                               </div>
                             ))}
                             <div style={{ marginTop: 6, display: "flex", gap: 4 }}>
                               <SetStandardDialog compounds={sessionFormula.activeCompounds} existing={std} onSave={(entries, notes) => handleSaveStandard(sessionFormula.id, entries, notes)}>
-                                <Button size="sm" variant="outline" className="h-5 text-xs px-1.5 flex-1">Editar</Button>
+                                <Button size="sm" variant="outline" className="h-5 text-xs px-1.5 flex-1">Edit</Button>
                               </SetStandardDialog>
                               <Button size="sm" variant="destructive" className="h-5 text-xs px-1.5 flex-1 opacity-70" onClick={() => handleDeleteStandard(sessionFormula.id)}>
-                                <Trash2 className="h-2.5 w-2.5 mr-0.5" /> Remover
+                                <Trash2 className="h-2.5 w-2.5 mr-0.5" /> Remove
                               </Button>
                             </div>
                           </div>
                         ) : (
                           <div>
                             <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#ea580c", marginBottom: 6 }}>
-                              ⚠ Sem padrão salvo. Informe os valores para calcular o teor (%).
+                              ⚠ No standard saved. Enter values to calculate assay (%).
                             </div>
                             <SetStandardDialog compounds={sessionFormula.activeCompounds} existing={null} onSave={(entries, notes) => handleSaveStandard(sessionFormula.id, entries, notes)}>
                               <Button size="sm" className="w-full h-7 text-xs gap-1">
-                                <Plus className="h-3 w-3" /> Definir Padrão
+                                <Plus className="h-3 w-3" /> Set Standard
                               </Button>
                             </SetStandardDialog>
                           </div>
@@ -4230,19 +4230,19 @@ export default function HplcSimulator() {
 
             {page === "lotes" && (
               <>
-                <ControlBox title="Fórmulas Salvas">
+                <ControlBox title="Saved Formulas">
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6, lineHeight: 1.5 }}>
-                    Salve o método atual como fórmula. Depois registre lotes analisados para comparar resultados.
+                    Save the current method as a formula. Then register analyzed lots to compare results.
                   </div>
                   <SaveFormulaDialog onSave={handleSaveFormula}>
                     <Button size="sm" className="w-full h-7 text-xs gap-1 mb-2">
-                      <Plus className="h-3 w-3" /> Salvar Fórmula Atual
+                      <Plus className="h-3 w-3" /> Save Current Formula
                     </Button>
                   </SaveFormulaDialog>
                   <div className="space-y-1.5 mt-1">
                     {formulas.length === 0 && (
                       <div style={{ fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace", textAlign: "center", padding: "8px 0" }}>
-                        Nenhuma fórmula salva
+                        No formulas saved
                       </div>
                     )}
                     {formulas.map(f => {
@@ -4257,12 +4257,12 @@ export default function HplcSimulator() {
                           <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, fontWeight: "bold", color: isSelected ? "#1d4ed8" : "#333" }}>{f.name}</div>
                           {f.description && <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", marginTop: 1 }}>{f.description}</div>}
                           <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#999", marginTop: 2 }}>
-                            {lotCount} lote{lotCount !== 1 ? "s" : ""} · {new Date(f.createdAt).toLocaleDateString("pt-BR")}
+                            {lotCount} lot{lotCount !== 1 ? "s" : ""} · {new Date(f.createdAt).toLocaleDateString("en-US")}
                           </div>
                           <div className="flex gap-1 mt-1.5">
                             <Button size="sm" variant="outline" className="h-5 text-xs px-1.5 flex-1"
                               onClick={e => { e.stopPropagation(); handleLoadFormula(f); }}>
-                              <Download className="h-2.5 w-2.5 mr-0.5" /> Carregar
+                              <Download className="h-2.5 w-2.5 mr-0.5" /> Load
                             </Button>
                             <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-red-400 hover:text-red-600"
                               onClick={e => { e.stopPropagation(); handleDeleteFormula(f.id); }}>
@@ -4292,15 +4292,15 @@ export default function HplcSimulator() {
             }}>
               <div style={{ background: "#fff", borderRadius: 14, padding: "32px 40px", textAlign: "center", maxWidth: 430, boxShadow: "0 8px 40px rgba(0,0,0,0.35)", fontFamily: "Courier New, monospace" }}>
                 <div style={{ fontSize: 38, marginBottom: 12 }}>🔒</div>
-                <div style={{ fontWeight: "bold", fontSize: 15, color: "#1e293b", marginBottom: 6 }}>Análise Encerrada</div>
+                <div style={{ fontWeight: "bold", fontSize: 15, color: "#1e293b", marginBottom: 6 }}>Analysis Closed</div>
                 <div style={{ fontSize: 11, color: "#475569", marginBottom: 8, lineHeight: 1.7 }}>
-                  <b>{snapshotSession?.name}</b> foi concluída como{" "}
+                  <b>{snapshotSession?.name}</b> was concluded as{" "}
                   <b style={{ color: snapshotSession?.status === "aprovado" ? "#16a34a" : snapshotSession?.status === "reprovado" ? "#dc2626" : "#7c3aed" }}>
-                    {snapshotSession?.status === "aprovado" ? "Aprovado" : snapshotSession?.status === "reprovado" ? "Reprovado" : "Laudo Emitido"}
+                    {snapshotSession?.status === "aprovado" ? "Approved" : snapshotSession?.status === "reprovado" ? "Rejected" : "Report Issued"}
                   </b>.
                 </div>
                 <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 24, lineHeight: 1.6 }}>
-                  A edição de qualquer etapa desta análise requer<br />autenticação com a senha Master.
+                  Editing any step of this analysis requires<br />authentication with the Master password.
                 </div>
                 <button
                   onClick={() => {
@@ -4310,13 +4310,13 @@ export default function HplcSimulator() {
                   }}
                   style={{ background: "#1d4ed8", color: "#fff", border: "none", borderRadius: 8, padding: "11px 30px", fontWeight: "bold", cursor: "pointer", fontSize: 12, fontFamily: "Courier New, monospace", boxShadow: "0 2px 8px rgba(29,78,216,0.4)", display: "block", width: "100%", marginBottom: 10 }}
                 >
-                  🔑 Desbloquear com Senha Master
+                  🔑 Unlock with Master Password
                 </button>
                 <button
                   onClick={() => setPage("painel")}
                   style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 10, fontFamily: "Courier New, monospace", textDecoration: "underline" }}
                 >
-                  ← Voltar ao Painel
+                  ← Back to Panel
                 </button>
               </div>
             </div>
@@ -4332,10 +4332,10 @@ export default function HplcSimulator() {
             const imgCount = savedImages.length;
 
             const statusLabel: Record<string, string> = {
-              em_andamento: "Em Análise",
-              aprovado: "Aprovado",
-              reprovado: "Reprovado",
-              laudo_emitido: "Laudo Emitido",
+              em_andamento: "In Progress",
+              aprovado: "Approved",
+              reprovado: "Rejected",
+              laudo_emitido: "Report Issued",
             };
             const statusBg: Record<string, string> = {
               em_andamento: "#dbeafe",
@@ -4354,16 +4354,16 @@ export default function HplcSimulator() {
               <div style={{ fontFamily: "Courier New, monospace" }}>
                 {/* Header */}
                 <div style={{ fontWeight: "bold", fontSize: 15, marginBottom: 18, borderBottom: "1px solid #bbb", paddingBottom: 10, color: "#1d4ed8" }}>
-                  Painel de Análises
+                  Analysis Panel
                 </div>
 
                 {/* Stat cards — clickable to filter the session list below */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 24 }}>
                   {[
                     { label: "Total", value: total, bg: "#f8fafc", color: "#334155", Icon: Activity, filter: null },
-                    { label: "Em Análise", value: emAndamento, bg: "#dbeafe", color: "#1d4ed8", Icon: FlaskConical, filter: "em_andamento" },
-                    { label: "Aprovados", value: aprovados, bg: "#dcfce7", color: "#16a34a", Icon: ClipboardCheck, filter: "aprovado" },
-                    { label: "Reprovados", value: reprovados, bg: "#fee2e2", color: "#dc2626", Icon: ClipboardX, filter: "reprovado" },
+                    { label: "In Progress", value: emAndamento, bg: "#dbeafe", color: "#1d4ed8", Icon: FlaskConical, filter: "em_andamento" },
+                    { label: "Approved", value: aprovados, bg: "#dcfce7", color: "#16a34a", Icon: ClipboardCheck, filter: "aprovado" },
+                    { label: "Rejected", value: reprovados, bg: "#fee2e2", color: "#dc2626", Icon: ClipboardX, filter: "reprovado" },
                   ].map(({ label, value, bg, color, Icon, filter }) => {
                     const isActive = panelStatusFilter === filter;
                     return (
@@ -4391,18 +4391,18 @@ export default function HplcSimulator() {
                   <ImageIcon style={{ width: 16, height: 16, color: imgCount > 0 ? "#16a34a" : "#64748b" }} />
                   <span style={{ fontSize: 11, color: "#555" }}>
                     <b style={{ color: imgCount > 0 ? "#16a34a" : "#334155", fontSize: 13 }}>{imgCount}</b>{" "}
-                    imagem{imgCount !== 1 ? "ns" : ""} de cromatograma salva{imgCount !== 1 ? "s" : ""} e disponíveis para anexar no Protocolo de Estabilidade.
+                    chromatogram image{imgCount !== 1 ? "s" : ""} saved and available to attach to the Stability Protocol.
                   </span>
                   <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
                     {imgCount > 0 && (
                       <>
                         <button style={{ fontSize: 10, padding: "2px 10px", border: "1px solid #16a34a", borderRadius: 4, background: "#dcfce7", cursor: "pointer", color: "#16a34a", fontWeight: "bold", fontFamily: "Courier New, monospace" }}
                           onClick={() => galleryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-                          Ver galeria ↓
+                          View gallery ↓
                         </button>
                         <button style={{ fontSize: 10, color: "#dc2626", background: "none", border: "none", cursor: "pointer", fontFamily: "Courier New, monospace" }}
-                          onClick={() => { if (confirm(`Excluir todas as ${imgCount} imagens salvas?`)) { setSavedImages([]); saveSavedImages([]); } }}>
-                          Limpar biblioteca
+                          onClick={() => { if (confirm(`Delete all ${imgCount} saved images?`)) { setSavedImages([]); saveSavedImages([]); } }}>
+                          Clear library
                         </button>
                       </>
                     )}
@@ -4412,8 +4412,8 @@ export default function HplcSimulator() {
                 {/* Session list */}
                 {analysisSessions.length === 0 ? (
                   <div style={{ textAlign: "center", color: "#aaa", fontSize: 12, padding: "40px 0" }}>
-                    Nenhuma sessão de análise criada ainda.<br />
-                    <span style={{ fontSize: 10 }}>Vá para a aba "Análise" e crie uma nova sessão.</span>
+                    No analysis sessions created yet.<br />
+                    <span style={{ fontSize: 10 }}>Go to the "Analysis" tab and create a new session.</span>
                   </div>
                 ) : (() => {
                   const filtered = [...analysisSessions]
@@ -4424,18 +4424,18 @@ export default function HplcSimulator() {
                     {panelStatusFilter && (
                       <div style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 10, color: "#555", fontFamily: "Courier New, monospace" }}>
-                          Mostrando {filtered.length} sessão(ões) com filtro: <b>{statusLabel[panelStatusFilter]}</b>
+                          Showing {filtered.length} session(s) with filter: <b>{statusLabel[panelStatusFilter]}</b>
                         </span>
                         <button style={{ fontSize: 9, padding: "1px 8px", border: "1px solid #94a3b8", borderRadius: 4, background: "#f1f5f9", cursor: "pointer", color: "#475569" }}
                           onClick={() => setPanelStatusFilter(null)}>
-                          ✕ Limpar filtro
+                          ✕ Clear filter
                         </button>
                       </div>
                     )}
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10.5 }}>
                     <thead>
                       <tr style={{ background: "#f1f5f9" }}>
-                        {["Sessão", "Fórmula", "Corridas", "Status", "Data", "Ações"].map(h => (
+                        {["Session", "Formula", "Runs", "Status", "Date", "Actions"].map(h => (
                           <th key={h} style={{ padding: "6px 10px", textAlign: "left", fontWeight: "bold", color: "#334155", borderBottom: "1px solid #cbd5e1", fontFamily: "Courier New, monospace", fontSize: 10 }}>
                             {h}
                           </th>
@@ -4470,14 +4470,14 @@ export default function HplcSimulator() {
                               </span>
                             </td>
                             <td style={{ padding: "8px 10px", color: "#64748b", whiteSpace: "nowrap" }}>
-                              {new Date(s.createdAt).toLocaleDateString("pt-BR")}
+                              {new Date(s.createdAt).toLocaleDateString("en-US")}
                             </td>
                             <td style={{ padding: "8px 6px" }} onClick={e => e.stopPropagation()}>
                               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                                 {/* Go to analysis */}
                                 <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #1d4ed8", borderRadius: 4, background: "#eff6ff", cursor: "pointer", color: "#1d4ed8", fontWeight: "bold" }}
                                   onClick={goToSession}>
-                                  → Abrir
+                                  → Open
                                 </button>
 
                                 {/* Revisar — loads snapshot; concluded sessions require Master password */}
@@ -4497,7 +4497,7 @@ export default function HplcSimulator() {
                                         handleLoadSnapshotSession(s);
                                       }
                                     }}>
-                                    {s.status !== "em_andamento" ? "🔒 Revisar" : "↩ Revisar"}
+                                    {s.status !== "em_andamento" ? "🔒 Review" : "↩ Review"}
                                   </button>
                                 )}
 
@@ -4509,7 +4509,7 @@ export default function HplcSimulator() {
                                       setFinalizeNotes(s.conclusionNotes ?? "");
                                       setFinalizeDialog({ id: s.id, name: s.name });
                                     }}>
-                                    <ClipboardCheck style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Concluir
+                                    <ClipboardCheck style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Conclude
                                   </button>
                                 )}
 
@@ -4521,15 +4521,15 @@ export default function HplcSimulator() {
                                       setFinalizeNotes(s.conclusionNotes ?? "");
                                       setFinalizeDialog({ id: s.id, name: s.name });
                                     }}>
-                                    ✎ Alterar status
+                                    ✎ Change status
                                   </button>
                                 )}
 
                                 {/* Emit Laudo */}
                                 {(s.status === "aprovado" || s.status === "reprovado") && (
                                   <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #7c3aed", borderRadius: 4, background: "#f3e8ff", cursor: "pointer", color: "#7c3aed" }}
-                                    onClick={() => { if (confirm(`Emitir laudo para "${s.name}"?`)) handleEmitLaudo(s.id); }}>
-                                    <ScrollText style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Emitir Laudo
+                                    onClick={() => { if (confirm(`Issue report for "${s.name}"?`)) handleEmitLaudo(s.id); }}>
+                                    <ScrollText style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Issue Report
                                   </button>
                                 )}
 
@@ -4542,7 +4542,7 @@ export default function HplcSimulator() {
                                     </button>
                                     <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #16a34a", borderRadius: 4, background: "#dcfce7", cursor: "pointer", color: "#16a34a" }}
                                       onClick={() => handleSavePng(s.id, true)}>
-                                      <ImageIcon style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />→ Biblioteca
+                                      <ImageIcon style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />→ Library
                                     </button>
                                   </>
                                 )}
@@ -4550,7 +4550,7 @@ export default function HplcSimulator() {
                                 {/* Delete with password */}
                                 <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #dc2626", borderRadius: 4, background: "#fee2e2", cursor: "pointer", color: "#dc2626" }}
                                   onClick={() => openDeleteSessionDialog(s.id, s.name)}>
-                                  <Trash2 style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Excluir
+                                  <Trash2 style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Delete
                                 </button>
                               </div>
                             </td>
@@ -4589,7 +4589,7 @@ export default function HplcSimulator() {
                                 Download
                               </a>
                               <button style={{ fontSize: 8, padding: "2px 6px", border: "1px solid #dc2626", borderRadius: 3, background: "#fee2e2", cursor: "pointer", color: "#dc2626" }}
-                                onClick={() => { if (confirm("Excluir esta imagem?")) handleDeleteSavedImage(img.id); }}>
+                                onClick={() => { if (confirm("Delete this image?")) handleDeleteSavedImage(img.id); }}>
                                 ✕
                               </button>
                             </div>
@@ -4648,7 +4648,7 @@ export default function HplcSimulator() {
                 {/* Drag hint tooltip — hidden when printing */}
                 {!draggingPeakId && peakStats.some(p => !p.locked) && (
                   <div className="no-print" style={{ position: "absolute", bottom: 28, left: 54, fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace", pointerEvents: "none" }}>
-                    ← arraste o pico para ajustar o TR →
+                    ← drag peak to adjust RT →
                   </div>
                 )}
                 {/* overflow:visible lets vertical peak labels render above the plot margin */}
@@ -4686,7 +4686,7 @@ export default function HplcSimulator() {
                 ) : (
                   <div
                     className="no-print"
-                    title="Clique para editar"
+                    title="Click to edit"
                     onClick={() => setSignalLabelEditing(true)}
                     style={{
                       position: "absolute", top: 3, left: 4, right: 20,
@@ -4798,10 +4798,10 @@ export default function HplcSimulator() {
                 {stdPeakInfo && (
                   <div style={{ display: "flex", gap: 16, fontSize: 9, fontFamily: "Courier New, monospace", marginTop: 4, paddingLeft: 54 }}>
                     <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ display: "inline-block", width: 20, height: 2, background: "#1560bd" }} /> Amostra
+                      <span style={{ display: "inline-block", width: 20, height: 2, background: "#1560bd" }} /> Sample
                     </span>
                     <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ display: "inline-block", width: 20, height: 2, background: "#f97316", borderTop: "2px dashed #f97316" }} /> Padrão (Nível {stdPeakInfo.level})
+                      <span style={{ display: "inline-block", width: 20, height: 2, background: "#f97316", borderTop: "2px dashed #f97316" }} /> Standard (Level {stdPeakInfo.level})
                     </span>
                   </div>
                 )}
@@ -5237,7 +5237,7 @@ export default function HplcSimulator() {
                           <div style={{ whiteSpace: "pre" }}>{"    " + " ".repeat(18) + "Calibration Injections — " + compound.name}</div>
                           <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
                           <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", margin: "6px 0 10px 0" }}>
-                            Cada injeção representa um nível do padrão de calibração. Altura proporcional à Área.
+                            Each injection represents one calibration standard level. Height proportional to Area.
                           </div>
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
                             {injSorted.map((s, idx) => {
@@ -5357,23 +5357,23 @@ export default function HplcSimulator() {
           {page === "ativos" && (
             <div style={{ fontFamily: "Courier New, monospace" }}>
               <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 15, fontWeight: "bold" }}>Banco de Compostos Ativos</div>
+                <div style={{ fontSize: 15, fontWeight: "bold" }}>Active Compounds Library</div>
                 <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>
-                  {activeCompounds.length} composto(s) — detector atual: λ={detector.sigWavelength} nm
+                  {activeCompounds.length} compound(s) — current detector: λ={detector.sigWavelength} nm
                 </div>
               </div>
               <Div />
               <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
                 <Button size="sm" className="h-7 text-xs gap-1" onClick={addActiveCompound}>
-                  <Plus className="h-3 w-3" /> Adicionar Ativo
+                  <Plus className="h-3 w-3" /> Add Compound
                 </Button>
                 <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={autoIdentifyPeaks}>
-                  <Zap className="h-3 w-3" /> Auto-identificar no Cromatograma
+                  <Zap className="h-3 w-3" /> Auto-identify in Chromatogram
                 </Button>
                 {lastIdentified.length > 0 && (
                   <span style={{ fontSize: 10, color: "#166534", display: "flex", alignItems: "center", gap: 4 }}>
                     <CheckCircle2 style={{ width: 13, height: 13 }} />
-                    {lastIdentified.length} pico(s) identificado(s): {lastIdentified.join(", ")}
+                    {lastIdentified.length} peak(s) identified: {lastIdentified.join(", ")}
                   </span>
                 )}
               </div>
@@ -5383,7 +5383,7 @@ export default function HplcSimulator() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10.5 }}>
                   <thead>
                     <tr style={{ borderBottom: "2px solid #333", background: "#f4f4f4" }}>
-                      {["Composto", "λ (nm)", "±λ", "TR (min)", "±TR", "Amt/Area", "Unid.", "Spec Mín", "Spec Máx", "Método", "Notas", ""].map(h => (
+                      {["Compound", "λ (nm)", "±λ", "RT (min)", "±RT", "Amt/Area", "Units", "Spec Min", "Spec Max", "Method", "Notes", ""].map(h => (
                         <th key={h} style={{ textAlign: "left", padding: "4px 8px", fontFamily: "Courier New, monospace", fontWeight: "bold", whiteSpace: "nowrap" }}>{h}</th>
                       ))}
                     </tr>
@@ -5434,10 +5434,10 @@ export default function HplcSimulator() {
                                   }
                                 </span>
                               ) : (
-                                <span style={{ fontSize: 9, color: "#aaa", whiteSpace: "nowrap" }}>sem pico</span>
+                                <span style={{ fontSize: 9, color: "#aaa", whiteSpace: "nowrap" }}>no peak</span>
                               )}
                               {/* Add to chrom button */}
-                              <Button size="sm" variant="ghost" title="Adicionar ao cromatograma"
+                              <Button size="sm" variant="ghost" title="Add to chromatogram"
                                 className="h-5 w-5 p-0 text-blue-600 hover:text-blue-800"
                                 onClick={() => addCompoundAsPeak(c)}>
                                 <Plus className="h-3 w-3" />
@@ -5464,13 +5464,13 @@ export default function HplcSimulator() {
 
               {activeCompounds.length === 0 && (
                 <div style={{ textAlign: "center", color: "#aaa", padding: "32px 0", fontSize: 12 }}>
-                  Nenhum ativo cadastrado. Clique em "Adicionar Ativo" para começar.
+                  No compounds registered. Click "Add Compound" to start.
                 </div>
               )}
 
               <Div />
               <div style={{ marginTop: 12, fontSize: 10, color: "#666" }}>
-                <b>Legenda:</b> λ destacado = detector atual dentro da tolerância · Status verde = pico encontrado e dentro da especificação · azul = pico encontrado, sem especificação · vermelho = fora da especificação · "sem pico" = nenhum pico no cromatograma corresponde (TR ± tol)
+                <b>Legend:</b> highlighted λ = current detector within tolerance · green = peak found and within spec · blue = peak found, no spec · red = out of spec · "no peak" = no chromatogram peak matches (RT ± tol)
               </div>
             </div>
           )}
@@ -5486,9 +5486,9 @@ export default function HplcSimulator() {
               return (
                 <div style={{ textAlign: "center", color: "#aaa", padding: "60px 0" }}>
                   <FlaskConical style={{ width: 40, height: 40, margin: "0 auto 12px", opacity: 0.3 }} />
-                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 13, fontWeight: "bold", marginBottom: 6 }}>Nenhuma sessão selecionada</div>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 13, fontWeight: "bold", marginBottom: 6 }}>No session selected</div>
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#bbb" }}>
-                    No painel esquerdo, crie ou selecione uma sessão de análise.
+                    In the left panel, create or select an analysis session.
                   </div>
                 </div>
               );
@@ -5540,14 +5540,14 @@ export default function HplcSimulator() {
                 <div style={{ marginBottom: 8 }}>
                   <div style={{ fontSize: 14, fontWeight: "bold" }}>{session.name}</div>
                   <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>
-                    Fórmula: {sessionFormula.name} · {session.runs.length} corrida(s) registrada(s) · λ {sessionFormula.detector.sigWavelength} nm
+                    Formula: {sessionFormula.name} · {session.runs.length} run(s) registered · λ {sessionFormula.detector.sigWavelength} nm
                   </div>
                   {!std && (
                     <div style={{ fontSize: 10, color: "#ea580c", marginTop: 3 }}>
-                      ⚠ Padrão não definido — configure o padrão no painel esquerdo para calcular Teor (%)
+                      ⚠ No standard defined — configure the standard in the left panel to calculate Assay (%)
                     </div>
                   )}
-                  {std && <div style={{ fontSize: 10, color: "#166534", marginTop: 3 }}>✓ Padrão salvo em {new Date(std.savedAt).toLocaleDateString("pt-BR")}</div>}
+                  {std && <div style={{ fontSize: 10, color: "#166534", marginTop: 3 }}>✓ Standard saved on {new Date(std.savedAt).toLocaleDateString("en-US")}</div>}
                 </div>
 
                 <div style={{ borderTop: "1px solid #ccc", margin: "8px 0 12px" }} />
@@ -5557,7 +5557,7 @@ export default function HplcSimulator() {
 
                 {session.runs.length === 0 ? (
                   <div style={{ textAlign: "center", color: "#aaa", padding: "40px 0", fontSize: 11, border: "1px dashed #ddd", borderRadius: 6 }}>
-                    Nenhuma corrida registrada. Use o painel esquerdo para registrar corridas.
+                    No runs registered. Use the left panel to register runs.
                   </div>
                 ) : (
                   <>
@@ -5567,7 +5567,7 @@ export default function HplcSimulator() {
                         <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, opacity: r.hidden ? 0.35 : 1 }}>
                           <div style={{ width: 18, height: 2, background: r.hidden ? "#ccc" : r.color, borderRadius: 1 }} />
                           <span style={{ textDecoration: r.hidden ? "line-through" : "none", color: r.hidden ? "#aaa" : undefined }}>
-                            {r.label}{r.hidden ? " (oculto)" : ""}
+                            {r.label}{r.hidden ? " (hidden)" : ""}
                           </span>
                         </div>
                       ))}
@@ -5607,10 +5607,10 @@ export default function HplcSimulator() {
 
                     {/* Results table */}
                     <div style={{ borderTop: "1px solid #ccc", margin: "14px 0 10px" }} />
-                    <div style={{ fontSize: 12, fontWeight: "bold", marginBottom: 8 }}>Resultados — Teor por Corrida</div>
+                    <div style={{ fontSize: 12, fontWeight: "bold", marginBottom: 8 }}>Results — Assay per Run</div>
 
                     {compounds.length === 0 ? (
-                      <div style={{ fontSize: 10, color: "#aaa" }}>Nenhum ativo definido nesta fórmula.</div>
+                      <div style={{ fontSize: 10, color: "#aaa" }}>No active compounds defined in this formula.</div>
                     ) : (
                       compounds.map(compound => {
                         const stdEntry = std ? std.entries.find(e => e.compoundId === compound.id) ?? null : null;
@@ -5618,16 +5618,16 @@ export default function HplcSimulator() {
                         return (
                           <div key={compound.id} style={{ marginBottom: 18 }}>
                             <div style={{ fontSize: 11, fontWeight: "bold", marginBottom: 4, color: "#1d4ed8" }}>
-                              {compound.name} <span style={{ color: "#888", fontWeight: "normal", fontSize: 10 }}>({compound.units}){stdEntry ? ` — Nominal: ${stdEntry.nominalConc} ${compound.units}` : " — sem padrão"}</span>
+                              {compound.name} <span style={{ color: "#888", fontWeight: "normal", fontSize: 10 }}>({compound.units}){stdEntry ? ` — Nominal: ${stdEntry.nominalConc} ${compound.units}` : " — no standard"}</span>
                             </div>
                             <div style={{ overflowX: "auto" }}>
                               <table style={{ borderCollapse: "collapse", fontSize: 10, minWidth: 420 }}>
                                 <thead>
                                   <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #333" }}>
-                                    <th style={{ padding: "4px 10px", textAlign: "left" }}>Corrida</th>
-                                    <th style={{ padding: "4px 10px", textAlign: "right" }}>Área (mAU*s)</th>
-                                    <th style={{ padding: "4px 10px", textAlign: "right" }}>Conc. calc.</th>
-                                    <th style={{ padding: "4px 10px", textAlign: "right" }}>Teor (%)</th>
+                                    <th style={{ padding: "4px 10px", textAlign: "left" }}>Run</th>
+                                    <th style={{ padding: "4px 10px", textAlign: "right" }}>Area (mAU*s)</th>
+                                    <th style={{ padding: "4px 10px", textAlign: "right" }}>Calc. Conc.</th>
+                                    <th style={{ padding: "4px 10px", textAlign: "right" }}>Assay (%)</th>
                                     <th style={{ padding: "4px 10px", textAlign: "center" }}>Status</th>
                                   </tr>
                                 </thead>
@@ -5651,9 +5651,9 @@ export default function HplcSimulator() {
                                           {cr?.teorPct !== null && cr?.teorPct !== undefined ? `${cr.teorPct.toFixed(2)} %` : "—"}
                                         </td>
                                         <td style={{ padding: "4px 10px", textAlign: "center" }}>
-                                          {teorOk === null ? <span style={{ color: "#94a3b8", fontSize: 9 }}>sem padrão</span>
-                                            : teorOk ? <span style={{ color: "#166534", fontSize: 9, fontWeight: "bold" }}>✓ Aprovado</span>
-                                            : <span style={{ color: "#dc2626", fontSize: 9, fontWeight: "bold" }}>✗ Reprovado</span>}
+                                          {teorOk === null ? <span style={{ color: "#94a3b8", fontSize: 9 }}>no standard</span>
+                                            : teorOk ? <span style={{ color: "#166534", fontSize: 9, fontWeight: "bold" }}>✓ Pass</span>
+                                            : <span style={{ color: "#dc2626", fontSize: 9, fontWeight: "bold" }}>✗ Fail</span>}
                                         </td>
                                       </tr>
                                     );
@@ -5662,7 +5662,7 @@ export default function HplcSimulator() {
                                 {summary && (
                                   <tfoot>
                                     <tr style={{ background: "#f8fafc", borderTop: "2px solid #999" }}>
-                                      <td style={{ padding: "4px 10px", fontWeight: "bold" }}>Resumo ({session.runs.length} corridas)</td>
+                                      <td style={{ padding: "4px 10px", fontWeight: "bold" }}>Summary ({session.runs.length} run{session.runs.length !== 1 ? "s" : ""})</td>
                                       <td />
                                       <td />
                                       <td style={{ padding: "4px 10px", textAlign: "right", fontWeight: "bold" }}>
@@ -5698,16 +5698,16 @@ export default function HplcSimulator() {
             <div>
               <div style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 14, fontWeight: "bold", fontFamily: "Courier New, monospace", display: "flex", alignItems: "center", gap: 6 }}>
-                  <Users style={{ width: 16, height: 16 }} /> Gerenciamento de Usuários
+                  <Users style={{ width: 16, height: 16 }} /> User Management
                 </div>
                 <div style={{ fontSize: 10, color: "#999", fontFamily: "Courier New, monospace", marginTop: 2 }}>
-                  Controle de acesso ao Simulador HPLC. Todos os usuários compartilham login com o Protocolo de Estabilidade.
+                  HPLC Simulator access control. All users share login with the Stability Protocol.
                 </div>
               </div>
               <Div />
               <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
                 <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={fetchUsers} disabled={userListLoading}>
-                  {userListLoading ? "Carregando…" : "↻ Atualizar"}
+                  {userListLoading ? "Loading…" : "↻ Refresh"}
                 </Button>
               </div>
               {userListError && (
@@ -5715,12 +5715,12 @@ export default function HplcSimulator() {
               )}
               {toggleError && (
                 <div style={{ color: "#dc2626", fontFamily: "Courier New, monospace", fontSize: 11, marginBottom: 10, padding: "6px 10px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 4 }}>
-                  Erro ao alterar acesso: {toggleError}
+                  Error changing access: {toggleError}
                 </div>
               )}
               {userList.length === 0 && !userListLoading && !userListError && (
                 <div style={{ textAlign: "center", color: "#aaa", padding: "32px 0", fontFamily: "Courier New, monospace", fontSize: 11 }}>
-                  Clique em "Atualizar" para carregar os usuários.
+                  Click "Refresh" to load users.
                 </div>
               )}
               {userList.length > 0 && (
@@ -5728,11 +5728,11 @@ export default function HplcSimulator() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 10 }}>
                     <thead>
                       <tr style={{ background: "#f1f5f9" }}>
-                        <th style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Usuário</th>
-                        <th style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Nome</th>
-                        <th style={{ padding: "6px 10px", textAlign: "center", borderBottom: "1px solid #ddd" }}>Perfil</th>
-                        <th style={{ padding: "6px 10px", textAlign: "center", borderBottom: "1px solid #ddd" }}>Ativo</th>
-                        <th style={{ padding: "6px 10px", textAlign: "center", borderBottom: "1px solid #ddd" }}>Acesso HPLC</th>
+                        <th style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid #ddd" }}>User</th>
+                        <th style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Name</th>
+                        <th style={{ padding: "6px 10px", textAlign: "center", borderBottom: "1px solid #ddd" }}>Role</th>
+                        <th style={{ padding: "6px 10px", textAlign: "center", borderBottom: "1px solid #ddd" }}>Active</th>
+                        <th style={{ padding: "6px 10px", textAlign: "center", borderBottom: "1px solid #ddd" }}>HPLC Access</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -5749,22 +5749,22 @@ export default function HplcSimulator() {
                                 background: u.role === "admin" ? "#fef3c7" : "#f1f5f9",
                                 color: u.role === "admin" ? "#92400e" : "#475569",
                               }}>
-                                {u.role === "admin" ? "Admin" : "Analista"}
+                                {u.role === "admin" ? "Admin" : "Analyst"}
                               </span>
                             </td>
                             <td style={{ padding: "6px 10px", textAlign: "center" }}>
                               <span style={{ fontSize: 9, color: u.active ? "#166534" : "#dc2626" }}>
-                                {u.active ? "✓ Ativo" : "✗ Inativo"}
+                                {u.active ? "✓ Active" : "✗ Inactive"}
                               </span>
                             </td>
                             <td style={{ padding: "6px 10px", textAlign: "center" }}>
                               {isSelf ? (
-                                <span style={{ fontSize: 9, color: "#94a3b8", fontStyle: "italic" }}>você</span>
+                                <span style={{ fontSize: 9, color: "#94a3b8", fontStyle: "italic" }}>you</span>
                               ) : (
                                 <button
                                   disabled={isToggling}
                                   onClick={() => toggleHplcAccess(u.id, u.hplcAccess)}
-                                  title={u.hplcAccess ? "Clique para revogar acesso ao HPLC" : "Clique para conceder acesso ao HPLC"}
+                                  title={u.hplcAccess ? "Click to revoke HPLC access" : "Click to grant HPLC access"}
                                   style={{
                                     display: "inline-flex", alignItems: "center", gap: 4, cursor: isToggling ? "wait" : "pointer",
                                     background: "none", border: "none", padding: "2px 4px", borderRadius: 4,
@@ -5775,13 +5775,13 @@ export default function HplcSimulator() {
                                     <>
                                       <ToggleRight style={{ width: 20, height: 20, color: "#16a34a" }} />
                                       <ShieldCheck style={{ width: 12, height: 12, color: "#16a34a" }} />
-                                      <span style={{ fontSize: 9, color: "#16a34a", fontWeight: "bold" }}>Com acesso</span>
+                                      <span style={{ fontSize: 9, color: "#16a34a", fontWeight: "bold" }}>With access</span>
                                     </>
                                   ) : (
                                     <>
                                       <ToggleLeft style={{ width: 20, height: 20, color: "#dc2626" }} />
                                       <ShieldOff style={{ width: 12, height: 12, color: "#dc2626" }} />
-                                      <span style={{ fontSize: 9, color: "#dc2626", fontWeight: "bold" }}>Sem acesso</span>
+                                      <span style={{ fontSize: 9, color: "#dc2626", fontWeight: "bold" }}>No access</span>
                                     </>
                                   )}
                                 </button>
@@ -5793,8 +5793,8 @@ export default function HplcSimulator() {
                     </tbody>
                   </table>
                   <div style={{ marginTop: 10, fontSize: 9, color: "#888", fontFamily: "Courier New, monospace" }}>
-                    Clique no toggle da coluna "Acesso HPLC" para liberar ou revogar o acesso de um usuário ao simulador.
-                    Usuários sem acesso verão uma mensagem de erro ao tentar entrar.
+                    Click the toggle in the "HPLC Access" column to grant or revoke a user's access to the simulator.
+                    Users without access will see an error message when trying to enter.
                   </div>
                 </div>
               )}
@@ -5811,9 +5811,9 @@ export default function HplcSimulator() {
               return (
                 <div style={{ textAlign: "center", color: "#aaa", padding: "60px 0" }}>
                   <Layers style={{ width: 40, height: 40, margin: "0 auto 12px", opacity: 0.3 }} />
-                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 13, fontWeight: "bold", marginBottom: 6 }}>Nenhuma fórmula selecionada</div>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 13, fontWeight: "bold", marginBottom: 6 }}>No formula selected</div>
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#bbb" }}>
-                    No painel esquerdo, salve a configuração atual como fórmula<br />ou selecione uma fórmula já existente.
+                    In the left panel, save the current configuration as a formula<br />or select an existing formula.
                   </div>
                 </div>
               );
@@ -5830,7 +5830,7 @@ export default function HplcSimulator() {
                     <div style={{ fontSize: 11, color: "#666", fontFamily: "Courier New, monospace" }}>{formula.description}</div>
                   )}
                   <div style={{ fontSize: 10, color: "#999", fontFamily: "Courier New, monospace", marginTop: 2 }}>
-                    Criado em {new Date(formula.createdAt).toLocaleDateString("pt-BR")} · λ {formula.detector.sigWavelength} nm · {compounds.length} composto{compounds.length !== 1 ? "s" : ""}
+                    Created {new Date(formula.createdAt).toLocaleDateString("en-US")} · λ {formula.detector.sigWavelength} nm · {compounds.length} compound{compounds.length !== 1 ? "s" : ""}
                   </div>
                 </div>
 
@@ -5839,7 +5839,7 @@ export default function HplcSimulator() {
                 {/* Compounds in this formula */}
                 <div style={{ marginTop: 10, marginBottom: 14 }}>
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, fontWeight: "bold", marginBottom: 4 }}>
-                    Ativos monitorados nesta fórmula:
+                    Compounds monitored in this formula:
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                     {compounds.map(c => (
@@ -5847,23 +5847,23 @@ export default function HplcSimulator() {
                         fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 7px",
                         border: "1px solid #bfdbfe", borderRadius: 3, background: "#eff6ff", color: "#1d4ed8",
                       }}>
-                        {c.name} · TR {c.expectedRT.toFixed(2)} min{c.specMin > 0 && c.specMax > 0 ? ` · spec ${c.specMin}–${c.specMax} ${c.units}` : ""}
+                        {c.name} · RT {c.expectedRT.toFixed(2)} min{c.specMin > 0 && c.specMax > 0 ? ` · spec ${c.specMin}–${c.specMax} ${c.units}` : ""}
                       </span>
                     ))}
-                    {compounds.length === 0 && <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa" }}>Nenhum ativo definido nesta fórmula.</span>}
+                    {compounds.length === 0 && <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa" }}>No compounds defined in this formula.</span>}
                   </div>
                 </div>
 
                 {/* Inline lot registration form — up to 3 lots at once */}
                 <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "14px 16px", marginBottom: 16 }}>
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#1e293b", marginBottom: 10 }}>
-                    Registrar Lotes
-                    <span style={{ fontWeight: "normal", color: "#94a3b8", marginLeft: 8 }}>Preencha até 3 lotes e clique em Registrar</span>
+                    Register Lots
+                    <span style={{ fontWeight: "normal", color: "#94a3b8", marginLeft: 8 }}>Fill up to 3 lots and click Register</span>
                   </div>
                   {/* Header row */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 4 }}>
-                    <label style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b" }}>Nº do Lote *</label>
-                    <label style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b" }}>Observações</label>
+                    <label style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b" }}>Lot No. *</label>
+                    <label style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b" }}>Notes</label>
                   </div>
                   {/* 3 lot rows */}
                   {inlineLots.map((lot, idx) => (
@@ -5877,7 +5877,7 @@ export default function HplcSimulator() {
                       />
                       <input
                         type="text"
-                        placeholder="Opcional"
+                        placeholder="Optional"
                         value={lot.notes}
                         onChange={e => setInlineLots(prev => prev.map((l, i) => i === idx ? { ...l, notes: e.target.value } : l))}
                         style={{ fontFamily: "Courier New, monospace", fontSize: 11, padding: "5px 9px", border: "1px solid #cbd5e1", borderRadius: 5, width: "100%", boxSizing: "border-box" }}
@@ -5901,12 +5901,12 @@ export default function HplcSimulator() {
                             color: "#fff", border: "none", borderRadius: 5, cursor: hasAny ? "pointer" : "not-allowed",
                           }}
                         >
-                          + Registrar {filledLots.length > 1 ? `${filledLots.length} Lotes` : "Lote"}
+                          + Register {filledLots.length > 1 ? `${filledLots.length} Lots` : "Lot"}
                         </button>
                       );
                     })()}
                     <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8" }}>
-                      Salva o cromatograma atual com os picos configurados para cada lote informado.
+                      Saves the current chromatogram with configured peaks for each lot entered.
                     </span>
                   </div>
                 </div>
@@ -5914,16 +5914,16 @@ export default function HplcSimulator() {
                 {/* Lots results table */}
                 {formulaLots.length === 0 ? (
                   <div style={{ textAlign: "center", color: "#bbb", padding: "24px 0", fontFamily: "Courier New, monospace", fontSize: 11 }}>
-                    Nenhum lote registrado ainda. Configure o cromatograma e clique em "Registrar Lote Atual".
+                    No lots registered yet. Configure the chromatogram and click "Register Lot".
                   </div>
                 ) : (
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 10 }}>
                       <thead>
                         <tr style={{ background: "#f1f5f9" }}>
-                          <th style={{ padding: "5px 8px", textAlign: "left", borderBottom: "1px solid #ddd", whiteSpace: "nowrap" }}>Lote</th>
-                          <th style={{ padding: "5px 8px", textAlign: "left", borderBottom: "1px solid #ddd", whiteSpace: "nowrap" }}>Data</th>
-                          <th style={{ padding: "5px 8px", textAlign: "left", borderBottom: "1px solid #ddd", whiteSpace: "nowrap" }}>Amostra</th>
+                          <th style={{ padding: "5px 8px", textAlign: "left", borderBottom: "1px solid #ddd", whiteSpace: "nowrap" }}>Lot</th>
+                          <th style={{ padding: "5px 8px", textAlign: "left", borderBottom: "1px solid #ddd", whiteSpace: "nowrap" }}>Date</th>
+                          <th style={{ padding: "5px 8px", textAlign: "left", borderBottom: "1px solid #ddd", whiteSpace: "nowrap" }}>Sample</th>
                           {compounds.map(c => (
                             <th key={c.id} style={{ padding: "5px 8px", textAlign: "center", borderBottom: "1px solid #ddd", whiteSpace: "nowrap" }}>
                               {c.name}<br /><span style={{ fontWeight: "normal", fontSize: 9, color: "#888" }}>{c.units}</span>
@@ -5963,7 +5963,7 @@ export default function HplcSimulator() {
                             })}
                             <td style={{ padding: "4px 6px", whiteSpace: "nowrap" }}>
                               <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-red-400 hover:text-red-600"
-                                title="Excluir lote"
+                                title="Delete lot"
                                 onClick={() => handleDeleteLot(lot.id)}>
                                 <Trash2 className="h-3 w-3" />
                               </Button>
@@ -6018,16 +6018,16 @@ export default function HplcSimulator() {
             fontFamily: "Courier New, monospace",
           }}>
             <div style={{ fontSize: 14, fontWeight: "bold", color: "#1d4ed8", marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
-              <ClipboardPaste style={{ width: 15, height: 15 }} /> Importar texto ChemStation
+              <ClipboardPaste style={{ width: 15, height: 15 }} /> Import ChemStation text
             </div>
             <p style={{ fontSize: 10, color: "#64748b", marginBottom: 10, lineHeight: 1.5 }}>
-              Cole abaixo o texto copiado do relatório ChemStation (português ou inglês).
-              Os campos de Sample Info, Detector e Picos serão preenchidos automaticamente.
+              Paste below the text copied from the ChemStation report (Portuguese or English).
+              The Sample Info, Detector and Peaks fields will be filled in automatically.
             </p>
             <textarea
               value={importText}
               onChange={e => setImportText(e.target.value)}
-              placeholder={"Arquivo de dados C:\\CHEM32\\1\\DATA\\...\nNome da amostra: ...\nOperador de aquisição: ..."}
+              placeholder={"Data file C:\\CHEM32\\1\\DATA\\...\nSample Name: ...\nAcquisition Operator: ..."}
               style={{
                 width: "100%", height: 240, fontFamily: "Courier New, monospace",
                 fontSize: 10, padding: "8px", border: "1px solid #d1d5db", borderRadius: 4,
@@ -6045,7 +6045,7 @@ export default function HplcSimulator() {
                 style={{ accentColor: "#1d4ed8", width: 12, height: 12 }}
               />
               <label htmlFor="importReplaces" style={{ fontSize: 10, color: "#334155", cursor: "pointer" }}>
-                Substituir picos existentes pelos picos do texto importado
+                Replace existing peaks with peaks from the imported text
               </label>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
@@ -6057,7 +6057,7 @@ export default function HplcSimulator() {
                   borderRadius: 4, background: "#fff", cursor: "pointer", color: "#334155",
                 }}
               >
-                Cancelar
+                Cancel
               </button>
               <button
                 type="button"
@@ -6079,7 +6079,7 @@ export default function HplcSimulator() {
                   cursor: importText.trim() ? "pointer" : "not-allowed", color: "#fff", fontWeight: "bold",
                 }}
               >
-                Aplicar
+                Apply
               </button>
             </div>
           </div>
@@ -6087,7 +6087,7 @@ export default function HplcSimulator() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          PADRÃO — Comparação com Padrão de Referência (Método Padrão Externo)
+          STANDARD — Comparison with Reference Standard (External Standard Method)
           ══════════════════════════════════════════════════════════════════════ */}
       {page === "padrao" && (() => {
         const peakList = peaks.filter(p => p.retentionTime > 0.5);
@@ -6174,10 +6174,10 @@ export default function HplcSimulator() {
                 ? res.compoundName.toLowerCase().includes(padraoConfig.compoundName.toLowerCase())
                 : true
             );
-            const statusTxt = r ? (r.inSpec === null ? 'N/A' : r.inSpec ? 'Conforme' : 'Não Conforme') : '—';
-            return `<tr><td>${lot.lotNumber}</td><td>${new Date(lot.createdAt).toLocaleDateString('pt-BR')}</td><td>${lot.sample.sampleName || '—'}</td><td style="text-align:right">${r ? r.area.toFixed(3) : '—'}</td><td style="text-align:right">${r ? r.concentration.toFixed(3) : '—'}</td><td style="text-align:center">${statusTxt}</td></tr>`;
+            const statusTxt = r ? (r.inSpec === null ? 'N/A' : r.inSpec ? 'Conforms' : 'Non-Conforming') : '—';
+            return `<tr><td>${lot.lotNumber}</td><td>${new Date(lot.createdAt).toLocaleDateString('en-US')}</td><td>${lot.sample.sampleName || '—'}</td><td style="text-align:right">${r ? r.area.toFixed(3) : '—'}</td><td style="text-align:right">${r ? r.concentration.toFixed(3) : '—'}</td><td style="text-align:center">${statusTxt}</td></tr>`;
           }).join('');
-          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Resultado — Quantificação por Padrão Externo</title><style>
+          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Result — External Standard Quantification</title><style>
 body{font-family:'Courier New',monospace;font-size:11px;padding:24px;color:#111}
 h1{font-size:14px;border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:10px}
 h2{font-size:12px;margin-top:18px;border-bottom:1px solid #ccc;padding-bottom:3px}
@@ -6189,30 +6189,30 @@ th,td{padding:5px 9px;border:1px solid #d1d5db}th{background:#f1f5f9;font-weight
 .ok{color:#16a34a}.warn{color:#d97706}.bad{color:#dc2626}
 footer{font-size:9px;color:#999;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:6px}
 @media print{@page{margin:1.5cm}}</style></head><body>
-<h1>Resultado — Quantificação por Padrão Externo</h1>
-<p><strong>Composto:</strong> ${padraoConfig.compoundName || '—'} &nbsp;&nbsp; <strong>Método:</strong> Padrão Externo (single-point)</p>
-<p><strong>Amostra:</strong> ${sample.sampleName} &nbsp;&nbsp; <strong>Operador:</strong> ${sample.acqOperator} &nbsp;&nbsp; <strong>Data:</strong> ${sample.injectionDate}</p>
-${hasData ? `<h2>Resultados</h2><div class="cards">
-<div class="card"><div class="big ${purityVsStd >= 98 ? 'ok' : purityVsStd >= 90 ? 'warn' : 'bad'}">${purityVsStd.toFixed(2)}%</div><div class="lbl">Pureza vs. Padrão (área)</div></div>
-${purityVsDecl !== null ? `<div class="card"><div class="big ${purityVsDecl >= 98 ? 'ok' : purityVsDecl >= 90 ? 'warn' : 'bad'}">${purityVsDecl.toFixed(2)}%</div><div class="lbl">Pureza vs. Declarado</div></div>` : ''}
-<div class="card"><div class="big ${relativeTeor >= 98 ? 'ok' : relativeTeor >= 90 ? 'warn' : 'bad'}">${relativeTeor.toFixed(2)}%</div><div class="lbl">% do Ativo vs. Padrão (µg)</div></div>
-<div class="card"><div class="big">${foundAmountUg.toFixed(4)} µg</div><div class="lbl">Teor encontrado</div></div>
+<h1>Result — External Standard Quantification</h1>
+<p><strong>Compound:</strong> ${padraoConfig.compoundName || '—'} &nbsp;&nbsp; <strong>Method:</strong> External Standard (single-point)</p>
+<p><strong>Sample:</strong> ${sample.sampleName} &nbsp;&nbsp; <strong>Operator:</strong> ${sample.acqOperator} &nbsp;&nbsp; <strong>Date:</strong> ${sample.injectionDate}</p>
+${hasData ? `<h2>Results</h2><div class="cards">
+<div class="card"><div class="big ${purityVsStd >= 98 ? 'ok' : purityVsStd >= 90 ? 'warn' : 'bad'}">${purityVsStd.toFixed(2)}%</div><div class="lbl">Purity vs. Standard (area)</div></div>
+${purityVsDecl !== null ? `<div class="card"><div class="big ${purityVsDecl >= 98 ? 'ok' : purityVsDecl >= 90 ? 'warn' : 'bad'}">${purityVsDecl.toFixed(2)}%</div><div class="lbl">Purity vs. Declared</div></div>` : ''}
+<div class="card"><div class="big ${relativeTeor >= 98 ? 'ok' : relativeTeor >= 90 ? 'warn' : 'bad'}">${relativeTeor.toFixed(2)}%</div><div class="lbl">% Active vs. Standard (µg)</div></div>
+<div class="card"><div class="big">${foundAmountUg.toFixed(4)} µg</div><div class="lbl">Found amount</div></div>
 </div>
-<table><thead><tr><th>Parâmetro</th><th>Padrão</th><th>Amostra</th><th>Razão (A/S)</th></tr></thead><tbody>
-<tr><td>Composto</td><td>${padraoConfig.compoundName || '—'}</td><td>${padraoConfig.smpPeakName || '—'}</td><td></td></tr>
-<tr><td>Área (mAU·s)</td><td>${stdArea.toFixed(5)}</td><td>${smpArea.toFixed(5)}</td><td>${ratio.toFixed(6)}</td></tr>
-<tr><td>Massa injetada (µg)</td><td>${padraoConfig.stdAmountUg.toFixed(4)}</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
-<tr><td>Pureza certificada / encontrada (%)</td><td>${padraoConfig.stdPurity.toFixed(2)}</td><td>${purityVsStd.toFixed(2)}</td><td></td></tr>
-<tr><td>% do Ativo vs. Padrão (µg)</td><td>100.00</td><td>${relativeTeor.toFixed(2)}</td><td></td></tr>
-${purityVsDecl !== null ? `<tr><td>Pureza vs. Declarado (%)</td><td>—</td><td>${purityVsDecl.toFixed(2)}</td><td></td></tr>` : ''}
-<tr><td>Teor encontrado (µg)</td><td>—</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
-<tr><td>Teor encontrado (mg)</td><td>—</td><td>${foundAmountMg.toFixed(6)}</td><td></td></tr>
+<table><thead><tr><th>Parameter</th><th>Standard</th><th>Sample</th><th>Ratio (S/A)</th></tr></thead><tbody>
+<tr><td>Compound</td><td>${padraoConfig.compoundName || '—'}</td><td>${padraoConfig.smpPeakName || '—'}</td><td></td></tr>
+<tr><td>Area (mAU·s)</td><td>${stdArea.toFixed(5)}</td><td>${smpArea.toFixed(5)}</td><td>${ratio.toFixed(6)}</td></tr>
+<tr><td>Injected amount (µg)</td><td>${padraoConfig.stdAmountUg.toFixed(4)}</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
+<tr><td>Certified / found purity (%)</td><td>${padraoConfig.stdPurity.toFixed(2)}</td><td>${purityVsStd.toFixed(2)}</td><td></td></tr>
+<tr><td>% Active vs. Standard (µg)</td><td>100.00</td><td>${relativeTeor.toFixed(2)}</td><td></td></tr>
+${purityVsDecl !== null ? `<tr><td>Purity vs. declared (%)</td><td>—</td><td>${purityVsDecl.toFixed(2)}</td><td></td></tr>` : ''}
+<tr><td>Found amount (µg)</td><td>—</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
+<tr><td>Found amount (mg)</td><td>—</td><td>${foundAmountMg.toFixed(6)}</td><td></td></tr>
 </tbody></table>
-<p style="font-size:10px;color:#64748b;margin-top:8px">Fórmula: Teor (µg) = (Área Amostra ÷ Área Padrão) × Massa Padrão (µg) × (Pureza ÷ 100)</p>`
-: '<p style="color:#999;margin-top:10px">Dados insuficientes para calcular o resultado.</p>'}
-${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
-<table><thead><tr><th>Lote</th><th>Data</th><th>Amostra</th><th>Área (mAU·s)</th><th>Conc. (µg/ml)</th><th>Conformidade</th></tr></thead><tbody>${lotsRows}</tbody></table>` : ''}
-<footer>Gerado em ${new Date().toLocaleString('pt-BR')} · HPLC Agilent ChemStation Simulator</footer>
+<p style="font-size:10px;color:#64748b;margin-top:8px">Formula: Amount (µg) = (Sample Area ÷ Standard Area) × Standard Amount (µg) × (Purity ÷ 100)</p>`
+: '<p style="color:#999;margin-top:10px">Insufficient data to calculate the result.</p>'}
+${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
+<table><thead><tr><th>Lot</th><th>Date</th><th>Sample</th><th>Area (mAU·s)</th><th>Conc. (µg/ml)</th><th>Conformance</th></tr></thead><tbody>${lotsRows}</tbody></table>` : ''}
+<footer>Generated ${new Date().toLocaleString('en-US')} · HPLC Agilent ChemStation Simulator</footer>
 </body></html>`;
           w.document.write(html);
           w.document.close();
@@ -6251,7 +6251,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
           peakList.length === 0 ? null : (
             <div style={{ marginTop: 6 }}>
               <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#94a3b8", marginBottom: 4 }}>
-                Capturar área do cromatograma:
+                Capture area from chromatogram:
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                 {peakList.map(p => (
@@ -6295,10 +6295,10 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
               <Scale style={{ width: 18, height: 18, color: "#1560bd" }} />
               <span style={{ fontFamily: "Courier New, monospace", fontSize: 14, fontWeight: "bold", color: "#1e293b" }}>
-                Comparação com Padrão de Referência
+                Comparison with Reference Standard
               </span>
               <span style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#94a3b8", marginLeft: 4 }}>
-                Método Padrão Externo (single-point)
+                External Standard Method (single-point)
               </span>
               <div style={{ flex: 1 }} />
               <button
@@ -6311,7 +6311,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                 onClick={() => updatePadrao({ ...DEFAULT_PADRAO_CONFIG })}
                 style={{ fontFamily: "Courier New, monospace", fontSize: 10, padding: "3px 10px", border: "1px solid #e2e8f0", borderRadius: 4, background: "#f8fafc", cursor: "pointer", color: "#64748b" }}
               >
-                Limpar
+                Clear
               </button>
             </div>
 
@@ -6322,39 +6322,39 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               <div style={CARD}>
                 <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#1560bd", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
                   <div style={{ width: 10, height: 10, background: "#1560bd", borderRadius: 2 }} />
-                  Padrão de Referência
+                  Reference Standard
                 </div>
 
                 <div style={ROW}>
-                  <span style={LBL}>Composto</span>
+                  <span style={LBL}>Compound</span>
                   <input
                     type="text"
-                    placeholder="Ex: Vitamina B6, Cafeína…"
+                    placeholder="Ex: Vitamin B6, Caffeine…"
                     value={padraoConfig.compoundName}
                     onChange={e => updatePadrao({ compoundName: e.target.value })}
                     style={INP}
                   />
                 </div>
                 <div style={ROW}>
-                  <span style={LBL}>Área do Padrão (mAU·s)</span>
+                  <span style={LBL}>Standard Area (mAU·s)</span>
                   {numInput(padraoConfig.stdArea, v => updatePadrao({ stdArea: v }), { step: "0.001", placeholder: "0.000" })}
                 </div>
                 <div style={ROW}>
-                  <span style={LBL}>Massa injetada (µg)</span>
+                  <span style={LBL}>Injected amount (µg)</span>
                   {numInput(padraoConfig.stdAmountUg, v => updatePadrao({ stdAmountUg: v }), { step: "0.001", placeholder: "µg" })}
                 </div>
                 <div style={ROW}>
-                  <span style={LBL}>Pureza certificada (%)</span>
+                  <span style={LBL}>Certified purity (%)</span>
                   {numInput(padraoConfig.stdPurity, v => updatePadrao({ stdPurity: v }), { step: "0.01", placeholder: "100.00" })}
                 </div>
 
                 <PeakCapture
-                  label="Captura como área do padrão"
+                  label="Capture as standard area"
                   onCapture={p => updatePadrao({ stdArea: parseFloat(getArea(p).toFixed(5)), stdPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}` })}
                 />
                 {padraoConfig.stdPeakName && (
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1560bd", marginTop: 4 }}>
-                    ✓ Pico capturado: {padraoConfig.stdPeakName}
+                    ✓ Peak captured: {padraoConfig.stdPeakName}
                   </div>
                 )}
                 {peakList.length > 0 && (
@@ -6367,7 +6367,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                       color: "#4338ca", fontWeight: "bold",
                     }}
                   >
-                    ⚡ Preencher automaticamente do cromatograma
+                    ⚡ Auto-fill from chromatogram
                   </button>
                 )}
               </div>
@@ -6376,33 +6376,33 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               <div style={CARD}>
                 <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#f97316", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
                   <div style={{ width: 10, height: 10, background: "#f97316", borderRadius: 2 }} />
-                  Amostra Analisada
+                  Analyzed Sample
                 </div>
 
                 <div style={ROW}>
-                  <span style={LBL}>Área da Amostra (mAU·s)</span>
+                  <span style={LBL}>Sample Area (mAU·s)</span>
                   {numInput(padraoConfig.smpArea, v => updatePadrao({ smpArea: v }), { step: "0.001", placeholder: "0.000" })}
                 </div>
                 <div style={ROW}>
-                  <span style={{ ...LBL, fontSize: 10 }}>Massa declarada/teórica (µg)</span>
-                  {numInput(padraoConfig.smpDeclaredAmountUg, v => updatePadrao({ smpDeclaredAmountUg: v }), { step: "0.001", placeholder: "opcional — para % vs declarado" })}
+                  <span style={{ ...LBL, fontSize: 10 }}>Declared/theoretical amount (µg)</span>
+                  {numInput(padraoConfig.smpDeclaredAmountUg, v => updatePadrao({ smpDeclaredAmountUg: v }), { step: "0.001", placeholder: "optional — for % vs declared" })}
                 </div>
 
                 <PeakCapture
-                  label="Captura como área da amostra"
+                  label="Capture as sample area"
                   onCapture={p => updatePadrao({ smpArea: parseFloat(getArea(p).toFixed(5)), smpPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}` })}
                 />
                 {padraoConfig.smpPeakName && (
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#f97316", marginTop: 4 }}>
-                    ✓ Pico capturado: {padraoConfig.smpPeakName}
+                    ✓ Peak captured: {padraoConfig.smpPeakName}
                   </div>
                 )}
 
                 <div style={{ marginTop: 12 }}>
-                  <div style={{ ...LBL, textAlign: "left", marginBottom: 4 }}>Observações</div>
+                  <div style={{ ...LBL, textAlign: "left", marginBottom: 4 }}>Notes</div>
                   <input
                     type="text"
-                    placeholder="Opcional"
+                    placeholder="Optional"
                     value={padraoConfig.notes}
                     onChange={e => updatePadrao({ notes: e.target.value })}
                     style={INP}
@@ -6415,12 +6415,12 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
             <div style={{ ...CARD, marginBottom: 18 }}>
               <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#1e293b", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
                 <Zap style={{ width: 14, height: 14, color: "#f59e0b" }} />
-                Resultado — Quantificação por Padrão Externo
+                Result — External Standard Quantification
               </div>
 
               {!hasData ? (
                 <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#94a3b8", padding: "24px 0", textAlign: "center" }}>
-                  Preencha a Área do Padrão, a Massa injetada e a Área da Amostra para calcular.
+                  Fill in the Standard Area, Injected Amount and Sample Area to calculate.
                 </div>
               ) : (
                 <>
@@ -6428,23 +6428,23 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                   <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
                     <ResultCell
                       value={`${purityVsStd.toFixed(2)} %`}
-                      label="Pureza vs. Padrão (área)"
+                      label="Purity vs. Standard (area)"
                       color={purityVsStd >= 98 ? "#16a34a" : purityVsStd >= 90 ? "#d97706" : "#dc2626"}
                       big
                     />
                     {purityVsDecl !== null && (
                       <ResultCell
                         value={`${purityVsDecl.toFixed(2)} %`}
-                        label="Pureza vs. Declarado"
+                        label="Purity vs. Declared"
                         color={purityVsDecl >= 98 ? "#16a34a" : purityVsDecl >= 90 ? "#d97706" : "#dc2626"}
                       />
                     )}
-                    <ResultCell value={`${foundAmountUg.toFixed(4)} µg`} label="Teor encontrado (µg)" />
-                    <ResultCell value={`${foundAmountMg.toFixed(6)} mg`} label="Teor encontrado (mg)" />
+                    <ResultCell value={`${foundAmountUg.toFixed(4)} µg`} label="Found amount (µg)" />
+                    <ResultCell value={`${foundAmountMg.toFixed(6)} mg`} label="Found amount (mg)" />
                     {padraoConfig.stdAmountUg > 0 && (
                       <ResultCell
                         value={`${relativeTeor.toFixed(2)} %`}
-                        label="% do Ativo vs. Padrão (µg)"
+                        label="% Active vs. Standard (µg)"
                         color={relativeTeor >= 98 ? "#16a34a" : relativeTeor >= 90 ? "#d97706" : "#dc2626"}
                       />
                     )}
@@ -6454,23 +6454,23 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 11 }}>
                     <thead>
                       <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                        <th style={{ textAlign: "left", padding: "6px 10px", color: "#475569", fontWeight: 700 }}>Parâmetro</th>
-                        <th style={{ textAlign: "right", padding: "6px 10px", color: "#475569", fontWeight: 700 }}>Padrão</th>
-                        <th style={{ textAlign: "right", padding: "6px 10px", color: "#475569", fontWeight: 700 }}>Amostra</th>
-                        <th style={{ textAlign: "right", padding: "6px 10px", color: "#475569", fontWeight: 700 }}>Razão (A/S)</th>
+                        <th style={{ textAlign: "left", padding: "6px 10px", color: "#475569", fontWeight: 700 }}>Parameter</th>
+                        <th style={{ textAlign: "right", padding: "6px 10px", color: "#475569", fontWeight: 700 }}>Standard</th>
+                        <th style={{ textAlign: "right", padding: "6px 10px", color: "#475569", fontWeight: 700 }}>Sample</th>
+                        <th style={{ textAlign: "right", padding: "6px 10px", color: "#475569", fontWeight: 700 }}>Ratio (S/A)</th>
                       </tr>
                     </thead>
                     <tbody>
                       {[
-                        { label: "Composto", std: padraoConfig.compoundName || "—", smp: padraoConfig.smpPeakName || "—", ratio: "" },
-                        { label: "Pico (referência)", std: padraoConfig.stdPeakName || "—", smp: padraoConfig.smpPeakName || "—", ratio: "" },
-                        { label: "Área (mAU·s)", std: stdArea.toFixed(5), smp: smpArea.toFixed(5), ratio: ratio.toFixed(6) },
-                        { label: "Massa injetada (µg)", std: padraoConfig.stdAmountUg.toFixed(4), smp: foundAmountUg.toFixed(4), ratio: ratio.toFixed(6) },
-                        { label: "Pureza certificada / encontrada (%)", std: padraoConfig.stdPurity.toFixed(2), smp: purityVsStd.toFixed(2), ratio: "" },
-                        ...(purityVsDecl !== null ? [{ label: "Pureza vs. declarado (%)", std: "—", smp: purityVsDecl.toFixed(2), ratio: "" }] : []),
-                        { label: "Teor encontrado (µg)", std: "—", smp: foundAmountUg.toFixed(4), ratio: "" },
-                        { label: "Teor encontrado (mg)", std: "—", smp: foundAmountMg.toFixed(6), ratio: "" },
-                        ...(padraoConfig.stdAmountUg > 0 ? [{ label: "% do Ativo vs. Padrão (µg)", std: "100.00", smp: relativeTeor.toFixed(2), ratio: "" }] : []),
+                        { label: "Compound", std: padraoConfig.compoundName || "—", smp: padraoConfig.smpPeakName || "—", ratio: "" },
+                        { label: "Peak (reference)", std: padraoConfig.stdPeakName || "—", smp: padraoConfig.smpPeakName || "—", ratio: "" },
+                        { label: "Area (mAU·s)", std: stdArea.toFixed(5), smp: smpArea.toFixed(5), ratio: ratio.toFixed(6) },
+                        { label: "Injected amount (µg)", std: padraoConfig.stdAmountUg.toFixed(4), smp: foundAmountUg.toFixed(4), ratio: ratio.toFixed(6) },
+                        { label: "Certified / found purity (%)", std: padraoConfig.stdPurity.toFixed(2), smp: purityVsStd.toFixed(2), ratio: "" },
+                        ...(purityVsDecl !== null ? [{ label: "Purity vs. declared (%)", std: "—", smp: purityVsDecl.toFixed(2), ratio: "" }] : []),
+                        { label: "Found amount (µg)", std: "—", smp: foundAmountUg.toFixed(4), ratio: "" },
+                        { label: "Found amount (mg)", std: "—", smp: foundAmountMg.toFixed(6), ratio: "" },
+                        ...(padraoConfig.stdAmountUg > 0 ? [{ label: "% Active vs. Standard (µg)", std: "100.00", smp: relativeTeor.toFixed(2), ratio: "" }] : []),
                       ].map((row, i) => (
                         <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                           <td style={{ padding: "5px 10px", color: "#334155" }}>{row.label}</td>
@@ -6484,10 +6484,10 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
 
                   {/* Formula reference */}
                   <div style={{ marginTop: 12, padding: "8px 12px", background: "#f8fafc", borderRadius: 4, border: "1px solid #e2e8f0", fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b" }}>
-                    <strong>Fórmula aplicada:</strong>
-                    {"  "}Teor (µg) = (Área Amostra / Área Padrão) × Massa Padrão (µg) × (Pureza Padrão / 100)
+                    <strong>Applied formula:</strong>
+                    {"  "}Amount (µg) = (Sample Area / Standard Area) × Standard Amount (µg) × (Standard Purity / 100)
                     {"  |  "}
-                    Pureza (%) = (Área Amostra / Área Padrão) × Pureza Padrão (%)
+                    Purity (%) = (Sample Area / Standard Area) × Standard Purity (%)
                   </div>
                 </>
               )}
@@ -6496,20 +6496,20 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
             {/* ─ Analysis context (sample info from chromatogram tab) ─ */}
             <div style={{ ...CARD, marginBottom: 18 }}>
               <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#475569", marginBottom: 8 }}>
-                Contexto da Análise — Informações da Amostra
+                Analysis Context — Sample Information
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: "4px 12px", fontFamily: "Courier New, monospace", fontSize: 10 }}>
-                <span style={{ color: "#94a3b8", textAlign: "right" }}>Nome da amostra:</span>
+                <span style={{ color: "#94a3b8", textAlign: "right" }}>Sample name:</span>
                 <span style={{ color: "#0f172a" }}>{sample.sampleName || "—"}</span>
-                <span style={{ color: "#94a3b8", textAlign: "right" }}>Operador:</span>
+                <span style={{ color: "#94a3b8", textAlign: "right" }}>Operator:</span>
                 <span style={{ color: "#0f172a" }}>{sample.acqOperator || "—"}</span>
-                <span style={{ color: "#94a3b8", textAlign: "right" }}>Data injeção:</span>
+                <span style={{ color: "#94a3b8", textAlign: "right" }}>Injection date:</span>
                 <span style={{ color: "#0f172a" }}>{sample.injectionDate || "—"}</span>
-                <span style={{ color: "#94a3b8", textAlign: "right" }}>Método:</span>
+                <span style={{ color: "#94a3b8", textAlign: "right" }}>Method:</span>
                 <span style={{ color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {sample.acqMethod ? sample.acqMethod.split("\\").pop() || sample.acqMethod : "—"}
                 </span>
-                <span style={{ color: "#94a3b8", textAlign: "right" }}>Vol. injeção:</span>
+                <span style={{ color: "#94a3b8", textAlign: "right" }}>Inj. volume:</span>
                 <span style={{ color: "#0f172a" }}>{sample.injVolume || "—"}</span>
               </div>
             </div>
@@ -6520,18 +6520,18 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                 {/* Lot selector — operator picks which lots go into the report */}
                 <div style={{ ...CARD, marginBottom: 12 }}>
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#475569", marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
-                    Seleção de Lotes para o Relatório
+                    Lot Selection for Report
                     <span style={{ fontWeight: "normal", fontSize: 9, color: "#94a3b8" }}>
                       {padraoConfig.selectedLotIds.length === 0
-                        ? `Todos os ${relevantLots.length} lote${relevantLots.length !== 1 ? "s" : ""} selecionados`
-                        : `${padraoConfig.selectedLotIds.length} de ${relevantLots.length} selecionado${padraoConfig.selectedLotIds.length !== 1 ? "s" : ""}`}
+                        ? `All ${relevantLots.length} lot${relevantLots.length !== 1 ? "s" : ""} selected`
+                        : `${padraoConfig.selectedLotIds.length} of ${relevantLots.length} selected`}
                     </span>
                     {padraoConfig.selectedLotIds.length > 0 && (
                       <button
                         onClick={() => updatePadrao({ selectedLotIds: [] })}
                         style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "1px 7px", border: "1px solid #e2e8f0", borderRadius: 3, background: "#f8fafc", cursor: "pointer", color: "#94a3b8", marginLeft: "auto" }}
                       >
-                        Limpar seleção (todos)
+                        Clear selection (all)
                       </button>
                     )}
                   </div>
@@ -6571,28 +6571,28 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                     })}
                   </div>
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8", marginTop: 8 }}>
-                    Desmarque lotes para excluí-los do relatório impresso. Selecione apenas um para análise individual.
+                    Uncheck lots to exclude them from the printed report. Select only one for individual analysis.
                   </div>
                 </div>
 
                 {/* Analyzed lots table — shows only displayLots */}
                 <div style={{ ...CARD, marginBottom: 18 }}>
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#475569", marginBottom: 8 }}>
-                    Lotes Analisados{padraoConfig.compoundName ? ` — ${padraoConfig.compoundName}` : ""}
+                    Analyzed Lots{padraoConfig.compoundName ? ` — ${padraoConfig.compoundName}` : ""}
                     <span style={{ fontWeight: "normal", fontSize: 9, color: "#94a3b8", marginLeft: 8 }}>
-                      {displayLots.length} lote{displayLots.length !== 1 ? "s" : ""} no relatório
+                      {displayLots.length} lot{displayLots.length !== 1 ? "s" : ""} in report
                     </span>
                   </div>
                   {displayLots.length === 0 ? (
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#94a3b8", padding: "10px 0" }}>
-                      Nenhum lote selecionado. Marque pelo menos um lote acima.
+                      No lots selected. Check at least one lot above.
                     </div>
                   ) : (
                     <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 10.5 }}>
                       <thead>
                         <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                          {["Lote", "Data", "Amostra", "Área (mAU·s)", "Conc. (µg/ml)", "Conformidade"].map(h => (
-                            <th key={h} style={{ padding: "5px 8px", textAlign: h === "Lote" || h === "Amostra" ? "left" : "right", color: "#475569", fontWeight: 700 }}>{h}</th>
+                          {["Lot", "Date", "Sample", "Area (mAU·s)", "Conc. (µg/ml)", "Conformance"].map(h => (
+                            <th key={h} style={{ padding: "5px 8px", textAlign: h === "Lot" || h === "Sample" ? "left" : "right", color: "#475569", fontWeight: 700 }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -6608,14 +6608,14 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                           return (
                             <tr key={lot.id} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                               <td style={{ padding: "5px 8px", fontWeight: 700 }}>{lot.lotNumber}</td>
-                              <td style={{ padding: "5px 8px", textAlign: "right", color: "#64748b" }}>{new Date(lot.createdAt).toLocaleDateString("pt-BR")}</td>
+                              <td style={{ padding: "5px 8px", textAlign: "right", color: "#64748b" }}>{new Date(lot.createdAt).toLocaleDateString("en-US")}</td>
                               <td style={{ padding: "5px 8px", color: "#475569" }}>{lot.sample.sampleName || "—"}</td>
                               <td style={{ padding: "5px 8px", textAlign: "right" }}>{r ? r.area.toFixed(3) : "—"}</td>
                               <td style={{ padding: "5px 8px", textAlign: "right" }}>{r ? r.concentration.toFixed(3) : "—"}</td>
                               <td style={{ padding: "5px 8px", textAlign: "right" }}>
                                 {r ? (
                                   <span style={{ padding: "2px 6px", borderRadius: 3, background: statusBg, color: statusColor, fontSize: 9, fontWeight: "bold" }}>
-                                    {r.inSpec === null ? "N/A" : r.inSpec ? "✓ Conforme" : "✗ Não Conforme"}
+                                    {r.inSpec === null ? "N/A" : r.inSpec ? "✓ Conforms" : "✗ Non-Conforming"}
                                   </span>
                                 ) : "—"}
                               </td>
@@ -6633,13 +6633,13 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
             {peakList.length > 0 && (
               <div style={{ ...CARD }}>
                 <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#475569", marginBottom: 10 }}>
-                  Picos disponíveis no cromatograma atual
+                  Peaks available in current chromatogram
                 </div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 10.5 }}>
                   <thead>
                     <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                      {["Pico", "TR (min)", "Altura (mAU)", "Área (mAU·s)", "Área Manual", "Capturar como"].map(h => (
-                        <th key={h} style={{ padding: "5px 8px", textAlign: h === "Pico" ? "left" : "right", color: "#475569", fontWeight: 700 }}>{h}</th>
+                      {["Peak", "RT (min)", "Height (mAU)", "Area (mAU·s)", "Manual Area", "Capture as"].map(h => (
+                        <th key={h} style={{ padding: "5px 8px", textAlign: h === "Peak" ? "left" : "right", color: "#475569", fontWeight: 700 }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -6652,8 +6652,8 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                         <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9", background: isStd ? "#eff6ff" : isSmp ? "#fff7ed" : i % 2 === 0 ? "#fff" : "#fafafa" }}>
                           <td style={{ padding: "4px 8px", color: "#1e293b", fontWeight: 600 }}>
                             {p.name || `—`}
-                            {isStd && <span style={{ color: "#1560bd", marginLeft: 4 }}>[Padrão]</span>}
-                            {isSmp && <span style={{ color: "#f97316", marginLeft: 4 }}>[Amostra]</span>}
+                            {isStd && <span style={{ color: "#1560bd", marginLeft: 4 }}>[Standard]</span>}
+                            {isSmp && <span style={{ color: "#f97316", marginLeft: 4 }}>[Sample]</span>}
                           </td>
                           <td style={{ padding: "4px 8px", textAlign: "right" }}>{p.retentionTime.toFixed(3)}</td>
                           <td style={{ padding: "4px 8px", textAlign: "right" }}>{p.height.toFixed(1)}</td>
@@ -6666,11 +6666,11 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                               <button
                                 onClick={() => updatePadrao({ stdArea: parseFloat(area.toFixed(5)), stdPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}` })}
                                 style={{ fontSize: 9.5, padding: "2px 6px", border: "1px solid #93c5fd", borderRadius: 3, background: "#eff6ff", cursor: "pointer", color: "#1d4ed8" }}
-                              >Padrão</button>
+                              >Standard</button>
                               <button
                                 onClick={() => updatePadrao({ smpArea: parseFloat(area.toFixed(5)), smpPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}` })}
                                 style={{ fontSize: 9.5, padding: "2px 6px", border: "1px solid #fed7aa", borderRadius: 3, background: "#fff7ed", cursor: "pointer", color: "#c2410c" }}
-                              >Amostra</button>
+                              >Sample</button>
                             </div>
                           </td>
                         </tr>
@@ -6697,18 +6697,18 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               boxShadow: "0 8px 40px rgba(0,0,0,0.22)", fontFamily: "Courier New, monospace",
             }}>
               <div style={{ fontSize: 15, fontWeight: "bold", color: "#0284c7", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-                <ImageDown style={{ width: 16, height: 16 }} /> Salvar Cromatograma
+                <ImageDown style={{ width: 16, height: 16 }} /> Save Chromatogram
               </div>
               <div style={{ fontSize: 11, color: "#64748b", marginBottom: 18 }}>
-                Sessão: <b style={{ color: "#334155" }}>{session?.name}</b>
+                Session: <b style={{ color: "#334155" }}>{session?.name}</b>
               </div>
 
               <div style={{ marginBottom: 20 }}>
                 <label style={{ fontSize: 10, color: "#334155", fontWeight: "bold", display: "block", marginBottom: 4 }}>
-                  Número do Certificado (opcional)
+                  Certificate Number (optional)
                 </label>
                 <p style={{ fontSize: 9, color: "#64748b", marginBottom: 6, lineHeight: 1.5 }}>
-                  Informe o número do certificado do Protocolo de Estabilidade para vincular a imagem. Ela aparecerá automaticamente na aba HPLC daquele protocolo.
+                  Enter the Stability Protocol certificate number to link the image. It will appear automatically in the HPLC tab of that protocol.
                 </p>
                 <input
                   type="text"
@@ -6729,12 +6729,12 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                 <button
                   style={{ fontSize: 11, padding: "7px 16px", border: "1px solid #cbd5e1", borderRadius: 5, background: "#f8fafc", cursor: "pointer", color: "#475569" }}
                   onClick={() => setSavePngDialog(null)}>
-                  Cancelar
+                  Cancel
                 </button>
                 <button
                   style={{ fontSize: 11, padding: "7px 20px", border: "none", borderRadius: 5, background: "#0284c7", cursor: "pointer", color: "#fff", fontWeight: "bold" }}
                   onClick={handleConfirmSavePng}>
-                  Salvar PNG
+                  Save PNG
                 </button>
               </div>
             </div>
@@ -6753,20 +6753,20 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
             boxShadow: "0 8px 40px rgba(0,0,0,0.22)", fontFamily: "Courier New, monospace",
           }}>
             <div style={{ fontSize: 15, fontWeight: "bold", color: "#1d4ed8", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-              <ClipboardCheck style={{ width: 16, height: 16 }} /> Concluir Análise
+              <ClipboardCheck style={{ width: 16, height: 16 }} /> Conclude Analysis
             </div>
             <div style={{ fontSize: 11, color: "#64748b", marginBottom: 18 }}>
-              Sessão: <b style={{ color: "#334155" }}>{finalizeDialog.name}</b>
+              Session: <b style={{ color: "#334155" }}>{finalizeDialog.name}</b>
             </div>
 
             {/* Status selector */}
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: "bold", color: "#334155", marginBottom: 8 }}>Resultado da análise:</div>
+              <div style={{ fontSize: 11, fontWeight: "bold", color: "#334155", marginBottom: 8 }}>Analysis result:</div>
               <div style={{ display: "flex", gap: 8 }}>
                 {([
-                  ["em_andamento", "Em Análise", "#1d4ed8", "#dbeafe"],
-                  ["aprovado",     "Aprovado",   "#16a34a", "#dcfce7"],
-                  ["reprovado",    "Reprovado",  "#dc2626", "#fee2e2"],
+                  ["em_andamento", "In Progress", "#1d4ed8", "#dbeafe"],
+                  ["aprovado",     "Approved",    "#16a34a", "#dcfce7"],
+                  ["reprovado",    "Rejected",    "#dc2626", "#fee2e2"],
                 ] as const).map(([val, label, color, bg]) => (
                   <button
                     key={val}
@@ -6790,13 +6790,13 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
             {/* Notes */}
             <div style={{ marginBottom: 20 }}>
               <label style={{ fontSize: 10, color: "#64748b", display: "block", marginBottom: 4 }}>
-                Observações / justificativa (opcional):
+                Notes / justification (optional):
               </label>
               <textarea
                 value={finalizeNotes}
                 onChange={e => setFinalizeNotes(e.target.value)}
                 rows={3}
-                placeholder="Descreva condições da análise, desvios encontrados, justificativas..."
+                placeholder="Describe analysis conditions, deviations found, justifications..."
                 style={{
                   width: "100%", fontFamily: "Courier New, monospace", fontSize: 11,
                   padding: "6px 8px", border: "1px solid #d1d5db", borderRadius: 4,
@@ -6809,7 +6809,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               <button
                 style={{ fontSize: 11, padding: "7px 16px", border: "1px solid #cbd5e1", borderRadius: 5, background: "#f8fafc", cursor: "pointer", color: "#475569" }}
                 onClick={() => setFinalizeDialog(null)}>
-                Cancelar
+                Cancel
               </button>
               <button
                 style={{
@@ -6823,7 +6823,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                   }
                   setFinalizeDialog(null);
                 }}>
-                Confirmar
+                Confirm
               </button>
             </div>
           </div>
@@ -6841,10 +6841,10 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
             boxShadow: "0 8px 40px rgba(0,0,0,0.3)", fontFamily: "Courier New, monospace",
           }}>
             <div style={{ fontSize: 15, fontWeight: "bold", color: "#1d4ed8", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-              🔑 Autenticação Master
+              🔑 Master Authentication
             </div>
             <div style={{ fontSize: 11, color: "#64748b", marginBottom: 18, lineHeight: 1.6 }}>
-              Esta análise está encerrada. Insira a senha Master para liberar a edição desta sessão.
+              This analysis is closed. Enter the Master password to unlock editing for this session.
             </div>
             <input
               type="password"
@@ -6852,7 +6852,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               value={masterAuthInput}
               onChange={e => { setMasterAuthInput(e.target.value); setMasterAuthError(null); }}
               onKeyDown={e => { if (e.key === "Enter") handleMasterAuth(); }}
-              placeholder="Senha Master"
+              placeholder="Master Password"
               style={{
                 width: "100%", padding: "9px 12px", border: `1px solid ${masterAuthError ? "#dc2626" : "#cbd5e1"}`,
                 borderRadius: 6, fontFamily: "Courier New, monospace", fontSize: 12, marginBottom: 8,
@@ -6866,13 +6866,13 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               <button
                 style={{ fontSize: 11, padding: "7px 16px", border: "1px solid #cbd5e1", borderRadius: 5, background: "#f8fafc", cursor: "pointer", color: "#475569" }}
                 onClick={() => { setMasterAuthDialog(null); setMasterAuthInput(""); setMasterAuthError(null); }}>
-                Cancelar
+                Cancel
               </button>
               <button
                 disabled={masterAuthLoading || !masterAuthInput}
                 style={{ fontSize: 11, padding: "7px 20px", border: "none", borderRadius: 5, background: masterAuthLoading ? "#93c5fd" : "#1d4ed8", cursor: masterAuthLoading ? "not-allowed" : "pointer", color: "#fff", fontWeight: "bold" }}
                 onClick={handleMasterAuth}>
-                {masterAuthLoading ? "Verificando..." : "Desbloquear"}
+                {masterAuthLoading ? "Verifying..." : "Unlock"}
               </button>
             </div>
           </div>
@@ -6890,25 +6890,25 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
             boxShadow: "0 8px 40px rgba(0,0,0,0.22)", fontFamily: "Courier New, monospace",
           }}>
             <div style={{ fontSize: 15, fontWeight: "bold", color: "#334155", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
-              <Plus style={{ width: 16, height: 16 }} /> Iniciar Nova Análise
+              <Plus style={{ width: 16, height: 16 }} /> Start New Analysis
             </div>
             <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.6, marginBottom: 20 }}>
-              Isso vai redefinir o cromatograma para os valores padrão.<br />
+              This will reset the chromatogram to default values.<br />
               {currentSnapshotSessionId
-                ? <span style={{ color: "#16a34a" }}>✓ A análise atual já está salva no Painel.</span>
-                : <span style={{ color: "#f59e0b" }}>⚠ A análise atual <b>não</b> foi confirmada e não está no Painel.</span>
+                ? <span style={{ color: "#16a34a" }}>✓ The current analysis is already saved in the Panel.</span>
+                : <span style={{ color: "#f59e0b" }}>⚠ The current analysis has <b>not</b> been confirmed and is not in the Panel.</span>
               }
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button
                 style={{ fontSize: 11, padding: "7px 16px", border: "1px solid #cbd5e1", borderRadius: 5, background: "#f8fafc", cursor: "pointer", color: "#475569" }}
                 onClick={() => setNewAnalysisDialog(false)}>
-                Cancelar
+                Cancel
               </button>
               <button
                 style={{ fontSize: 11, padding: "7px 20px", border: "none", borderRadius: 5, background: "#1d4ed8", cursor: "pointer", color: "#fff", fontWeight: "bold" }}
                 onClick={handleNewAnalysis}>
-                Iniciar Nova
+                Start New
               </button>
             </div>
           </div>
@@ -6935,11 +6935,11 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               {/* Header */}
               <div style={{ padding: "8px 12px 6px", borderBottom: "1px solid #f1f5f9", background: "#f8fafc" }}>
                 <div style={{ fontWeight: "bold", color: "#1e293b", fontSize: 11 }}>
-                  {peak.name ? peak.name : peak.isGhost ? `👻 TR ${peak.retentionTime.toFixed(3)} min` : `TR ${peak.retentionTime.toFixed(3)} min`}
+                  {peak.name ? peak.name : peak.isGhost ? `👻 RT ${peak.retentionTime.toFixed(3)} min` : `RT ${peak.retentionTime.toFixed(3)} min`}
                 </div>
-                {peak.name && <div style={{ color: "#64748b", fontSize: 9.5 }}>TR: {peak.retentionTime.toFixed(3)} min</div>}
-                {peak.isGhost && !peak.name && <div style={{ color: "#7c3aed", fontSize: 9, marginTop: 1 }}>Pico fantasma</div>}
-                {peak.locked && <div style={{ color: "#f59e0b", fontSize: 9, fontWeight: "bold", marginTop: 2 }}>🔒 TRAVADO</div>}
+                {peak.name && <div style={{ color: "#64748b", fontSize: 9.5 }}>RT: {peak.retentionTime.toFixed(3)} min</div>}
+                {peak.isGhost && !peak.name && <div style={{ color: "#7c3aed", fontSize: 9, marginTop: 1 }}>Ghost peak</div>}
+                {peak.locked && <div style={{ color: "#f59e0b", fontSize: 9, fontWeight: "bold", marginTop: 2 }}>🔒 LOCKED</div>}
               </div>
               {/* Menu items */}
               <div style={{ padding: "4px 0" }}>
@@ -6949,7 +6949,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                     style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 11, fontFamily: "Courier New, monospace", color: "#1d4ed8", textAlign: "left" }}
                     onMouseEnter={e => (e.currentTarget.style.background = "#eff6ff")}
                     onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-                    <Settings style={{ width: 13, height: 13, color: "#1d4ed8" }} /> Editar pico
+                    <Settings style={{ width: 13, height: 13, color: "#1d4ed8" }} /> Edit peak
                   </button>
                 )}
                 <button
@@ -6958,8 +6958,8 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                   onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}
                   onMouseLeave={e => (e.currentTarget.style.background = "none")}>
                   {peak.locked
-                    ? <><LockOpen style={{ width: 13, height: 13, color: "#d97706" }} /> Desbloquear pico</>
-                    : <><Lock style={{ width: 13, height: 13, color: "#64748b" }} /> Travar pico</>}
+                    ? <><LockOpen style={{ width: 13, height: 13, color: "#d97706" }} /> Unlock peak</>
+                    : <><Lock style={{ width: 13, height: 13, color: "#64748b" }} /> Lock peak</>}
                 </button>
                 {!peak.locked && (
                   <button
@@ -6967,12 +6967,12 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                     style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 11, fontFamily: "Courier New, monospace", color: "#dc2626", textAlign: "left" }}
                     onMouseEnter={e => (e.currentTarget.style.background = "#fef2f2")}
                     onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-                    <Trash2 style={{ width: 13, height: 13 }} /> Excluir pico
+                    <Trash2 style={{ width: 13, height: 13 }} /> Delete peak
                   </button>
                 )}
                 {peak.locked && (
                   <div style={{ padding: "6px 14px", color: "#94a3b8", fontSize: 9.5 }}>
-                    Desbloqueie para excluir ou editar.
+                    Unlock to delete or edit.
                   </div>
                 )}
               </div>
@@ -7005,23 +7005,23 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
             fontFamily: "Courier New, monospace",
           }}>
             <div style={{ fontSize: 15, fontWeight: "bold", color: "#dc2626", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-              <Trash2 style={{ width: 16, height: 16 }} /> Excluir Sessão de Análise
+              <Trash2 style={{ width: 16, height: 16 }} /> Delete Analysis Session
             </div>
             <div style={{ fontSize: 11, color: "#334155", marginBottom: 14, lineHeight: 1.5 }}>
-              Você está prestes a excluir permanentemente:<br />
+              You are about to permanently delete:<br />
               <strong>"{deleteSessionDialog.name}"</strong><br />
-              <span style={{ color: "#dc2626", fontSize: 10 }}>Esta ação não pode ser desfeita.</span>
+              <span style={{ color: "#dc2626", fontSize: 10 }}>This action cannot be undone.</span>
             </div>
             <div style={{ marginBottom: 10 }}>
               <label style={{ fontSize: 10, color: "#64748b", display: "block", marginBottom: 4 }}>
-                Digite a senha mestra para confirmar:
+                Enter the master password to confirm:
               </label>
               <input
                 type="password"
                 value={deleteSessionPwd}
                 onChange={e => { setDeleteSessionPwd(e.target.value); setDeleteSessionError(null); }}
                 onKeyDown={e => e.key === "Enter" && !deleteSessionLoading && confirmDeleteSession()}
-                placeholder="Senha mestra"
+                placeholder="Master password"
                 autoFocus
                 style={{
                   width: "100%", border: deleteSessionError ? "1px solid #dc2626" : "1px solid #cbd5e1",
@@ -7037,13 +7037,13 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               <button
                 style={{ fontSize: 11, padding: "6px 14px", border: "1px solid #cbd5e1", borderRadius: 5, background: "#f8fafc", cursor: "pointer", color: "#475569" }}
                 onClick={() => { setDeleteSessionDialog(null); setDeleteSessionPwd(""); setDeleteSessionError(null); }}>
-                Cancelar
+                Cancel
               </button>
               <button
                 disabled={deleteSessionLoading || !deleteSessionPwd}
                 style={{ fontSize: 11, padding: "6px 16px", border: "1px solid #dc2626", borderRadius: 5, background: deleteSessionLoading || !deleteSessionPwd ? "#fca5a5" : "#dc2626", cursor: deleteSessionLoading || !deleteSessionPwd ? "not-allowed" : "pointer", color: "#fff", fontWeight: "bold" }}
                 onClick={confirmDeleteSession}>
-                {deleteSessionLoading ? "Verificando…" : "Excluir"}
+                {deleteSessionLoading ? "Verifying…" : "Delete"}
               </button>
             </div>
           </div>
