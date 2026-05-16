@@ -1340,6 +1340,7 @@ function buildChromatogramPng(
   session: AnalysisSession,
   formula: Formula,
   formulaStd: FormulaStandard | null,
+  reg: { slope: number; intercept: number } = { slope: 0, intercept: 0 },
 ): string | null {
   if (session.runs.length === 0) return null;
 
@@ -1501,22 +1502,31 @@ function buildChromatogramPng(
     const sortedPeaks = [...run.peaks]
       .filter(p => p.height > 0.5)
       .sort((a, b) => a.retentionTime - b.retentionTime);
-    const totalArea = sortedPeaks.reduce((s, p) => s + (p.manualArea > 0 ? p.manualArea : computeArea(p)), 0);
-
-    txt(` ${"#".padEnd(3)} ${"RetTime".padEnd(8)} ${"Type".padEnd(5)} ${"Width".padEnd(8)} ${"Area".padEnd(13)} ${"Height".padEnd(11)} Area%`); nl();
-    txt(`     [min]     |      [min]  |  [mAU*s]      [mAU]`); nl();
-    ctx.fillStyle = "#888"; txt("-".repeat(82)); ctx.fillStyle = "#000"; nl();
-
-    sortedPeaks.forEach((p, i) => {
+    const peakRows = sortedPeaks.map(p => {
       const area = p.manualArea > 0 ? p.manualArea : computeArea(p);
+      let calcAmount = 0;
+      if (p.amount > 0) calcAmount = p.amount;
+      else if (p.amtPerArea > 0) calcAmount = area * p.amtPerArea;
+      else if (reg.slope > 0) calcAmount = Math.max(0, (area - reg.intercept) / reg.slope);
+      return { p, area, calcAmount };
+    });
+    const totalArea = peakRows.reduce((s, r) => s + r.area, 0);
+    const totalCalcAmount = peakRows.reduce((s, r) => s + r.calcAmount, 0);
+
+    txt(` ${"#".padEnd(3)} ${"RetTime".padEnd(8)} ${"Type".padEnd(5)} ${"Width".padEnd(8)} ${"Area".padEnd(13)} ${"Height".padEnd(11)} ${"Area%".padEnd(8)} Amount[ug/ml]`); nl();
+    txt(`     [min]     |      [min]  |  [mAU*s]      [mAU]`); nl();
+    ctx.fillStyle = "#888"; txt("-".repeat(96)); ctx.fillStyle = "#000"; nl();
+
+    peakRows.forEach(({ p, area, calcAmount }, i) => {
       const areaPct = totalArea > 0 ? (area / totalArea) * 100 : 0;
+      const amtStr = calcAmount > 0 ? calcAmount.toFixed(5) : "";
       txt(
-        ` ${String(i + 1).padStart(2)}  ${p.retentionTime.toFixed(3).padEnd(8)} ${p.peakType.padEnd(5)} ${p.width.toFixed(4).padEnd(8)} ${area.toFixed(5).padEnd(13)} ${p.height.toFixed(5).padEnd(11)} ${areaPct.toFixed(3)}`
+        ` ${String(i + 1).padStart(2)}  ${p.retentionTime.toFixed(3).padEnd(8)} ${p.peakType.padEnd(5)} ${p.width.toFixed(4).padEnd(8)} ${area.toFixed(5).padEnd(13)} ${p.height.toFixed(5).padEnd(11)} ${areaPct.toFixed(3).padEnd(8)} ${amtStr}`
       ); nl();
     });
 
-    ctx.fillStyle = "#888"; txt("-".repeat(82)); ctx.fillStyle = "#000"; nl();
-    txt(`Totals :                              ${totalArea.toFixed(5)}`); nl(2);
+    ctx.fillStyle = "#888"; txt("-".repeat(96)); ctx.fillStyle = "#000"; nl();
+    txt(`Totals :                              ${totalArea.toFixed(5).padEnd(20)} ${totalCalcAmount > 0 ? totalCalcAmount.toFixed(5) : ""}`); nl(2);
 
     sep();
 
@@ -2319,15 +2329,31 @@ export default function HplcSimulator() {
     return chromatogram.map(pt => ({ ...pt, stdSignal: stdMap.get(pt.time) ?? 0 }));
   }, [chromatogram, stdPeakInfo]);
 
+  // ── Calibration ──────────────────────────────────────────────────────────────
+
+  const reg = useMemo(() => {
+    const pts = standards.map(s => ({ x: s.amount, y: s.area }));
+    return linearRegression(pts);
+  }, [standards]);
+
   const peakStats = useMemo(() =>
-    [...peaks].sort((a, b) => a.retentionTime - b.retentionTime).map((p, i) => ({
-      ...p, peakNum: i + 1,
-      computedArea: computeArea(p),
-      displayArea: p.manualArea > 0 ? p.manualArea : computeArea(p),
-    })),
-    [peaks]
+    [...peaks].sort((a, b) => a.retentionTime - b.retentionTime).map((p, i) => {
+      const computedArea = computeArea(p);
+      const displayArea = p.manualArea > 0 ? p.manualArea : computedArea;
+      // Compute amount automatically: manual > amtPerArea × area > calibration regression
+      let calcAmount = 0;
+      if (p.amount > 0) {
+        calcAmount = p.amount;
+      } else if (p.amtPerArea > 0) {
+        calcAmount = displayArea * p.amtPerArea;
+      } else if (reg.slope > 0) {
+        calcAmount = Math.max(0, (displayArea - reg.intercept) / reg.slope);
+      }
+      return { ...p, peakNum: i + 1, computedArea, displayArea, calcAmount };
+    }),
+    [peaks, reg]
   );
-  const totalAmount = peakStats.filter(p => p.amount > 0).reduce((s, p) => s + p.amount, 0);
+  const totalAmount = peakStats.reduce((s, p) => s + p.calcAmount, 0);
 
   const yMaxAuto = useMemo(() => {
     const max = Math.max(...chromatogram.map(d => d.signal), 10);
@@ -2348,13 +2374,6 @@ export default function HplcSimulator() {
     for (let v = 0; v <= yMax; v += step) t.push(v);
     return t;
   }, [yMax]);
-
-  // ── Calibration ──────────────────────────────────────────────────────────────
-
-  const reg = useMemo(() => {
-    const pts = standards.map(s => ({ x: s.amount, y: s.area }));
-    return linearRegression(pts);
-  }, [standards]);
 
   const calibXMax = useMemo(() => Math.max(...standards.map(s => s.amount)) * 1.15, [standards]);
   const calibYMax = useMemo(() => Math.max(...standards.map(s => s.area)) * 1.2, [standards]);
@@ -2934,7 +2953,7 @@ export default function HplcSimulator() {
     const formula = session ? formulas.find(f => f.id === session.formulaId) ?? null : null;
     if (!session || !formula) { setSavePngDialog(null); return; }
     const std = formulaStandards.find(s => s.formulaId === session.formulaId) ?? null;
-    const dataUrl = buildChromatogramPng(session, formula, std);
+    const dataUrl = buildChromatogramPng(session, formula, std, reg);
     if (!dataUrl) { setSavePngDialog(null); return; }
     // Download
     const link = document.createElement("a");
@@ -4580,12 +4599,12 @@ export default function HplcSimulator() {
                   <div style={{ whiteSpace: "pre" }}>{"    -------|------|----------|----------|----------|--|------------------"}</div>
                   {peakStats.map(p => {
                     const area = p.displayArea;
-                    const amtPerArea = p.amtPerArea > 0 ? p.amtPerArea : (area > 0 && p.amount > 0 ? p.amount / area : 0);
+                    const amtPerArea = p.amtPerArea > 0 ? p.amtPerArea : (area > 0 && p.calcAmount > 0 ? p.calcAmount / area : 0);
                     const rt = p.retentionTime.toFixed(3).padStart(7);
                     const type = p.peakType.padEnd(6);
                     const areaStr = fmtArea(area).padStart(10);
                     const aptStr = amtPerArea > 0 ? fmtSci2(amtPerArea, -2).padStart(10) : "".padStart(10);
-                    const amtStr = p.amount > 0 ? p.amount.toFixed(5).padStart(10) : "".padStart(10);
+                    const amtStr = p.calcAmount > 0 ? p.calcAmount.toFixed(5).padStart(10) : "".padStart(10);
                     const grpStr = (p.grp || "").padEnd(2);
                     const nameStr = p.name;
                     return (
@@ -4644,12 +4663,12 @@ export default function HplcSimulator() {
                   <div style={{ whiteSpace: "pre" }}>{"    -------|------|----------|----------|----------|--|------------------"}</div>
                   {peakStats.filter(p => p.printSelected !== false).map(p => {
                     const area = p.displayArea;
-                    const amtPerArea = p.amtPerArea > 0 ? p.amtPerArea : (area > 0 && p.amount > 0 ? p.amount / area : 0);
+                    const amtPerArea = p.amtPerArea > 0 ? p.amtPerArea : (area > 0 && p.calcAmount > 0 ? p.calcAmount / area : 0);
                     const rt = p.retentionTime.toFixed(3).padStart(7);
                     const type = p.peakType.padEnd(6);
                     const areaStr = fmtArea(area).padStart(10);
                     const aptStr = amtPerArea > 0 ? fmtSci2(amtPerArea, -2).padStart(10) : "".padStart(10);
-                    const amtStr = p.amount > 0 ? p.amount.toFixed(5).padStart(10) : "".padStart(10);
+                    const amtStr = p.calcAmount > 0 ? p.calcAmount.toFixed(5).padStart(10) : "".padStart(10);
                     const grpStr = (p.grp || "").padEnd(2);
                     return (
                       <div key={p.id} style={{ whiteSpace: "pre" }}>
@@ -4660,7 +4679,7 @@ export default function HplcSimulator() {
                   <div style={{ whiteSpace: "pre" }}>{""}</div>
                   <div style={{ whiteSpace: "pre" }}>
                     {"    Totals :                                                                             " +
-                      peakStats.filter(p => p.printSelected !== false && p.amount > 0).reduce((s, p) => s + p.amount, 0).toFixed(5)}
+                      peakStats.filter(p => p.printSelected !== false).reduce((s, p) => s + p.calcAmount, 0).toFixed(5)}
                   </div>
                   <div style={{ whiteSpace: "pre" }}>{""}</div>
                   <div style={{ whiteSpace: "pre" }}>{""}</div>
