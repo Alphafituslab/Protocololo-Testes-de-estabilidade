@@ -2575,7 +2575,6 @@ export default function HplcSimulator() {
   };
 
   const updateCompoundStandard = (compoundId: string, stdId: string, key: "amount" | "area", val: number) => {
-    pushUndo();
     setCompoundCalibrations(cc => {
       const existing = cc[compoundId] ?? getCC(compoundId);
       const updated = { ...cc, [compoundId]: { ...existing, standards: existing.standards.map(s => s.id === stdId ? { ...s, [key]: val } : s) } };
@@ -3882,17 +3881,19 @@ export default function HplcSimulator() {
                           <span style={{ ...MONO, fontSize: 9, color: "#555", width: 14 }}>{i + 1}</span>
                           <div className="flex flex-col gap-0.5 flex-1">
                             <Input type="number" step="0.00001" value={s.amount}
+                              onFocus={() => pushUndo()}
                               onChange={e => updateCompoundStandard(calibCompound.id, s.id, "amount", parseFloat(e.target.value) || 0)}
                               className="h-5 text-xs font-mono px-1" placeholder="Amount (ug/ml)" />
                             <div className="flex gap-0.5">
                               <Input type="number" step="0.00001" value={s.area}
+                                onFocus={() => pushUndo()}
                                 onChange={e => updateCompoundStandard(calibCompound.id, s.id, "area", parseFloat(e.target.value) || 0)}
                                 className="h-5 text-xs font-mono px-1 flex-1" placeholder="Area (mAU*s)" />
                               <button
                                 type="button"
                                 title="Capturar área do pico atual do cromatograma para este nível"
                                 onClick={() => captureCalibArea(calibCompound.id, s.id)}
-                                style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "1px 5px", border: "1px solid #93c5fd", borderRadius: 3, background: "#eff6ff", cursor: "pointer", color: "#1d4ed8", flexShrink: 0, whiteSpace: "nowrap" }}
+                                style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "1px 5px", border: "1px solid #ccc", borderRadius: 3, background: "#f9fafb", cursor: "pointer", color: "#333", flexShrink: 0, whiteSpace: "nowrap" }}
                               >
                                 📥
                               </button>
@@ -5051,38 +5052,16 @@ export default function HplcSimulator() {
                     <div style={{ whiteSpace: "pre" }}>{"    -------|--|--|----------|----------|----------|---|--|---------------"}</div>
                     {[...cc.standards].sort((a, b) => a.amount - b.amount).map((s, i) => {
                       const amtPerArea = s.area > 0 ? s.amount / s.area : 0;
-                      const cellSty: React.CSSProperties = {
-                        fontFamily: "Courier New, monospace", fontSize: "inherit",
-                        background: "transparent", border: "none",
-                        borderBottom: "1px dashed #888", outline: "none",
-                        padding: 0, color: "#1d4ed8", textAlign: "right",
-                      };
                       if (i === 0) {
                         return (
-                          <div key={s.id} style={{ whiteSpace: "pre", display: "flex", alignItems: "baseline" }}>
-                            <span>{"    " + expRT.toFixed(3).padStart(7) + " 1 " + (i + 1).toString() + " "}</span>
-                            <input type="number" step="any" style={{ ...cellSty, width: "11ch" }}
-                              defaultValue={s.amount.toFixed(5)}
-                              onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) updateCompoundStandard(compound.id, s.id, "amount", v); }} />
-                            <span>{" "}</span>
-                            <input type="number" step="any" style={{ ...cellSty, width: "10ch" }}
-                              defaultValue={s.area.toFixed(5)}
-                              onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) updateCompoundStandard(compound.id, s.id, "area", v); }} />
-                            <span>{" " + fmtSci2(amtPerArea, -2).padStart(10) + "         " + compound.name}</span>
+                          <div key={s.id} style={{ whiteSpace: "pre" }}>
+                            {"    " + expRT.toFixed(3).padStart(7) + " 1 " + (i + 1).toString() + " " + s.amount.toFixed(5).padStart(11) + " " + s.area.toFixed(5).padStart(10) + " " + fmtSci2(amtPerArea, -2).padStart(10) + "         " + compound.name}
                           </div>
                         );
                       }
                       return (
-                        <div key={s.id} style={{ whiteSpace: "pre", display: "flex", alignItems: "baseline" }}>
-                          <span>{"                 " + (i + 1).toString() + " "}</span>
-                          <input type="number" step="any" style={{ ...cellSty, width: "9ch" }}
-                            defaultValue={s.amount.toFixed(5)}
-                            onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) updateCompoundStandard(compound.id, s.id, "amount", v); }} />
-                          <span>{" "}</span>
-                          <input type="number" step="any" style={{ ...cellSty, width: "10ch" }}
-                            defaultValue={s.area.toFixed(5)}
-                            onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) updateCompoundStandard(compound.id, s.id, "area", v); }} />
-                          <span>{" " + fmtSci2(amtPerArea, -2)}</span>
+                        <div key={s.id} style={{ whiteSpace: "pre" }}>
+                          {"                 " + (i + 1).toString() + " " + s.amount.toFixed(5).padStart(9) + " " + s.area.toFixed(5).padStart(10) + " " + fmtSci2(amtPerArea, -2)}
                         </div>
                       );
                     })}
