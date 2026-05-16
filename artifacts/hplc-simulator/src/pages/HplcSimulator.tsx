@@ -5134,7 +5134,7 @@ export default function HplcSimulator() {
                                   <line key={`res-${s.id}`}
                                     x1={xs(s.amount)} y1={yPoint}
                                     x2={xs(s.amount)} y2={yPred}
-                                    stroke="#e11d48" strokeWidth={1.2} strokeDasharray="3 2" opacity={0.8} />
+                                    stroke="#111" strokeWidth={1.2} strokeDasharray="3 2" opacity={0.8} />
                                 );
                               })}
                               {/* Data point circles — black, numbered above */}
