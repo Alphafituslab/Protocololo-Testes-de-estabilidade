@@ -433,6 +433,87 @@ function linearRegression(pts: { x: number; y: number }[]) {
   return { slope, intercept, r, residStdDev };
 }
 
+function buildCalibCurveAscii(
+  standards: Array<{ amount: number; area: number }>,
+  sampleArea: number,
+  sampleAmount: number,
+  compoundName: string,
+  expRT: number,
+  sigLabel: string,
+  r: number,
+  residStdDev: number,
+  slope: number,
+  intercept: number
+): string[] {
+  const INDENT = "    ";
+  const ROWS = 12;
+  const W = 78;
+  const grid: string[][] = Array.from({ length: ROWS }, () => Array(W).fill(" "));
+
+  const put = (row: number, col: number, text: string) => {
+    for (let i = 0; i < text.length; i++) {
+      if (row >= 0 && row < ROWS && col + i >= 0 && col + i < W)
+        grid[row][col + i] = text[i];
+    }
+  };
+
+  const xOff = 9;
+  const xW = 26;
+  const sorted = [...standards].sort((a, b) => a.amount - b.amount);
+  const xMax = Math.max(...sorted.map(s => s.amount), 100);
+  const toCol = (amount: number) => xOff + Math.round((amount / xMax) * xW);
+
+  const maxArea = Math.max(...sorted.map(s => s.area), sampleArea);
+  const yTop = maxArea * 1.05;
+  const toRow = (area: number): number => {
+    if (area >= yTop) return 0;
+    if (area >= 2000) return 1;
+    if (area >= 1500) return 2 + Math.round((2000 - area) / 500);
+    if (area >= 1000) return 3 + Math.round((1500 - area) / 250);
+    if (area >= 500)  return 5 + Math.round((1000 - area) / 250);
+    return 7 + Math.round((500 - area) / 250);
+  };
+
+  put(0, 3, "Area");
+
+  [0, 500, 1000, 1500, 2000].forEach(v => {
+    const row = v === 0 ? 9 : toRow(v);
+    put(row, 6, String(v).padStart(4));
+  });
+
+  sorted.forEach((s, i) => {
+    put(toRow(s.area), toCol(s.amount), String(i + 1));
+  });
+
+  const sRow = toRow(sampleArea);
+  const sCol = toCol(sampleAmount);
+  put(sRow, 10, sampleArea.toFixed(3));
+  const aRow = Math.min(sRow + 2, 8);
+  put(aRow, Math.max(sCol - 3, 10), sampleAmount.toFixed(3));
+
+  put(10, toCol(0) - 1, "0");
+  const midX = Math.round(xMax / 2 / 10) * 10;
+  put(10, toCol(midX) - 1, String(midX));
+  put(10, toCol(xMax) - 1, String(Math.round(xMax)));
+  put(11, toCol(midX) - 6, "Amount[ug/ml]");
+
+  const IC = 40;
+  [
+    `${compoundName} at exp. RT: ${expRT.toFixed(3)}`,
+    sigLabel,
+    `Correlation:            ${r.toFixed(5)}`,
+    `Residual Std.  Dev.:   ${residStdDev.toFixed(5)}`,
+    `Formula: y = mx + b`,
+    `     m:      ${slope.toFixed(5)}`,
+    ``,
+    `     b:      ${intercept.toFixed(5)}`,
+    `      x: Amount`,
+    `      y: Area`,
+  ].forEach((text, i) => { if (text) put(i, IC, text); });
+
+  return grid.map(row => INDENT + row.join("").trimEnd());
+}
+
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
 // ─── ChemStation text parser ──────────────────────────────────────────────────
@@ -4280,7 +4361,7 @@ export default function HplcSimulator() {
                 )}
                 {/* overflow:visible lets vertical peak labels render above the plot margin */}
                 <style>{`.hplc-main-chart .recharts-wrapper svg { overflow: visible; }`}</style>
-                <div className="hplc-main-chart" style={{ position: "relative" }}>
+                <div className="hplc-main-chart" style={{ position: "relative", border: "1px solid #333" }}>
                 {/* Signal label overlay inside chart — blue, matches ChemStation annotation */}
                 {signalLabelEditing ? (
                   <div style={{
@@ -4543,6 +4624,74 @@ export default function HplcSimulator() {
                 </div>
               </div>
 
+              {/* === Calibration Curves (ASCII art) — matches AMOSTRA PDF format === */}
+              {activeCompounds
+                .filter(compound => {
+                  if (calib.compoundName.trim()) {
+                    const n = compound.name.toLowerCase();
+                    const cn = calib.compoundName.toLowerCase().trim();
+                    if (!n.includes(cn) && !cn.includes(n)) return false;
+                  }
+                  const cc = getCC(compound.id);
+                  if (cc.standards.length === 0) return false;
+                  return peaks.some(p =>
+                    (p.name && (
+                      p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
+                      compound.name.toLowerCase().includes(p.name.toLowerCase())
+                    )) || Math.abs(p.retentionTime - compound.expectedRT) < compound.rtTol * 2
+                  );
+                })
+                .map(compound => {
+                  const cc = getCC(compound.id);
+                  const compReg = linearRegression(cc.standards.map(s => ({ x: s.amount, y: s.area })));
+                  const expRT = cc.calib.expRT > 0 ? cc.calib.expRT : compound.expectedRT;
+                  const matchPeak = peakStats.find(p =>
+                    (p.name && (
+                      p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
+                      compound.name.toLowerCase().includes(p.name.toLowerCase())
+                    )) || Math.abs(p.retentionTime - expRT) < compound.rtTol * 2
+                  );
+                  if (!matchPeak) return null;
+                  const asciiLines = buildCalibCurveAscii(
+                    [...cc.standards].sort((a, b) => a.amount - b.amount),
+                    matchPeak.displayArea,
+                    matchPeak.amount,
+                    compound.name,
+                    expRT,
+                    signalLabel,
+                    compReg.r,
+                    compReg.residStdDev,
+                    compReg.slope,
+                    compReg.intercept
+                  );
+                  return (
+                    <div key={compound.id} style={{ marginTop: 10 }}>
+                      <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
+                      <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
+                      <div style={{ whiteSpace: "pre" }}>{"    " + " ".repeat(30) + "Calibration Curves"}</div>
+                      <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
+                      {asciiLines.map((line, i) => (
+                        <div key={i} style={{ whiteSpace: "pre" }}>{line}</div>
+                      ))}
+                    </div>
+                  );
+                })}
+
+              {/* End of Report */}
+              <div style={{ marginTop: 20 }}>
+                <Div />
+                <div style={{ whiteSpace: "pre" }}>{center("*** End of Report ***")}</div>
+              </div>
+
+              {/* Footer line — matches ChemStation page footer */}
+              <div style={{ marginTop: 20, whiteSpace: "pre", fontSize: 9 }}>
+                {[
+                  sample.acqInstrument,
+                  new Date().toLocaleString("en-US", { month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true }),
+                  sample.acqOperator,
+                ].join(" ").padEnd(88) + "Page   1 of 1"}
+              </div>
+
               {/* Per-compound Calibration Tables — only show the compound selected/configured in the chromatogram */}
               {activeCompounds
                 .filter(compound => {
@@ -4735,20 +4884,6 @@ export default function HplcSimulator() {
                   </div>
                 );
               })}
-
-              <div style={{ marginTop: 20 }}>
-                <Div />
-                <div style={{ whiteSpace: "pre" }}>{center("*** End of Report ***")}</div>
-              </div>
-
-              {/* Footer line — matches ChemStation page footer */}
-              <div style={{ marginTop: 20, whiteSpace: "pre", fontSize: 9 }}>
-                {[
-                  sample.acqInstrument,
-                  new Date().toLocaleString("en-US", { month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true }),
-                  sample.acqOperator,
-                ].join(" ").padEnd(88) + "Page   1 of 1"}
-              </div>
 
               {/* Saved chromatogram image viewer — shown when an image is selected in the left panel */}
               {reportSelectedImageId && (() => {
