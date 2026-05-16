@@ -10,6 +10,7 @@ import authRouter from "./auth";
 import methodologiesRouter from "./methodologies";
 import usersRouter from "./users";
 import auditLogsRouter from "./audit-logs";
+import settingsRouter from "./settings";
 
 const router: IRouter = Router();
 
@@ -25,5 +26,6 @@ router.use(certificatesRouter);
 router.use(methodologiesRouter);
 router.use(usersRouter);
 router.use(auditLogsRouter);
+router.use(settingsRouter);
 
 export default router;
