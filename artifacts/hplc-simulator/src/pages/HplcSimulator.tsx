@@ -4855,7 +4855,7 @@ export default function HplcSimulator() {
                   if (calib.compoundName.trim()) {
                     const n = compound.name.toLowerCase();
                     const cn = calib.compoundName.toLowerCase().trim();
-                    if (!n.includes(cn) && !cn.includes(n)) return false;
+                    if (n !== cn) return false;
                   }
                   const cc = getCC(compound.id);
                   if (cc.standards.length === 0) return false;
@@ -4920,11 +4920,11 @@ export default function HplcSimulator() {
               {/* Per-compound Calibration Tables — only show the compound selected/configured in the chromatogram */}
               {activeCompounds
                 .filter(compound => {
-                  // Filter 1: must match calib.compoundName (the compound selected at start)
+                  // Filter 1: must match calib.compoundName exactly (case-insensitive)
                   if (calib.compoundName.trim()) {
                     const n = compound.name.toLowerCase();
                     const cn = calib.compoundName.toLowerCase().trim();
-                    if (!n.includes(cn) && !cn.includes(n)) return false;
+                    if (n !== cn) return false;
                   }
                   // Filter 2: must have calibration standards defined
                   const cc = getCC(compound.id);
