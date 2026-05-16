@@ -2043,6 +2043,13 @@ export default function HplcSimulator() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileTargetPeakIdRef = useRef<string | null>(null);
+
+  // ── Undo stack ───────────────────────────────────────────────────────────
+  const undoStackRef = useRef<Array<{ peaks: Peak[]; compoundCalibrations: Record<string, CompoundCalibration> }>>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const peaksUndoRef = useRef<Peak[]>([]);
+  const calibUndoRef = useRef<Record<string, CompoundCalibration>>({});
+
   const [userList, setUserList] = useState<UserRecord[]>([]);
   const [userListLoading, setUserListLoading] = useState(false);
   const [userListError, setUserListError] = useState<string | null>(null);
@@ -2121,6 +2128,42 @@ export default function HplcSimulator() {
   }, []);
 
   const markDirty = useCallback(() => { setIsDirty(true); setConfirmed(false); }, []);
+
+  // Keep refs in sync so pushUndo can always capture the latest state
+  useEffect(() => { peaksUndoRef.current = peaks; }, [peaks]);
+  useEffect(() => { calibUndoRef.current = compoundCalibrations; }, [compoundCalibrations]);
+
+  const pushUndo = useCallback(() => {
+    undoStackRef.current = [
+      { peaks: [...peaksUndoRef.current], compoundCalibrations: { ...calibUndoRef.current } },
+      ...undoStackRef.current.slice(0, 19),
+    ];
+    setCanUndo(true);
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (undoStackRef.current.length === 0) return;
+    const [prev, ...rest] = undoStackRef.current;
+    undoStackRef.current = rest;
+    setCanUndo(rest.length > 0);
+    setPeaks(prev.peaks);
+    setCompoundCalibrations(prev.compoundCalibrations);
+    saveCompoundCalibrations(prev.compoundCalibrations);
+    setIsDirty(true);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo]);
 
   // Auto-persist to localStorage 400 ms after any state change so peaks survive
   // page refresh without requiring "Confirmar". Confirmar still creates snapshots.
@@ -2413,6 +2456,7 @@ export default function HplcSimulator() {
   // ── Peaks ────────────────────────────────────────────────────────────────────
 
   const addPeak = useCallback(() => {
+    pushUndo();
     setPeaks(ps => [...ps, {
       id: uid(), name: "", peakType: "BB", grp: "", amtPerArea: 0, amount: 0, manualArea: 0,
       peakNoise: 0,
@@ -2422,7 +2466,7 @@ export default function HplcSimulator() {
       asymmetry: parseFloat((0.95 + Math.random() * 0.2).toFixed(2)),
     }]);
     markDirty();
-  }, [detector.runTime, markDirty]);
+  }, [detector.runTime, markDirty, pushUndo]);
 
   const addGhostPeak = useCallback(() => {
     // Place ghost near the tallest existing peak, or random if none
@@ -2453,10 +2497,11 @@ export default function HplcSimulator() {
   const removePeak = (id: string) => {
     const peak = peaks.find(p => p.id === id);
     if (peak?.locked) return;
+    pushUndo();
     setPeaks(ps => ps.filter(p => p.id !== id));
     markDirty();
   };
-  const savePeak = (updated: Peak) => { setPeaks(ps => ps.map(p => p.id === updated.id ? updated : p)); markDirty(); };
+  const savePeak = (updated: Peak) => { pushUndo(); setPeaks(ps => ps.map(p => p.id === updated.id ? updated : p)); markDirty(); };
   const toggleLockPeak = (id: string) => {
     setPeaks(ps => ps.map(p => p.id === id ? { ...p, locked: !p.locked } : p));
     // Close the editor dialog gracefully — deferred so we never trigger a
@@ -2495,6 +2540,7 @@ export default function HplcSimulator() {
   };
 
   const updateCompoundCalibField = (compoundId: string, key: keyof CalibInfo, value: string | number) => {
+    pushUndo();
     setCompoundCalibrations(cc => {
       const existing = cc[compoundId] ?? getCC(compoundId);
       const updated = { ...cc, [compoundId]: { ...existing, calib: { ...existing.calib, [key]: value } } };
@@ -2505,6 +2551,7 @@ export default function HplcSimulator() {
   };
 
   const addCompoundStandard = (compoundId: string) => {
+    pushUndo();
     setCompoundCalibrations(cc => {
       const existing = cc[compoundId] ?? getCC(compoundId);
       const n = existing.standards.length + 1;
@@ -2517,6 +2564,7 @@ export default function HplcSimulator() {
   };
 
   const removeCompoundStandard = (compoundId: string, stdId: string) => {
+    pushUndo();
     setCompoundCalibrations(cc => {
       const existing = cc[compoundId] ?? getCC(compoundId);
       const updated = { ...cc, [compoundId]: { ...existing, standards: existing.standards.filter(s => s.id !== stdId) } };
@@ -2527,6 +2575,7 @@ export default function HplcSimulator() {
   };
 
   const updateCompoundStandard = (compoundId: string, stdId: string, key: "amount" | "area", val: number) => {
+    pushUndo();
     setCompoundCalibrations(cc => {
       const existing = cc[compoundId] ?? getCC(compoundId);
       const updated = { ...cc, [compoundId]: { ...existing, standards: existing.standards.map(s => s.id === stdId ? { ...s, [key]: val } : s) } };
@@ -2560,6 +2609,7 @@ export default function HplcSimulator() {
   const simulateCalibCurve = (compoundId: string) => {
     const compound = activeCompounds.find(c => c.id === compoundId);
     if (!compound) return;
+    pushUndo();
     const matchPeak = peaks.find(p => {
       const nameMatch = !!(p.name && (
         p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
@@ -3173,6 +3223,10 @@ export default function HplcSimulator() {
           <Plus className="h-3.5 w-3.5" /> Nova Análise
         </Button>
 
+        <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" disabled={!canUndo} onClick={handleUndo}
+          title="Desfazer última alteração (Ctrl+Z)">
+          ↩ Desfazer
+        </Button>
         <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => window.location.reload()}>
           ↺ Atualizar
         </Button>
