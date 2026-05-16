@@ -2040,6 +2040,7 @@ export default function HplcSimulator() {
   const [compoundCalibrations, setCompoundCalibrations] = useState<Record<string, CompoundCalibration>>(() => loadCompoundCalibrations());
   const [selectedCalibCompoundId, setSelectedCalibCompoundId] = useState<string | null>(null);
   const [reportSelectedImageId, setReportSelectedImageId] = useState<string | null>(null);
+  const [syncAreasActive, setSyncAreasActive] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileTargetPeakIdRef = useRef<string | null>(null);
@@ -3862,6 +3863,22 @@ export default function HplcSimulator() {
                   {calibCompound && cc && (
                     <ControlBox title={`Standards — ${calibCompound.name}`} extra={
                       <div className="flex gap-1 flex-wrap">
+                        <button
+                          type="button"
+                          title={syncAreasActive ? "Sync areas ON — all levels share the same area value. Click to disable." : "Sync areas OFF — click to enable: changing one area updates all levels"}
+                          onClick={() => setSyncAreasActive(v => !v)}
+                          style={{
+                            fontFamily: "Courier New, monospace", fontSize: 9,
+                            padding: "1px 6px", borderRadius: 3, cursor: "pointer",
+                            border: `1px solid ${syncAreasActive ? "#1d4ed8" : "#ccc"}`,
+                            background: syncAreasActive ? "#dbeafe" : "#f9fafb",
+                            color: syncAreasActive ? "#1d4ed8" : "#555",
+                            fontWeight: syncAreasActive ? "bold" : "normal",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          🔗 {syncAreasActive ? "Sync ON" : "Sync OFF"}
+                        </button>
                         <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2"
                           title="Simulates areas for all levels proportionally to the current chromatogram peak"
                           onClick={() => simulateCalibCurve(calibCompound.id)}>
@@ -3887,6 +3904,11 @@ export default function HplcSimulator() {
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 4, lineHeight: 1.6 }}>
                         Amount [ug/ml] / Area [mAU*s]<br />
                         <span style={{ color: "#1d4ed8" }}>📥 Capture</span> — reads area from current chromatogram peak
+                        {syncAreasActive && (
+                          <span style={{ color: "#1d4ed8", display: "block", marginTop: 2 }}>
+                            🔗 Sync ON — editing any area updates all levels
+                          </span>
+                        )}
                       </div>
                       {[...cc.standards].sort((a, b) => a.amount - b.amount).map((s, i) => (
                         <div key={s.id} className="flex items-center gap-1 group mb-1.5">
@@ -3899,8 +3921,30 @@ export default function HplcSimulator() {
                             <div className="flex gap-0.5">
                               <Input type="number" step="0.00001" value={s.area}
                                 onFocus={() => pushUndo()}
-                                onChange={e => updateCompoundStandard(calibCompound.id, s.id, "area", parseFloat(e.target.value) || 0)}
-                                className="h-5 text-xs font-mono px-1 flex-1" placeholder="Area (mAU*s)" />
+                                onChange={e => {
+                                  const newArea = parseFloat(e.target.value) || 0;
+                                  if (syncAreasActive) {
+                                    // Update ALL standards to the same area value
+                                    setCompoundCalibrations(prev => {
+                                      const existing = prev[calibCompound.id] ?? getCC(calibCompound.id);
+                                      const updated = {
+                                        ...prev,
+                                        [calibCompound.id]: {
+                                          ...existing,
+                                          standards: existing.standards.map(st => ({ ...st, area: newArea })),
+                                        },
+                                      };
+                                      saveCompoundCalibrations(updated);
+                                      return updated;
+                                    });
+                                    markDirty();
+                                  } else {
+                                    updateCompoundStandard(calibCompound.id, s.id, "area", newArea);
+                                  }
+                                }}
+                                className="h-5 text-xs font-mono px-1 flex-1"
+                                style={{ borderColor: syncAreasActive ? "#93c5fd" : undefined }}
+                                placeholder="Area (mAU*s)" />
                               <button
                                 type="button"
                                 title="Capture current chromatogram peak area for this level"
