@@ -5121,13 +5121,13 @@ export default function HplcSimulator() {
                       if (i === 0) {
                         return (
                           <div key={s.id} style={{ whiteSpace: "pre" }}>
-                            {"    " + expRT.toFixed(3).padStart(7) + " 1 " + (i + 1).toString() + " " + s.amount.toFixed(5).padStart(11) + " " + s.area.toFixed(5).padStart(10) + " " + fmtSci2(amtPerArea, -2).padStart(10) + "         " + compound.name}
+                            {"    " + expRT.toFixed(3).padStart(7) + " 1 " + (i + 1).toString() + " " + s.amount.toFixed(5).padStart(12) + " " + s.area.toFixed(5) + " " + fmtSci2(amtPerArea, -2) + "         " + compound.name}
                           </div>
                         );
                       }
                       return (
                         <div key={s.id} style={{ whiteSpace: "pre" }}>
-                          {"                 " + (i + 1).toString() + " " + s.amount.toFixed(5).padStart(9) + " " + s.area.toFixed(5).padStart(10) + " " + fmtSci2(amtPerArea, -2)}
+                          {"                 " + (i + 1).toString() + " " + s.amount.toFixed(5).padStart(9) + " " + s.area.toFixed(5) + " " + fmtSci2(amtPerArea, -2)}
                         </div>
                       );
                     })}
