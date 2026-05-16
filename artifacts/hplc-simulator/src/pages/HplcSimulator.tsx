@@ -10,7 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download, Users, ShieldCheck, ShieldOff, ToggleLeft, ToggleRight, LayoutDashboard, ImageDown, ClipboardCheck, ClipboardX, ScrollText, Activity, ImageIcon, Eye, EyeOff, ClipboardPaste, Scale, Lock, LockOpen } from "lucide-react";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/contexts/use-auth";
 import { useLocation } from "wouter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

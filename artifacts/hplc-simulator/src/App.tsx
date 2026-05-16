@@ -6,7 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import HplcSimulator from "@/pages/HplcSimulator";
 import LoginPage from "@/pages/login";
-import { AuthProvider, useAuth } from "@/contexts/auth-context";
+import { AuthProvider } from "@/contexts/auth-context";
+import { useAuth } from "@/contexts/use-auth";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();

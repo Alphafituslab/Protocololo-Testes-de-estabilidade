@@ -27,4 +27,9 @@ export interface Certificate {
   seniorAnalystEmail?: string | null;
   issuedByEmail?: string | null;
   notes?: string | null;
+  /** Observações da aba Cinética */
+  kineticsNotes?: string | null;
+  capsuleComposition?: string | null;
+  ie?: string | null;
+  cep?: string | null;
 }

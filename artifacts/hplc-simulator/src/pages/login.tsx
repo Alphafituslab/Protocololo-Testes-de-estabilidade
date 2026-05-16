@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/contexts/use-auth";
 import { FlaskConical, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

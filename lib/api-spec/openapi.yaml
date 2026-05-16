@@ -1001,6 +1001,19 @@ components:
         notes:
           type: string
           nullable: true
+        kineticsNotes:
+          type: string
+          nullable: true
+          description: Observações da aba Cinética
+        capsuleComposition:
+          type: string
+          nullable: true
+        ie:
+          type: string
+          nullable: true
+        cep:
+          type: string
+          nullable: true
       required:
         - certNumber
         - issueDate

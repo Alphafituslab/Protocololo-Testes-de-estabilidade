@@ -684,6 +684,10 @@ export const GetCertificateResponse = zod.object({
   seniorAnalystEmail: zod.string().nullish(),
   issuedByEmail: zod.string().nullish(),
   notes: zod.string().nullish(),
+  kineticsNotes: zod.string().nullish().describe("Observações da aba Cinética"),
+  capsuleComposition: zod.string().nullish(),
+  ie: zod.string().nullish(),
+  cep: zod.string().nullish(),
 });
 
 /**

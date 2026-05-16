@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+// @refresh reset
+import { createContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 
 export type AuthUser = {
@@ -9,7 +10,7 @@ export type AuthUser = {
   hplcAccess: boolean;
 };
 
-type AuthContextValue = {
+export type AuthContextValue = {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
@@ -18,7 +19,7 @@ type AuthContextValue = {
   isAdmin: boolean;
 };
 
-const AuthContext = createContext<AuthContextValue | null>(null);
+export const AuthContext = createContext<AuthContextValue | null>(null);
 
 const TOKEN_KEY = "alphafitus_token";
 const USER_KEY = "alphafitus_user";
@@ -95,10 +96,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
-  return ctx;
 }

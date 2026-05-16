@@ -951,6 +951,12 @@ export default function CertificatePage() {
                       </div>
                     </div>
                     <p className="text-[9px] text-gray-400 pt-1">★ Parâmetro limitante — menor validade estimada. Limiar ICH Q1A(R2): 80% do valor inicial (T0).</p>
+                    {cert.kineticsNotes && (
+                      <div className="mt-2 border-l-2 border-blue-300 pl-3 bg-blue-50/50 py-1.5 pr-2 rounded-r text-[10px] text-gray-700">
+                        <span className="font-semibold text-gray-500 uppercase tracking-wide text-[9px]">Observações: </span>
+                        {cert.kineticsNotes}
+                      </div>
+                    )}
                   </>
                 )}
               </div>

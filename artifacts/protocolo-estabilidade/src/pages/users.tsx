@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/contexts/use-auth";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";

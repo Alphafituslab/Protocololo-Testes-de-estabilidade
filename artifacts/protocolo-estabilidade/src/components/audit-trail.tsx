@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/contexts/use-auth";
 import {
   Loader2, Clock, User, FilePlus, FilePen, FileX, CheckCircle,
   PackagePlus, PackageMinus, PackageCheck, FlaskConical, Trash2, History,
