@@ -1,11 +1,9 @@
 import { useParams, Link } from "wouter";
 import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, Lock, Unlock, History } from "lucide-react";
+import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, History } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useMemo, useEffect } from "react";
-import { useUnlock } from "@/hooks/use-unlock";
-import { UnlockDialog } from "@/components/unlock-dialog";
 import { AuditTrail } from "@/components/audit-trail";
 
 type PhotoEntry = {
@@ -194,10 +192,6 @@ export default function CertificatePage() {
   const setTempRecebimento = (v: string) => { setTempRecebimentoRaw(v); saveEnv({ tempRecebimento: v }); };
   const setUmidRecebimento = (v: string) => { setUmidRecebimentoRaw(v); saveEnv({ umidRecebimento: v }); };
 
-  // Environmental conditions are password-protected
-  const { unlock } = useUnlock();
-  const [envUnlocked, setEnvUnlocked] = useState(false);
-  const [envUnlockOpen, setEnvUnlockOpen] = useState(false);
 
   const [analyses, setAnalyses] = useState<Array<{
     parameter: string; category: string; method: string; specification: string;
@@ -667,61 +661,27 @@ export default function CertificatePage() {
           </div>
         )}
 
-        {/* Condições Ambientais — password-protected */}
-        <UnlockDialog
-          open={envUnlockOpen}
-          onOpenChange={setEnvUnlockOpen}
-          onUnlock={unlock}
-          title="Alterar Condições Ambientais"
-          description="Digite a senha mestra para editar as condições ambientais e de recebimento."
-          submitLabel="Desbloquear"
-          onSuccess={() => { setEnvUnlockOpen(false); setEnvUnlocked(true); }}
-        />
         {show.condicoesAmbientais && (
           <div className="mb-6 border border-gray-200 rounded p-3 bg-gray-50 text-xs space-y-2">
             <div className="flex items-center justify-between">
               <p className="font-bold uppercase tracking-widest text-gray-500">Condições Ambientais</p>
-              <button
-                onClick={() => envUnlocked ? setEnvUnlocked(false) : setEnvUnlockOpen(true)}
-                className={`print:hidden flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border transition-colors ${
-                  envUnlocked
-                    ? "bg-green-50 border-green-300 text-green-700 hover:bg-red-50 hover:border-red-300 hover:text-red-700"
-                    : "bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100"
-                }`}
-                title={envUnlocked ? "Clique para bloquear" : "Clique para editar"}
-              >
-                {envUnlocked ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
-                {envUnlocked ? "Desbloqueado" : "Protegido"}
-              </button>
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-gray-500 shrink-0">Condições ambientais durante amostragem — Temperatura:</span>
-                {envUnlocked
-                  ? <CertEditField value={tempAmostragem} onChange={setTempAmostragem} className="w-20 text-xs" />
-                  : <span className="font-medium">{tempAmostragem}</span>
-                }
+                <CertEditField value={tempAmostragem} onChange={setTempAmostragem} className="w-20 text-xs" />
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-gray-500 shrink-0">Condições ambientais durante amostragem — Umidade:</span>
-                {envUnlocked
-                  ? <CertEditField value={umidAmostragem} onChange={setUmidAmostragem} className="w-20 text-xs" />
-                  : <span className="font-medium">{umidAmostragem}</span>
-                }
+                <CertEditField value={umidAmostragem} onChange={setUmidAmostragem} className="w-20 text-xs" />
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-gray-500 shrink-0">Condições de recebimento da amostra — Temperatura:</span>
-                {envUnlocked
-                  ? <CertEditField value={tempRecebimento} onChange={setTempRecebimento} className="w-20 text-xs" />
-                  : <span className="font-medium">{tempRecebimento}</span>
-                }
+                <CertEditField value={tempRecebimento} onChange={setTempRecebimento} className="w-20 text-xs" />
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-gray-500 shrink-0">Condições de recebimento da amostra — Umidade:</span>
-                {envUnlocked
-                  ? <CertEditField value={umidRecebimento} onChange={setUmidRecebimento} className="w-20 text-xs" />
-                  : <span className="font-medium">{umidRecebimento}</span>
-                }
+                <CertEditField value={umidRecebimento} onChange={setUmidRecebimento} className="w-20 text-xs" />
               </div>
             </div>
           </div>
