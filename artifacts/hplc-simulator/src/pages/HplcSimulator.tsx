@@ -5105,13 +5105,32 @@ export default function HplcSimulator() {
                               <text x={mL + iW / 2} y={svgH - 4} textAnchor="middle" fontSize={10} fill="#222">Amount[ug/ml]</text>
                               {/* Regression line */}
                               <line x1={xs(0)} y1={ys(ry0)} x2={xs(compCalibXMax)} y2={ys(ry1)} stroke="#111" strokeWidth={1.4} />
-                              {/* Data point circles — numbered */}
-                              {sorted.map((s, idx) => (
-                                <g key={`pt-${s.id}`}>
-                                  <circle cx={xs(s.amount)} cy={ys(s.area)} r={5} fill="white" stroke="#222" strokeWidth={1.6} />
-                                  <text x={xs(s.amount)} y={ys(s.area) + 3.5} textAnchor="middle" fontSize={7.5} fill="#222">{idx + 1}</text>
-                                </g>
-                              ))}
+                              {/* Residual lines — vertical dashed segment from each point to the regression line */}
+                              {sorted.map(s => {
+                                const predictedArea = compReg.slope * s.amount + compReg.intercept;
+                                const yPoint = ys(s.area);
+                                const yPred  = ys(predictedArea);
+                                if (Math.abs(yPoint - yPred) < 1) return null;
+                                return (
+                                  <line key={`res-${s.id}`}
+                                    x1={xs(s.amount)} y1={yPoint}
+                                    x2={xs(s.amount)} y2={yPred}
+                                    stroke="#e11d48" strokeWidth={1.2} strokeDasharray="3 2" opacity={0.8} />
+                                );
+                              })}
+                              {/* Data point circles — filled, numbered above */}
+                              {sorted.map((s, idx) => {
+                                const predictedArea = compReg.slope * s.amount + compReg.intercept;
+                                const residPct = predictedArea > 0 ? Math.abs((s.area - predictedArea) / predictedArea) * 100 : 0;
+                                const fill = residPct > 5 ? "#e11d48" : residPct > 2 ? "#f97316" : "#1d4ed8";
+                                return (
+                                  <g key={`pt-${s.id}`}>
+                                    {/* number label above circle */}
+                                    <text x={xs(s.amount)} y={ys(s.area) - 8} textAnchor="middle" fontSize={8.5} fontWeight="bold" fill={fill}>{idx + 1}</text>
+                                    <circle cx={xs(s.amount)} cy={ys(s.area)} r={5} fill={fill} stroke="white" strokeWidth={1.5} />
+                                  </g>
+                                );
+                              })}
                             </svg>
                           </div>
                           {/* Stats panel */}
