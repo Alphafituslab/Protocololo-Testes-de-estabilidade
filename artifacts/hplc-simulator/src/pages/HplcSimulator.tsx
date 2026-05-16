@@ -4997,19 +4997,38 @@ export default function HplcSimulator() {
                     <div style={{ whiteSpace: "pre" }}>{"    -------|--|--|----------|----------|----------|---|--|---------------"}</div>
                     {[...cc.standards].sort((a, b) => a.amount - b.amount).map((s, i) => {
                       const amtPerArea = s.area > 0 ? s.amount / s.area : 0;
+                      const cellSty: React.CSSProperties = {
+                        fontFamily: "Courier New, monospace", fontSize: "inherit",
+                        background: "transparent", border: "none",
+                        borderBottom: "1px dashed #888", outline: "none",
+                        padding: 0, color: "#1d4ed8", textAlign: "right",
+                      };
                       if (i === 0) {
                         return (
-                          <div key={s.id} style={{ whiteSpace: "pre" }}>
-                            {"    " + expRT.toFixed(3).padStart(7) + " 1 " + (i + 1).toString() +
-                              s.amount.toFixed(5).padStart(13) + " " + s.area.toFixed(5).padStart(10) + " " +
-                              fmtSci2(amtPerArea, -2).padStart(10) + "         " + compound.name}
+                          <div key={s.id} style={{ whiteSpace: "pre", display: "flex", alignItems: "baseline" }}>
+                            <span>{"    " + expRT.toFixed(3).padStart(7) + " 1 " + (i + 1).toString() + " "}</span>
+                            <input type="number" step="any" style={{ ...cellSty, width: "11ch" }}
+                              defaultValue={s.amount.toFixed(5)}
+                              onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) updateCompoundStandard(compound.id, s.id, "amount", v); }} />
+                            <span>{" "}</span>
+                            <input type="number" step="any" style={{ ...cellSty, width: "10ch" }}
+                              defaultValue={s.area.toFixed(5)}
+                              onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) updateCompoundStandard(compound.id, s.id, "area", v); }} />
+                            <span>{" " + fmtSci2(amtPerArea, -2).padStart(10) + "         " + compound.name}</span>
                           </div>
                         );
                       }
                       return (
-                        <div key={s.id} style={{ whiteSpace: "pre" }}>
-                          {"                 " + (i + 1).toString() +
-                            s.amount.toFixed(5).padStart(10) + " " + s.area.toFixed(5).padStart(10) + " " + fmtSci2(amtPerArea, -2)}
+                        <div key={s.id} style={{ whiteSpace: "pre", display: "flex", alignItems: "baseline" }}>
+                          <span>{"                 " + (i + 1).toString() + " "}</span>
+                          <input type="number" step="any" style={{ ...cellSty, width: "9ch" }}
+                            defaultValue={s.amount.toFixed(5)}
+                            onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) updateCompoundStandard(compound.id, s.id, "amount", v); }} />
+                          <span>{" "}</span>
+                          <input type="number" step="any" style={{ ...cellSty, width: "10ch" }}
+                            defaultValue={s.area.toFixed(5)}
+                            onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) updateCompoundStandard(compound.id, s.id, "area", v); }} />
+                          <span>{" " + fmtSci2(amtPerArea, -2)}</span>
                         </div>
                       );
                     })}
@@ -5118,19 +5137,13 @@ export default function HplcSimulator() {
                                     stroke="#e11d48" strokeWidth={1.2} strokeDasharray="3 2" opacity={0.8} />
                                 );
                               })}
-                              {/* Data point circles — filled, numbered above */}
-                              {sorted.map((s, idx) => {
-                                const predictedArea = compReg.slope * s.amount + compReg.intercept;
-                                const residPct = predictedArea > 0 ? Math.abs((s.area - predictedArea) / predictedArea) * 100 : 0;
-                                const fill = residPct > 5 ? "#e11d48" : residPct > 2 ? "#f97316" : "#1d4ed8";
-                                return (
-                                  <g key={`pt-${s.id}`}>
-                                    {/* number label above circle */}
-                                    <text x={xs(s.amount)} y={ys(s.area) - 8} textAnchor="middle" fontSize={8.5} fontWeight="bold" fill={fill}>{idx + 1}</text>
-                                    <circle cx={xs(s.amount)} cy={ys(s.area)} r={5} fill={fill} stroke="white" strokeWidth={1.5} />
-                                  </g>
-                                );
-                              })}
+                              {/* Data point circles — black, numbered above */}
+                              {sorted.map((s, idx) => (
+                                <g key={`pt-${s.id}`}>
+                                  <text x={xs(s.amount)} y={ys(s.area) - 8} textAnchor="middle" fontSize={8.5} fontWeight="bold" fill="#111">{idx + 1}</text>
+                                  <circle cx={xs(s.amount)} cy={ys(s.area)} r={5} fill="#111" stroke="white" strokeWidth={1.5} />
+                                </g>
+                              ))}
                             </svg>
                           </div>
                           {/* Stats panel */}
