@@ -5249,18 +5249,13 @@ export default function HplcSimulator() {
                           <div style={{ paddingTop: 18, fontSize: 10.5, fontFamily: "Courier New, monospace", lineHeight: 1.9, color: "#111" }}>
                             <div style={{ fontWeight: "bold", marginBottom: 4 }}>{compound.name} at exp. RT: {expRT.toFixed(3)}</div>
                             <div>{signalLabel}</div>
-                            <div style={{ marginTop: 8 }}>{"Correlation:         " + compReg.r.toFixed(5)}</div>
-                            <div>{"Residual Std. Dev.: " + compReg.residStdDev.toFixed(5)}</div>
+                            <div style={{ marginTop: 8 }}>{"Correlation:            " + compReg.r.toFixed(5)}</div>
+                            <div>{"Residual Std.  Dev.:   " + compReg.residStdDev.toFixed(5)}</div>
                             <div style={{ marginTop: 8 }}>{"Formula: y = mx + b"}</div>
-                            <div style={{ paddingLeft: 8 }}>{"m: " + compReg.slope.toFixed(5)}</div>
-                            <div style={{ paddingLeft: 8 }}>{"b: " + compReg.intercept.toFixed(5)}</div>
-                            <div style={{ paddingLeft: 8 }}>{"x: Amount"}</div>
-                            <div style={{ paddingLeft: 8 }}>{"y: Area"}</div>
-                            <div style={{ marginTop: 10, borderTop: "1px solid #ccc", paddingTop: 6 }}>
-                              {sorted.map((s, idx) => (
-                                <div key={s.id}>{idx + 1} = {s.amount.toFixed(1)} ug/ml  →  {s.area.toFixed(2)} mAU·s</div>
-                              ))}
-                            </div>
+                            <div style={{ whiteSpace: "pre" }}>{"      m:      " + compReg.slope.toFixed(5)}</div>
+                            <div style={{ whiteSpace: "pre" }}>{"      b:      " + compReg.intercept.toFixed(5)}</div>
+                            <div style={{ whiteSpace: "pre" }}>{"      x: Amount"}</div>
+                            <div style={{ whiteSpace: "pre" }}>{"      y: Area"}</div>
                           </div>
                         </div>
                       );
