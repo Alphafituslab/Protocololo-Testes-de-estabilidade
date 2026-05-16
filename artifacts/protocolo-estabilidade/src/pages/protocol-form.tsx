@@ -225,7 +225,7 @@ export default function ProtocolForm() {
             <CardContent className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="certNumber" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Número do Certificado</FormLabel>
+                  <FormLabel>Número do Certificado de Análise</FormLabel>
                   <FormControl><Input data-testid="input-certNumber" placeholder="ex: CERT-AF-20241210/035" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -267,7 +267,7 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="capsuleComposition" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel data-field="capsule-composition">{"Composi\u00e7\u00e3o da C\u00e1psula"}</FormLabel>
+                  <FormLabel data-field="capsule-composition">Composição da Cápsula</FormLabel>
                   <FormControl><Input data-testid="input-capsuleComposition" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
