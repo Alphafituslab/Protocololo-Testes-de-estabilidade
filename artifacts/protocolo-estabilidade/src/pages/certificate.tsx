@@ -926,7 +926,7 @@ export default function CertificatePage() {
                     <div className="grid grid-cols-2 gap-4 pt-1">
                       <div className="space-y-1">
                         {limiting && (
-                          <p><span className="text-gray-500">Ativo com maior degradação no período: </span><span className="font-semibold text-amber-700">★ {limiting}</span></p>
+                          <p><span className="text-gray-500">Ativo com maior degradação: </span><span className="font-semibold text-amber-700">★ {limiting}</span></p>
                         )}
                         {estimatedMonths != null && (
                           <p><span className="text-gray-500">Validade calculada (ICH Q1A): </span><span className="font-semibold">{estimatedMonths.toFixed(1)} meses</span></p>

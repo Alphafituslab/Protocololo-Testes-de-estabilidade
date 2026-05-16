@@ -340,7 +340,7 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
   const setUmidRecebimento = (v: string) => { setUmidRecebimentoRaw(v); saveEnv({ umidRecebimento: v }); };
 
   const fieldsTop = [
-    { label: "Número do Certificado de Análise", value: protocol.certNumber },
+    { label: "Número do Certificado", value: protocol.certNumber },
     { label: "Empresa", value: protocol.companyName },
     { label: "CNPJ", value: protocol.cnpj },
     { label: "IE", value: protocol.ie },
@@ -355,14 +355,14 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
   ];
 
   const fieldsBottom = [
-    { label: "Data de Início do Estudo", value: protocol.studyStartDate },
-    { label: "Data Final do Estudo", value: protocol.studyEndDate },
-    { label: "Temperatura", value: protocol.storageTemp },
-    { label: "Umidade", value: protocol.storageHumidity },
+    { label: "Data Início", value: protocol.studyStartDate },
+    { label: "Data Final", value: protocol.studyEndDate },
+    { label: "Temperatura de Estudo", value: protocol.storageTemp },
+    { label: "Umidade de Estudo", value: protocol.storageHumidity },
     { label: "Período (meses)", value: protocol.studyPeriodMonths?.toString() },
     { label: "Intervalos de Teste", value: protocol.testIntervals },
     { label: "Elaboração", value: protocol.elaboratedBy },
-    { label: "Elaborado", value: protocol.approvedBy },
+    { label: "Aprovação", value: protocol.approvedBy },
     { label: "Emitido por", value: protocol.issuedBy },
     { label: "Analista Sênior", value: protocol.seniorAnalyst },
   ];

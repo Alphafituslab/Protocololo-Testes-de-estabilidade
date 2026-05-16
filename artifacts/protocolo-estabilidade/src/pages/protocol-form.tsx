@@ -225,7 +225,7 @@ export default function ProtocolForm() {
             <CardContent className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="certNumber" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Número do Certificado de Análise</FormLabel>
+                  <FormLabel>Número do Certificado</FormLabel>
                   <FormControl><Input data-testid="input-certNumber" placeholder="ex: CERT-AF-20241210/035" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -282,28 +282,28 @@ export default function ProtocolForm() {
             <CardContent className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="studyStartDate" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Data de Início do Estudo</FormLabel>
+                  <FormLabel>Data de Início</FormLabel>
                   <FormControl><Input type="date" data-testid="input-studyStartDate" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="studyEndDate" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Data Final do Estudo</FormLabel>
+                  <FormLabel>Data Final</FormLabel>
                   <FormControl><Input type="date" data-testid="input-studyEndDate" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="storageTemp" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Temperatura</FormLabel>
+                  <FormLabel>Temperatura de Armazenamento</FormLabel>
                   <FormControl><Input data-testid="input-storageTemp" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="storageHumidity" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Umidade</FormLabel>
+                  <FormLabel>Umidade Relativa</FormLabel>
                   <FormControl><Input data-testid="input-storageHumidity" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -348,7 +348,7 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="approvedBy" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Elaborado</FormLabel>
+                  <FormLabel>Aprovação</FormLabel>
                   <FormControl><Input data-testid="input-approvedBy" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
