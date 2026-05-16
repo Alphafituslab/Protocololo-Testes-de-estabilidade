@@ -351,7 +351,7 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
     { label: "Tipo de Pote", value: protocol.packagingType },
     { label: "Ingredientes Ativos", value: protocol.activeIngredients },
     { label: "Excipientes", value: protocol.excipients },
-    { label: "Composição da Cápsula", value: protocol.capsuleComposition },
+    { label: "Composi\u00e7\u00e3o da C\u00e1psula", value: protocol.capsuleComposition },
   ];
 
   const fieldsBottom = [
