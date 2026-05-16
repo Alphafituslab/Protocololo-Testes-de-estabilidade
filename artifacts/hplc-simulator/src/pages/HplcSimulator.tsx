@@ -106,6 +106,7 @@ interface CalibInfo {
   correctAllRetTimes?: string;
   avgResponse?: string;
   avgRetentionTime?: string;
+  nominalConc?: number;  // concentração nominal declarada (ug/ml) — para cálculo de teor de pureza
 }
 
 interface CompoundCalibration {
@@ -2535,6 +2536,65 @@ export default function HplcSimulator() {
     markDirty();
   };
 
+  // Captura a área do pico identificado no cromatograma atual e preenche o nível de calibração
+  const captureCalibArea = (compoundId: string, stdId: string) => {
+    const compound = activeCompounds.find(c => c.id === compoundId);
+    if (!compound) return;
+    const matchPeak = peaks.find(p => {
+      const nameMatch = !!(p.name && (
+        p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
+        compound.name.toLowerCase().includes(p.name.toLowerCase())
+      ));
+      const rtMatch = Math.abs(p.retentionTime - compound.expectedRT) <= compound.rtTol;
+      return nameMatch || rtMatch;
+    });
+    if (!matchPeak) {
+      window.alert(`Nenhum pico encontrado para "${compound.name}" no cromatograma atual.\nConfigure um pico com TR ≈ ${compound.expectedRT} min ou com o nome do composto.`);
+      return;
+    }
+    const area = parseFloat((matchPeak.manualArea > 0 ? matchPeak.manualArea : computeArea(matchPeak)).toFixed(4));
+    updateCompoundStandard(compoundId, stdId, "area", area);
+  };
+
+  // Simula curva completa: gera áreas para todos os níveis proporcionalmente ao pico atual
+  const simulateCalibCurve = (compoundId: string) => {
+    const compound = activeCompounds.find(c => c.id === compoundId);
+    if (!compound) return;
+    const matchPeak = peaks.find(p => {
+      const nameMatch = !!(p.name && (
+        p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
+        compound.name.toLowerCase().includes(p.name.toLowerCase())
+      ));
+      const rtMatch = Math.abs(p.retentionTime - compound.expectedRT) <= compound.rtTol;
+      return nameMatch || rtMatch;
+    });
+    if (!matchPeak) {
+      window.alert(`Configure um pico para "${compound.name}" (TR ≈ ${compound.expectedRT} min) antes de simular a curva.`);
+      return;
+    }
+    const refArea = matchPeak.manualArea > 0 ? matchPeak.manualArea : computeArea(matchPeak);
+    setCompoundCalibrations(cc => {
+      const existing = cc[compoundId] ?? getCC(compoundId);
+      const sorted = [...existing.standards].sort((a, b) => a.amount - b.amount);
+      if (sorted.length === 0) return cc;
+      // Usa o nível do meio como referência; os outros níveis são calculados proporcionalmente
+      const midIdx = Math.floor(sorted.length / 2);
+      const refAmount = sorted[midIdx].amount;
+      if (refAmount <= 0) return cc;
+      // Gera variação determinística pequena por nível (±2%) para simular realismo analítico
+      const newStds = existing.standards.map(s => {
+        const levelIdx = sorted.findIndex(x => x.id === s.id);
+        const jitter = 1 + pseudoNoise(levelIdx * 17 + compoundId.charCodeAt(0) * 3) * 0.02;
+        const area = parseFloat((refArea * (s.amount / refAmount) * jitter).toFixed(4));
+        return { ...s, area: Math.max(0, area) };
+      });
+      const updated = { ...cc, [compoundId]: { ...existing, standards: newStds } };
+      saveCompoundCalibrations(updated);
+      return updated;
+    });
+    markDirty();
+  };
+
   // ── File attachment per peak ──────────────────────────────────────────────────
 
   const handlePeakFileOpen = (peakId: string) => {
@@ -3748,12 +3808,20 @@ export default function HplcSimulator() {
                   {/* Standards for selected compound */}
                   {calibCompound && cc && (
                     <ControlBox title={`Padrões — ${calibCompound.name}`} extra={
-                      <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2" onClick={() => addCompoundStandard(calibCompound.id)}>
-                        <Plus className="h-3 w-3" /> Add
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2"
+                          title="Simula as áreas de todos os níveis proporcionalmente ao pico atual no cromatograma"
+                          onClick={() => simulateCalibCurve(calibCompound.id)}>
+                          ⚡ Simular
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2" onClick={() => addCompoundStandard(calibCompound.id)}>
+                          <Plus className="h-3 w-3" /> Add
+                        </Button>
+                      </div>
                     }>
-                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 4 }}>
-                        Amount [ug/ml] / Area [mAU*s]
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 4, lineHeight: 1.6 }}>
+                        Amount [ug/ml] / Area [mAU*s]<br />
+                        <span style={{ color: "#1d4ed8" }}>📥 Capturar</span> — lê a área do pico atual do cromatograma
                       </div>
                       {[...cc.standards].sort((a, b) => a.amount - b.amount).map((s, i) => (
                         <div key={s.id} className="flex items-center gap-1 group mb-1.5">
@@ -3762,9 +3830,19 @@ export default function HplcSimulator() {
                             <Input type="number" step="0.00001" value={s.amount}
                               onChange={e => updateCompoundStandard(calibCompound.id, s.id, "amount", parseFloat(e.target.value) || 0)}
                               className="h-5 text-xs font-mono px-1" placeholder="Amount (ug/ml)" />
-                            <Input type="number" step="0.00001" value={s.area}
-                              onChange={e => updateCompoundStandard(calibCompound.id, s.id, "area", parseFloat(e.target.value) || 0)}
-                              className="h-5 text-xs font-mono px-1" placeholder="Area (mAU*s)" />
+                            <div className="flex gap-0.5">
+                              <Input type="number" step="0.00001" value={s.area}
+                                onChange={e => updateCompoundStandard(calibCompound.id, s.id, "area", parseFloat(e.target.value) || 0)}
+                                className="h-5 text-xs font-mono px-1 flex-1" placeholder="Area (mAU*s)" />
+                              <button
+                                type="button"
+                                title="Capturar área do pico atual do cromatograma para este nível"
+                                onClick={() => captureCalibArea(calibCompound.id, s.id)}
+                                style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "1px 5px", border: "1px solid #93c5fd", borderRadius: 3, background: "#eff6ff", cursor: "pointer", color: "#1d4ed8", flexShrink: 0, whiteSpace: "nowrap" }}
+                              >
+                                📥
+                              </button>
+                            </div>
                           </div>
                           <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 hover:text-red-500"
                             onClick={() => removeCompoundStandard(calibCompound.id, s.id)}>
@@ -3772,8 +3850,84 @@ export default function HplcSimulator() {
                           </Button>
                         </div>
                       ))}
+                      {/* Concentração nominal declarada para cálculo de pureza */}
+                      <div className="mt-2 pt-2 border-t border-gray-100">
+                        <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 3 }}>
+                          Conc. Nominal (ug/ml) — para pureza %:
+                        </div>
+                        <Input type="number" step="any"
+                          value={cc.calib.nominalConc ?? ""}
+                          onChange={e => updateCompoundCalibField(calibCompound.id, "nominalConc", parseFloat(e.target.value) || 0)}
+                          className="h-5 text-xs font-mono px-1 w-full" placeholder="Ex: 50 ug/ml" />
+                      </div>
                     </ControlBox>
                   )}
+
+                  {/* Teor de Pureza via Curva de Calibração */}
+                  {activeCompounds.some(c => {
+                    const ccc = getCC(c.id);
+                    return ccc.standards.length >= 2;
+                  }) && (() => {
+                    const purityRows = activeCompounds.map(compound => {
+                      const ccc = getCC(compound.id);
+                      if (ccc.standards.length < 2) return null;
+                      const compReg = linearRegression(ccc.standards.map(s => ({ x: s.amount, y: s.area })));
+                      if (compReg.slope <= 0) return null;
+                      const expRT = ccc.calib.expRT > 0 ? ccc.calib.expRT : compound.expectedRT;
+                      const matchPeak = peaks.find(p => {
+                        const nameMatch = !!(p.name && (
+                          p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
+                          compound.name.toLowerCase().includes(p.name.toLowerCase())
+                        ));
+                        const rtMatch = Math.abs(p.retentionTime - expRT) <= compound.rtTol;
+                        return nameMatch || rtMatch;
+                      });
+                      if (!matchPeak) return null;
+                      const area = matchPeak.manualArea > 0 ? matchPeak.manualArea : computeArea(matchPeak);
+                      const calcConc = Math.max(0, (area - compReg.intercept) / compReg.slope);
+                      const nominalConc = ccc.calib.nominalConc ?? 0;
+                      const purityPct = nominalConc > 0 ? (calcConc / nominalConc) * 100 : null;
+                      return { compound, area, calcConc, nominalConc, purityPct, r: compReg.r };
+                    }).filter(Boolean) as { compound: ActiveCompound; area: number; calcConc: number; nominalConc: number; purityPct: number | null; r: number }[];
+
+                    if (purityRows.length === 0) return null;
+                    return (
+                      <ControlBox title="Teor de Pureza (Curva de Calibração)">
+                        <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6, lineHeight: 1.6 }}>
+                          Concentração calculada pela curva de calibração e teor de pureza vs. nominal.
+                        </div>
+                        {purityRows.map(row => {
+                          const pct = row.purityPct;
+                          const pctColor = pct === null ? "#888" : pct >= 98 ? "#16a34a" : pct >= 80 ? "#d97706" : "#dc2626";
+                          return (
+                            <div key={row.compound.id} style={{ marginBottom: 8, padding: "5px 7px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 4 }}>
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 9.5, fontWeight: "bold", color: "#1e293b", marginBottom: 3 }}>
+                                {row.compound.name}
+                              </div>
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", lineHeight: 1.8 }}>
+                                <div>Área detectada: <b>{row.area.toFixed(2)} mAU·s</b></div>
+                                <div>Conc. calculada: <b>{row.calcConc.toFixed(4)} {row.compound.units}</b></div>
+                                {row.nominalConc > 0 && (
+                                  <div>Nominal: <b>{row.nominalConc.toFixed(4)} {row.compound.units}</b></div>
+                                )}
+                                <div>R² curva: <b>{(row.r * row.r).toFixed(5)}</b></div>
+                              </div>
+                              {pct !== null ? (
+                                <div style={{ marginTop: 5, padding: "4px 6px", background: pct >= 98 ? "#f0fdf4" : pct >= 80 ? "#fffbeb" : "#fef2f2", borderRadius: 3, textAlign: "center" }}>
+                                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 14, fontWeight: "bold", color: pctColor }}>{pct.toFixed(2)}%</div>
+                                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: pctColor }}>Teor de pureza</div>
+                                </div>
+                              ) : (
+                                <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#888", marginTop: 4, textAlign: "center" }}>
+                                  Defina a Conc. Nominal acima para calcular pureza %
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </ControlBox>
+                    );
+                  })()}
 
                   {/* Ext. Std. Report meta (shared) */}
                   <ControlBox title="Ext. Std. Report — Meta">
