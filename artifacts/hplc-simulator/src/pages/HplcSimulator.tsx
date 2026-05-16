@@ -425,6 +425,13 @@ function computeArea(p: Peak): number {
   return area * 60; // convert mAU·min → mAU·s
 }
 
+/** Peak width at base (Wb) in minutes.
+ *  For our asymmetric Gaussian: Wb = 2σ_left + 2σ_right = 2·σ·(1 + asymmetry)
+ *  For a symmetric peak (asymmetry = 1): Wb = 4σ  (matches ChemStation convention) */
+function computeWb(p: Peak): number {
+  return 2 * p.width * (1 + p.asymmetry);
+}
+
 function linearRegression(pts: { x: number; y: number }[]) {
   const n = pts.length;
   if (n < 2) return { slope: 0, intercept: 0, r: 0, residStdDev: 0 };
@@ -1514,15 +1521,16 @@ function buildChromatogramPng(
     const totalArea = peakRows.reduce((s, r) => s + r.area, 0);
     const totalCalcAmount = peakRows.reduce((s, r) => s + r.calcAmount, 0);
 
-    txt(` ${"#".padEnd(3)} ${"RetTime".padEnd(8)} ${"Type".padEnd(5)} ${"Width".padEnd(8)} ${"Area".padEnd(13)} ${"Height".padEnd(11)} ${"Area%".padEnd(8)} Amount[ug/ml]`); nl();
+    txt(` ${"#".padEnd(3)} ${"RetTime".padEnd(8)} ${"Type".padEnd(5)} ${"Width(b)".padEnd(9)} ${"Area".padEnd(13)} ${"Height".padEnd(11)} ${"Area%".padEnd(8)} Amount[ug/ml]`); nl();
     txt(`     [min]     |      [min]  |  [mAU*s]      [mAU]`); nl();
-    ctx.fillStyle = "#888"; txt("-".repeat(96)); ctx.fillStyle = "#000"; nl();
+    ctx.fillStyle = "#888"; txt("-".repeat(97)); ctx.fillStyle = "#000"; nl();
 
     peakRows.forEach(({ p, area, calcAmount }, i) => {
       const areaPct = totalArea > 0 ? (area / totalArea) * 100 : 0;
       const amtStr = calcAmount > 0 ? calcAmount.toFixed(5) : "";
+      const wb = computeWb(p);
       txt(
-        ` ${String(i + 1).padStart(2)}  ${p.retentionTime.toFixed(3).padEnd(8)} ${p.peakType.padEnd(5)} ${p.width.toFixed(4).padEnd(8)} ${area.toFixed(5).padEnd(13)} ${p.height.toFixed(5).padEnd(11)} ${areaPct.toFixed(3).padEnd(8)} ${amtStr}`
+        ` ${String(i + 1).padStart(2)}  ${p.retentionTime.toFixed(3).padEnd(8)} ${p.peakType.padEnd(5)} ${wb.toFixed(4).padEnd(9)} ${area.toFixed(5).padEnd(13)} ${p.height.toFixed(5).padEnd(11)} ${areaPct.toFixed(3).padEnd(8)} ${amtStr}`
       ); nl();
     });
 
@@ -4868,14 +4876,15 @@ export default function HplcSimulator() {
 
                 {/* Peak table */}
                 <div style={{ marginTop: 10, overflowX: "auto" }}>
-                  <div style={{ whiteSpace: "pre" }}>{"    RetTime Type      Area     Amt/Area    Amount   Grp    Name"}</div>
-                  <div style={{ whiteSpace: "pre" }}>{"     [min]          [mAU*s]               [ug/ml]"}</div>
-                  <div style={{ whiteSpace: "pre" }}>{"    -------|------|----------|----------|----------|--|------------------"}</div>
+                  <div style={{ whiteSpace: "pre" }}>{"    RetTime Type  Width(b)    Area     Amt/Area    Amount   Grp    Name"}</div>
+                  <div style={{ whiteSpace: "pre" }}>{"     [min]        [min]    [mAU*s]               [ug/ml]"}</div>
+                  <div style={{ whiteSpace: "pre" }}>{"    -------|------|--------|----------|----------|----------|--|------------------"}</div>
                   {peakStats.map(p => {
                     const area = p.displayArea;
                     const amtPerArea = p.amtPerArea > 0 ? p.amtPerArea : (area > 0 && p.calcAmount > 0 ? p.calcAmount / area : 0);
                     const rt = p.retentionTime.toFixed(3).padStart(7);
                     const type = p.peakType.padEnd(6);
+                    const wbStr = computeWb(p).toFixed(4).padStart(8);
                     const areaStr = fmtArea(area).padStart(10);
                     const aptStr = amtPerArea > 0 ? fmtSci2(amtPerArea, -2).padStart(10) : "".padStart(10);
                     const amtStr = p.calcAmount > 0 ? p.calcAmount.toFixed(5).padStart(10) : "".padStart(10);
@@ -4883,7 +4892,7 @@ export default function HplcSimulator() {
                     const nameStr = p.name;
                     return (
                       <div key={p.id} style={{ whiteSpace: "pre" }}>
-                        {"    " + rt + " " + type + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + nameStr}
+                        {"    " + rt + " " + type + " " + wbStr + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + nameStr}
                       </div>
                     );
                   })}
@@ -4932,21 +4941,22 @@ export default function HplcSimulator() {
                   <div>{"    Signal 1: " + signalLabel}</div>
                 </div>
                 <div style={{ marginTop: 10, overflowX: "auto" }}>
-                  <div style={{ whiteSpace: "pre" }}>{"    RetTime Type      Area     Amt/Area    Amount   Grp    Name"}</div>
-                  <div style={{ whiteSpace: "pre" }}>{"     [min]          [mAU*s]               [ug/ml]"}</div>
-                  <div style={{ whiteSpace: "pre" }}>{"    -------|------|----------|----------|----------|--|------------------"}</div>
+                  <div style={{ whiteSpace: "pre" }}>{"    RetTime Type  Width(b)    Area     Amt/Area    Amount   Grp    Name"}</div>
+                  <div style={{ whiteSpace: "pre" }}>{"     [min]        [min]    [mAU*s]               [ug/ml]"}</div>
+                  <div style={{ whiteSpace: "pre" }}>{"    -------|------|--------|----------|----------|----------|--|------------------"}</div>
                   {peakStats.filter(p => p.printSelected !== false).map(p => {
                     const area = p.displayArea;
                     const amtPerArea = p.amtPerArea > 0 ? p.amtPerArea : (area > 0 && p.calcAmount > 0 ? p.calcAmount / area : 0);
                     const rt = p.retentionTime.toFixed(3).padStart(7);
                     const type = p.peakType.padEnd(6);
+                    const wbStr = computeWb(p).toFixed(4).padStart(8);
                     const areaStr = fmtArea(area).padStart(10);
                     const aptStr = amtPerArea > 0 ? fmtSci2(amtPerArea, -2).padStart(10) : "".padStart(10);
                     const amtStr = p.calcAmount > 0 ? p.calcAmount.toFixed(5).padStart(10) : "".padStart(10);
                     const grpStr = (p.grp || "").padEnd(2);
                     return (
                       <div key={p.id} style={{ whiteSpace: "pre" }}>
-                        {"    " + rt + " " + type + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + p.name}
+                        {"    " + rt + " " + type + " " + wbStr + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + p.name}
                       </div>
                     );
                   })}
