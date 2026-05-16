@@ -4992,7 +4992,7 @@ export default function HplcSimulator() {
                         return (
                           <div key={s.id} style={{ whiteSpace: "pre" }}>
                             {"    " + expRT.toFixed(3).padStart(7) + " 1 " + (i + 1).toString() +
-                              s.amount.toFixed(5).padStart(13) + " " + s.area.toFixed(5).padStart(9) + " " +
+                              s.amount.toFixed(5).padStart(13) + " " + s.area.toFixed(5).padStart(10) + " " +
                               fmtSci2(amtPerArea, -2).padStart(10) + "         " + compound.name}
                           </div>
                         );
@@ -5000,7 +5000,7 @@ export default function HplcSimulator() {
                       return (
                         <div key={s.id} style={{ whiteSpace: "pre" }}>
                           {"                 " + (i + 1).toString() +
-                            s.amount.toFixed(5).padStart(10) + " " + s.area.toFixed(5) + " " + fmtSci2(amtPerArea, -2)}
+                            s.amount.toFixed(5).padStart(10) + " " + s.area.toFixed(5).padStart(10) + " " + fmtSci2(amtPerArea, -2)}
                         </div>
                       );
                     })}
@@ -5012,91 +5012,119 @@ export default function HplcSimulator() {
                     <div style={{ whiteSpace: "pre" }}>{""}</div>
                     <div style={{ whiteSpace: "pre" }}>{"    ***No Entries in table***"}</div>
                     <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
+                    <div style={{ whiteSpace: "pre" }}>{""}</div>
 
-                    {/* ── Calibration Curves chart — pure SVG (print-safe) ── */}
-                    <div style={{ marginTop: 20 }}>
-                      <SectionTitle title={`Calibration Curves — ${compound.name}`} />
+                    {/* Footer — matches ChemStation page footer, per compound calibration table page */}
+                    <div style={{ whiteSpace: "pre", fontSize: 9 }}>
+                      {[
+                        sample.acqInstrument,
+                        new Date().toLocaleString("en-US", { month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true }),
+                        sample.acqOperator,
+                      ].join(" ").padEnd(88) + "Page   1 of 1"}
                     </div>
 
-                    <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginTop: 8 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 11, marginBottom: 2, fontFamily: "Courier New, monospace" }}>Area</div>
-                        {(() => {
-                          const svgW = 360, svgH = 210;
-                          const mL = 52, mR = 12, mT = 8, mB = 36;
-                          const iW = svgW - mL - mR;
-                          const iH = svgH - mT - mB;
-                          const xs = (v: number) => mL + (v / compCalibXMax) * iW;
-                          const ys = (v: number) => mT + iH - (Math.min(Math.max(v, 0), compCalibYMax) / compCalibYMax) * iH;
-                          const sorted = [...cc.standards].sort((a, b) => a.amount - b.amount);
-                          const yTicks = Array.from({ length: 5 }, (_, i) => Math.round(compCalibYMax * i / 4));
-                          const rawStep = compCalibXMax / 4;
-                          const xStep = rawStep >= 20 ? Math.round(rawStep / 10) * 10 : rawStep >= 10 ? Math.round(rawStep / 5) * 5 : Math.max(1, Math.round(rawStep));
-                          const xTicks: number[] = [];
-                          for (let x = 0; x <= compCalibXMax + 0.01; x += xStep) xTicks.push(Math.round(x));
-                          if (xTicks[xTicks.length - 1] !== Math.round(compCalibXMax)) xTicks.push(Math.round(compCalibXMax));
-                          const ry0 = Math.max(0, compReg.intercept);
-                          const ry1 = compReg.slope * compCalibXMax + compReg.intercept;
-                          return (
+                    {/* ══════════════════════════════════════════════════════════════ */}
+                    {/* Calibration Curves — full-width SVG chart matching original   */}
+                    {/* ══════════════════════════════════════════════════════════════ */}
+                    <div style={{ marginTop: 28 }}>
+                      <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
+                      <div style={{ whiteSpace: "pre" }}>{"    " + " ".repeat(26) + "Calibration Curves"}</div>
+                      <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
+                    </div>
+
+                    {(() => {
+                      const svgW = 540, svgH = 300;
+                      const mL = 62, mR = 20, mT = 14, mB = 46;
+                      const iW = svgW - mL - mR;
+                      const iH = svgH - mT - mB;
+                      const xs = (v: number) => mL + (v / compCalibXMax) * iW;
+                      const ys = (v: number) => mT + iH - (Math.min(Math.max(v, 0), compCalibYMax) / compCalibYMax) * iH;
+                      const sorted = [...cc.standards].sort((a, b) => a.amount - b.amount);
+                      const yTicks = Array.from({ length: 6 }, (_, i) => Math.round(compCalibYMax * i / 5));
+                      const rawStep = compCalibXMax / 5;
+                      const xStep = rawStep >= 20 ? Math.round(rawStep / 10) * 10 : rawStep >= 10 ? Math.round(rawStep / 5) * 5 : Math.max(1, Math.round(rawStep));
+                      const xTicks: number[] = [];
+                      for (let x = 0; x <= compCalibXMax + 0.01; x += xStep) xTicks.push(Math.round(x));
+                      if (xTicks[xTicks.length - 1] !== Math.round(compCalibXMax)) xTicks.push(Math.round(compCalibXMax));
+                      const ry0 = Math.max(0, compReg.intercept);
+                      const ry1 = compReg.slope * compCalibXMax + compReg.intercept;
+
+                      // Format y-axis labels compactly (use scientific notation for large values)
+                      const fmtY = (v: number) => {
+                        if (v === 0) return "0";
+                        if (v >= 10000) return (v / 1000).toFixed(0) + "k";
+                        return v.toFixed(0);
+                      };
+
+                      return (
+                        <div style={{ display: "flex", gap: 20, alignItems: "flex-start", marginTop: 12 }}>
+                          {/* Chart */}
+                          <div style={{ flex: "none" }}>
+                            <div style={{ fontSize: 10, marginBottom: 3, fontFamily: "Courier New, monospace", color: "#333" }}>Area</div>
                             <svg width={svgW} height={svgH} style={{ fontFamily: "Courier New, monospace", overflow: "visible", display: "block" }}>
                               {/* Y grid lines */}
                               {yTicks.map(t => (
-                                <line key={`yg-${t}`} x1={mL} y1={ys(t)} x2={mL + iW} y2={ys(t)} stroke="#ddd" strokeWidth={0.5} />
+                                <line key={`yg-${t}`} x1={mL} y1={ys(t)} x2={mL + iW} y2={ys(t)} stroke="#e0e0e0" strokeWidth={0.6} />
                               ))}
                               {/* Dashed guide lines from each data point to axes */}
                               {sorted.map(s => (
                                 <g key={`gl-${s.id}`}>
-                                  <line x1={xs(s.amount)} y1={mT} x2={xs(s.amount)} y2={ys(s.area)} stroke="#bbb" strokeDasharray="3 2" strokeWidth={0.7} />
-                                  <line x1={mL} y1={ys(s.area)} x2={xs(s.amount)} y2={ys(s.area)} stroke="#bbb" strokeDasharray="3 2" strokeWidth={0.7} />
+                                  <line x1={xs(s.amount)} y1={mT} x2={xs(s.amount)} y2={ys(s.area)} stroke="#ccc" strokeDasharray="3 2" strokeWidth={0.8} />
+                                  <line x1={mL} y1={ys(s.area)} x2={xs(s.amount)} y2={ys(s.area)} stroke="#ccc" strokeDasharray="3 2" strokeWidth={0.8} />
                                 </g>
                               ))}
                               {/* Axis lines */}
-                              <line x1={mL} y1={mT} x2={mL} y2={mT + iH} stroke="#444" strokeWidth={1} />
-                              <line x1={mL} y1={mT + iH} x2={mL + iW} y2={mT + iH} stroke="#444" strokeWidth={1} />
+                              <line x1={mL} y1={mT} x2={mL} y2={mT + iH} stroke="#222" strokeWidth={1.2} />
+                              <line x1={mL} y1={mT + iH} x2={mL + iW} y2={mT + iH} stroke="#222" strokeWidth={1.2} />
                               {/* Y ticks + labels */}
                               {yTicks.map(t => (
                                 <g key={`yt-${t}`}>
-                                  <line x1={mL - 3} y1={ys(t)} x2={mL} y2={ys(t)} stroke="#444" strokeWidth={0.8} />
-                                  <text x={mL - 5} y={ys(t) + 3} textAnchor="end" fontSize={9} fill="#333">{t.toFixed(0)}</text>
+                                  <line x1={mL - 4} y1={ys(t)} x2={mL} y2={ys(t)} stroke="#222" strokeWidth={1} />
+                                  <text x={mL - 6} y={ys(t) + 3.5} textAnchor="end" fontSize={9.5} fill="#222">{fmtY(t)}</text>
                                 </g>
                               ))}
                               {/* X ticks + labels */}
                               {xTicks.map(t => (
                                 <g key={`xt-${t}`}>
-                                  <line x1={xs(t)} y1={mT + iH} x2={xs(t)} y2={mT + iH + 3} stroke="#444" strokeWidth={0.8} />
-                                  <text x={xs(t)} y={mT + iH + 13} textAnchor="middle" fontSize={9} fill="#333">{t.toFixed(0)}</text>
+                                  <line x1={xs(t)} y1={mT + iH} x2={xs(t)} y2={mT + iH + 4} stroke="#222" strokeWidth={1} />
+                                  <text x={xs(t)} y={mT + iH + 15} textAnchor="middle" fontSize={9.5} fill="#222">{t.toFixed(0)}</text>
                                 </g>
                               ))}
                               {/* X axis label */}
-                              <text x={mL + iW / 2} y={svgH - 3} textAnchor="middle" fontSize={10} fill="#333">Amount[ug/ml]</text>
+                              <text x={mL + iW / 2} y={svgH - 4} textAnchor="middle" fontSize={10} fill="#222">Amount[ug/ml]</text>
                               {/* Regression line */}
-                              <line x1={xs(0)} y1={ys(ry0)} x2={xs(compCalibXMax)} y2={ys(ry1)} stroke="#333" strokeWidth={1.2} />
-                              {/* Data point circles */}
-                              {sorted.map(s => (
-                                <circle key={`pt-${s.id}`} cx={xs(s.amount)} cy={ys(s.area)} r={4} fill="white" stroke="#333" strokeWidth={1.5} />
+                              <line x1={xs(0)} y1={ys(ry0)} x2={xs(compCalibXMax)} y2={ys(ry1)} stroke="#111" strokeWidth={1.4} />
+                              {/* Data point circles — numbered */}
+                              {sorted.map((s, idx) => (
+                                <g key={`pt-${s.id}`}>
+                                  <circle cx={xs(s.amount)} cy={ys(s.area)} r={5} fill="white" stroke="#222" strokeWidth={1.6} />
+                                  <text x={xs(s.amount)} y={ys(s.area) + 3.5} textAnchor="middle" fontSize={7.5} fill="#222">{idx + 1}</text>
+                                </g>
                               ))}
                             </svg>
-                          );
-                        })()}
-                      </div>
-                      <div style={{ minWidth: 190, paddingTop: 20, fontSize: 11, fontFamily: "Courier New, monospace" }}>
-                        <div>{compound.name} at exp. RT: {expRT.toFixed(3)}</div>
-                        <div style={{ marginTop: 4 }}>{signalLabel}</div>
-                        <div style={{ marginTop: 8 }}>{"Correlation:            " + compReg.r.toFixed(5)}</div>
-                        <div>{"Residual Std. Dev.:  " + compReg.residStdDev.toFixed(5)}</div>
-                        <div style={{ marginTop: 8 }}>{"Formula: y = mx + b"}</div>
-                        <div style={{ paddingLeft: 16 }}>{"     m: " + compReg.slope.toFixed(5)}</div>
-                        <div style={{ paddingLeft: 16 }}>{"     b: " + compReg.intercept.toFixed(5)}</div>
-                        <div style={{ paddingLeft: 16 }}>{"     x: Amount"}</div>
-                        <div style={{ paddingLeft: 16 }}>{"     y: Area"}</div>
-                      </div>
-                    </div>
-
-                    <div style={{ marginTop: 4, fontSize: 10, color: "#555", paddingLeft: 8, fontFamily: "Courier New, monospace" }}>
-                      {[...cc.standards].sort((a, b) => a.amount - b.amount).map((s, i) => (
-                        <span key={s.id} style={{ marginRight: 12 }}>{i + 1} = {s.amount.toFixed(0)} ug/ml</span>
-                      ))}
-                    </div>
+                          </div>
+                          {/* Stats panel */}
+                          <div style={{ paddingTop: 18, fontSize: 10.5, fontFamily: "Courier New, monospace", lineHeight: 1.9, color: "#111" }}>
+                            <div style={{ fontWeight: "bold", marginBottom: 4 }}>{compound.name} at exp. RT: {expRT.toFixed(3)}</div>
+                            <div>{signalLabel}</div>
+                            <div style={{ marginTop: 8 }}>{"Correlation:         " + compReg.r.toFixed(5)}</div>
+                            <div>{"Residual Std. Dev.: " + compReg.residStdDev.toFixed(5)}</div>
+                            <div style={{ marginTop: 8 }}>{"Formula: y = mx + b"}</div>
+                            <div style={{ paddingLeft: 8 }}>{"m: " + compReg.slope.toFixed(5)}</div>
+                            <div style={{ paddingLeft: 8 }}>{"b: " + compReg.intercept.toFixed(5)}</div>
+                            <div style={{ paddingLeft: 8 }}>{"x: Amount"}</div>
+                            <div style={{ paddingLeft: 8 }}>{"y: Area"}</div>
+                            <div style={{ marginTop: 10, borderTop: "1px solid #ccc", paddingTop: 6 }}>
+                              {sorted.map((s, idx) => (
+                                <div key={s.id}>{idx + 1} = {s.amount.toFixed(1)} ug/ml  →  {s.area.toFixed(2)} mAU·s</div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
