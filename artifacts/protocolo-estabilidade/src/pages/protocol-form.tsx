@@ -1,4 +1,5 @@
 import { useParams, useLocation } from "wouter";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -16,10 +17,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Pencil, X, Check } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { useUnlock } from "@/hooks/use-unlock";
+import { UnlockDialog } from "@/components/unlock-dialog";
+import { useLabelOverrides } from "@/hooks/use-label-overrides";
 
 const formSchema = z.object({
   certNumber: z.string().optional(),
@@ -51,12 +54,41 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+function EL({
+  labelKey, def, editingLabels, lbl, setLabel,
+}: {
+  labelKey: string;
+  def: string;
+  editingLabels: boolean;
+  lbl: (key: string, def: string) => string;
+  setLabel: (key: string, value: string) => void;
+}) {
+  const current = lbl(labelKey, def);
+  if (!editingLabels) return <FormLabel>{current}</FormLabel>;
+  return (
+    <FormLabel>
+      <input
+        value={current}
+        onChange={e => setLabel(labelKey, e.target.value)}
+        onClick={e => e.stopPropagation()}
+        className="font-medium text-sm border border-amber-400 rounded px-1.5 py-0.5 bg-amber-50 focus:outline-none focus:ring-1 focus:ring-amber-500 w-full"
+        title="Editar nome do campo"
+      />
+    </FormLabel>
+  );
+}
+
 export default function ProtocolForm() {
   const { id } = useParams<{ id?: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEdit = !!id;
+
+  const { unlocked, unlock, lock } = useUnlock();
+  const { lbl, setLabel } = useLabelOverrides();
+  const [editingLabels, setEditingLabels] = useState(false);
+  const [showUnlock, setShowUnlock] = useState(false);
 
   const { data: existing } = useGetProtocol(Number(id), {
     query: { enabled: isEdit, queryKey: getGetProtocolQueryKey(Number(id)) },
@@ -155,21 +187,67 @@ export default function ProtocolForm() {
 
   const isPending = createProtocol.isPending || updateProtocol.isPending;
 
+  const elProps = { editingLabels, lbl, setLabel };
+
+  const handleEditLabels = () => {
+    if (unlocked) {
+      setEditingLabels(v => !v);
+    } else {
+      setShowUnlock(true);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      <UnlockDialog
+        open={showUnlock}
+        onOpenChange={setShowUnlock}
+        onUnlock={unlock}
+        onSuccess={() => { setEditingLabels(true); }}
+        title="Editar rótulos dos campos"
+        description="Digite a senha mestra para entrar no modo de edição de rótulos. As alterações ficam salvas para todos os próximos protocolos."
+        submitLabel="Entrar no modo de edição"
+      />
+
       <div className="flex items-center gap-4">
         <Link href={isEdit ? `/protocols/${id}` : "/"}>
           <Button variant="ghost" size="sm" data-testid="button-back">
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
           </Button>
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">
             {isEdit ? "Editar Protocolo" : "Novo Protocolo"}
           </h1>
           <p className="text-sm text-muted-foreground">
             {isEdit ? "Atualize as informações do protocolo de estabilidade" : "Preencha os dados do novo protocolo de estabilidade"}
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {editingLabels && (
+            <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 font-medium">
+              ✎ Modo edição de rótulos
+            </span>
+          )}
+          <Button
+            type="button"
+            variant={editingLabels ? "default" : "outline"}
+            size="sm"
+            onClick={handleEditLabels}
+            className={editingLabels ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}
+            title={editingLabels ? "Sair do modo de edição de rótulos" : "Editar nomes dos campos (requer senha)"}
+          >
+            {editingLabels ? (
+              <><Check className="h-4 w-4 mr-1" /> Concluir</>
+            ) : (
+              <><Pencil className="h-4 w-4 mr-1" /> Editar Rótulos</>
+            )}
+          </Button>
+          {unlocked && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => { lock(); setEditingLabels(false); }} title="Bloquear sessão">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -182,35 +260,35 @@ export default function ProtocolForm() {
             <CardContent className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="companyName" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>Nome da Empresa</FormLabel>
+                  <EL labelKey="companyName" def="Nome da Empresa" {...elProps} />
                   <FormControl><Input data-testid="input-companyName" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="cnpj" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>CNPJ</FormLabel>
+                  <EL labelKey="cnpj" def="CNPJ" {...elProps} />
                   <FormControl><Input data-testid="input-cnpj" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="ie" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>IE</FormLabel>
+                  <EL labelKey="ie" def="IE" {...elProps} />
                   <FormControl><Input data-testid="input-ie" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="address" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>Endereço</FormLabel>
+                  <EL labelKey="address" def="Endereço" {...elProps} />
                   <FormControl><Input data-testid="input-address" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="cep" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>CEP</FormLabel>
+                  <EL labelKey="cep" def="CEP" {...elProps} />
                   <FormControl><Input data-testid="input-cep" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -225,49 +303,49 @@ export default function ProtocolForm() {
             <CardContent className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="certNumber" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Número do Certificado de Análise</FormLabel>
+                  <EL labelKey="certNumber" def="Número do Certificado de Análise" {...elProps} />
                   <FormControl><Input data-testid="input-certNumber" placeholder="ex: CERT-AF-20241210/035" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="productName" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome do Produto</FormLabel>
+                  <EL labelKey="productName" def="Nome do Produto" {...elProps} />
                   <FormControl><Input data-testid="input-productName" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="productType" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tipo de Produto</FormLabel>
+                  <EL labelKey="productType" def="Tipo de Produto" {...elProps} />
                   <FormControl><Input data-testid="input-productType" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="packagingType" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tipo de Pote</FormLabel>
+                  <EL labelKey="packagingType" def="Tipo de Pote" {...elProps} />
                   <FormControl><Input data-testid="input-packagingType" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="activeIngredients" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>Ingredientes Ativos</FormLabel>
+                  <EL labelKey="activeIngredients" def="Ingredientes Ativos" {...elProps} />
                   <FormControl><Input data-testid="input-activeIngredients" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="excipients" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>Excipientes</FormLabel>
+                  <EL labelKey="excipients" def="Excipientes" {...elProps} />
                   <FormControl><Input data-testid="input-excipients" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="capsuleComposition" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel data-field="capsule-composition">Composição da Cápsula</FormLabel>
+                  <EL labelKey="capsuleComposition" def="Composição da Cápsula" {...elProps} />
                   <FormControl><Input data-testid="input-capsuleComposition" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -282,49 +360,49 @@ export default function ProtocolForm() {
             <CardContent className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="studyStartDate" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Data de Início</FormLabel>
+                  <EL labelKey="studyStartDate" def="Data de Início" {...elProps} />
                   <FormControl><Input type="date" data-testid="input-studyStartDate" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="studyEndDate" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Data Final</FormLabel>
+                  <EL labelKey="studyEndDate" def="Data Final" {...elProps} />
                   <FormControl><Input type="date" data-testid="input-studyEndDate" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="storageTemp" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Temperatura de Armazenamento</FormLabel>
+                  <EL labelKey="storageTemp" def="Temperatura de Armazenamento" {...elProps} />
                   <FormControl><Input data-testid="input-storageTemp" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="storageHumidity" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Umidade Relativa</FormLabel>
+                  <EL labelKey="storageHumidity" def="Umidade Relativa" {...elProps} />
                   <FormControl><Input data-testid="input-storageHumidity" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="studyPeriodMonths" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Período do Estudo (meses)</FormLabel>
+                  <EL labelKey="studyPeriodMonths" def="Período do Estudo (meses)" {...elProps} />
                   <FormControl><Input type="number" data-testid="input-studyPeriodMonths" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="testIntervals" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Intervalos de Teste</FormLabel>
+                  <EL labelKey="testIntervals" def="Intervalos de Teste" {...elProps} />
                   <FormControl><Input data-testid="input-testIntervals" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="studyObjective" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>OBJETIVO DO ESTUDO</FormLabel>
+                  <EL labelKey="studyObjective" def="OBJETIVO DO ESTUDO" {...elProps} />
                   <FormControl>
                     <Textarea data-testid="input-studyObjective" rows={3} {...field} />
                   </FormControl>
@@ -341,42 +419,42 @@ export default function ProtocolForm() {
             <CardContent className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="elaboratedBy" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Elaboração</FormLabel>
+                  <EL labelKey="elaboratedBy" def="Elaboração" {...elProps} />
                   <FormControl><Input data-testid="input-elaboratedBy" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="approvedBy" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Aprovação</FormLabel>
+                  <EL labelKey="approvedBy" def="Aprovação" {...elProps} />
                   <FormControl><Input data-testid="input-approvedBy" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="issuedBy" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Laudo emitido por</FormLabel>
+                  <EL labelKey="issuedBy" def="Laudo emitido por" {...elProps} />
                   <FormControl><Input data-testid="input-issuedBy" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="seniorAnalyst" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Analista Sênior</FormLabel>
+                  <EL labelKey="seniorAnalyst" def="Analista Sênior" {...elProps} />
                   <FormControl><Input data-testid="input-seniorAnalyst" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="issuedByEmail" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email — Responsável Técnico</FormLabel>
+                  <EL labelKey="issuedByEmail" def="Email — Responsável Técnico" {...elProps} />
                   <FormControl><Input type="email" data-testid="input-issuedByEmail" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="seniorAnalystEmail" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email — Analista Sênior</FormLabel>
+                  <EL labelKey="seniorAnalystEmail" def="Email — Analista Sênior" {...elProps} />
                   <FormControl><Input type="email" data-testid="input-seniorAnalystEmail" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
