@@ -3247,7 +3247,7 @@ export default function HplcSimulator() {
 
         {/* ── LEFT: controls ───────────────────────────────────────────────── */}
         {showControls && (
-          <div className="no-print w-60 flex-shrink-0 space-y-3" style={{ maxHeight: "calc(100vh - 80px)", overflowY: "auto", paddingRight: 2 }}>
+          <div className="no-print w-60 flex-shrink-0 space-y-3" style={{ maxHeight: "calc(100vh - 80px)", overflowY: "auto", paddingRight: 2, position: "sticky", top: 8, alignSelf: "flex-start" }}>
             {page === "chromatogram" && (
               <>
                 {/* Sample Info — all fields including dataFile */}
