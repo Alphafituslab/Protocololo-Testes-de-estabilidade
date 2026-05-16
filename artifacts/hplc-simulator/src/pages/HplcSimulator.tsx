@@ -5215,21 +5215,25 @@ export default function HplcSimulator() {
                     {/* ══ Calibration Injection Chromatograms ══ */}
                     {cc.standards.length > 0 && (() => {
                       const injSorted = [...cc.standards].sort((a, b) => a.amount - b.amount);
-                      const maxArea = Math.max(...injSorted.map(s => s.area), 1);
                       const matchingPeak = peakStats.find(p =>
                         (p.name && (
                           p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
                           compound.name.toLowerCase().includes(p.name.toLowerCase())
                         )) || Math.abs(p.retentionTime - compound.expectedRT) < compound.rtTol * 2
                       );
-                      const sigma = matchingPeak ? Math.max((matchingPeak.width || 0.2) / 2.355, 0.04) : 0.08;
-                      const halfWin = Math.max(sigma * 8, 0.4);
+                      const peakWidth = matchingPeak ? Math.max(matchingPeak.width || 0.08, 0.04) : 0.08;
+                      const sigma = peakWidth / 2.355;
+                      const asymmetry = matchingPeak?.asymmetry ?? 1;
+                      const peakNoise = matchingPeak?.peakNoise ?? 0;
+                      const halfWin = Math.max(sigma * 9, 0.5);
                       const xMin = Math.max(0, expRT - halfWin);
-                      const xMax = expRT + halfWin;
+                      const xMax = Math.min(detector.runTime, expRT + halfWin);
                       const xRange = xMax - xMin;
-                      const W = 154, H = 94, mL = 32, mR = 4, mT = 10, mB = 20;
-                      const iW = W - mL - mR, iH = H - mT - mB;
-                      const NUM_PTS = 80;
+                      const SVG_W = 160, SVG_H = 100, mL = 34, mR = 6, mT = 12, mB = 22;
+                      const iW = SVG_W - mL - mR, iH = SVG_H - mT - mB;
+                      const det = detector;
+                      const runTime = det.runTime;
+                      const NUM_PTS = 320;
 
                       return (
                         <div style={{ marginTop: 28 }}>
@@ -5237,60 +5241,88 @@ export default function HplcSimulator() {
                           <div style={{ whiteSpace: "pre" }}>{"    " + " ".repeat(18) + "Calibration Injections — " + compound.name}</div>
                           <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
                           <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", margin: "6px 0 10px 0" }}>
-                            Each injection represents one calibration standard level. Height proportional to Area.
+                            Each injection represents one calibration standard level.
                           </div>
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
                             {injSorted.map((s, idx) => {
-                              const normH = (s.area / maxArea) * iH * 0.84;
-                              const pts = Array.from({ length: NUM_PTS }, (_, i) => {
-                                const t = xMin + (i / (NUM_PTS - 1)) * xRange;
-                                const g = normH * Math.exp(-0.5 * Math.pow((t - expRT) / sigma, 2));
-                                const px = mL + ((t - xMin) / xRange) * iW;
-                                const py = mT + iH - g;
-                                return `${px.toFixed(1)},${py.toFixed(1)}`;
-                              });
+                              const peakH_mau = s.area / (sigma * Math.sqrt(2 * Math.PI) * 60);
+                              const synthPeak: Peak = {
+                                id: `calib-inj-${s.id}`,
+                                name: compound.name,
+                                retentionTime: expRT,
+                                height: peakH_mau,
+                                width: peakWidth,
+                                asymmetry,
+                                peakType: matchingPeak?.peakType ?? "BB",
+                                manualArea: 0,
+                                amtPerArea: 0,
+                                amount: s.amount,
+                                grp: "",
+                                peakNoise,
+                                inclination: matchingPeak?.inclination,
+                              };
+                              const chrom = buildChromatogram(
+                                [synthPeak],
+                                runTime,
+                                NUM_PTS,
+                                det.baselineNoise ?? 1.8,
+                                det.baselineDrift ?? 1.2,
+                                det.baselinePulse ?? 0.35,
+                                det.baselineWander ?? 0,
+                                det.shotNoise ?? 0,
+                                det.baselineHump ?? 0,
+                                det.broadeningFactor ?? 0,
+                                det.baselineOffset ?? 0,
+                                det.baselinePulseFreq ?? 1.6,
+                                det.baselineStartOffset ?? 0,
+                                det.baselineStartDecay ?? 1.0,
+                              );
+                              const windowPts = chrom.filter(pt => pt.time >= xMin && pt.time <= xMax);
+                              const sigMax = Math.max(...windowPts.map(pt => pt.signal), peakH_mau * 0.05) * 1.08;
                               const baseY = mT + iH;
-                              const peakH_mau = (s.area / (sigma * Math.sqrt(2 * Math.PI) * 60));
-                              // y-axis ticks
-                              const yTickVal = Math.round(peakH_mau / 2 / 50) * 50 || Math.round(peakH_mau / 2);
-                              const yTicks2 = yTickVal > 0 ? [yTickVal, yTickVal * 2] : [];
-                              const fillPts = `${mL},${baseY} ${pts.join(" ")} ${mL + iW},${baseY}`;
+                              const px = (t: number) => mL + ((t - xMin) / xRange) * iW;
+                              const py = (sig: number) => mT + iH - (Math.min(sig, sigMax) / sigMax) * iH;
+                              const polyPts = windowPts.map(pt => `${px(pt.time).toFixed(1)},${py(pt.signal).toFixed(1)}`).join(" ");
+                              const fillPts = `${px(xMin).toFixed(1)},${baseY} ${polyPts} ${px(xMax).toFixed(1)},${baseY}`;
+                              const yTickVal = Math.round(sigMax * 0.5 / 10) * 10 || Math.round(sigMax * 0.5);
+                              const yTicks2 = yTickVal > 0 ? [yTickVal] : [];
+                              const rtLabelX = px(expRT);
 
                               return (
                                 <div key={s.id} style={{ fontFamily: "Courier New, monospace", textAlign: "center" }}>
                                   <div style={{ fontSize: 8.5, color: "#222", marginBottom: 3, fontWeight: "bold" }}>
                                     L{idx + 1} &nbsp; {s.amount.toFixed(1)} µg/mL
                                   </div>
-                                  <svg width={W} height={H} style={{ border: "1px solid #bbb", background: "#fafafa", display: "block" }}>
-                                    {/* Y grid */}
+                                  <svg width={SVG_W} height={SVG_H} style={{ border: "1px solid #bbb", background: "#fafafa", display: "block" }}>
+                                    {/* Y grid lines */}
                                     {yTicks2.map(t => {
-                                      const yp = mT + iH - (t / peakH_mau) * normH;
+                                      const yp = py(t);
                                       return yp >= mT && yp <= baseY ? (
                                         <g key={t}>
-                                          <line x1={mL} y1={yp} x2={mL + iW} y2={yp} stroke="#ddd" strokeWidth={0.6} />
-                                          <text x={mL - 2} y={yp + 3} textAnchor="end" fontSize={6} fill="#888" fontFamily="Courier New, monospace">{t}</text>
+                                          <line x1={mL} y1={yp} x2={mL + iW} y2={yp} stroke="#e0e0e0" strokeWidth={0.6} />
+                                          <text x={mL - 2} y={yp + 3} textAnchor="end" fontSize={6} fill="#888" fontFamily="Courier New, monospace">{t.toFixed(0)}</text>
                                         </g>
                                       ) : null;
                                     })}
                                     {/* Axes */}
-                                    <line x1={mL} y1={mT} x2={mL} y2={baseY} stroke="#333" strokeWidth={0.9} />
-                                    <line x1={mL} y1={baseY} x2={mL + iW} y2={baseY} stroke="#333" strokeWidth={0.9} />
+                                    <line x1={mL} y1={mT} x2={mL} y2={baseY} stroke="#222" strokeWidth={0.9} />
+                                    <line x1={mL} y1={baseY} x2={mL + iW} y2={baseY} stroke="#222" strokeWidth={0.9} />
                                     {/* Y-axis label */}
                                     <text x={8} y={mT + iH / 2} textAnchor="middle" fontSize={6.5} fill="#555"
                                       fontFamily="Courier New, monospace"
                                       transform={`rotate(-90,8,${mT + iH / 2})`}>mAU</text>
-                                    {/* Peak area fill */}
-                                    <polygon points={fillPts} fill="rgba(20,20,20,0.08)" stroke="none" />
-                                    {/* Gaussian peak */}
-                                    <polyline points={pts.join(" ")} fill="none" stroke="#111" strokeWidth={1.4} />
-                                    {/* Peak top height label */}
-                                    <text x={mL + iW / 2} y={mT + iH - normH - 3} textAnchor="middle" fontSize={6.5} fill="#111"
+                                    {/* Peak area fill — Agilent blue tint */}
+                                    <polygon points={fillPts} fill="rgba(21,96,189,0.10)" stroke="none" />
+                                    {/* Chromatogram trace — Agilent ChemStation blue */}
+                                    <polyline points={polyPts} fill="none" stroke="#1560bd" strokeWidth={1.3} />
+                                    {/* Peak height label above apex */}
+                                    <text x={rtLabelX} y={py(peakH_mau) - 3} textAnchor="middle" fontSize={6.5} fill="#333"
                                       fontFamily="Courier New, monospace">{peakH_mau.toFixed(0)}</text>
-                                    {/* RT label on x-axis */}
-                                    <text x={mL + ((expRT - xMin) / xRange) * iW} y={baseY + 9} textAnchor="middle"
+                                    {/* RT label below x-axis */}
+                                    <text x={rtLabelX} y={baseY + 10} textAnchor="middle"
                                       fontSize={7} fill="#333" fontFamily="Courier New, monospace">{expRT.toFixed(2)}</text>
                                     {/* X unit */}
-                                    <text x={mL + iW} y={H - 3} textAnchor="end" fontSize={6} fill="#888" fontFamily="Courier New, monospace">min</text>
+                                    <text x={mL + iW} y={SVG_H - 3} textAnchor="end" fontSize={6} fill="#888" fontFamily="Courier New, monospace">min</text>
                                   </svg>
                                   <div style={{ fontSize: 8, color: "#555", marginTop: 3 }}>
                                     Area: {s.area.toFixed(2)} mAU·s
