@@ -71,6 +71,8 @@ interface DetectorInfo {
   broadeningFactor: number;    // 0-1  — RT-dependent peak width increase (van Deemter)
   baselineOffset: number;      // mAU — constant vertical shift of the entire baseline
   baselinePulseFreq: number;   // cycles/min — pump pulsation frequency (default ~1.6)
+  baselineStartOffset: number; // mAU — initial displacement at t=0 that decays exponentially
+  baselineStartDecay: number;  // min — time constant for initial baseline to settle
   lineWidth: number;           // px — thickness of the chromatogram trace
   // Y-axis (mAU) scale
   yAxisAuto: boolean;     // true = auto-scale; false = use yAxisMin/yAxisMax
@@ -323,12 +325,14 @@ function peakNoiseAt(i: number, seed: number, localAmp: number, peakNoise: numbe
 function buildChromatogram(
   peaks: Peak[], runTime: number, pts = 6000,
   noiseAmp = 1.8, driftAmp = 1.2, pulseAmp = 0.35,
-  wanderAmp = 0,        // mAU — slow sinusoidal baseline oscillation
-  shotNoise = 0,        // 0-1  — signal-proportional noise (LC/MS counting statistics)
-  humpAmp = 0,          // mAU — broad column-bleed background hump
-  broadeningFactor = 0, // 0-1 — RT-dependent peak broadening (van Deemter)
-  baselineOffset = 0,   // mAU — constant vertical baseline shift
-  pulseFreqHz = 1.6,    // cycles/min — pump pulsation frequency
+  wanderAmp = 0,          // mAU — slow sinusoidal baseline oscillation
+  shotNoise = 0,          // 0-1  — signal-proportional noise (LC/MS counting statistics)
+  humpAmp = 0,            // mAU — broad column-bleed background hump
+  broadeningFactor = 0,   // 0-1 — RT-dependent peak broadening (van Deemter)
+  baselineOffset = 0,     // mAU — constant vertical baseline shift
+  pulseFreqHz = 1.6,      // cycles/min — pump pulsation frequency
+  startOffset = 0,        // mAU — initial baseline displacement at t=0 (exponential decay)
+  startDecay = 1.0,       // min — time constant for initial baseline to settle
 ) {
   const dt = runTime / pts;
   const pulseFreq = pulseFreqHz;
@@ -396,7 +400,12 @@ function buildChromatogram(
       ? humpAmp * Math.exp(-((t - humpCenter) ** 2) / (2 * humpSigma * humpSigma))
       : 0;
 
-    const total = signal + shot + noise + wander + drift + pulse + hump + baselineOffset;
+    // Initial baseline instability — exponential decay from t=0
+    const startEffect = startOffset !== 0
+      ? startOffset * Math.exp(-t / Math.max(startDecay, 0.01))
+      : 0;
+
+    const total = signal + shot + noise + wander + drift + pulse + hump + baselineOffset + startEffect;
     return { time: parseFloat(t.toFixed(4)), signal: parseFloat(Math.max(0, total).toFixed(3)) };
   });
 }
@@ -692,6 +701,8 @@ const DEFAULT_DETECTOR: DetectorInfo = {
   broadeningFactor: 0,
   baselineOffset: 0,
   baselinePulseFreq: 1.6,
+  baselineStartOffset: 0,
+  baselineStartDecay: 1.0,
   lineWidth: 1.0,
   yAxisAuto: true,
   yAxisMin: 0,
@@ -1372,7 +1383,7 @@ function buildChromatogramPng(
     const cW = W - ML_c - 36;
     const runTime = formula.detector.runTime;
     const det = formula.detector;
-    const chrom = buildChromatogram(run.peaks, runTime, 1600, det.baselineNoise ?? 1.8, det.baselineDrift ?? 1.2, det.baselinePulse ?? 0.35, det.baselineWander ?? 0, det.shotNoise ?? 0, det.baselineHump ?? 0, det.broadeningFactor ?? 0, det.baselineOffset ?? 0, det.baselinePulseFreq ?? 1.6);
+    const chrom = buildChromatogram(run.peaks, runTime, 1600, det.baselineNoise ?? 1.8, det.baselineDrift ?? 1.2, det.baselinePulse ?? 0.35, det.baselineWander ?? 0, det.shotNoise ?? 0, det.baselineHump ?? 0, det.broadeningFactor ?? 0, det.baselineOffset ?? 0, det.baselinePulseFreq ?? 1.6, det.baselineStartOffset ?? 0, det.baselineStartDecay ?? 1.0);
     const maxSig = Math.max(10, ...chrom.map(p => p.signal)) * 1.1;
 
     const xS = (t: number) => ML_c + (t / runTime) * cW;
@@ -2283,8 +2294,8 @@ export default function HplcSimulator() {
   );
 
   const chromatogram = useMemo(
-    () => buildChromatogram(peaksForDisplay, detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander ?? 0, detector.shotNoise ?? 0, detector.baselineHump ?? 0, detector.broadeningFactor ?? 0, detector.baselineOffset ?? 0, detector.baselinePulseFreq ?? 1.6),
-    [peaksForDisplay, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander, detector.shotNoise, detector.baselineHump, detector.broadeningFactor, detector.baselineOffset, detector.baselinePulseFreq],
+    () => buildChromatogram(peaksForDisplay, detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander ?? 0, detector.shotNoise ?? 0, detector.baselineHump ?? 0, detector.broadeningFactor ?? 0, detector.baselineOffset ?? 0, detector.baselinePulseFreq ?? 1.6, detector.baselineStartOffset ?? 0, detector.baselineStartDecay ?? 1.0),
+    [peaksForDisplay, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander, detector.shotNoise, detector.baselineHump, detector.broadeningFactor, detector.baselineOffset, detector.baselinePulseFreq, detector.baselineStartOffset, detector.baselineStartDecay],
   );
 
   // Standard reference peak overlay — simulates the mid-level calibration standard
@@ -2298,7 +2309,7 @@ export default function HplcSimulator() {
     const stdPeakObj: Peak = {
       ...namedPeak, id: "std-ovl", name: "STD", height: stdHeight, manualArea: 0,
     };
-    const chrom = buildChromatogram([stdPeakObj], detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander ?? 0, detector.shotNoise ?? 0, detector.baselineHump ?? 0, detector.broadeningFactor ?? 0, detector.baselineOffset ?? 0, detector.baselinePulseFreq ?? 1.6);
+    const chrom = buildChromatogram([stdPeakObj], detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander ?? 0, detector.shotNoise ?? 0, detector.baselineHump ?? 0, detector.broadeningFactor ?? 0, detector.baselineOffset ?? 0, detector.baselinePulseFreq ?? 1.6, detector.baselineStartOffset ?? 0, detector.baselineStartDecay ?? 1.0);
     return { chrom, midStd, namedPeak, stdHeight, level: Math.floor(sorted.length / 2) + 1, total: sorted.length };
   }, [showStdPeak, standards, peaks, calib.compoundName, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse]);
 
@@ -2548,7 +2559,7 @@ export default function HplcSimulator() {
     markDirty();
   };
   const dField = (k: keyof DetectorInfo) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const numericKeys: (keyof DetectorInfo)[] = ["runTime", "sigWavelength", "sigBandwidth", "refWavelength", "refBandwidth", "baselineNoise", "baselineDrift", "baselinePulse", "baselineWander", "shotNoise", "baselineHump", "broadeningFactor", "lineWidth"];
+    const numericKeys: (keyof DetectorInfo)[] = ["runTime", "sigWavelength", "sigBandwidth", "refWavelength", "refBandwidth", "baselineNoise", "baselineDrift", "baselinePulse", "baselineWander", "shotNoise", "baselineHump", "broadeningFactor", "lineWidth", "baselineStartOffset", "baselineStartDecay"];
     setDetector(d => ({ ...d, [k]: numericKeys.includes(k) ? parseFloat(e.target.value) || 0 : e.target.value }));
     markDirty();
   };
@@ -3421,6 +3432,38 @@ export default function HplcSimulator() {
                       className="w-full h-2 accent-blue-600" />
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
                       <span>0.2 = pulsação lenta</span><span>8.0 = bomba rápida</span>
+                    </div>
+                  </div>
+                  {/* Initial baseline instability */}
+                  <div style={{ marginBottom: 8, borderTop: "1px dashed #d1d5db", paddingTop: 8 }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#888", marginBottom: 6, fontStyle: "italic" }}>
+                      Instabilidade inicial — linha de base errática no início da corrida:
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                        <span>Desvio inicial (mAU)</span>
+                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineStartOffset ?? 0).toFixed(0)}</span>
+                      </div>
+                      <input type="range" min="-300" max="300" step="5"
+                        value={detector.baselineStartOffset ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, baselineStartOffset: parseFloat(e.target.value) })); markDirty(); }}
+                        className="w-full h-2 accent-blue-600" />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                        <span>−300 mAU</span><span>0 = normal</span><span>+300 mAU</span>
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: 4 }}>
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                        <span>Tempo de estabilização (min)</span>
+                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineStartDecay ?? 1.0).toFixed(1)}</span>
+                      </div>
+                      <input type="range" min="0.1" max="5.0" step="0.1"
+                        value={detector.baselineStartDecay ?? 1.0}
+                        onChange={e => { setDetector(d => ({ ...d, baselineStartDecay: parseFloat(e.target.value) })); markDirty(); }}
+                        className="w-full h-2 accent-blue-600" />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                        <span>0.1 min (rápido)</span><span>5.0 min (lento)</span>
+                      </div>
                     </div>
                   </div>
                   {/* Noise presets */}
