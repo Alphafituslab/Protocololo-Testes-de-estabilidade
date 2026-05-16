@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/use-auth";
-import { ShieldCheck, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -113,9 +113,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center space-y-3">
           <div className="flex justify-center">
-            <div className="bg-primary/10 rounded-full p-3">
-              <ShieldCheck className="h-8 w-8 text-primary" />
-            </div>
+            <img src="/logo-alphafitus.png" alt="Alphafitus" className="h-20 w-auto" />
           </div>
           <div>
             <CardTitle className="text-2xl">Alphafitus</CardTitle>

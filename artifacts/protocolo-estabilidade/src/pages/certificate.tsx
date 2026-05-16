@@ -604,20 +604,30 @@ export default function CertificatePage() {
         data-testid="certificate-document"
       >
         {/* Header */}
-        <div className="flex items-start justify-between border-b-2 border-gray-800 pb-4 mb-6">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Alphafitus Laboratorio Nutraceutico</p>
-            <h1 className="text-2xl font-bold uppercase tracking-wide">Suplemento Alimentar</h1>
-            <p className="text-base font-semibold text-gray-600 mt-0.5">{cert.productName}</p>
+        <div className="flex items-center justify-between border-b-2 border-gray-800 pb-5 mb-6">
+          {/* Logo + título */}
+          <div className="flex items-center gap-5">
+            <img
+              src="/logo-alphafitus.png"
+              alt="Alphafitus"
+              className="h-16 w-auto"
+              style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.08))" }}
+            />
+            <div className="border-l border-gray-300 pl-5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Alphafitus Laboratório Nutracêutico</p>
+              <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800">Certificado de Análise</h1>
+              <p className="text-sm font-semibold text-emerald-700 mt-0.5">{cert.productName}</p>
+            </div>
           </div>
-          <div className="text-right text-sm space-y-1 min-w-48">
-            <div>
-              <span className="text-gray-500 text-xs block">Número do Certificado de Análise</span>
-              <span className="font-bold tracking-wide">{cert.certNumber}</span>
+          {/* Cert info */}
+          <div className="text-right text-sm space-y-2 min-w-52">
+            <div className="bg-gray-50 border border-gray-200 rounded px-3 py-2">
+              <span className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider block">Número do Certificado</span>
+              <span className="font-bold tracking-wide text-base">{cert.certNumber}</span>
             </div>
             <div>
-              <span className="text-gray-500 text-xs block">Data de Emissao</span>
-              <span className="font-medium">{cert.issueDate}</span>
+              <span className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider block">Data de Emissão</span>
+              <span className="font-medium text-gray-700">{cert.issueDate}</span>
             </div>
           </div>
         </div>

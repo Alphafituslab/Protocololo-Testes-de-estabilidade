@@ -12,7 +12,7 @@ import LoginPage from "./pages/login";
 import UsersPage from "./pages/users";
 import { AuthProvider } from "@/contexts/auth-context";
 import { useAuth } from "@/contexts/use-auth";
-import { FileText, Home, Users, LogOut, Loader2, ShieldCheck, AlertTriangle, RefreshCcw } from "lucide-react";
+import { FileText, Home, Users, LogOut, Loader2, AlertTriangle, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -167,9 +167,8 @@ function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen w-full flex bg-background">
       <aside className="w-64 border-r border-border bg-card flex flex-col">
-        <div className="p-4 border-b border-border flex items-center gap-2 text-primary">
-          <ShieldCheck className="h-6 w-6" />
-          <span className="font-semibold tracking-tight text-lg">Alphafitus</span>
+        <div className="p-4 border-b border-border flex items-center justify-center">
+          <img src="/logo-alphafitus.png" alt="Alphafitus" className="h-12 w-auto" />
         </div>
         <nav className="flex-1 p-4 flex flex-col gap-1">
           <Link href="/" className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${location === "/" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
