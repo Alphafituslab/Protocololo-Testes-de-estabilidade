@@ -346,24 +346,24 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
     { label: "IE", value: protocol.ie },
     { label: "Endereço", value: protocol.address },
     { label: "CEP", value: protocol.cep },
-    { label: "Produto", value: protocol.productName },
+    { label: "Nome do Produto", value: protocol.productName },
     { label: "Tipo de Produto", value: protocol.productType },
     { label: "Tipo de Pote", value: protocol.packagingType },
     { label: "Ingredientes Ativos", value: protocol.activeIngredients },
     { label: "Excipientes", value: protocol.excipients },
-    { label: "Composi\u00e7\u00e3o da C\u00e1psula", value: protocol.capsuleComposition },
+    { label: "Composição da Cápsula", value: protocol.capsuleComposition },
   ];
 
   const fieldsBottom = [
-    { label: "Data Início", value: protocol.studyStartDate },
+    { label: "Data de Início", value: protocol.studyStartDate },
     { label: "Data Final", value: protocol.studyEndDate },
-    { label: "Temperatura de Estudo", value: protocol.storageTemp },
-    { label: "Umidade de Estudo", value: protocol.storageHumidity },
-    { label: "Período (meses)", value: protocol.studyPeriodMonths?.toString() },
+    { label: "Temperatura de Armazenamento", value: protocol.storageTemp },
+    { label: "Umidade Relativa", value: protocol.storageHumidity },
+    { label: "Período do Estudo (meses)", value: protocol.studyPeriodMonths?.toString() },
     { label: "Intervalos de Teste", value: protocol.testIntervals },
     { label: "Elaboração", value: protocol.elaboratedBy },
     { label: "Aprovação", value: protocol.approvedBy },
-    { label: "Emitido por", value: protocol.issuedBy },
+    { label: "Laudo emitido por", value: protocol.issuedBy },
     { label: "Analista Sênior", value: protocol.seniorAnalyst },
   ];
 
