@@ -612,7 +612,7 @@ export default function CertificatePage() {
           </div>
           <div className="text-right text-sm space-y-1 min-w-48">
             <div>
-              <span className="text-gray-500 text-xs block">Número do Certificado de Análise</span>
+              <span className="text-gray-500 text-xs block">Número do Certificado</span>
               <span className="font-bold tracking-wide">{cert.certNumber}</span>
             </div>
             <div>
