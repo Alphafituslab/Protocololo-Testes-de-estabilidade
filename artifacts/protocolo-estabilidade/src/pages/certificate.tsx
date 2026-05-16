@@ -646,15 +646,16 @@ export default function CertificatePage() {
                   <dd>{cert.lotNumbers.join(", ")}</dd>
                 </div>
               )}
-              {(cert as any).capsuleComposition && (
-                <div className="flex gap-2">
-                  <dt className="text-gray-500 shrink-0 whitespace-nowrap">Composição da Cápsula:</dt>
-                  <dd>{(cert as any).capsuleComposition}</dd>
-                </div>
-              )}
             </dl>
           </div>
         </div>
+
+        {(cert as any).capsuleComposition && (
+          <div className="mb-4 text-sm">
+            <span className="text-gray-500 font-semibold">Composição da Cápsula: </span>
+            <span>{(cert as any).capsuleComposition}</span>
+          </div>
+        )}
 
         {/* Condições Ambientais — password-protected */}
         <UnlockDialog

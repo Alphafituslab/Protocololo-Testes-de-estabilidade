@@ -345,7 +345,7 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="capsuleComposition" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <EL labelKey="capsuleComposition" def="Composição da Cápsula" {...elProps} />
+                  <FormLabel>Composição da Cápsula</FormLabel>
                   <FormControl><Input data-testid="input-capsuleComposition" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
