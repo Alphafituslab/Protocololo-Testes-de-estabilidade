@@ -3887,8 +3887,8 @@ export default function HplcSimulator() {
                       const calcConc = Math.max(0, (area - compReg.intercept) / compReg.slope);
                       const nominalConc = ccc.calib.nominalConc ?? 0;
                       const purityPct = nominalConc > 0 ? (calcConc / nominalConc) * 100 : null;
-                      return { compound, area, calcConc, nominalConc, purityPct, r: compReg.r };
-                    }).filter(Boolean) as { compound: ActiveCompound; area: number; calcConc: number; nominalConc: number; purityPct: number | null; r: number }[];
+                      return { compound, area, calcConc, nominalConc, purityPct, r: compReg.r, r2: compReg.r * compReg.r, slope: compReg.slope, intercept: compReg.intercept, residStdDev: compReg.residStdDev };
+                    }).filter(Boolean) as { compound: ActiveCompound; area: number; calcConc: number; nominalConc: number; purityPct: number | null; r: number; r2: number; slope: number; intercept: number; residStdDev: number }[];
 
                     if (purityRows.length === 0) return null;
                     return (
@@ -3910,7 +3910,16 @@ export default function HplcSimulator() {
                                 {row.nominalConc > 0 && (
                                   <div>Nominal: <b>{row.nominalConc.toFixed(4)} {row.compound.units}</b></div>
                                 )}
-                                <div>R² curva: <b>{(row.r * row.r).toFixed(5)}</b></div>
+                              </div>
+                              {/* Regression stats — update live as standards change */}
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#334155", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 3, padding: "4px 6px", marginTop: 5, lineHeight: 1.85 }}>
+                                <div style={{ color: "#0f172a", fontWeight: "bold", marginBottom: 2 }}>Curva de Calibração</div>
+                                <div>Correlação (r): <b style={{ color: row.r >= 0.999 ? "#16a34a" : row.r >= 0.99 ? "#d97706" : "#dc2626" }}>{row.r.toFixed(5)}</b></div>
+                                <div>R²: <b>{row.r2.toFixed(5)}</b></div>
+                                <div>Desvio padrão residual: <b>{row.residStdDev.toFixed(5)}</b></div>
+                                <div style={{ marginTop: 3 }}>y = mx + b</div>
+                                <div style={{ paddingLeft: 8 }}>m = <b>{row.slope.toFixed(5)}</b></div>
+                                <div style={{ paddingLeft: 8 }}>b = <b>{row.intercept.toFixed(5)}</b></div>
                               </div>
                               {pct !== null ? (
                                 <div style={{ marginTop: 5, padding: "4px 6px", background: pct >= 98 ? "#f0fdf4" : pct >= 80 ? "#fffbeb" : "#fef2f2", borderRadius: 3, textAlign: "center" }}>
