@@ -78,6 +78,29 @@ function EL({
   );
 }
 
+function AlwaysEL({
+  labelKey, def, lbl, setLabel,
+}: {
+  labelKey: string;
+  def: string;
+  lbl: (key: string, def: string) => string;
+  setLabel: (key: string, value: string) => void;
+}) {
+  const current = lbl(labelKey, def);
+  return (
+    <FormLabel>
+      <input
+        value={current}
+        onChange={e => setLabel(labelKey, e.target.value)}
+        onClick={e => e.stopPropagation()}
+        className="font-medium text-sm border border-blue-300 rounded px-1.5 py-0.5 bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full"
+        title="Clique para editar o nome deste campo"
+        placeholder={def}
+      />
+    </FormLabel>
+  );
+}
+
 export default function ProtocolForm() {
   const { id } = useParams<{ id?: string }>();
   const [, setLocation] = useLocation();
@@ -303,7 +326,7 @@ export default function ProtocolForm() {
             <CardContent className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="certNumber" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="certNumber" def="Número do Certificado de Análise" {...elProps} />
+                  <AlwaysEL labelKey="certNumber" def="Número do Certificado de Análise" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-certNumber" placeholder="ex: CERT-AF-20241210/035" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -345,7 +368,7 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="capsuleComposition" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <FormLabel>Composição da Cápsula</FormLabel>
+                  <AlwaysEL labelKey="capsuleComposition" def="Composição da Cápsula" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-capsuleComposition" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
