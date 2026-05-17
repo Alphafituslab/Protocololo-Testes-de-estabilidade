@@ -62,7 +62,7 @@ export default function Dashboard() {
               <Beaker className="h-3.5 w-3.5" />
               <span>Alphafitus — Estabilidade</span>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">Painel de Controle</h1>
+            <h1 className="text-2xl font-bold tracking-tight">PROTOCOLOS</h1>
             <p className="text-white/70 text-sm max-w-md">
               Gerencie e acompanhe todos os protocolos de estabilidade de suplementos nutricionais.
             </p>
