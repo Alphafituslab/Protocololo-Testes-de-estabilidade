@@ -1002,7 +1002,7 @@ export default function CertificatePage() {
             <div className="pt-8 border-t-2 border-gray-800 mt-8">
               <div className="flex items-start justify-between mb-2">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Alphafitus Laboratorio Nutraceutico</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Alphafitus Laboratório Nutracêutico</p>
                   <h2 className="text-lg font-bold uppercase tracking-wide mt-0.5 flex items-center gap-2">
                     Anexo — Histórico de Alterações do Protocolo
                   </h2>
@@ -1035,7 +1035,7 @@ export default function CertificatePage() {
             <div className="photo-appendix-header pt-8 border-t-2 border-gray-800 mt-8">
               <div className="flex items-start justify-between mb-2">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Alphafitus Laboratorio Nutraceutico</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Alphafitus Laboratório Nutracêutico</p>
                   <h2 className="text-lg font-bold uppercase tracking-wide mt-0.5">Anexo — Registros Fotográficos dos Ensaios</h2>
                 </div>
                 <div className="text-right text-xs text-gray-500">
