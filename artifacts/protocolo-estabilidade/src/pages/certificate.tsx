@@ -1,10 +1,12 @@
 import { useParams, Link } from "wouter";
 import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, History } from "lucide-react";
+import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, History, Lock, Unlock, Save } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useMemo, useEffect } from "react";
 import { AuditTrail } from "@/components/audit-trail";
+import { useUnlock } from "@/hooks/use-unlock";
+import { UnlockDialog } from "@/components/unlock-dialog";
 
 type PhotoEntry = {
   parameter: string;
@@ -198,6 +200,44 @@ export default function CertificatePage() {
     result: string; status: string; visible: boolean;
   }> | null>(null);
 
+  // ── Cert-level field overrides (all free-text edits by operator) ──────────
+  const CERT_EDITS_KEY = `cert_edits_${id}`;
+  const CERT_LOCKED_KEY = `cert_locked_${id}`;
+  const [certEdits, setCertEditsState] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}"); } catch { return {}; }
+  });
+  const [certLocked, setCertLockedState] = useState<boolean>(() => {
+    try { return localStorage.getItem(CERT_LOCKED_KEY) === "1"; } catch { return false; }
+  });
+  const [showUnlockDialog, setShowUnlockDialog] = useState(false);
+  const { unlock } = useUnlock();
+
+  const setCertEdit = (key: string, val: string) => {
+    setCertEditsState(prev => {
+      const next = { ...prev, [key]: val };
+      try { localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+  const getEdit = (key: string, fallback: string | null | undefined): string =>
+    certEdits[key] !== undefined ? certEdits[key] : (fallback ?? "");
+
+  const saveCert = () => {
+    setCertLockedState(true);
+    try { localStorage.setItem(CERT_LOCKED_KEY, "1"); } catch { /* ignore */ }
+  };
+  const unlockCert = () => {
+    setCertLockedState(false);
+    try { localStorage.setItem(CERT_LOCKED_KEY, "0"); } catch { /* ignore */ }
+  };
+
+  // Helper: renders a CertEditField when unlocked, plain text when locked
+  const ef = (key: string, fallback: string | null | undefined, opts?: { multiline?: boolean; className?: string }) => {
+    const val = getEdit(key, fallback);
+    if (certLocked) return <span>{val}</span>;
+    return <CertEditField value={val} onChange={v => setCertEdit(key, v)} multiline={opts?.multiline} className={opts?.className ?? ""} />;
+  };
+
   const { data: lotsRaw = [] } = useListLots(Number(id), {
     query: { enabled: !!id, queryKey: getListLotsQueryKey(Number(id)) },
   });
@@ -372,6 +412,16 @@ export default function CertificatePage() {
   return (
     <div className="max-w-5xl mx-auto space-y-4">
 
+      <UnlockDialog
+        open={showUnlockDialog}
+        onOpenChange={setShowUnlockDialog}
+        onUnlock={unlock}
+        onSuccess={unlockCert}
+        title="Desbloquear edição do certificado"
+        description="Digite a senha mestra para liberar a edição dos campos do certificado."
+        submitLabel="Desbloquear"
+      />
+
       {/* ─── Toolbar ─── */}
       <div className="flex items-center justify-between print:hidden">
         <Link href={`/protocols/${id}`}>
@@ -379,7 +429,21 @@ export default function CertificatePage() {
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar ao Protocolo
           </Button>
         </Link>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {!certLocked ? (
+            <>
+              <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-1 font-medium">
+                ✎ Modo edição — clique em qualquer campo para corrigir
+              </span>
+              <Button variant="default" size="sm" onClick={saveCert} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                <Save className="h-4 w-4 mr-2" /> Salvar e Bloquear
+              </Button>
+            </>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => setShowUnlockDialog(true)}>
+              <Lock className="h-4 w-4 mr-2" /> Editar (requer senha)
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => setShowSettings(s => !s)}>
             <Settings2 className="h-4 w-4 mr-2" />
             Configurar Impressão
@@ -610,18 +674,18 @@ export default function CertificatePage() {
             <div className="border-l border-gray-300 pl-5">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Alphafitus Laboratório Nutracêutico</p>
               <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800">Certificado de Análise</h1>
-              <p className="text-sm font-semibold text-emerald-700 mt-0.5">{cert.productName}</p>
+              <p className="text-sm font-semibold text-emerald-700 mt-0.5">{ef("productName", cert.productName)}</p>
             </div>
           </div>
           {/* Cert info */}
           <div className="text-right text-sm space-y-2 min-w-52">
             <div className="bg-gray-50 border border-gray-200 rounded px-3 py-2">
               <span className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider block">Número do Certificado</span>
-              <span className="font-bold tracking-wide text-base">{cert.certNumber}</span>
+              <span className="font-bold tracking-wide text-base">{ef("certNumber", cert.certNumber)}</span>
             </div>
             <div>
               <span className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider block">Data de Emissão</span>
-              <span className="font-medium text-gray-700">{cert.issueDate}</span>
+              <span className="font-medium text-gray-700">{ef("issueDate", cert.issueDate)}</span>
             </div>
           </div>
         </div>
@@ -631,35 +695,31 @@ export default function CertificatePage() {
           <div className="space-y-2">
             <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1">Dados do Produto</h2>
             <dl className="space-y-1">
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Empresa:</dt><dd className="font-medium">{cert.companyName}</dd></div>
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">CNPJ:</dt><dd className="font-medium">{cert.cnpj}</dd></div>
-              {(cert as any).ie && <div className="flex gap-2"><dt className="text-gray-500 min-w-20">IE:</dt><dd>{(cert as any).ie}</dd></div>}
-              {cert.address && <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Endereço:</dt><dd>{cert.address}</dd></div>}
-              {cert.email && <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Email:</dt><dd>{cert.email}</dd></div>}
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Empresa:</dt><dd className="font-medium">{ef("companyName", cert.companyName)}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">CNPJ:</dt><dd className="font-medium">{ef("cnpj", cert.cnpj)}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">IE:</dt><dd>{ef("ie", (cert as any).ie)}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Endereço:</dt><dd>{ef("address", cert.address)}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Email:</dt><dd>{ef("email", cert.email)}</dd></div>
             </dl>
           </div>
           <div className="space-y-2">
             <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1">Identificação do Produto</h2>
             <dl className="space-y-1">
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Produto:</dt><dd className="font-medium">{cert.productName}</dd></div>
-              {cert.presentation && <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Apresentacao:</dt><dd>{cert.presentation}</dd></div>}
-              {cert.validityMonths && <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Validade:</dt><dd className="font-semibold">{cert.validityMonths} meses</dd></div>}
-              {cert.lotNumbers.length > 0 && (
-                <div className="flex gap-2">
-                  <dt className="text-gray-500 min-w-20">N° do Lote:</dt>
-                  <dd>{cert.lotNumbers.join(", ")}</dd>
-                </div>
-              )}
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Produto:</dt><dd className="font-medium">{ef("productName", cert.productName)}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Apresentação:</dt><dd>{ef("presentation", cert.presentation)}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Validade:</dt><dd className="font-semibold">{ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}</dd></div>
+              <div className="flex gap-2">
+                <dt className="text-gray-500 min-w-20">N° do Lote:</dt>
+                <dd>{ef("lotNumbers", cert.lotNumbers.join(", "))}</dd>
+              </div>
             </dl>
           </div>
         </div>
 
-        {(cert as any).capsuleComposition && (
-          <div className="mb-4 text-sm">
-            <span className="text-gray-500 font-semibold">Composição da Cápsula: </span>
-            <span>{(cert as any).capsuleComposition}</span>
-          </div>
-        )}
+        <div className="mb-4 text-sm">
+          <span className="text-gray-500 font-semibold">Composição da Cápsula: </span>
+          {ef("capsuleComposition", (cert as any).capsuleComposition)}
+        </div>
 
         {show.condicoesAmbientais && (
           <div className="mb-6 border border-gray-200 rounded p-3 bg-gray-50 text-xs space-y-2">
@@ -768,23 +828,23 @@ export default function CertificatePage() {
 
         {show.textoLotes && (
           <div className="mb-6 border-l-4 border-gray-400 pl-4 bg-gray-50 py-3 pr-3 rounded-r text-xs text-gray-700 space-y-2">
-            <p>Os lotes piloto foram produzidos em datas distintas, sob condições equivalentes de fabricação, visando assegurar a independência entre os lotes, a rastreabilidade do estudo e a minimização do risco de desvios operacionais ou interferências de processo.</p>
-            <p>Alimento está sendo testado em embalagem equivalente e sistema de fechamento nos quais será comercializado.</p>
+            <p>{ef("textoLotes1", "Os lotes piloto foram produzidos em datas distintas, sob condições equivalentes de fabricação, visando assegurar a independência entre os lotes, a rastreabilidade do estudo e a minimização do risco de desvios operacionais ou interferências de processo.", { multiline: true })}</p>
+            <p>{ef("textoLotes2", "Alimento está sendo testado em embalagem equivalente e sistema de fechamento nos quais será comercializado.", { multiline: true })}</p>
           </div>
         )}
 
         {show.infoAdicionais && (
           <div className="mb-6 border border-gray-200 rounded p-3 bg-gray-50 text-xs space-y-1">
             <p className="text-gray-500 font-semibold">Informacoes Adicionais</p>
-            <p>Este documento deve ser reproduzido integralmente. A reproducao parcial somente e permitida mediante autorizacao formal e escrita do laboratorio.</p>
-            <p>Os resultados apresentados referem-se exclusivamente as amostras recebidas e foram obtidos e reportados de acordo com as condicoes analiticas estabelecidas e metodologias aplicaveis.</p>
-            <p><strong>NA</strong> = Nao se aplica &nbsp;&nbsp;<strong>ND</strong> = Nao detectado &nbsp;&nbsp;<strong>LQ</strong> = Limite de quantificacao &nbsp;&nbsp;<strong>AR</strong> = Aprovado com Ressalva</p>
+            <p>{ef("infoAdicionais1", "Este documento deve ser reproduzido integralmente. A reproducao parcial somente e permitida mediante autorizacao formal e escrita do laboratorio.", { multiline: true })}</p>
+            <p>{ef("infoAdicionais2", "Os resultados apresentados referem-se exclusivamente as amostras recebidas e foram obtidos e reportados de acordo com as condicoes analiticas estabelecidas e metodologias aplicaveis.", { multiline: true })}</p>
+            <p>{ef("infoAdicionais3", "NA = Nao se aplica   ND = Nao detectado   LQ = Limite de quantificacao   AR = Aprovado com Ressalva", { multiline: true })}</p>
           </div>
         )}
 
-        {show.conclusao && cert.conclusion && (
+        {show.conclusao && (
           <div className="mb-6 font-semibold text-center text-sm uppercase tracking-wide border-t border-b border-gray-300 py-3">
-            CONCLUSAO: {cert.conclusion}
+            CONCLUSAO: {ef("conclusion", cert.conclusion)}
           </div>
         )}
 
@@ -922,12 +982,10 @@ export default function CertificatePage() {
                       </div>
                     </div>
                     <p className="text-[9px] text-gray-400 pt-1">★ Parâmetro limitante — menor validade estimada. Limiar ICH Q1A(R2): 80% do valor inicial (T0).</p>
-                    {cert.kineticsNotes && (
-                      <div className="mt-2 border-l-2 border-blue-300 pl-3 bg-blue-50/50 py-1.5 pr-2 rounded-r text-[10px] text-gray-700">
-                        <span className="font-semibold text-gray-500 uppercase tracking-wide text-[9px]">Observações: </span>
-                        {cert.kineticsNotes}
-                      </div>
-                    )}
+                    <div className="mt-2 border-l-2 border-blue-300 pl-3 bg-blue-50/50 py-1.5 pr-2 rounded-r text-[10px] text-gray-700">
+                      <span className="font-semibold text-gray-500 uppercase tracking-wide text-[9px]">Observações: </span>
+                      {ef("kineticsNotes", cert.kineticsNotes, { multiline: true })}
+                    </div>
                   </>
                 )}
               </div>
@@ -972,26 +1030,22 @@ export default function CertificatePage() {
         </div>
 
         <div className="grid grid-cols-2 gap-8 pt-4 border-t border-gray-300">
-          {cert.issuedBy && (
-            <div>
-              <p className="font-semibold text-sm">{cert.issuedBy}</p>
-              <p className="text-xs text-gray-500">Responsavel Tecnico</p>
-              {cert.issuedByEmail && <p className="text-xs text-gray-500">{cert.issuedByEmail}</p>}
-              <div className="mt-8 border-t border-gray-400 w-64">
-                <p className="text-xs text-gray-400 mt-1">Assinatura</p>
-              </div>
+          <div>
+            <p className="font-semibold text-sm">{ef("issuedBy", cert.issuedBy)}</p>
+            <p className="text-xs text-gray-500">Responsavel Tecnico</p>
+            <p className="text-xs text-gray-500">{ef("issuedByEmail", cert.issuedByEmail)}</p>
+            <div className="mt-8 border-t border-gray-400 w-64">
+              <p className="text-xs text-gray-400 mt-1">Assinatura</p>
             </div>
-          )}
-          {cert.seniorAnalyst && (
-            <div>
-              <p className="font-semibold text-sm">{cert.seniorAnalyst}</p>
-              <p className="text-xs text-gray-500">Analista Senior / Representante Legal</p>
-              {cert.seniorAnalystEmail && <p className="text-xs text-gray-500">{cert.seniorAnalystEmail}</p>}
-              <div className="mt-8 border-t border-gray-400 w-64">
-                <p className="text-xs text-gray-400 mt-1">Assinatura</p>
-              </div>
+          </div>
+          <div>
+            <p className="font-semibold text-sm">{ef("seniorAnalyst", cert.seniorAnalyst)}</p>
+            <p className="text-xs text-gray-500">Analista Senior / Representante Legal</p>
+            <p className="text-xs text-gray-500">{ef("seniorAnalystEmail", cert.seniorAnalystEmail)}</p>
+            <div className="mt-8 border-t border-gray-400 w-64">
+              <p className="text-xs text-gray-400 mt-1">Assinatura</p>
             </div>
-          )}
+          </div>
         </div>
 
         {/* ═══════════════════════════════════════════════════════
