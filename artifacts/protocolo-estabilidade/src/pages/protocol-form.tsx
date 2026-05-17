@@ -182,28 +182,8 @@ export default function ProtocolForm() {
 
   const isPending = createProtocol.isPending || updateProtocol.isPending;
 
-  const elProps = { editingLabels, lbl, setLabel };
-
-  const handleEditLabels = () => {
-    if (unlocked) {
-      setEditingLabels(v => !v);
-    } else {
-      setShowUnlock(true);
-    }
-  };
-
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <UnlockDialog
-        open={showUnlock}
-        onOpenChange={setShowUnlock}
-        onUnlock={unlock}
-        onSuccess={() => { setEditingLabels(true); }}
-        title="Editar rótulos dos campos"
-        description="Digite a senha mestra para entrar no modo de edição de rótulos. As alterações ficam salvas para todos os próximos protocolos."
-        submitLabel="Entrar no modo de edição"
-      />
-
       <div className="flex items-center gap-4">
         <Link href={isEdit ? `/protocols/${id}` : "/"}>
           <Button variant="ghost" size="sm" data-testid="button-back">
@@ -217,32 +197,6 @@ export default function ProtocolForm() {
           <p className="text-sm text-muted-foreground">
             {isEdit ? "Atualize as informações do protocolo de estabilidade" : "Preencha os dados do novo protocolo de estabilidade"}
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {editingLabels && (
-            <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 font-medium">
-              ✎ Modo edição de rótulos
-            </span>
-          )}
-          <Button
-            type="button"
-            variant={editingLabels ? "default" : "outline"}
-            size="sm"
-            onClick={handleEditLabels}
-            className={editingLabels ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}
-            title={editingLabels ? "Sair do modo de edição de rótulos" : "Editar nomes dos campos (requer senha)"}
-          >
-            {editingLabels ? (
-              <><Check className="h-4 w-4 mr-1" /> Concluir</>
-            ) : (
-              <><Pencil className="h-4 w-4 mr-1" /> Editar Rótulos</>
-            )}
-          </Button>
-          {unlocked && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => { lock(); setEditingLabels(false); }} title="Bloquear sessão">
-              <X className="h-4 w-4" />
-            </Button>
-          )}
         </div>
       </div>
 
