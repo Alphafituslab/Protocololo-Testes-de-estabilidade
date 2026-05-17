@@ -116,7 +116,7 @@ export default function LoginPage() {
             <img src="/logo-alphafitus.png" alt="Alphafitus" className="h-20 w-auto" />
           </div>
           <div>
-            <CardTitle className="text-2xl">Alphafitus</CardTitle>
+            <CardTitle className="text-xl">Alphafitus Laboratório Nutracêutico</CardTitle>
             <CardDescription className="mt-1">
               {setupNeeded
                 ? "Configure o primeiro administrador do sistema"
