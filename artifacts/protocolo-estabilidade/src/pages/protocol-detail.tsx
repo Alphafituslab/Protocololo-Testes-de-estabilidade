@@ -2483,14 +2483,14 @@ export default function ProtocolDetail() {
               </Link>
             );
           })()}
-          {/* Edit — guarded */}
+          {/* Edit — always accessible */}
           <Button
             variant="outline"
             size="sm"
             data-testid="button-edit-protocol"
-            onClick={() => guardedAction(() => setLocation(`/protocols/${id}/edit`))}
+            onClick={() => setLocation(`/protocols/${id}/edit`)}
           >
-            {needsPassword ? <Lock className="h-4 w-4 mr-1 text-amber-500" /> : <Pencil className="h-4 w-4 mr-1" />}
+            <Pencil className="h-4 w-4 mr-1" />
             Editar
           </Button>
           {/* Delete — always requires password */}
