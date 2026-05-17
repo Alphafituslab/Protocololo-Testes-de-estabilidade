@@ -17,11 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Save, Loader2, Pencil, X, Check } from "lucide-react";
+import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { useUnlock } from "@/hooks/use-unlock";
-import { UnlockDialog } from "@/components/unlock-dialog";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
 
 const formSchema = z.object({
@@ -54,29 +52,6 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-function EL({
-  labelKey, def, editingLabels, lbl, setLabel,
-}: {
-  labelKey: string;
-  def: string;
-  editingLabels: boolean;
-  lbl: (key: string, def: string) => string;
-  setLabel: (key: string, value: string) => void;
-}) {
-  const current = lbl(labelKey, def);
-  if (!editingLabels) return <FormLabel>{current}</FormLabel>;
-  return (
-    <FormLabel>
-      <input
-        value={current}
-        onChange={e => setLabel(labelKey, e.target.value)}
-        onClick={e => e.stopPropagation()}
-        className="font-medium text-sm border border-amber-400 rounded px-1.5 py-0.5 bg-amber-50 focus:outline-none focus:ring-1 focus:ring-amber-500 w-full"
-        title="Editar nome do campo"
-      />
-    </FormLabel>
-  );
-}
 
 function AlwaysEL({
   labelKey, def, lbl, setLabel,
@@ -108,10 +83,7 @@ export default function ProtocolForm() {
   const queryClient = useQueryClient();
   const isEdit = !!id;
 
-  const { unlocked, unlock, lock } = useUnlock();
   const { lbl, setLabel } = useLabelOverrides();
-  const [editingLabels, setEditingLabels] = useState(false);
-  const [showUnlock, setShowUnlock] = useState(false);
 
   const { data: existing } = useGetProtocol(Number(id), {
     query: { enabled: isEdit, queryKey: getGetProtocolQueryKey(Number(id)) },
@@ -283,35 +255,35 @@ export default function ProtocolForm() {
             <CardContent className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="companyName" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <EL labelKey="companyName" def="Nome da Empresa" {...elProps} />
+                  <AlwaysEL labelKey="companyName" def="Nome da Empresa" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-companyName" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="cnpj" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="cnpj" def="CNPJ" {...elProps} />
+                  <AlwaysEL labelKey="cnpj" def="CNPJ" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-cnpj" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="ie" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="ie" def="IE" {...elProps} />
+                  <AlwaysEL labelKey="ie" def="IE" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-ie" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="address" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <EL labelKey="address" def="Endereço" {...elProps} />
+                  <AlwaysEL labelKey="address" def="Endereço" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-address" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="cep" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="cep" def="CEP" {...elProps} />
+                  <AlwaysEL labelKey="cep" def="CEP" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-cep" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -333,35 +305,35 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="productName" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="productName" def="Nome do Produto" {...elProps} />
+                  <AlwaysEL labelKey="productName" def="Nome do Produto" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-productName" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="productType" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="productType" def="Tipo de Produto" {...elProps} />
+                  <AlwaysEL labelKey="productType" def="Tipo de Produto" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-productType" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="packagingType" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="packagingType" def="Tipo de Pote" {...elProps} />
+                  <AlwaysEL labelKey="packagingType" def="Tipo de Pote" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-packagingType" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="activeIngredients" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <EL labelKey="activeIngredients" def="Ingredientes Ativos" {...elProps} />
+                  <AlwaysEL labelKey="activeIngredients" def="Ingredientes Ativos" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-activeIngredients" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="excipients" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <EL labelKey="excipients" def="Excipientes" {...elProps} />
+                  <AlwaysEL labelKey="excipients" def="Excipientes" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-excipients" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -383,49 +355,49 @@ export default function ProtocolForm() {
             <CardContent className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="studyStartDate" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="studyStartDate" def="Data de Início" {...elProps} />
+                  <AlwaysEL labelKey="studyStartDate" def="Data de Início" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input type="date" data-testid="input-studyStartDate" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="studyEndDate" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="studyEndDate" def="Data Final" {...elProps} />
+                  <AlwaysEL labelKey="studyEndDate" def="Data Final" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input type="date" data-testid="input-studyEndDate" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="storageTemp" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="storageTemp" def="Temperatura de Armazenamento" {...elProps} />
+                  <AlwaysEL labelKey="storageTemp" def="Temperatura de Armazenamento" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-storageTemp" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="storageHumidity" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="storageHumidity" def="Umidade Relativa" {...elProps} />
+                  <AlwaysEL labelKey="storageHumidity" def="Umidade Relativa" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-storageHumidity" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="studyPeriodMonths" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="studyPeriodMonths" def="Período do Estudo (meses)" {...elProps} />
+                  <AlwaysEL labelKey="studyPeriodMonths" def="Período do Estudo (meses)" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input type="number" data-testid="input-studyPeriodMonths" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="testIntervals" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="testIntervals" def="Intervalos de Teste" {...elProps} />
+                  <AlwaysEL labelKey="testIntervals" def="Intervalos de Teste" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-testIntervals" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="studyObjective" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <EL labelKey="studyObjective" def="OBJETIVO DO ESTUDO" {...elProps} />
+                  <AlwaysEL labelKey="studyObjective" def="OBJETIVO DO ESTUDO" lbl={lbl} setLabel={setLabel} />
                   <FormControl>
                     <Textarea data-testid="input-studyObjective" rows={3} {...field} />
                   </FormControl>
@@ -442,42 +414,42 @@ export default function ProtocolForm() {
             <CardContent className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="elaboratedBy" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="elaboratedBy" def="Elaboração" {...elProps} />
+                  <AlwaysEL labelKey="elaboratedBy" def="Elaboração" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-elaboratedBy" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="approvedBy" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="approvedBy" def="Aprovação" {...elProps} />
+                  <AlwaysEL labelKey="approvedBy" def="Aprovação" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-approvedBy" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="issuedBy" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="issuedBy" def="Laudo emitido por" {...elProps} />
+                  <AlwaysEL labelKey="issuedBy" def="Laudo emitido por" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-issuedBy" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="seniorAnalyst" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="seniorAnalyst" def="Analista Sênior" {...elProps} />
+                  <AlwaysEL labelKey="seniorAnalyst" def="Analista Sênior" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input data-testid="input-seniorAnalyst" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="issuedByEmail" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="issuedByEmail" def="Email — Responsável Técnico" {...elProps} />
+                  <AlwaysEL labelKey="issuedByEmail" def="Email — Responsável Técnico" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input type="email" data-testid="input-issuedByEmail" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="seniorAnalystEmail" render={({ field }) => (
                 <FormItem>
-                  <EL labelKey="seniorAnalystEmail" def="Email — Analista Sênior" {...elProps} />
+                  <AlwaysEL labelKey="seniorAnalystEmail" def="Email — Analista Sênior" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input type="email" data-testid="input-seniorAnalystEmail" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
