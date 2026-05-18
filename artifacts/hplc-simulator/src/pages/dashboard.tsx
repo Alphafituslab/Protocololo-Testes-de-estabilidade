@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/use-auth";
 import {
   FlaskConical, LogOut, BarChart3, FileText, Activity,
   ChevronRight, Microscope, Gauge, Database, Lock, Unlock,
-  CheckCircle2, XCircle, Clock, FileCheck2, TrendingUp,
+  CheckCircle2, XCircle, Clock, FileCheck2, TrendingUp, Layers, Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,10 +44,10 @@ function linReg(pts: { x: number; y: number }[]): number {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  em_andamento: "Em Andamento",
-  aprovado: "Aprovado",
-  reprovado: "Reprovado",
-  laudo_emitido: "Laudo Emitido",
+  em_andamento: "In Progress",
+  aprovado: "Approved",
+  reprovado: "Rejected",
+  laudo_emitido: "Report Issued",
 };
 const STATUS_COLOR: Record<string, { bg: string; text: string; border: string }> = {
   em_andamento: { bg: "#dbeafe", text: "#1d4ed8", border: "#93c5fd" },
@@ -64,7 +64,7 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
 
 function fmt(iso: string) {
   try {
-    return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return new Date(iso).toLocaleDateString("en-US", { day: "2-digit", month: "2-digit", year: "numeric" });
   } catch { return iso; }
 }
 
@@ -109,6 +109,12 @@ export default function DashboardPage() {
     navigate("/simulator");
   }
 
+  /** Navigate to the simulator and open a specific tab */
+  function openSimulatorTab(tab: string) {
+    localStorage.setItem("hplc_dashboard_target_page", tab);
+    navigate("/simulator");
+  }
+
   const recentSessions = [...sessions]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 6);
@@ -117,53 +123,53 @@ export default function DashboardPage() {
 
   const cards = [
     {
-      icon: <FlaskConical className="h-8 w-8 text-blue-600" />,
-      title: "Simulador HPLC",
-      description: "Agilent ChemStation — Simulação de cromatogramas, configuração de picos, gradiente e relatório analítico.",
-      action: () => navigate("/simulator"),
-      cta: "Abrir Simulador",
+      icon: <BarChart3 className="h-8 w-8 text-blue-600" />,
+      title: "Chromatogram",
+      description: "Configure peaks, detector DAD, baseline, noise and run the chromatographic simulation.",
+      action: () => openSimulatorTab("chromatogram"),
+      cta: "Open Chromatogram",
       color: "border-blue-200 hover:border-blue-400",
-      badge: "Principal",
+      badge: "Main",
       badgeColor: "bg-blue-100 text-blue-700",
     },
     {
-      icon: <BarChart3 className="h-8 w-8 text-emerald-600" />,
-      title: "Análise de Picos",
-      description: "Configure picos, áreas, fatores de resposta e parâmetros de integração do cromatograma.",
-      action: () => navigate("/simulator"),
-      cta: "Configurar Picos",
+      icon: <FlaskConical className="h-8 w-8 text-emerald-600" />,
+      title: "Analysis Sessions",
+      description: "Create and manage analysis sessions, attach chromatogram snapshots and link to lots.",
+      action: () => openSimulatorTab("analise"),
+      cta: "Open Analysis",
       color: "border-emerald-200 hover:border-emerald-400",
     },
     {
       icon: <FileText className="h-8 w-8 text-violet-600" />,
-      title: "Relatório Analítico",
-      description: "Gere e exporte o relatório completo no padrão Agilent ChemStation com todos os parâmetros do ensaio.",
-      action: () => navigate("/simulator"),
-      cta: "Gerar Relatório",
+      title: "Calibration Curve",
+      description: "Build and view the calibration curve, check R², export and print the analytical report.",
+      action: () => openSimulatorTab("report"),
+      cta: "Open Calibration Curve",
       color: "border-violet-200 hover:border-violet-400",
     },
     {
-      icon: <Activity className="h-8 w-8 text-orange-600" />,
-      title: "Parâmetros do Sistema",
-      description: "Ajuste detector DAD, linha de base, ruído, deriva e condições de corrida cromatográfica.",
-      action: () => navigate("/simulator"),
-      cta: "Ajustar Parâmetros",
+      icon: <Database className="h-8 w-8 text-orange-600" />,
+      title: "Active Compounds",
+      description: "Manage the compound bank with RT, wavelength, response factors and calibration data.",
+      action: () => openSimulatorTab("ativos"),
+      cta: "Open Compounds",
       color: "border-orange-200 hover:border-orange-400",
     },
     {
-      icon: <Database className="h-8 w-8 text-slate-600" />,
-      title: "Banco de Métodos",
-      description: "Gerencie e salve configurações de métodos analíticos para reutilização em diferentes análises.",
-      action: () => navigate("/simulator"),
-      cta: "Ver Métodos",
+      icon: <Layers className="h-8 w-8 text-slate-600" />,
+      title: "Lots / Formulas",
+      description: "Register production lots, link them to analytical formulas and track batch results.",
+      action: () => openSimulatorTab("lotes"),
+      cta: "Open Lots",
       color: "border-slate-200 hover:border-slate-400",
     },
     {
-      icon: <Gauge className="h-8 w-8 text-red-600" />,
-      title: "Validação do Método",
-      description: "Parâmetros de validação: linearidade, precisão, exatidão, limites de detecção e quantificação.",
-      action: () => navigate("/simulator"),
-      cta: "Iniciar Validação",
+      icon: <Scale className="h-8 w-8 text-red-600" />,
+      title: "External Standard",
+      description: "Single-point external standard quantification — calculate purity vs. reference standard.",
+      action: () => openSimulatorTab("padrao"),
+      cta: "Open Standard",
       color: "border-red-200 hover:border-red-400",
     },
   ];
@@ -184,8 +190,8 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             <img src="/logo-alphafitus.png" alt="Alphafitus" className="h-9 w-auto" />
             <div className="border-l border-border pl-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-none">Alphafitus Laboratório Nutracêutico</p>
-              <p className="text-sm font-semibold text-foreground leading-snug mt-0.5">Simulador HPLC — Agilent ChemStation</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-none">Alphafitus Nutraceutical Laboratory</p>
+              <p className="text-sm font-semibold text-foreground leading-snug mt-0.5">HPLC Simulator — Agilent ChemStation</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -194,7 +200,7 @@ export default function DashboardPage() {
             </span>
             <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-1.5 text-muted-foreground hover:text-destructive">
               <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Sair</span>
+              <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </div>
@@ -208,8 +214,8 @@ export default function DashboardPage() {
               <Microscope className="h-7 w-7" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Painel de Controle</h1>
-              <p className="text-blue-200 text-sm">Bem-vindo, {user?.displayName ?? user?.username}. Selecione uma função para começar.</p>
+              <h1 className="text-2xl font-bold tracking-tight">Control Panel</h1>
+              <p className="text-blue-200 text-sm">Welcome, {user?.displayName ?? user?.username}. Select a module to get started.</p>
             </div>
           </div>
 
@@ -218,9 +224,9 @@ export default function DashboardPage() {
             <div className="mt-5 grid grid-cols-4 gap-3 max-w-xl">
               {[
                 { label: "Total", value: sessionStats.total, color: "bg-white/10" },
-                { label: "Em Andamento", value: sessionStats.em_andamento, color: "bg-blue-400/20" },
-                { label: "Aprovadas", value: sessionStats.aprovado, color: "bg-green-400/20" },
-                { label: "Laudos", value: sessionStats.laudo_emitido, color: "bg-purple-400/20" },
+                { label: "In Progress", value: sessionStats.em_andamento, color: "bg-blue-400/20" },
+                { label: "Approved", value: sessionStats.aprovado, color: "bg-green-400/20" },
+                { label: "Reports", value: sessionStats.laudo_emitido, color: "bg-purple-400/20" },
               ].map(s => (
                 <div key={s.label} className={`${s.color} rounded-lg px-3 py-2 text-center`}>
                   <div className="text-2xl font-bold text-white">{s.value}</div>
@@ -234,10 +240,10 @@ export default function DashboardPage() {
             <Button
               size="lg"
               className="bg-white text-blue-900 hover:bg-blue-50 font-semibold gap-2 shadow-lg"
-              onClick={() => navigate("/simulator")}
+              onClick={() => openSimulatorTab("chromatogram")}
             >
-              <FlaskConical className="h-5 w-5" />
-              Abrir Simulador HPLC
+              <BarChart3 className="h-5 w-5" />
+              Open HPLC Simulator
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -248,7 +254,7 @@ export default function DashboardPage() {
 
         {/* Module Cards */}
         <div>
-          <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">Módulos disponíveis</h2>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">Simulator Modules</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {cards.map((c) => (
               <Card
@@ -278,32 +284,32 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Análises Salvas */}
+        {/* Saved Sessions */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Análises Salvas
+              Saved Sessions
               {sessions.length > 0 && (
                 <span className="ml-2 bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-[10px] font-bold normal-case tracking-normal">
                   {sessions.length}
                 </span>
               )}
             </h2>
-            <Button variant="ghost" size="sm" className="text-xs text-blue-700 gap-1" onClick={() => navigate("/simulator")}>
-              Ver todas no simulador <ChevronRight className="h-3.5 w-3.5" />
+            <Button variant="ghost" size="sm" className="text-xs text-blue-700 gap-1" onClick={() => openSimulatorTab("sessoes")}>
+              View all in simulator <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>
 
           {sessions.length === 0 ? (
             <div className="rounded-lg border-2 border-dashed border-border p-10 text-center text-muted-foreground text-sm">
-              Nenhuma análise salva ainda. Abra o Simulador HPLC e crie uma nova análise.
+              No sessions saved yet. Open the HPLC Simulator and create a new analysis.
             </div>
           ) : (
             <div className="rounded-lg border overflow-hidden">
               <table className="w-full text-xs">
                 <thead className="bg-muted">
                   <tr>
-                    {["Sessão", "Fórmula", "Corridas", "Status", "Data", ""].map(h => (
+                    {["Session", "Formula", "Runs", "Status", "Date", ""].map(h => (
                       <th key={h} className="px-4 py-2.5 text-left font-semibold text-muted-foreground text-[11px] uppercase tracking-wide">
                         {h}
                       </th>
@@ -343,7 +349,7 @@ export default function DashboardPage() {
                             className="h-7 text-xs gap-1"
                             onClick={() => openSessionInSimulator(s.id)}
                           >
-                            Abrir <ChevronRight className="h-3 w-3" />
+                            Open <ChevronRight className="h-3 w-3" />
                           </Button>
                         </td>
                       </tr>
@@ -355,9 +361,9 @@ export default function DashboardPage() {
                 <div className="px-4 py-2 text-center border-t bg-muted/30">
                   <button
                     className="text-xs text-blue-700 hover:text-blue-900 font-medium"
-                    onClick={() => navigate("/simulator")}
+                    onClick={() => openSimulatorTab("sessoes")}
                   >
-                    + {sessions.length - 6} análises — ver todas no simulador
+                    + {sessions.length - 6} more sessions — view all in simulator
                   </button>
                 </div>
               )}
@@ -365,25 +371,25 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Curvas de Calibração */}
+        {/* Calibration Curves */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Curvas de Calibração dos Ativos
+              Active Compound Calibration Curves
               {calibEntries.length > 0 && (
                 <span className="ml-2 bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5 text-[10px] font-bold normal-case tracking-normal">
                   {calibEntries.length}
                 </span>
               )}
             </h2>
-            <Button variant="ghost" size="sm" className="text-xs text-blue-700 gap-1" onClick={() => navigate("/simulator")}>
-              Gerenciar no simulador <ChevronRight className="h-3.5 w-3.5" />
+            <Button variant="ghost" size="sm" className="text-xs text-blue-700 gap-1" onClick={() => openSimulatorTab("report")}>
+              Manage in simulator <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>
 
           {calibEntries.length === 0 ? (
             <div className="rounded-lg border-2 border-dashed border-border p-10 text-center text-muted-foreground text-sm">
-              Nenhuma curva de calibração salva ainda. Configure as curvas na aba Calibração do Simulador HPLC.
+              No calibration curves saved yet. Set up curves in the Calibration Curve tab of the HPLC Simulator.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -410,16 +416,16 @@ export default function DashboardPage() {
                           <span className="truncate max-w-[140px]" title={name}>{name}</span>
                         </div>
                         {calib.calib?.expRT ? (
-                          <div className="text-[10px] text-muted-foreground mt-0.5">RT esperado: {calib.calib.expRT} min</div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">Expected RT: {calib.calib.expRT} min</div>
                         ) : null}
                       </div>
                       {isLocked ? (
                         <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 border border-amber-300 rounded-full px-2 py-0.5 text-[10px] font-bold shrink-0">
-                          <Lock className="h-3 w-3" /> Travada
+                          <Lock className="h-3 w-3" /> Locked
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 border border-gray-200 rounded-full px-2 py-0.5 text-[10px] shrink-0">
-                          <Unlock className="h-3 w-3" /> Editável
+                          <Unlock className="h-3 w-3" /> Editable
                         </span>
                       )}
                     </div>
@@ -427,14 +433,14 @@ export default function DashboardPage() {
                     <div className="grid grid-cols-3 gap-2 text-center mb-3">
                       <div className="bg-muted rounded p-2">
                         <div className="text-sm font-bold text-foreground">{stds.length}</div>
-                        <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Padrões</div>
+                        <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Standards</div>
                       </div>
                       <div className="bg-muted rounded p-2 col-span-2">
                         <div className="text-sm font-bold" style={{ color: r2Color }}>
                           {r2 !== null ? `R² = ${r2.toFixed(5)}` : "—"}
                         </div>
                         <div className="text-[9px] text-muted-foreground uppercase tracking-wide">
-                          {r2 !== null ? (r2 >= 0.999 ? "Excelente" : r2 >= 0.99 ? "Bom" : "Verificar") : "Sem dados"}
+                          {r2 !== null ? (r2 >= 0.999 ? "Excellent" : r2 >= 0.99 ? "Good" : "Check") : "No data"}
                         </div>
                       </div>
                     </div>
@@ -443,12 +449,12 @@ export default function DashboardPage() {
                       <div className="text-[9px] text-muted-foreground font-mono border-t pt-2 space-y-0.5">
                         {[...stds].sort((a, b) => a.amount - b.amount).slice(0, 4).map((s, i) => (
                           <div key={s.id} className="flex justify-between">
-                            <span>Nível {i + 1}: {s.amount} µg/mL</span>
+                            <span>Level {i + 1}: {s.amount} µg/mL</span>
                             <span>{s.area.toFixed(0)} mAU·s</span>
                           </div>
                         ))}
                         {stds.length > 4 && (
-                          <div className="text-center opacity-50">+ {stds.length - 4} níveis</div>
+                          <div className="text-center opacity-50">+ {stds.length - 4} more levels</div>
                         )}
                       </div>
                     )}
@@ -457,10 +463,10 @@ export default function DashboardPage() {
                       size="sm"
                       variant="outline"
                       className="w-full mt-3 text-xs gap-1 h-7"
-                      onClick={() => navigate("/simulator")}
+                      onClick={() => openSimulatorTab("report")}
                     >
                       {isLocked ? <Lock className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
-                      {isLocked ? "Ver (travada)" : "Editar no Simulador"}
+                      {isLocked ? "View (locked)" : "Edit in Simulator"}
                     </Button>
                   </div>
                 );
@@ -473,7 +479,7 @@ export default function DashboardPage() {
 
       {/* Footer */}
       <footer className="border-t mt-8 py-4 text-center text-xs text-muted-foreground">
-        Alphafitus Laboratório Nutracêutico · Simulador HPLC Agilent ChemStation
+        Alphafitus Nutraceutical Laboratory · HPLC Simulator Agilent ChemStation
       </footer>
     </div>
   );

@@ -2387,6 +2387,19 @@ export default function HplcSimulator() {
     }
   }, []);
 
+  // Auto-navigate to a specific tab when coming from dashboard with a page target
+  useEffect(() => {
+    const targetPage = localStorage.getItem("hplc_dashboard_target_page") as PageMode | null;
+    if (targetPage) {
+      localStorage.removeItem("hplc_dashboard_target_page");
+      const validPages: PageMode[] = ["sessoes", "chromatogram", "ativos", "lotes", "analise", "padrao", "report", "usuarios"];
+      if (validPages.includes(targetPage)) {
+        setPage(targetPage);
+        if (targetPage === "usuarios") fetchUsers();
+      }
+    }
+  }, []);
+
   const markDirty = useCallback(() => { setIsDirty(true); setConfirmed(false); }, []);
 
   // Keep refs in sync so pushUndo can always capture the latest state
