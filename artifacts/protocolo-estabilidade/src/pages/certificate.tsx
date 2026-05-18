@@ -230,6 +230,14 @@ export default function CertificatePage() {
     setCertLockedState(false);
     try { localStorage.setItem(CERT_LOCKED_KEY, "0"); } catch { /* ignore */ }
   };
+  const clearCertEdits = () => {
+    setCertEditsState({});
+    try {
+      localStorage.removeItem(CERT_EDITS_KEY);
+      localStorage.removeItem(CERT_LOCKED_KEY);
+    } catch { /* ignore */ }
+    setCertLockedState(false);
+  };
 
   // Helper: renders a CertEditField when unlocked, plain text when locked
   const ef = (key: string, fallback: string | null | undefined, opts?: { multiline?: boolean; className?: string }) => {
@@ -458,7 +466,16 @@ export default function CertificatePage() {
       {/* ─── Settings panel ─── */}
       {showSettings && (
         <div className="print:hidden border rounded-lg bg-white shadow-sm p-5 space-y-5">
-          <p className="text-sm font-semibold text-gray-800">Configurações de Impressão / PDF</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-gray-800">Configurações de Impressão / PDF</p>
+            <button
+              type="button"
+              onClick={() => { if (window.confirm("Restaurar todos os campos do certificado para os valores originais? As edições manuais serão perdidas.")) clearCertEdits(); }}
+              className="text-xs px-3 py-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+            >
+              Restaurar campos originais
+            </button>
+          </div>
           <div className="space-y-2">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Seções do documento</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -674,7 +691,7 @@ export default function CertificatePage() {
             <div className="border-l border-gray-300 pl-5" style={{ minWidth: 0, flex: 1 }}>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5 truncate">Alphafitus Laboratório Nutracêutico</p>
               <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>Certificado de Análise</h1>
-              <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{getEdit("productName", cert.productName)}</p>
+              <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{cert.productName}</p>
             </div>
           </div>
           {/* Cert info */}
@@ -706,7 +723,7 @@ export default function CertificatePage() {
             <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1">Identificação do Produto</h2>
             <dl className="space-y-1">
               <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Produto:</dt><dd className="font-medium flex-1 min-w-0" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{ef("productName", cert.productName, { multiline: true, className: "w-full font-medium text-sm" })}</dd></div>
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Apresentação:</dt><dd className="flex-1 min-w-0">{ef("presentation", cert.presentation)}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Tipo do Produto:</dt><dd className="flex-1 min-w-0">{ef("presentation", cert.presentation)}</dd></div>
               <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Validade:</dt><dd className="font-semibold flex-1 min-w-0">{ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}</dd></div>
               <div className="flex gap-2">
                 <dt className="text-gray-500 min-w-20 flex-shrink-0">N° do Lote:</dt>
@@ -717,8 +734,8 @@ export default function CertificatePage() {
         </div>
 
         <div className="mb-4 text-sm">
-          <span className="text-gray-500 font-semibold">Composição da Cápsula: </span>
-          {ef("capsuleComposition", (cert as any).capsuleComposition)}
+          <span className="text-gray-500 font-semibold block mb-0.5">Composição da Cápsula:</span>
+          <span className="block" style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{ef("capsuleComposition", (cert as any).capsuleComposition, { multiline: true, className: "w-full text-sm" })}</span>
         </div>
 
         {show.condicoesAmbientais && (
@@ -843,8 +860,9 @@ export default function CertificatePage() {
         )}
 
         {show.conclusao && (
-          <div className="mb-6 font-semibold text-center text-sm uppercase tracking-wide border-t border-b border-gray-300 py-3">
-            CONCLUSAO: {ef("conclusion", cert.conclusion)}
+          <div className="mb-6 font-semibold text-center text-sm border-t border-b border-gray-300 py-3" style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
+            <span className="uppercase tracking-wide">CONCLUSÃO:</span>{" "}
+            <span className="font-normal normal-case">{ef("conclusion", cert.conclusion, { multiline: true, className: "w-full text-sm font-normal" })}</span>
           </div>
         )}
 
