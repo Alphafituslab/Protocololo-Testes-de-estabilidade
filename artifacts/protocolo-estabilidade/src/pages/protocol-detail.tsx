@@ -872,7 +872,7 @@ function InlineCell({
       <div className="flex flex-col gap-1 p-0.5 min-w-28" data-inline-cell onClick={(e) => e.stopPropagation()}>
         <input
           autoFocus
-          type="search"
+          type="text"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
@@ -889,7 +889,7 @@ function InlineCell({
             }
           }}
           autoComplete="off"
-          className="w-full border border-primary rounded px-1.5 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+          className="w-full border border-primary rounded px-1.5 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary"
           placeholder="Resultado"
           data-testid="input-inline-result"
         />
