@@ -747,23 +747,6 @@ export default function CertificatePage() {
           </div>
         </div>
 
-        {(!certLocked || getEdit("capsuleComposition", (cert as any).capsuleComposition).trim()) && (
-          <div className="mb-4 text-sm">
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-gray-500 font-semibold">Composição da Cápsula:</span>
-              {!certLocked && certEdits.capsuleComposition !== undefined && (
-                <button
-                  type="button"
-                  onClick={() => clearCertEdit("capsuleComposition")}
-                  className="text-[10px] text-red-400 hover:text-red-600 border border-red-200 rounded px-1 print:hidden"
-                  title="Limpar conteúdo salvo e usar valor do banco"
-                >✕ limpar</button>
-              )}
-            </div>
-            <span className="block" style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{ef("capsuleComposition", (cert as any).capsuleComposition, { multiline: true, className: "w-full text-sm" })}</span>
-          </div>
-        )}
-
         {show.condicoesAmbientais && (
           <div className="mb-6 border border-gray-200 rounded p-3 bg-gray-50 text-xs space-y-2">
             <div className="flex items-center justify-between">
