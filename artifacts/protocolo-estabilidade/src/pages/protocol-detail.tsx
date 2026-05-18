@@ -874,6 +874,7 @@ function InlineCell({
               if (next) { setEditing(false); setTimeout(() => { next.focus(); next.click(); }, 30); }
             }
           }}
+          autoComplete="off"
           className="w-full border border-primary rounded px-1.5 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary"
           placeholder="valor"
           data-testid="input-inline-result"
