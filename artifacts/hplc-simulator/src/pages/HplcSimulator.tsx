@@ -2011,7 +2011,7 @@ function SetStandardDialog({ compounds, existing, onSave, children }: {
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-type PageMode = "painel" | "chromatogram" | "ativos" | "lotes" | "report" | "usuarios" | "analise" | "padrao";
+type PageMode = "sessoes" | "chromatogram" | "ativos" | "lotes" | "report" | "usuarios" | "analise" | "padrao";
 
 interface UserRecord {
   id: number;
@@ -3045,7 +3045,7 @@ export default function HplcSimulator() {
     setIsDirty(false);
     setConfirmed(false);
     saveState({ peaks: DEFAULT_PEAKS, sample: DEFAULT_SAMPLE, detector: DEFAULT_DETECTOR, standards: DEFAULT_STANDARDS, calib: DEFAULT_CALIB, activeCompounds: DEFAULT_ACTIVE_COMPOUNDS, productName: "" });
-    setPage("painel");
+    setPage("sessoes");
     setNewAnalysisDialog(false);
   };
 
@@ -3088,9 +3088,9 @@ export default function HplcSimulator() {
     };
     setSavedImages(imgs => { const u = [...imgs, img]; saveSavedImages(u); return u; });
     setSavePngDialog(null);
-    // Optionally redirect to painel gallery
+    // Optionally redirect to sessoes gallery
     if (redirectToGallery) {
-      setPage("painel");
+      setPage("sessoes");
       setTimeout(() => galleryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
     }
   };
@@ -3158,8 +3158,17 @@ export default function HplcSimulator() {
         <span style={{ ...MONO, fontWeight: "bold", fontSize: 13 }}>Agilent ChemStation</span>
         <div className="flex-1" />
         <div style={{ display: "flex", border: "1px solid #bbb", borderRadius: 4, overflow: "hidden" }}>
+          {/* Painel button navigates to /dashboard */}
+          <button onClick={() => navigate("/dashboard")} style={{
+            ...MONO, fontSize: 11, padding: "4px 12px", cursor: "pointer",
+            background: "#fff", color: "#333",
+            border: "none",
+            display: "flex", alignItems: "center", gap: 4,
+          }}>
+            <LayoutDashboard style={{ width: 13, height: 13 }} /> Painel
+          </button>
           {(([
-            ["painel", "Painel", LayoutDashboard, false],
+            ["sessoes", "Sessões", ScrollText, false],
             ["chromatogram", "Cromatograma", BarChart3, false],
             ["ativos", "Compostos", Database, false],
             ["lotes", "Lotes", Layers, false],
@@ -3175,7 +3184,7 @@ export default function HplcSimulator() {
               ...MONO, fontSize: 11, padding: "4px 12px", cursor: "pointer",
               background: page === mode ? "#1d4ed8" : "#fff",
               color: page === mode ? "#fff" : "#333",
-              border: "none", borderLeft: idx !== 0 ? "1px solid #bbb" : "none",
+              border: "none", borderLeft: "1px solid #bbb",
               display: "flex", alignItems: "center", gap: 4,
             }}>
               <Icon style={{ width: 13, height: 13 }} /> {label}
@@ -3198,7 +3207,7 @@ export default function HplcSimulator() {
         )}
         {confirmed && !isDirty && (
           <span className="flex items-center gap-1 text-xs text-green-700 font-medium px-2">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Salvo no Painel
+            <CheckCircle2 className="h-3.5 w-3.5" /> Salvo nas Sessões
           </span>
         )}
 
@@ -4370,17 +4379,17 @@ export default function HplcSimulator() {
                   🔑 Desbloquear com Senha Master
                 </button>
                 <button
-                  onClick={() => setPage("painel")}
+                  onClick={() => setPage("sessoes")}
                   style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 10, fontFamily: "Courier New, monospace", textDecoration: "underline" }}
                 >
-                  ← Voltar ao Painel
+                  ← Voltar às Sessões
                 </button>
               </div>
             </div>
           )}
 
-          {/* ── PAINEL / DASHBOARD PAGE ───────────────────────────────────── */}
-          {page === "painel" && (() => {
+          {/* ── SESSÕES DE ANÁLISE ───────────────────────────────────── */}
+          {page === "sessoes" && (() => {
             const total = analysisSessions.length;
             const emAndamento = analysisSessions.filter(s => s.status === "em_andamento").length;
             const aprovados = analysisSessions.filter(s => s.status === "aprovado").length;
@@ -4411,7 +4420,7 @@ export default function HplcSimulator() {
               <div style={{ fontFamily: "Courier New, monospace" }}>
                 {/* Header */}
                 <div style={{ fontWeight: "bold", fontSize: 15, marginBottom: 18, borderBottom: "1px solid #bbb", paddingBottom: 10, color: "#1d4ed8" }}>
-                  Painel de Análises
+                  Sessões de Análise
                 </div>
 
                 {/* Stat cards — clickable to filter the session list below */}
@@ -6860,7 +6869,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               Preencha os dados da nova análise. O cromatograma será reiniciado com os valores padrão.
               {!currentSnapshotSessionId && (
                 <span style={{ display: "block", color: "#f59e0b", marginTop: 4 }}>
-                  ⚠ A análise atual não foi confirmada e não está no Painel.
+                  ⚠ A análise atual não foi confirmada e não está nas Sessões.
                 </span>
               )}
             </div>
