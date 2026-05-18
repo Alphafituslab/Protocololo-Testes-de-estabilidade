@@ -110,22 +110,28 @@ function CertEditField({
 }: { value: string; onChange: (v: string) => void; className?: string; multiline?: boolean }) {
   if (multiline) {
     return (
-      <textarea
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        rows={2}
-        autoComplete="off"
-        className={`bg-transparent border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 w-full resize-none print:border-none ${className}`}
-      />
+      <span className="relative w-full block">
+        <textarea
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          rows={2}
+          autoComplete="off"
+          className={`bg-transparent border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 w-full resize-none print:hidden ${className}`}
+        />
+        <span className="hidden print:block whitespace-pre-wrap break-words">{value}</span>
+      </span>
     );
   }
   return (
-    <input
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      autoComplete="off"
-      className={`bg-transparent border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 print:border-none ${className}`}
-    />
+    <span className="relative inline-block w-full">
+      <input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        autoComplete="off"
+        className={`bg-transparent border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 print:hidden w-full ${className}`}
+      />
+      <span className="hidden print:inline">{value}</span>
+    </span>
   );
 }
 
@@ -1250,27 +1256,11 @@ export default function CertificatePage() {
             font-size: 10pt;
           }
 
-          /* ── Editable fields: remove ALL browser chrome ── */
-          input, textarea {
-            border: none !important;
-            border-bottom: none !important;
-            background: transparent !important;
-            outline: none !important;
-            box-shadow: none !important;
-            -webkit-appearance: none !important;
-            appearance: none !important;
-          }
-
-          /* ── Textarea-specific: kill resize handle, unconstrain height ── */
-          textarea {
-            resize: none !important;
-            overflow: visible !important;
-            height: auto !important;
-            min-height: 0 !important;
-            max-height: none !important;
-            /* Force all text visible — no clipping */
-            white-space: pre-wrap !important;
-            word-break: break-word !important;
+          /* ── Editable fields hidden in print; print-only spans take their place ── */
+          /* Force print spans to be visible */
+          span.print-value {
+            display: inline !important;
+            visibility: visible !important;
           }
 
           /* ── Table cells: let their height grow with content ── */
