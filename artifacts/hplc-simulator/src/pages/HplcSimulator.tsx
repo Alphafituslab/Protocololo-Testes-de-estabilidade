@@ -4982,58 +4982,6 @@ export default function HplcSimulator() {
                 </div>
               </div>
 
-              {/* === Calibration Curves (ASCII art) — matches AMOSTRA PDF format === */}
-              {activeCompounds
-                .filter(compound => {
-                  if (calib.compoundName.trim()) {
-                    const n = compound.name.toLowerCase();
-                    const cn = calib.compoundName.toLowerCase().trim();
-                    if (n !== cn) return false;
-                  }
-                  const cc = getCC(compound.id);
-                  if (cc.standards.length === 0) return false;
-                  return peaks.some(p =>
-                    (p.name && (
-                      p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
-                      compound.name.toLowerCase().includes(p.name.toLowerCase())
-                    )) || Math.abs(p.retentionTime - compound.expectedRT) < compound.rtTol * 2
-                  );
-                })
-                .map(compound => {
-                  const cc = getCC(compound.id);
-                  const compReg = linearRegression(cc.standards.map(s => ({ x: s.amount, y: s.area })));
-                  const expRT = cc.calib.expRT > 0 ? cc.calib.expRT : compound.expectedRT;
-                  const matchPeak = peakStats.find(p =>
-                    (p.name && (
-                      p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
-                      compound.name.toLowerCase().includes(p.name.toLowerCase())
-                    )) || Math.abs(p.retentionTime - expRT) < compound.rtTol * 2
-                  );
-                  if (!matchPeak) return null;
-                  const asciiLines = buildCalibCurveAscii(
-                    [...cc.standards].sort((a, b) => a.amount - b.amount),
-                    matchPeak.displayArea,
-                    matchPeak.amount,
-                    compound.name,
-                    expRT,
-                    signalLabel,
-                    compReg.r,
-                    compReg.residStdDev,
-                    compReg.slope,
-                    compReg.intercept
-                  );
-                  return (
-                    <div key={compound.id} style={{ marginTop: 10 }}>
-                      <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
-                      <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
-                      <div style={{ whiteSpace: "pre" }}>{"    " + " ".repeat(30) + "Calibration Curves"}</div>
-                      <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
-                      {asciiLines.map((line, i) => (
-                        <div key={i} style={{ whiteSpace: "pre" }}>{line}</div>
-                      ))}
-                    </div>
-                  );
-                })}
 
               {/* End of Report */}
               <div style={{ marginTop: 20 }}>
@@ -5257,18 +5205,50 @@ export default function HplcSimulator() {
                               ))}
                             </svg>
                           </div>
-                          {/* Stats panel */}
-                          <div style={{ paddingTop: 18, fontSize: 10.5, fontFamily: "Courier New, monospace", lineHeight: 1.9, color: "#111" }}>
-                            <div style={{ fontWeight: "bold", marginBottom: 4 }}>{compound.name} at exp. RT: {expRT.toFixed(3)}</div>
-                            <div>{signalLabel}</div>
-                            <div style={{ marginTop: 8 }}>{"Correlation:            " + compReg.r.toFixed(5)}</div>
-                            <div>{"Residual Std.  Dev.:   " + compReg.residStdDev.toFixed(5)}</div>
-                            <div style={{ marginTop: 8 }}>{"Formula: y = mx + b"}</div>
-                            <div style={{ whiteSpace: "pre" }}>{"      m:      " + compReg.slope.toFixed(5)}</div>
-                            <div style={{ whiteSpace: "pre" }}>{"      b:      " + compReg.intercept.toFixed(5)}</div>
-                            <div style={{ whiteSpace: "pre" }}>{"      x: Amount"}</div>
-                            <div style={{ whiteSpace: "pre" }}>{"      y: Area"}</div>
-                          </div>
+                          {/* Stats panel — scientific format (Agilent ChemStation style) */}
+                          {(() => {
+                            const sorted2 = [...cc.standards].sort((a, b) => a.amount - b.amount);
+                            const n2 = sorted2.length;
+                            const r2val = compReg.r * compReg.r;
+                            const rss = n2 > 2 ? compReg.residStdDev * compReg.residStdDev * (n2 - 2) : 0;
+                            const rfs = sorted2.map(s => s.amount > 0 ? s.area / s.amount : 0);
+                            const meanRF = rfs.length > 0 ? rfs.reduce((a, b) => a + b, 0) / rfs.length : 0;
+                            const rfsd = rfs.length > 1 ? Math.sqrt(rfs.reduce((a, b) => a + Math.pow(b - meanRF, 2), 0) / (rfs.length - 1)) : 0;
+                            const rfrsd = meanRF > 0 ? (rfsd / meanRF) * 100 : 0;
+                            const slopeAbs = Math.abs(compReg.slope);
+                            const slopeExp = slopeAbs > 0 ? Math.floor(Math.log10(slopeAbs)) : 0;
+                            const slopeMant = slopeAbs / Math.pow(10, slopeExp);
+                            const slopeSign = compReg.slope < 0 ? "-" : "";
+                            const slopeStr = `${slopeSign}${slopeMant.toFixed(5)}e+${String(slopeExp).padStart(3, "0")}`;
+                            const intSign = compReg.intercept >= 0 ? "+" : "";
+                            const intStr = `${intSign}${compReg.intercept.toFixed(0)}`;
+                            return (
+                              <div style={{ paddingTop: 14, fontSize: 9.5, fontFamily: "Courier New, monospace", lineHeight: 1.9, color: "#111", minWidth: 240 }}>
+                                <div style={{ fontWeight: "bold", fontSize: 11, marginBottom: 2 }}>{compound.name}</div>
+                                <div style={{ fontSize: 9, color: "#555", marginBottom: 8 }}>{signalLabel}</div>
+                                <div style={{ lineHeight: 1.7 }}>
+                                  <div>{"Quantitative Method : External Standard"}</div>
+                                  <div>{"Function            : f(x)=" + slopeStr + "*x" + intStr}</div>
+                                  <div style={{ paddingLeft: 8, color: "#555" }}>{"Rr1=" + compReg.r.toFixed(7) + " Rr2=" + r2val.toFixed(7)}</div>
+                                  <div style={{ paddingLeft: 8, color: "#555" }}>{"RSS=" + rss.toFixed(3)}</div>
+                                  <div style={{ paddingLeft: 8, color: "#555" }}>{"MeanRF: " + meanRF.toFixed(3) + "  RFSD: " + rfsd.toFixed(3) + "  RFRSD: " + rfrsd.toFixed(3)}</div>
+                                  <div>{"FitType             : Linear"}</div>
+                                  <div>{"Origin              : " + (cc.calib.origin || "Included")}</div>
+                                  <div>{"Weight              : " + (cc.calib.weight || "Equal")}</div>
+                                </div>
+                                <div style={{ marginTop: 10, borderTop: "1px solid #ccc", paddingTop: 6, fontSize: 9 }}>
+                                  <div style={{ fontWeight: "bold", marginBottom: 4, color: "#333" }}>
+                                    {"#    Conc.[ug/ml]    MeanArea        Area"}
+                                  </div>
+                                  {sorted2.map((s, idx) => (
+                                    <div key={s.id}>
+                                      {String(idx + 1).padStart(2) + "   " + s.amount.toFixed(5).padEnd(14) + s.area.toFixed(5).padEnd(16) + s.area.toFixed(5)}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       );
                     })()}
