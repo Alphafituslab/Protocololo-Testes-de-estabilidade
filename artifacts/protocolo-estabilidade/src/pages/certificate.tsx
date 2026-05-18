@@ -662,23 +662,23 @@ export default function CertificatePage() {
         data-testid="certificate-document"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b-2 border-gray-800 pb-5 mb-6">
+        <div className="flex items-start justify-between border-b-2 border-gray-800 pb-5 mb-6 gap-4">
           {/* Logo + título */}
-          <div className="flex items-center gap-5 min-w-0 flex-1">
+          <div className="flex items-center gap-5 flex-1 min-w-0">
             <img
               src="/logo-alphafitus.png"
               alt="Alphafitus"
               className="h-16 w-auto flex-shrink-0"
               style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.08))" }}
             />
-            <div className="border-l border-gray-300 pl-5 min-w-0">
+            <div className="border-l border-gray-300 pl-5 overflow-hidden">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5 whitespace-nowrap">Alphafitus Laboratório Nutracêutico</p>
-              <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800 whitespace-nowrap">Certificado de Análise</h1>
-              <p className="text-sm font-semibold text-emerald-700 mt-0.5 truncate">{ef("productName", cert.productName)}</p>
+              <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800">Certificado de Análise</h1>
+              <p className="text-sm font-semibold text-emerald-700 mt-0.5 break-words">{ef("productName", cert.productName)}</p>
             </div>
           </div>
           {/* Cert info */}
-          <div className="text-right text-sm space-y-2 flex-shrink-0 min-w-52 ml-4">
+          <div className="text-right text-sm space-y-2 flex-shrink-0 min-w-52">
             <div className="bg-gray-50 border border-gray-200 rounded px-3 py-2">
               <span className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider block">Número do Certificado</span>
               <span className="font-bold tracking-wide text-base">{ef("certNumber", cert.certNumber)}</span>
