@@ -49,8 +49,10 @@ router.post("/protocols/:id/results", requireAuth, async (req, res): Promise<voi
   const statusLabel: Record<string, string> = {
     conforme: "Conforme",
     nao_conforme: "Não Conforme",
-    na: "N/A",
+    na: "Não se Aplica",
     aprovado_com_ressalva: "Aprovado c/ Ressalva",
+    nd: "Não Detectado",
+    lq: "Limite de Quantificação",
   };
   const statusText = statusLabel[result!.status] ?? result!.status;
   const desc = `${result!.parameter} — T${result!.period}m — Lote ${lot?.lotNumber ?? result!.lotId}: valor="${result!.result}" [${statusText}]${result!.observation ? ` · Justificativa: ${result!.observation}` : ""}`;

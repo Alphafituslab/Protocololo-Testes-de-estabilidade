@@ -778,8 +778,8 @@ function InlineCell({
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(result?.result ?? "");
-  const [status, setStatus] = useState<"conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva">(
-    (result?.status as "conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva") ?? "conforme"
+  const [status, setStatus] = useState<"conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva" | "nd" | "lq">(
+    (result?.status as "conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva" | "nd" | "lq") ?? "conforme"
   );
   const [observation, setObservation] = useState(result?.observation ?? "");
   const queryClient = useQueryClient();
@@ -787,7 +787,7 @@ function InlineCell({
   useEffect(() => {
     if (!editing) {
       setValue(result?.result ?? "");
-      setStatus((result?.status as "conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva") ?? "conforme");
+      setStatus((result?.status as "conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva" | "nd" | "lq") ?? "conforme");
       setObservation(result?.observation ?? "");
     }
   }, [result, editing]);
@@ -835,7 +835,7 @@ function InlineCell({
 
   const open = () => {
     setValue(result?.result ?? "");
-    setStatus((result?.status as "conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva") ?? "conforme");
+    setStatus((result?.status as "conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva" | "nd" | "lq") ?? "conforme");
     setObservation(result?.observation ?? "");
     setEditing(true);
   };
@@ -845,6 +845,8 @@ function InlineCell({
     nao_conforme: "text-red-700 bg-red-50 border-red-200",
     na: "text-slate-500 bg-slate-50 border-slate-200",
     aprovado_com_ressalva: "text-amber-700 bg-amber-50 border-amber-200",
+    nd: "text-blue-600 bg-blue-50 border-blue-200",
+    lq: "text-purple-600 bg-purple-50 border-purple-200",
   };
 
   const statusBtnColors: Record<string, string> = {
@@ -852,6 +854,17 @@ function InlineCell({
     nao_conforme: "bg-red-100 text-red-700 border-red-300 font-bold",
     na: "bg-slate-100 text-slate-500 border-slate-300 font-bold",
     aprovado_com_ressalva: "bg-amber-100 text-amber-700 border-amber-300 font-bold",
+    nd: "bg-blue-100 text-blue-700 border-blue-300 font-bold",
+    lq: "bg-purple-100 text-purple-700 border-purple-300 font-bold",
+  };
+
+  const STATUS_LABEL: Record<string, string> = {
+    conforme: "C",
+    nao_conforme: "NC",
+    na: "NA",
+    aprovado_com_ressalva: "AR",
+    nd: "ND",
+    lq: "LQ",
   };
 
   if (editing) {
@@ -874,20 +887,21 @@ function InlineCell({
               if (next) { setEditing(false); setTimeout(() => { next.focus(); next.click(); }, 30); }
             }
           }}
-          autoComplete="off"
+          autoComplete="new-password"
+          name="inline-result-value"
           className="w-full border border-primary rounded px-1.5 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary"
           placeholder="valor"
           data-testid="input-inline-result"
         />
         <div className="flex gap-0.5 justify-center flex-wrap">
-          {(["conforme", "nao_conforme", "na", "aprovado_com_ressalva"] as const).map((s) => (
+          {(["conforme", "nao_conforme", "na", "aprovado_com_ressalva", "nd", "lq"] as const).map((s) => (
             <button
               type="button"
               key={s}
               onClick={() => setStatus(s)}
               className={`text-[9px] px-1 py-0.5 rounded border transition-all ${status === s ? statusBtnColors[s] : "bg-white text-muted-foreground border-border"}`}
             >
-              {s === "conforme" ? "C" : s === "nao_conforme" ? "NC" : s === "na" ? "N/A" : "AR"}
+              {STATUS_LABEL[s] ?? s}
             </button>
           ))}
         </div>
@@ -980,7 +994,7 @@ function InlineCell({
         title="Clique ou Enter para editar"
       >
         {result ? (
-          <span className={`inline-flex flex-col items-center gap-0.5 px-1.5 py-0.5 rounded text-xs border font-medium group-hover:opacity-80 transition-opacity ${statusColors[result.status]}`}>
+          <span className={`inline-flex flex-col items-center gap-0.5 px-1.5 py-0.5 rounded text-xs border font-medium group-hover:opacity-80 transition-opacity ${statusColors[result.status] ?? "text-slate-600 bg-slate-50 border-slate-200"}`}>
             <span>{result.result}</span>
             {result.status === "aprovado_com_ressalva" && (
               <span
@@ -989,6 +1003,12 @@ function InlineCell({
               >
                 AR {result.observation ? "ℹ" : ""}
               </span>
+            )}
+            {result.status === "nd" && (
+              <span className="text-[8px] font-bold tracking-wide text-blue-600">ND</span>
+            )}
+            {result.status === "lq" && (
+              <span className="text-[8px] font-bold tracking-wide text-purple-600">LQ</span>
             )}
           </span>
         ) : (
@@ -1230,9 +1250,11 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
       <div className="flex flex-wrap items-start gap-x-6 gap-y-1">
         <p className="text-xs text-muted-foreground">
           Clique em qualquer célula para digitar o resultado. Use{" "}
-          <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">C</kbd> = Conforme ·{" "}
-          <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">NC</kbd> = Não Conforme ·{" "}
-          <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">N/A</kbd> = Não aplicável ·{" "}
+          <kbd className="px-1 py-0.5 rounded bg-green-100 border border-green-300 text-green-700 text-xs">C</kbd> = Conforme ·{" "}
+          <kbd className="px-1 py-0.5 rounded bg-red-100 border border-red-300 text-red-700 text-xs">NC</kbd> = Não Conforme ·{" "}
+          <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">NA</kbd> = Não se aplica ·{" "}
+          <kbd className="px-1 py-0.5 rounded bg-blue-100 border border-blue-300 text-blue-700 text-xs">ND</kbd> = Não detectado ·{" "}
+          <kbd className="px-1 py-0.5 rounded bg-purple-100 border border-purple-300 text-purple-700 text-xs">LQ</kbd> = Limite de quantificação ·{" "}
           <kbd className="px-1 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-700 text-xs">AR</kbd> = Aprovado com Ressalva.{" "}
           Confirme com Enter ou OK.
         </p>

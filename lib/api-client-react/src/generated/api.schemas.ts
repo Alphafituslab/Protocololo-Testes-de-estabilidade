@@ -108,6 +108,8 @@ export const AnalysisResultStatus = {
   nao_conforme: "nao_conforme",
   na: "na",
   aprovado_com_ressalva: "aprovado_com_ressalva",
+  nd: "nd",
+  lq: "lq",
 } as const;
 
 export interface AnalysisResult {
@@ -244,6 +246,8 @@ export const UpsertResultBodyStatus = {
   nao_conforme: "nao_conforme",
   na: "na",
   aprovado_com_ressalva: "aprovado_com_ressalva",
+  nd: "nd",
+  lq: "lq",
 } as const;
 
 export interface UpsertResultBody {
