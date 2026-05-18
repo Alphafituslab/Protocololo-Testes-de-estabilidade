@@ -5016,7 +5016,7 @@ export default function HplcSimulator() {
                     <div key={compound.id} style={{ marginTop: 10 }}>
                       <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
                       <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
-                      <div style={{ whiteSpace: "pre" }}>{"    " + " ".repeat(27) + "Curva de Calibração"}</div>
+                      <div style={{ whiteSpace: "pre" }}>{"    " + " ".repeat(30) + "Calibration Curves"}</div>
                       <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
                       {asciiLines.map((line, i) => (
                         <div key={i} style={{ whiteSpace: "pre" }}>{line}</div>
@@ -5159,7 +5159,7 @@ export default function HplcSimulator() {
                     {/* ══════════════════════════════════════════════════════════════ */}
                     <div style={{ marginTop: 28 }}>
                       <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
-                      <div style={{ whiteSpace: "pre" }}>{"    " + " ".repeat(23) + "Curva de Calibração"}</div>
+                      <div style={{ whiteSpace: "pre" }}>{"    " + " ".repeat(26) + "Calibration Curves"}</div>
                       <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
                     </div>
 
