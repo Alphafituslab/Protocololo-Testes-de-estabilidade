@@ -312,15 +312,15 @@ function idSeed(id: string): number {
 // Returns a multiplier offset so the Gaussian shape is preserved but roughened.
 // Five octaves give a realistic multi-scale texture (fine + coarse heterogeneity).
 function peakNoiseAt(i: number, seed: number, localAmp: number, peakNoise: number): number {
-  if (peakNoise <= 0 || localAmp < 0.5) return 0;
+  if (peakNoise <= 0 || localAmp < 0.01) return 0;
   const n1 = pseudoNoise(i * 7   + seed % 997);
   const n2 = pseudoNoise(i * 23  + (seed >> 3)  % 1987);
   const n3 = pseudoNoise(i * 71  + (seed >> 6)  % 4003);
   const n4 = pseudoNoise(i * 157 + (seed >> 9)  % 7001);
   const n5 = pseudoNoise(i * 13  + (seed >> 12) % 3001);
   const raw = n1 * 0.38 + n2 * 0.26 + n3 * 0.18 + n4 * 0.11 + n5 * 0.07;
-  // At peakNoise=1 → roughness ≈ 10% of local amplitude
-  return raw * peakNoise * 0.10 * localAmp;
+  // At peakNoise=1 → roughness ≈ 45% of local amplitude (clearly visible)
+  return raw * peakNoise * 0.45 * localAmp;
 }
 
 function buildChromatogram(
@@ -1250,12 +1250,12 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
                 {heightVal.toFixed(0)}
               </span>
             </div>
-            <input type="range" min="1" max="2500" step="1"
+            <input type="range" min="1" max="10000" step="1"
               value={heightVal}
               onChange={e => setDraft(d => ({ ...d, height: e.target.value }))}
               className="w-full h-2 accent-blue-600" />
             <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 1 }}>
-              <span>1 mAU</span><span>2500 mAU</span>
+              <span>1 mAU</span><span>10000 mAU</span>
             </div>
           </div>
 
@@ -1267,12 +1267,12 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
                 {widthVal.toFixed(3)}
               </span>
             </div>
-            <input type="range" min="0.005" max="2.0" step="0.005"
+            <input type="range" min="0.005" max="5.0" step="0.005"
               value={widthVal}
               onChange={e => setDraft(d => ({ ...d, width: e.target.value }))}
               className="w-full h-2 accent-blue-600" />
             <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 1 }}>
-              <span>0.005 = narrow</span><span>2.0 = wide</span>
+              <span>0.005 = narrow</span><span>5.0 = very wide</span>
             </div>
           </div>
 
@@ -1284,12 +1284,12 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
                 {asymVal < 0.99 ? `${asymVal.toFixed(2)} ← fronting` : asymVal > 1.01 ? `${asymVal.toFixed(2)} → tailing` : "1.00 symmetric"}
               </span>
             </div>
-            <input type="range" min="0.3" max="4.0" step="0.05"
+            <input type="range" min="0.1" max="10.0" step="0.05"
               value={asymVal}
               onChange={e => setDraft(d => ({ ...d, asymmetry: e.target.value }))}
               className="w-full h-2 accent-blue-600" />
             <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 1 }}>
-              <span>← fronting 0.3</span><span>tailing 4.0 →</span>
+              <span>← fronting 0.1</span><span>tailing 10.0 →</span>
             </div>
           </div>
 
@@ -1324,7 +1324,7 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
               onChange={e => setDraft(d => ({ ...d, peakNoise: e.target.value }))}
               className="w-full h-2 accent-blue-600" />
             <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", marginTop: 1 }}>
-              <span>0 = Gaussiano perfeito</span><span>1 = muito rugoso</span>
+              <span>0 = Gaussiano perfeito</span><span>1 = extremamente rugoso</span>
             </div>
           </div>
 
@@ -3648,13 +3648,13 @@ export default function HplcSimulator() {
                       <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{detector.lineWidth.toFixed(1)} px</span>
                     </div>
                     <input
-                      type="range" min="0.3" max="4" step="0.1"
+                      type="range" min="0.3" max="8" step="0.1"
                       value={detector.lineWidth}
                       onChange={e => { setDetector(d => ({ ...d, lineWidth: parseFloat(e.target.value) })); markDirty(); }}
                       className="w-full h-2 accent-blue-600"
                     />
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
-                      <span>Fina</span><span>Grossa</span>
+                      <span>Fina</span><span>Muito grossa</span>
                     </div>
                   </div>
                   {/* Noise slider */}
@@ -3664,13 +3664,13 @@ export default function HplcSimulator() {
                       <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{detector.baselineNoise.toFixed(2)}</span>
                     </div>
                     <input
-                      type="range" min="0" max="50" step="0.1"
+                      type="range" min="0" max="200" step="0.5"
                       value={detector.baselineNoise}
                       onChange={e => { setDetector(d => ({ ...d, baselineNoise: parseFloat(e.target.value) })); markDirty(); }}
                       className="w-full h-2 accent-blue-600"
                     />
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
-                      <span>0 = plana</span><span>50 = extrema</span>
+                      <span>0 = plana</span><span>200 = caótica</span>
                     </div>
                   </div>
                   {/* Drift slider */}
@@ -3680,13 +3680,13 @@ export default function HplcSimulator() {
                       <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{detector.baselineDrift.toFixed(2)}</span>
                     </div>
                     <input
-                      type="range" min="0" max="80" step="0.5"
+                      type="range" min="0" max="500" step="1"
                       value={detector.baselineDrift}
                       onChange={e => { setDetector(d => ({ ...d, baselineDrift: parseFloat(e.target.value) })); markDirty(); }}
                       className="w-full h-2 accent-blue-600"
                     />
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
-                      <span>0 = linear</span><span>80 = extrema</span>
+                      <span>0 = plana</span><span>500 = deriva extrema</span>
                     </div>
                   </div>
                   {/* Pulse slider */}
@@ -3696,13 +3696,13 @@ export default function HplcSimulator() {
                       <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{detector.baselinePulse.toFixed(2)}</span>
                     </div>
                     <input
-                      type="range" min="0" max="20" step="0.1"
+                      type="range" min="0" max="100" step="0.5"
                       value={detector.baselinePulse}
                       onChange={e => { setDetector(d => ({ ...d, baselinePulse: parseFloat(e.target.value) })); markDirty(); }}
                       className="w-full h-2 accent-blue-600"
                     />
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
-                      <span>0 = sem pulso</span><span>20 = forte</span>
+                      <span>0 = sem pulso</span><span>100 = extremo</span>
                     </div>
                   </div>
                   {/* Baseline Wander slider */}
@@ -3711,12 +3711,12 @@ export default function HplcSimulator() {
                       <span>Ondulação lenta (mAU)</span>
                       <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineWander ?? 0).toFixed(2)}</span>
                     </div>
-                    <input type="range" min="0" max="30" step="0.5"
+                    <input type="range" min="0" max="200" step="1"
                       value={detector.baselineWander ?? 0}
                       onChange={e => { setDetector(d => ({ ...d, baselineWander: parseFloat(e.target.value) })); markDirty(); }}
                       className="w-full h-2 accent-blue-600" />
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
-                      <span>0 = sem oscilação</span><span>30 = gradiente intenso</span>
+                      <span>0 = sem oscilação</span><span>200 = ondulação extrema</span>
                     </div>
                   </div>
                   {/* Shot Noise slider */}
@@ -3725,12 +3725,12 @@ export default function HplcSimulator() {
                       <span>Ruído proporcional / shot (LC-MS)</span>
                       <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.shotNoise ?? 0).toFixed(2)}</span>
                     </div>
-                    <input type="range" min="0" max="1" step="0.01"
+                    <input type="range" min="0" max="5" step="0.05"
                       value={detector.shotNoise ?? 0}
                       onChange={e => { setDetector(d => ({ ...d, shotNoise: parseFloat(e.target.value) })); markDirty(); }}
                       className="w-full h-2 accent-blue-600" />
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
-                      <span>0 = DAD/UV</span><span>1 = MS TIC intenso</span>
+                      <span>0 = DAD/UV</span><span>5 = MS TIC extremo</span>
                     </div>
                   </div>
                   {/* Hump slider */}
@@ -3739,12 +3739,12 @@ export default function HplcSimulator() {
                       <span>Hump coluna / matriz (mAU)</span>
                       <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineHump ?? 0).toFixed(0)}</span>
                     </div>
-                    <input type="range" min="0" max="500" step="5"
+                    <input type="range" min="0" max="3000" step="10"
                       value={detector.baselineHump ?? 0}
                       onChange={e => { setDetector(d => ({ ...d, baselineHump: parseFloat(e.target.value) })); markDirty(); }}
                       className="w-full h-2 accent-blue-600" />
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
-                      <span>0 = sem hump</span><span>500 = column bleed</span>
+                      <span>0 = sem hump</span><span>3000 = column bleed extremo</span>
                     </div>
                   </div>
                   {/* Broadening slider */}
@@ -3753,7 +3753,7 @@ export default function HplcSimulator() {
                       <span>Alargamento c/ RT — van Deemter</span>
                       <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.broadeningFactor ?? 0).toFixed(2)}</span>
                     </div>
-                    <input type="range" min="0" max="1" step="0.01"
+                    <input type="range" min="0" max="3" step="0.01"
                       value={detector.broadeningFactor ?? 0}
                       onChange={e => { setDetector(d => ({ ...d, broadeningFactor: parseFloat(e.target.value) })); markDirty(); }}
                       className="w-full h-2 accent-blue-600" />
@@ -3954,7 +3954,8 @@ export default function HplcSimulator() {
                             ? <span style={{ color: "#1d4ed8" }}> ✎{p.manualArea.toFixed(2)}</span>
                             : <span style={{ color: "#888" }}> ~{p.computedArea.toFixed(1)}</span>}
                         </span>
-                        <Button size="sm" variant="ghost" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                        <Button size="sm" variant="ghost"
+                          className={p.locked ? "h-5 w-5 p-0" : "h-5 w-5 p-0 opacity-0 group-hover:opacity-100"}
                           title={p.locked ? "Desbloquear pico" : "Bloquear pico"}
                           onClick={() => toggleLockPeak(p.id)}>
                           {p.locked
