@@ -664,23 +664,23 @@ export default function CertificatePage() {
         {/* Header */}
         <div className="flex items-start justify-between border-b-2 border-gray-800 pb-5 mb-6 gap-4">
           {/* Logo + título */}
-          <div className="flex items-center gap-5 flex-1 min-w-0">
+          <div className="flex items-start gap-5 flex-1 min-w-0">
             <img
               src="/logo-alphafitus.png"
               alt="Alphafitus"
-              className="h-16 w-auto flex-shrink-0"
+              className="h-16 w-auto flex-shrink-0 mt-1"
               style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.08))" }}
             />
-            <div className="border-l border-gray-300 pl-5 min-w-0 flex-1">
+            <div className="border-l border-gray-300 pl-5" style={{ minWidth: 0, flex: 1 }}>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5 truncate">Alphafitus Laboratório Nutracêutico</p>
-              <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800 break-words">Certificado de Análise</h1>
-              <p className="text-sm font-semibold text-emerald-700 mt-0.5 break-words leading-snug">{getEdit("productName", cert.productName)}</p>
+              <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>Certificado de Análise</h1>
+              <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{getEdit("productName", cert.productName)}</p>
             </div>
           </div>
           {/* Cert info */}
-          <div className="text-right text-sm space-y-2 flex-shrink-0 w-52">
+          <div className="text-right text-sm space-y-2 flex-shrink-0 w-56">
             <div className="bg-gray-50 border border-gray-200 rounded px-3 py-2">
-              <span className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider block whitespace-nowrap">Número do Certificado</span>
+              <span className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider block leading-tight mb-1">Número do Certificado de Análise</span>
               <span className="font-bold tracking-wide text-base">{ef("certNumber", cert.certNumber)}</span>
             </div>
             <div>
@@ -705,7 +705,7 @@ export default function CertificatePage() {
           <div className="space-y-2">
             <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1">Identificação do Produto</h2>
             <dl className="space-y-1">
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Produto:</dt><dd className="font-medium flex-1 min-w-0">{ef("productName", cert.productName)}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Produto:</dt><dd className="font-medium flex-1 min-w-0" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{ef("productName", cert.productName, { multiline: true, className: "w-full font-medium text-sm" })}</dd></div>
               <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Apresentação:</dt><dd className="flex-1 min-w-0">{ef("presentation", cert.presentation)}</dd></div>
               <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Validade:</dt><dd className="font-semibold flex-1 min-w-0">{ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}</dd></div>
               <div className="flex gap-2">
