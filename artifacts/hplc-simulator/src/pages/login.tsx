@@ -1,3 +1,4 @@
+// @refresh reset
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/use-auth";
