@@ -369,6 +369,14 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <Link href={`/protocols/${protocol.id}/edit`}>
+          <Button variant="outline" size="sm">
+            <Pencil className="h-3.5 w-3.5 mr-1.5" /> Editar Informações
+          </Button>
+        </Link>
+      </div>
+
       <div className="grid grid-cols-2 gap-x-8 gap-y-3">
         {fieldsTop.map(({ label, value }) => <InfoField key={label} label={label} value={value} />)}
       </div>
