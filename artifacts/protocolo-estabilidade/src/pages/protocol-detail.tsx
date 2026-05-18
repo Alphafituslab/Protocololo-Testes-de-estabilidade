@@ -1245,45 +1245,21 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
           <div key={key}>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">{label}</h3>
             <div className="rounded-md border overflow-x-auto">
-              <Table style={{ width: "max-content", minWidth: "100%" }}>
+              <Table style={{ minWidth: "100%" }}>
                 <TableHeader>
-                  {/* Row 1 — sticky columns + one cell per lot (colSpan=periods) */}
                   <TableRow className="bg-muted">
-                    <TableHead className="w-44 text-xs sticky left-0 z-20 bg-muted border-r border-border/60 align-bottom pb-1">Parametro</TableHead>
-                    <TableHead className="w-52 text-xs sticky left-44 z-20 bg-muted border-r border-border/60 align-bottom pb-1">Critérios de Aceitação</TableHead>
-                    <TableHead className="w-6 text-xs sticky left-[24rem] z-20 bg-muted border-r border-border/40 align-bottom pb-1"></TableHead>
-                    {lots.map((lot) => (
+                    <TableHead className="w-44 text-xs sticky left-0 z-20 bg-muted border-r border-border/60">Parâmetro</TableHead>
+                    <TableHead className="w-52 text-xs sticky left-44 z-20 bg-muted border-r border-border/60">Critérios de Aceitação</TableHead>
+                    <TableHead className="w-6 text-xs sticky left-[24rem] z-20 bg-muted border-r border-border/40"></TableHead>
+                    <TableHead className="text-xs text-center font-semibold border-l border-border/30 w-32">Lote</TableHead>
+                    {PERIODS.map((period) => (
                       <TableHead
-                        key={lot.id}
-                        colSpan={PERIODS.length}
-                        className="text-xs text-center font-semibold whitespace-nowrap px-3 py-1.5 border-l border-border/30"
+                        key={period}
+                        className="text-xs text-center font-semibold whitespace-nowrap px-2 py-1.5 border-l border-border/30 w-28"
                       >
-                        {lot.lotNumber}
+                        T {period}
                       </TableHead>
                     ))}
-                  </TableRow>
-                  {/* Row 2 — sticky placeholder cells + period sub-headers (T0 / T3 / T6) per lot.
-                      Sticky cells here (NOT rowSpan) prevent T0 from sliding behind them on scroll. */}
-                  <TableRow className="bg-muted border-b border-border/40">
-                    <TableHead className="w-44 sticky left-0 z-20 bg-muted border-r border-border/60 py-0.5"></TableHead>
-                    <TableHead className="w-52 sticky left-44 z-20 bg-muted border-r border-border/60 py-0.5"></TableHead>
-                    <TableHead className="w-6 sticky left-[24rem] z-20 bg-muted border-r border-border/40 py-0.5"></TableHead>
-                    {lots.map((lot, lotIdx) =>
-                      PERIODS.map((period, pidx) => {
-                        const isFirstT0 = lotIdx === 0 && pidx === 0;
-                        return (
-                          <TableHead
-                            key={`${lot.id}-${period}`}
-                            className={[
-                              "text-xs text-center font-normal text-muted-foreground min-w-28 py-1 border-l border-border/20",
-                              isFirstT0 ? "sticky left-[25.5rem] z-20 bg-muted border-r border-border/60" : "",
-                            ].join(" ")}
-                          >
-                            T{period}
-                          </TableHead>
-                        );
-                      })
-                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1299,68 +1275,84 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                       : rowHasAR
                       ? "bg-amber-50"
                       : "bg-background";
-                    return (
-                    <TableRow
-                      key={param.uid}
-                      data-testid={`row-param-${param.parameter}`}
-                      className={rowHasNonConforming ? "bg-red-50 hover:bg-red-100" : rowHasAR ? "bg-amber-50 hover:bg-amber-100" : ""}
-                    >
-                      {/* Sticky: Parameter cell */}
-                      <TableCell className={`py-1 pr-1 sticky left-0 z-10 border-r border-border/60 ${stickyBg}`}>
-                        <input
-                          value={param.parameter}
-                          onChange={(e) => updateParam(param.uid, "parameter", e.target.value)}
-                          onFocus={() => { focusedOriginalName.current = param.parameter; }}
-                          onBlur={() => {
-                            const orig = focusedOriginalName.current;
-                            focusedOriginalName.current = null;
-                            if (orig !== null && orig !== param.parameter && param.parameter.trim()) {
-                              renameResultParam(orig, param.parameter);
-                            }
-                          }}
-                          className="w-full text-xs font-medium bg-transparent border-b border-dashed border-transparent hover:border-muted-foreground/30 focus:border-primary focus:outline-none py-0.5 placeholder:text-muted-foreground/40"
-                          placeholder="Nome do parâmetro"
-                        />
-                        <ParamMethodSelector
-                          paramName={param.parameter}
-                          selected={paramMethods[param.parameter] ?? null}
-                          methodologies={methodologies}
-                          onSelect={(s, c) => setParamMethod(param.parameter, s, c)}
-                        />
-                      </TableCell>
-                      {/* Sticky: Criterion cell */}
-                      <TableCell className={`py-1 pr-1 sticky left-44 z-10 border-r border-border/60 ${stickyBg}`}>
-                        <input
-                          value={param.criterion}
-                          onChange={(e) => updateParam(param.uid, "criterion", e.target.value)}
-                          className="w-full text-xs text-muted-foreground bg-transparent border-b border-dashed border-transparent hover:border-muted-foreground/30 focus:border-primary focus:outline-none py-0.5 placeholder:text-muted-foreground/40"
-                          placeholder="Critério de aceitação"
-                        />
-                      </TableCell>
-                      {/* Sticky: delete-button cell — left = 11rem + 13rem = 24rem */}
-                      <TableCell className={`py-1 px-1 text-center sticky left-[24rem] z-10 border-r border-border/40 ${stickyBg}`}>
-                        <button
-                          type="button"
-                          onClick={() => removeParam(param.uid)}
-                          className="text-muted-foreground/20 hover:text-destructive text-base leading-none transition-colors"
-                          title="Remover parâmetro"
+                    const rowClass = rowHasNonConforming ? "bg-red-50 hover:bg-red-100" : rowHasAR ? "bg-amber-50 hover:bg-amber-100" : "";
+                    return lots.map((lot, lotIdx) => (
+                      <TableRow
+                        key={`${param.uid}-${lot.id}`}
+                        data-testid={lotIdx === 0 ? `row-param-${param.parameter}` : undefined}
+                        className={rowClass}
+                      >
+                        {/* Param + criterion + delete cells only on first lot row */}
+                        {lotIdx === 0 && (
+                          <>
+                            <TableCell
+                              rowSpan={lots.length}
+                              className={`py-1 pr-1 sticky left-0 z-10 border-r border-border/60 align-top ${stickyBg}`}
+                            >
+                              <input
+                                value={param.parameter}
+                                onChange={(e) => updateParam(param.uid, "parameter", e.target.value)}
+                                onFocus={() => { focusedOriginalName.current = param.parameter; }}
+                                onBlur={() => {
+                                  const orig = focusedOriginalName.current;
+                                  focusedOriginalName.current = null;
+                                  if (orig !== null && orig !== param.parameter && param.parameter.trim()) {
+                                    renameResultParam(orig, param.parameter);
+                                  }
+                                }}
+                                className="w-full text-xs font-medium bg-transparent border-b border-dashed border-transparent hover:border-muted-foreground/30 focus:border-primary focus:outline-none py-0.5 placeholder:text-muted-foreground/40"
+                                placeholder="Nome do parâmetro"
+                              />
+                              <ParamMethodSelector
+                                paramName={param.parameter}
+                                selected={paramMethods[param.parameter] ?? null}
+                                methodologies={methodologies}
+                                onSelect={(s, c) => setParamMethod(param.parameter, s, c)}
+                              />
+                            </TableCell>
+                            <TableCell
+                              rowSpan={lots.length}
+                              className={`py-1 pr-1 sticky left-44 z-10 border-r border-border/60 align-top ${stickyBg}`}
+                            >
+                              <input
+                                value={param.criterion}
+                                onChange={(e) => updateParam(param.uid, "criterion", e.target.value)}
+                                className="w-full text-xs text-muted-foreground bg-transparent border-b border-dashed border-transparent hover:border-muted-foreground/30 focus:border-primary focus:outline-none py-0.5 placeholder:text-muted-foreground/40"
+                                placeholder="Critério de aceitação"
+                              />
+                            </TableCell>
+                            <TableCell
+                              rowSpan={lots.length}
+                              className={`py-1 px-1 text-center sticky left-[24rem] z-10 border-r border-border/40 align-top ${stickyBg}`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => removeParam(param.uid)}
+                                className="text-muted-foreground/20 hover:text-destructive text-base leading-none transition-colors"
+                                title="Remover parâmetro"
+                              >
+                                ×
+                              </button>
+                            </TableCell>
+                          </>
+                        )}
+                        {/* Lot label */}
+                        <TableCell
+                          className={`py-1 px-2 text-xs text-muted-foreground whitespace-nowrap border-l border-border/30 ${lotIdx < lots.length - 1 ? "" : "border-b border-border/20"} ${stickyBg}`}
                         >
-                          ×
-                        </button>
-                      </TableCell>
-                      {lots.map((lot, lotIdx) =>
-                        PERIODS.map((period, pidx) => {
+                          {lot.lotNumber}
+                        </TableCell>
+                        {/* T0, T3, T6 cells */}
+                        {PERIODS.map((period) => {
                           const cellResult = getResult(lot.id, period, param.parameter);
                           const isNC = !protocolIsAR && cellResult?.status === "nao_conforme";
                           const isNCtreatedAsAR = protocolIsAR && cellResult?.status === "nao_conforme";
-                          const isFirstT0 = lotIdx === 0 && pidx === 0;
                           return (
                             <TableCell
                               key={`${lot.id}-${period}`}
                               className={[
-                                "py-1 text-center align-middle",
+                                "py-1 text-center align-middle border-l border-border/20",
                                 isNC ? "bg-red-200 border-x border-red-400" : isNCtreatedAsAR ? "bg-amber-100 border-x border-amber-300" : "",
-                                isFirstT0 ? `sticky left-[25.5rem] z-10 border-r border-border/60 ${stickyBg}` : "",
                               ].join(" ")}
                             >
                               <InlineCell
@@ -1373,10 +1365,9 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                               />
                             </TableCell>
                           );
-                        })
-                      )}
-                    </TableRow>
-                    );
+                        })}
+                      </TableRow>
+                    ));
                   })}
                 </TableBody>
               </Table>
