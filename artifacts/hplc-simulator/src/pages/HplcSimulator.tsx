@@ -2113,6 +2113,7 @@ export default function HplcSimulator() {
   const [finalizeStatus, setFinalizeStatus] = useState<"em_andamento" | "aprovado" | "reprovado">("aprovado");
   const [finalizeNotes, setFinalizeNotes] = useState("");
   const [newAnalysisDialog, setNewAnalysisDialog] = useState(false);
+  const [newAnalysisForm, setNewAnalysisForm] = useState<SampleInfo>({ ...DEFAULT_SAMPLE });
   const [showImportDialog, setShowImportDialog] = useState(false);
   // Inline lot registration form (Lotes tab) — supports up to 3 simultaneous lots
   const [inlineLots, setInlineLots] = useState([
@@ -3164,7 +3165,7 @@ export default function HplcSimulator() {
             ["lotes", "Lots", Layers, false],
             ["analise", "Analysis", FlaskConical, false],
             ["padrao", "Standard", Scale, false],
-            ["report", "Report", FileText, false],
+            ["report", "Curva de Calibração", FileText, false],
             ["usuarios", "Users", Users, true],
           ] as [PageMode, string, React.ElementType, boolean][]).filter(([,, , adminOnly]) => !adminOnly || isAdmin)).map(([mode, label, Icon], idx) => (
             <button key={mode} onClick={() => {
@@ -3226,9 +3227,9 @@ export default function HplcSimulator() {
           size="sm"
           variant="outline"
           className="h-8 text-xs gap-1.5"
-          onClick={() => setNewAnalysisDialog(true)}
+          onClick={() => { setNewAnalysisForm({ ...sample }); setNewAnalysisDialog(true); }}
         >
-          <Plus className="h-3.5 w-3.5" /> New Analysis
+          <Plus className="h-3.5 w-3.5" /> Nova Análise
         </Button>
 
         <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" disabled={!canUndo} onClick={handleUndo}
@@ -6840,36 +6841,86 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
         </div>
       )}
 
-      {/* ── Nova Análise confirmation dialog ─────────────────────────────────── */}
+      {/* ── Nova Análise dialog ─────────────────────────────────── */}
       {newAnalysisDialog && (
         <div style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 9998,
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 9998,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <div style={{
-            background: "#fff", borderRadius: 10, padding: "24px 28px", width: 380, maxWidth: "90vw",
-            boxShadow: "0 8px 40px rgba(0,0,0,0.22)", fontFamily: "Courier New, monospace",
+            background: "#fff", borderRadius: 10, padding: "24px 28px", width: 520, maxWidth: "95vw",
+            maxHeight: "90vh", overflowY: "auto",
+            boxShadow: "0 8px 40px rgba(0,0,0,0.25)", fontFamily: "Courier New, monospace",
           }}>
-            <div style={{ fontSize: 15, fontWeight: "bold", color: "#334155", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
-              <Plus style={{ width: 16, height: 16 }} /> Start New Analysis
+            {/* Header */}
+            <div style={{ fontSize: 15, fontWeight: "bold", color: "#1e293b", marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
+              <Plus style={{ width: 16, height: 16 }} /> Nova Análise
             </div>
-            <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.6, marginBottom: 20 }}>
-              This will reset the chromatogram to default values.<br />
-              {currentSnapshotSessionId
-                ? <span style={{ color: "#16a34a" }}>✓ The current analysis is already saved in the Panel.</span>
-                : <span style={{ color: "#f59e0b" }}>⚠ The current analysis has <b>not</b> been confirmed and is not in the Panel.</span>
-              }
+            <div style={{ fontSize: 10, color: "#64748b", marginBottom: 16 }}>
+              Preencha os dados da nova análise. O cromatograma será reiniciado com os valores padrão.
+              {!currentSnapshotSessionId && (
+                <span style={{ display: "block", color: "#f59e0b", marginTop: 4 }}>
+                  ⚠ A análise atual não foi confirmada e não está no Painel.
+                </span>
+              )}
             </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+
+            {/* Form grid */}
+            {(() => {
+              const F = ({ label, field, placeholder }: { label: string; field: keyof SampleInfo; placeholder?: string }) => (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 9, fontWeight: "bold", color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>{label}</div>
+                  <input
+                    value={String(newAnalysisForm[field] ?? "")}
+                    onChange={e => setNewAnalysisForm(f => ({ ...f, [field]: e.target.value }))}
+                    placeholder={placeholder}
+                    style={{
+                      width: "100%", fontSize: 11, fontFamily: "Courier New, monospace",
+                      border: "1px solid #cbd5e1", borderRadius: 4, padding: "5px 8px",
+                      outline: "none", boxSizing: "border-box", color: "#1e293b",
+                    }}
+                  />
+                </div>
+              );
+              return (
+                <div>
+                  <F label="Sample Name" field="sampleName" placeholder="Ex: Amostra atual A" />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <F label="Acq. Operator" field="acqOperator" placeholder="Ex: EDSON" />
+                    <F label="Seq. Line" field="seqLine" placeholder="Ex: 9" />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <F label="Acq. Instrument" field="acqInstrument" placeholder="Ex: Instrument 1" />
+                    <F label="Location" field="location" placeholder="Ex: Vial 9" />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                    <F label="Injection Date" field="injectionDate" placeholder="Ex: 4/25/2025 12:25:09 PM" />
+                    <F label="Inj" field="inj" placeholder="1" />
+                    <F label="Inj Volume" field="injVolume" placeholder="10.0 µl" />
+                  </div>
+                  <F label="Acq. Method" field="acqMethod" placeholder="C:\CHEM32\1\DATA\..." />
+                  <F label="Last Changed (Acq.)" field="lastChanged1" placeholder="Ex: 4/23/2025 8:27:30 AM by EDSON" />
+                  <F label="Analysis Method" field="analysisMethod" placeholder="C:\CHEM32\1\METHODS\B6.M" />
+                  <F label="Last Changed (Ana.)" field="lastChanged2" placeholder="Ex: 4/25/2025 9:51:12 AM by EDSON" />
+                </div>
+              );
+            })()}
+
+            {/* Footer buttons */}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18, paddingTop: 14, borderTop: "1px solid #e2e8f0" }}>
               <button
-                style={{ fontSize: 11, padding: "7px 16px", border: "1px solid #cbd5e1", borderRadius: 5, background: "#f8fafc", cursor: "pointer", color: "#475569" }}
+                style={{ fontSize: 11, padding: "7px 18px", border: "1px solid #cbd5e1", borderRadius: 5, background: "#f8fafc", cursor: "pointer", color: "#475569" }}
                 onClick={() => setNewAnalysisDialog(false)}>
-                Cancel
+                Cancelar
               </button>
               <button
-                style={{ fontSize: 11, padding: "7px 20px", border: "none", borderRadius: 5, background: "#1d4ed8", cursor: "pointer", color: "#fff", fontWeight: "bold" }}
-                onClick={handleNewAnalysis}>
-                Start New
+                style={{ fontSize: 11, padding: "7px 22px", border: "none", borderRadius: 5, background: "#2d4a7a", cursor: "pointer", color: "#fff", fontWeight: "bold" }}
+                onClick={() => {
+                  const formSnap = { ...newAnalysisForm };
+                  handleNewAnalysis();
+                  setSample(s => ({ ...s, ...formSnap }));
+                }}>
+                Iniciar Nova Análise
               </button>
             </div>
           </div>
