@@ -49,6 +49,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Microscope, Download } from "lucide-react";
 import { AuditTrail } from "@/components/audit-trail";
 import { useToast } from "@/hooks/use-toast";
+import { useLabelOverrides } from "@/hooks/use-label-overrides";
 
 // ── HPLC images shared via localStorage ────────────────────────────────────
 interface HplcSavedImage {
@@ -312,8 +313,31 @@ function EditableInfoField({ label, value, onChange, placeholder }: { label: str
   );
 }
 
+function InfoFieldEL({ labelKey, def, value, lbl, setLabel }: {
+  labelKey: string;
+  def: string;
+  value?: string | null;
+  lbl: (key: string, def: string) => string;
+  setLabel: (key: string, value: string) => void;
+}) {
+  if (!value) return null;
+  const current = lbl(labelKey, def);
+  return (
+    <div className="border-b border-border pb-2">
+      <input
+        value={current}
+        onChange={e => setLabel(labelKey, e.target.value)}
+        title="Clique para editar o rótulo deste campo"
+        className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground bg-transparent border-0 border-b border-dashed border-transparent hover:border-primary/40 focus:outline-none focus:border-primary/60 w-full cursor-text"
+      />
+      <dd className="mt-0.5 text-sm font-medium text-foreground">{value}</dd>
+    </div>
+  );
+}
+
 function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
   const ENV_KEY = `cert_env_${protocol.id}`;
+  const { lbl, setLabel } = useLabelOverrides();
 
   const [tempAmostragem, setTempAmostragemRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").tempAmostragem ?? "22,8°C"; } catch { return "22,8°C"; }
@@ -339,32 +363,32 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
   const setTempRecebimento = (v: string) => { setTempRecebimentoRaw(v); saveEnv({ tempRecebimento: v }); };
   const setUmidRecebimento = (v: string) => { setUmidRecebimentoRaw(v); saveEnv({ umidRecebimento: v }); };
 
-  const fieldsTop = [
-    { label: "Número do Certificado de Análise", value: protocol.certNumber },
-    { label: "Empresa", value: protocol.companyName },
-    { label: "CNPJ", value: protocol.cnpj },
-    { label: "IE", value: protocol.ie },
-    { label: "Endereço", value: protocol.address },
-    { label: "CEP", value: protocol.cep },
-    { label: "Nome do Produto", value: protocol.productName },
-    { label: "Tipo de Produto", value: protocol.productType },
-    { label: "Tipo de Pote", value: protocol.packagingType },
-    { label: "Ingredientes Ativos", value: protocol.activeIngredients },
-    { label: "Excipientes", value: protocol.excipients },
-    { label: "Composição da Cápsula", value: protocol.capsuleComposition },
+  const fieldsTop: { labelKey: string; def: string; value?: string | null }[] = [
+    { labelKey: "certNumber", def: "Número do Certificado de Análise", value: protocol.certNumber },
+    { labelKey: "companyName", def: "Nome da Empresa", value: protocol.companyName },
+    { labelKey: "cnpj", def: "CNPJ", value: protocol.cnpj },
+    { labelKey: "ie", def: "IE", value: protocol.ie },
+    { labelKey: "address", def: "Endereço", value: protocol.address },
+    { labelKey: "cep", def: "CEP", value: protocol.cep },
+    { labelKey: "productName", def: "Nome do Produto", value: protocol.productName },
+    { labelKey: "productType", def: "Tipo de Produto", value: protocol.productType },
+    { labelKey: "packagingType", def: "Tipo de Pote", value: protocol.packagingType },
+    { labelKey: "activeIngredients", def: "Ingredientes Ativos", value: protocol.activeIngredients },
+    { labelKey: "excipients", def: "Excipientes", value: protocol.excipients },
+    { labelKey: "capsuleComposition", def: "Composição da Cápsula", value: protocol.capsuleComposition },
   ];
 
-  const fieldsBottom = [
-    { label: "Data de Início", value: protocol.studyStartDate },
-    { label: "Data Final", value: protocol.studyEndDate },
-    { label: "Temperatura de Armazenamento", value: protocol.storageTemp },
-    { label: "Umidade Relativa", value: protocol.storageHumidity },
-    { label: "Período do Estudo (meses)", value: protocol.studyPeriodMonths?.toString() },
-    { label: "Intervalos de Teste", value: protocol.testIntervals },
-    { label: "Elaboração", value: protocol.elaboratedBy },
-    { label: "Aprovação", value: protocol.approvedBy },
-    { label: "Laudo emitido por", value: protocol.issuedBy },
-    { label: "Analista Sênior", value: protocol.seniorAnalyst },
+  const fieldsBottom: { labelKey: string; def: string; value?: string | null }[] = [
+    { labelKey: "studyStartDate", def: "Data de Início", value: protocol.studyStartDate },
+    { labelKey: "studyEndDate", def: "Data Final", value: protocol.studyEndDate },
+    { labelKey: "storageTemp", def: "Temperatura de Armazenamento", value: protocol.storageTemp },
+    { labelKey: "storageHumidity", def: "Umidade Relativa", value: protocol.storageHumidity },
+    { labelKey: "studyPeriodMonths", def: "Período do Estudo (meses)", value: protocol.studyPeriodMonths?.toString() },
+    { labelKey: "testIntervals", def: "Intervalos de Teste", value: protocol.testIntervals },
+    { labelKey: "elaboratedBy", def: "Elaboração", value: protocol.elaboratedBy },
+    { labelKey: "approvedBy", def: "Aprovação", value: protocol.approvedBy },
+    { labelKey: "issuedBy", def: "Laudo emitido por", value: protocol.issuedBy },
+    { labelKey: "seniorAnalyst", def: "Analista Sênior", value: protocol.seniorAnalyst },
   ];
 
   return (
@@ -378,7 +402,7 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
       </div>
 
       <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-        {fieldsTop.map(({ label, value }) => <InfoField key={label} label={label} value={value} />)}
+        {fieldsTop.map(f => <InfoFieldEL key={f.labelKey} {...f} lbl={lbl} setLabel={setLabel} />)}
       </div>
 
       <div className="rounded-md border border-amber-200 bg-amber-50/60 p-4 space-y-4">
@@ -412,7 +436,7 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
       </div>
 
       <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-        {fieldsBottom.map(({ label, value }) => <InfoField key={label} label={label} value={value} />)}
+        {fieldsBottom.map(f => <InfoFieldEL key={f.labelKey} {...f} lbl={lbl} setLabel={setLabel} />)}
       </div>
     </div>
   );
