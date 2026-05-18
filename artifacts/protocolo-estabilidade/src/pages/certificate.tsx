@@ -208,9 +208,7 @@ export default function CertificatePage() {
   const [certEdits, setCertEditsState] = useState<Record<string, string>>(() => {
     try { return JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}"); } catch { return {}; }
   });
-  const [certLocked, setCertLockedState] = useState<boolean>(() => {
-    try { return localStorage.getItem(CERT_LOCKED_KEY) === "1"; } catch { return false; }
-  });
+  const [certLocked, setCertLockedState] = useState<boolean>(false);
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const { unlock } = useUnlock();
 
