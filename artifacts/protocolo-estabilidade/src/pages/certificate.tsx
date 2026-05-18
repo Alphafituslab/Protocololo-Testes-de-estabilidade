@@ -208,13 +208,23 @@ export default function CertificatePage() {
   const [certEdits, setCertEditsState] = useState<Record<string, string>>(() => {
     try { return JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}"); } catch { return {}; }
   });
-  const [certLocked, setCertLockedState] = useState<boolean>(false);
+  const [certLocked, setCertLockedState] = useState<boolean>(() => {
+    try { return localStorage.getItem(`cert_locked_${id}`) === "1"; } catch { return false; }
+  });
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const { unlock } = useUnlock();
 
   const setCertEdit = (key: string, val: string) => {
     setCertEditsState(prev => {
       const next = { ...prev, [key]: val };
+      try { localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+  const clearCertEdit = (key: string) => {
+    setCertEditsState(prev => {
+      const next = { ...prev };
+      delete next[key];
       try { localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
@@ -727,16 +737,32 @@ export default function CertificatePage() {
               <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Validade:</dt><dd className="font-semibold flex-1 min-w-0">{ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}</dd></div>
               <div className="flex gap-2">
                 <dt className="text-gray-500 min-w-20 flex-shrink-0">N° do Lote:</dt>
-                <dd className="flex-1 min-w-0">{ef("lotNumbers", cert.lotNumbers.join(", "))}</dd>
+                <dd className="flex-1 min-w-0 space-y-0.5">
+                  {cert.lotNumbers.map((lot, i) => (
+                    <div key={lot}>{i + 1}- {lot}</div>
+                  ))}
+                </dd>
               </div>
             </dl>
           </div>
         </div>
 
-        <div className="mb-4 text-sm">
-          <span className="text-gray-500 font-semibold block mb-0.5">Composição da Cápsula:</span>
-          <span className="block" style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{ef("capsuleComposition", (cert as any).capsuleComposition, { multiline: true, className: "w-full text-sm" })}</span>
-        </div>
+        {(!certLocked || getEdit("capsuleComposition", (cert as any).capsuleComposition).trim()) && (
+          <div className="mb-4 text-sm">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="text-gray-500 font-semibold">Composição da Cápsula:</span>
+              {!certLocked && certEdits.capsuleComposition !== undefined && (
+                <button
+                  type="button"
+                  onClick={() => clearCertEdit("capsuleComposition")}
+                  className="text-[10px] text-red-400 hover:text-red-600 border border-red-200 rounded px-1 print:hidden"
+                  title="Limpar conteúdo salvo e usar valor do banco"
+                >✕ limpar</button>
+              )}
+            </div>
+            <span className="block" style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{ef("capsuleComposition", (cert as any).capsuleComposition, { multiline: true, className: "w-full text-sm" })}</span>
+          </div>
+        )}
 
         {show.condicoesAmbientais && (
           <div className="mb-6 border border-gray-200 rounded p-3 bg-gray-50 text-xs space-y-2">
@@ -766,7 +792,7 @@ export default function CertificatePage() {
 
         {/* Analysis table */}
         <div className="mb-6">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1 mb-3">Resultados de Analise</h2>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1 mb-3">Método de Análise</h2>
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-gray-100">
