@@ -237,7 +237,7 @@ export default function CertificatePage() {
   const ef = (key: string, fallback: string | null | undefined, opts?: { multiline?: boolean; className?: string }) => {
     const val = getEdit(key, fallback);
     if (certLocked) return <span>{val}</span>;
-    return <CertEditField value={val} onChange={v => setCertEdit(key, v)} multiline={opts?.multiline} className={opts?.className ?? ""} />;
+    return <CertEditField value={val} onChange={v => setCertEdit(key, v)} multiline={opts?.multiline} className={opts?.className ?? "w-full"} />;
   };
 
   const { data: lotsRaw = [] } = useListLots(Number(id), {
@@ -666,21 +666,21 @@ export default function CertificatePage() {
         {/* Header */}
         <div className="flex items-center justify-between border-b-2 border-gray-800 pb-5 mb-6">
           {/* Logo + título */}
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-5 min-w-0 flex-1">
             <img
               src="/logo-alphafitus.png"
               alt="Alphafitus"
-              className="h-16 w-auto"
+              className="h-16 w-auto flex-shrink-0"
               style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.08))" }}
             />
-            <div className="border-l border-gray-300 pl-5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Alphafitus Laboratório Nutracêutico</p>
-              <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800">Certificado de Análise</h1>
-              <p className="text-sm font-semibold text-emerald-700 mt-0.5">{ef("productName", cert.productName)}</p>
+            <div className="border-l border-gray-300 pl-5 min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5 whitespace-nowrap">Alphafitus Laboratório Nutracêutico</p>
+              <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800 whitespace-nowrap">Certificado de Análise</h1>
+              <p className="text-sm font-semibold text-emerald-700 mt-0.5 truncate">{ef("productName", cert.productName)}</p>
             </div>
           </div>
           {/* Cert info */}
-          <div className="text-right text-sm space-y-2 min-w-52">
+          <div className="text-right text-sm space-y-2 flex-shrink-0 min-w-52 ml-4">
             <div className="bg-gray-50 border border-gray-200 rounded px-3 py-2">
               <span className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider block">Número do Certificado</span>
               <span className="font-bold tracking-wide text-base">{ef("certNumber", cert.certNumber)}</span>
@@ -697,22 +697,22 @@ export default function CertificatePage() {
           <div className="space-y-2">
             <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1">Dados do Produto</h2>
             <dl className="space-y-1">
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Empresa:</dt><dd className="font-medium">{ef("companyName", cert.companyName)}</dd></div>
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">CNPJ:</dt><dd className="font-medium">{ef("cnpj", cert.cnpj)}</dd></div>
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">IE:</dt><dd>{ef("ie", (cert as any).ie)}</dd></div>
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Endereço:</dt><dd>{ef("address", cert.address)}</dd></div>
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Email:</dt><dd>{ef("email", cert.email)}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Empresa:</dt><dd className="font-medium flex-1 min-w-0">{ef("companyName", cert.companyName)}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">CNPJ:</dt><dd className="font-medium flex-1 min-w-0">{ef("cnpj", cert.cnpj)}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">IE:</dt><dd className="flex-1 min-w-0">{ef("ie", (cert as any).ie)}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Endereço:</dt><dd className="flex-1 min-w-0">{ef("address", cert.address)}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Email:</dt><dd className="flex-1 min-w-0">{ef("email", cert.email)}</dd></div>
             </dl>
           </div>
           <div className="space-y-2">
             <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1">Identificação do Produto</h2>
             <dl className="space-y-1">
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Produto:</dt><dd className="font-medium">{ef("productName", cert.productName)}</dd></div>
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Apresentação:</dt><dd>{ef("presentation", cert.presentation)}</dd></div>
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20">Validade:</dt><dd className="font-semibold">{ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Produto:</dt><dd className="font-medium flex-1 min-w-0">{ef("productName", cert.productName)}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Apresentação:</dt><dd className="flex-1 min-w-0">{ef("presentation", cert.presentation)}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Validade:</dt><dd className="font-semibold flex-1 min-w-0">{ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}</dd></div>
               <div className="flex gap-2">
-                <dt className="text-gray-500 min-w-20">N° do Lote:</dt>
-                <dd>{ef("lotNumbers", cert.lotNumbers.join(", "))}</dd>
+                <dt className="text-gray-500 min-w-20 flex-shrink-0">N° do Lote:</dt>
+                <dd className="flex-1 min-w-0">{ef("lotNumbers", cert.lotNumbers.join(", "))}</dd>
               </div>
             </dl>
           </div>
