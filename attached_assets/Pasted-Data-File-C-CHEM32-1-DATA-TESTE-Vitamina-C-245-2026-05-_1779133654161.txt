@@ -1,0 +1,113 @@
+Data File C:\CHEM32\1\DATA\TESTE Vitamina C-245 2026-05-18 16-25-44\009-00901.D
+Sample Name: Vitamina C
+    =====================================================================
+    Acq. Operator   : EDSON                                 Seq. Line :   9
+    Acq. Instrument : Instrument 1                        Location : Vial 9
+    Injection Date  : 4/25/2025 12:25:09 PM                 Inj :  1
+                                                               Inj Volume : 10.0 µl
+    Acq. Method     : VITAMINA C.M
+    Last changed    : 4/23/2025 8:27:30 AM by EDSON
+    Analysis Method : C:\CHEM32\1\METHODS\VITAMINA C.M
+    Last changed    : 4/25/2025 9:51:12 AM by EDSON
+              DAD1 A, Sig=245,4 Ref=360,100 (C:\CHEM32\1\DATA\TESTE Vitamina C-245 2026-05-18 16-25-44\009-00901.D)
+    =====================================================================
+    =====================================================================
+                         Relatório — Padrão Externo
+    =====================================================================
+Sorted By : Signal
+Calib. Data Modified : Thursday, April 24, 2025 6:00:25 PM
+Multiplier: : 1.0000
+Dilution: : 1.0000
+Use Multiplier & Dilution Factor with ISTDs
+Signal 1: DAD1 A, Sig=245,4 Ref=360,100
+    RetTime Type      Area     Amt/Area    Amount   Grp    Name
+     [min]          [mAU*s]               [ug/ml]
+    -------|------|----------|----------|----------|--|------------------
+      1.483 BB      905.39362 4.51200e-2   40.85136     Vitamina C
+      2.461 BB      970.06459 3.00000e-2   29.10194     New Compound
+      3.168 BB     1117.17150 3.95781e-2  117.36750     B6
+    Totals :                                                                             187.32080
+    =====================================================================
+                            *** End of Report ***
+Instrument 1 5/18/2026, 4:46:35 PM EDSON                                                Page   1 of 1
+Method C:\CHEM32\1\METHODS\VITAMINA C.M
+    =====================================================================
+                              Calibration Table
+    =====================================================================
+    Calib. Data Modified   :      Thursday, April 24, 2025 6:00:25 PM
+    Rel. Reference Window :       5.000 %
+    Abs. Reference Window :       0.000 min
+    Rel. Non-ref. Window :        5.000 %
+    Abs. Non-ref. Window :        0.000 min
+    Uncalibrated Peaks    :       not reported
+    Partial Calibration   :       Yes, identified peaks are recalibrated
+    Correct All Ret. Times:       No, only for identified peaks
+    Curve Type             :      Linear
+    Origin                 :      Included
+    Weight                 :      Equal
+    Recalibration Settings:
+    Average Response      :       Average all calibrations
+    Average Retention Time:       Floating Average New 75%
+    Calibration Report Options :
+        Printout of recalibrations within a sequence:
+            Calibration Table after Recalibration
+            Normal Report after Recalibration
+        If the sequence is done with bracketing:
+            Results of first cycle (ending previous bracket)
+    Signal 1: DAD1 A, Sig=245,4 Ref=360,100
+    RetTime    Lvl  Amount      Area     Amt/Area Ref Grp Name
+     [min] Sig     [ug/ml]
+    -------|--|--|----------|----------|----------|---|--|---------------
+      1.850 1 1     10.00000 296.16348 3.37651e-2         Vitamina C
+                 2  25.00000 620.81195 4.02698e-2
+                 3  50.00000 1286.75647 3.88574e-2
+                 4  70.00000 1737.21973 4.02943e-2
+                 5 100.00000 2530.36230 3.95200e-2
+    =====================================================================
+                               Peak Sum Table
+    =====================================================================
+    ***No Entries in table***
+    =====================================================================
+Instrument 1 5/18/2026, 4:46:35 PM EDSON                                                Page   1 of 1
+    =====================================================================
+                              Calibration Curves
+    =====================================================================
+Area
+0
+607
+1215
+1822
+2429
+3036
+0
+20
+40
+60
+80
+100
+115
+Amount[ug/ml]
+1
+2
+3
+4
+5
+Vitamina C
+DAD1 A, Sig=245,4 Ref=360,100
+Quantitative Method : External Standard
+Function : f(x)=2.48876e+001*x+25
+Rr1=0.9995801 Rr2=0.9991604
+RSS=2664.855
+MeanRF: 26.061 RFSD: 2.023 RFRSD: 7.764
+FitType : Linear
+Origin : Included
+Weight : Equal
+# Conc.[ug/ml] MeanArea Area
+1 10.00000 296.16348 296.16348
+2 25.00000 620.81195 620.81195
+3 50.00000 1286.75647 1286.75647
+4 70.00000 1737.21973 1737.21973
+5 100.00000 2530.36230 2530.36230
+Instrument 1 4/26/2025 2:11:37 PM EDSON
+Page 1 of 1
+Agilent ChemStation for LC and LC/MS Systems  Rev. B.04.03 [16]  Copyright (c) Agilent Technologies

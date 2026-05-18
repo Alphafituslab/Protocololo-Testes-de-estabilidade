@@ -1,0 +1,54 @@
+Data File C:\CHEM32\1\DATA\TESTE Vitamina C-245 2026-05-18 16-25-44\009-00901.D
+Sample Name: Vitamina C
+    =====================================================================
+    Acq. Operator   : EDSON                                 Seq. Line :   9
+    Acq. Instrument : Instrument 1                        Location : Vial 9
+    Injection Date  : 4/25/2025 12:25:09 PM                 Inj :  1
+                                                               Inj Volume : 10.0 µl
+    Acq. Method     : VITAMINA C.M
+    Last changed    : 4/23/2025 8:27:30 AM by EDSON
+    Analysis Method : C:\CHEM32\1\METHODS\VITAMINA C.M
+    Last changed    : 4/25/2025 9:51:12 AM by EDSON
+              DAD1 A, Sig=245,4 Ref=360,100 (C:\CHEM32\1\DATA\TESTE Vitamina C-245 2026-05-18 16-25-44\009-00901.D)
+    =====================================================================
+▶ Base de Integração 
+OFF
+mAU
+DAD1 A, Sig=245,4 Ref=360,100 (C:\CHEM32\1\DATA\TESTE Vitamina C-245 2026-05-18 16-25-44\009-00901.D)✎DAD1 A, Sig=245,4 Ref=360,100 (C:\CHEM32\1\DATA\TESTE Vitamina C-245 2026-05-18 16-25-44\009-00901.D)
+2.0
+4.0
+6.0
+8.0
+10.0
+12.0
+14.0
+min
+0
+500
+1000
+1500
+1.483
+Vitamina C
+2.461
+New Compound
+3.168
+B6
+    =====================================================================
+                         Relatório — Padrão Externo
+    =====================================================================
+Sorted By : Signal
+Calib. Data Modified : Thursday, April 24, 2025 6:00:25 PM
+Multiplier: : 1.0000
+Dilution: : 1.0000
+Use Multiplier & Dilution Factor with ISTDs
+Signal 1: DAD1 A, Sig=245,4 Ref=360,100
+    RetTime Type      Area     Amt/Area    Amount   Grp    Name
+     [min]          [mAU*s]               [ug/ml]
+    -------|------|----------|----------|----------|--|------------------
+      1.483 BB      905.39362 4.51200e-2   40.85136     Vitamina C
+      2.461 BB      970.06459 3.00000e-2   29.10194     New Compound
+      3.168 BB     1117.17150 3.95781e-2  117.36750     B6
+    Totals :                                                                             187.32080
+Instrument 1 4/26/2025 2:11:37 PM EDSON
+Page 1 of 1
+Agilent ChemStation for LC and LC/MS Systems  Rev. B.04.03 [16]  Copyright (c) Agilent Technologies

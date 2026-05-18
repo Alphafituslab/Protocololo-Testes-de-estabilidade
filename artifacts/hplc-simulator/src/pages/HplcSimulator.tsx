@@ -112,6 +112,7 @@ interface CalibInfo {
 interface CompoundCalibration {
   calib: CalibInfo;
   standards: CalibStandard[];
+  locked?: boolean;
 }
 
 interface ActiveCompound {
@@ -2311,7 +2312,7 @@ export default function HplcSimulator() {
   const [deleteSessionLoading, setDeleteSessionLoading] = useState(false);
   // Master-password unlock for concluded sessions
   const [unlockedSessionId, setUnlockedSessionId] = useState<string | null>(null);
-  const [masterAuthDialog, setMasterAuthDialog] = useState<{ onSuccess: () => void } | null>(null);
+  const [masterAuthDialog, setMasterAuthDialog] = useState<{ onSuccess: () => void; description?: string; buttonLabel?: string } | null>(null);
   const [masterAuthInput, setMasterAuthInput] = useState("");
   const [masterAuthError, setMasterAuthError] = useState<string | null>(null);
   const [masterAuthLoading, setMasterAuthLoading] = useState(false);
@@ -2375,6 +2376,15 @@ export default function HplcSimulator() {
   useEffect(() => {
     const imgs = loadSavedImages();
     if (imgs.length > 0) setSavedImages(imgs);
+  }, []);
+
+  // Auto-navigate to sessions tab when coming from dashboard with a session request
+  useEffect(() => {
+    const targetId = localStorage.getItem("hplc_dashboard_open_session");
+    if (targetId) {
+      localStorage.removeItem("hplc_dashboard_open_session");
+      setPage("sessoes");
+    }
   }, []);
 
   const markDirty = useCallback(() => { setIsDirty(true); setConfirmed(false); }, []);
@@ -2829,6 +2839,42 @@ export default function HplcSimulator() {
       return updated;
     });
     markDirty();
+  };
+
+  const lockCompoundCalib = (compoundId: string) => {
+    const name = activeCompounds.find(c => c.id === compoundId)?.name ?? compoundId;
+    setMasterAuthInput("");
+    setMasterAuthError(null);
+    setMasterAuthDialog({
+      description: `Insira a senha gerencial para TRAVAR a curva de calibração de "${name}". Após travada, não poderá ser alterada sem a senha.`,
+      buttonLabel: "🔒 Travar Curva",
+      onSuccess: () => {
+        setCompoundCalibrations(cc => {
+          const existing = cc[compoundId] ?? getCC(compoundId);
+          const updated = { ...cc, [compoundId]: { ...existing, locked: true } };
+          saveCompoundCalibrations(updated);
+          return updated;
+        });
+      },
+    });
+  };
+
+  const unlockCompoundCalib = (compoundId: string) => {
+    const name = activeCompounds.find(c => c.id === compoundId)?.name ?? compoundId;
+    setMasterAuthInput("");
+    setMasterAuthError(null);
+    setMasterAuthDialog({
+      description: `Insira a senha gerencial para LIBERAR a edição da curva de calibração de "${name}".`,
+      buttonLabel: "🔓 Liberar Curva",
+      onSuccess: () => {
+        setCompoundCalibrations(cc => {
+          const existing = cc[compoundId] ?? getCC(compoundId);
+          const updated = { ...cc, [compoundId]: { ...existing, locked: false } };
+          saveCompoundCalibrations(updated);
+          return updated;
+        });
+      },
+    });
   };
 
   const updateCompoundStandard = (compoundId: string, stdId: string, key: "amount" | "area", val: number) => {
@@ -4173,8 +4219,60 @@ export default function HplcSimulator() {
                         <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2" onClick={() => addCompoundStandard(calibCompound.id)}>
                           <Plus className="h-3 w-3" /> Adicionar
                         </Button>
+                        {cc.locked ? (
+                          <button
+                            type="button"
+                            title="Curva travada — clique para liberar com senha gerencial"
+                            onClick={() => unlockCompoundCalib(calibCompound.id)}
+                            style={{
+                              fontFamily: "Courier New, monospace", fontSize: 9,
+                              padding: "1px 7px", borderRadius: 3, cursor: "pointer",
+                              border: "1px solid #f59e0b", background: "#fef3c7", color: "#b45309",
+                              fontWeight: "bold", whiteSpace: "nowrap",
+                            }}>
+                            🔒 Travada
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            title="Travar esta curva de calibração com senha gerencial"
+                            onClick={() => lockCompoundCalib(calibCompound.id)}
+                            style={{
+                              fontFamily: "Courier New, monospace", fontSize: 9,
+                              padding: "1px 7px", borderRadius: 3, cursor: "pointer",
+                              border: "1px solid #cbd5e1", background: "#f8fafc", color: "#64748b",
+                              whiteSpace: "nowrap",
+                            }}>
+                            🔓 Travar
+                          </button>
+                        )}
                       </div>
                     }>
+                      {cc.locked && (
+                        <div style={{
+                          background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 4,
+                          padding: "6px 10px", marginBottom: 8, display: "flex", alignItems: "center", gap: 6,
+                          fontFamily: "Courier New, monospace", fontSize: 9, color: "#92400e",
+                        }}>
+                          <span style={{ fontSize: 12 }}>🔒</span>
+                          <span>
+                            Curva travada. Edição desativada para proteger a calibração homologada.{" "}
+                            <button
+                              type="button"
+                              onClick={() => unlockCompoundCalib(calibCompound.id)}
+                              style={{ color: "#b45309", textDecoration: "underline", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", fontWeight: "bold" }}>
+                              Liberar com senha →
+                            </button>
+                          </span>
+                        </div>
+                      )}
+                      <div style={{ position: "relative" }}>
+                        {cc.locked && (
+                          <div style={{
+                            position: "absolute", inset: 0, zIndex: 5,
+                            background: "rgba(255,255,255,0.65)", borderRadius: 4, cursor: "not-allowed",
+                          }} />
+                        )}
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 4, lineHeight: 1.6 }}>
                         Amount [ug/ml] / Area [mAU*s]<br />
                         <span style={{ color: "#1d4ed8" }}>📥 Capture</span> — reads area from current chromatogram peak
@@ -4245,6 +4343,7 @@ export default function HplcSimulator() {
                           onChange={e => updateCompoundCalibField(calibCompound.id, "nominalConc", parseFloat(e.target.value) || 0)}
                           className="h-5 text-xs font-mono px-1 w-full" placeholder="Ex: 50 ug/ml" />
                       </div>
+                      </div>{/* end position:relative overlay wrapper */}
                     </ControlBox>
                   )}
 
@@ -7134,7 +7233,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               🔑 Autenticação Master
             </div>
             <div style={{ fontSize: 11, color: "#64748b", marginBottom: 18, lineHeight: 1.6 }}>
-              Esta análise está encerrada. Insira a senha Master para desbloquear a edição desta sessão.
+              {masterAuthDialog.description ?? "Esta análise está encerrada. Insira a senha Master para desbloquear a edição desta sessão."}
             </div>
             <input
               type="password"
@@ -7162,7 +7261,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                 disabled={masterAuthLoading || !masterAuthInput}
                 style={{ fontSize: 11, padding: "7px 20px", border: "none", borderRadius: 5, background: masterAuthLoading ? "#93c5fd" : "#1d4ed8", cursor: masterAuthLoading ? "not-allowed" : "pointer", color: "#fff", fontWeight: "bold" }}
                 onClick={handleMasterAuth}>
-                {masterAuthLoading ? "Verificando..." : "Desbloquear"}
+                {masterAuthLoading ? "Verificando..." : (masterAuthDialog?.buttonLabel ?? "Desbloquear")}
               </button>
             </div>
           </div>
