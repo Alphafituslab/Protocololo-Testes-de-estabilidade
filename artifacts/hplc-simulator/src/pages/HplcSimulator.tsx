@@ -2846,8 +2846,8 @@ export default function HplcSimulator() {
     setMasterAuthInput("");
     setMasterAuthError(null);
     setMasterAuthDialog({
-      description: `Insira a senha gerencial para TRAVAR a curva de calibração de "${name}". Após travada, não poderá ser alterada sem a senha.`,
-      buttonLabel: "🔒 Travar Curva",
+      description: `Enter the manager password to LOCK the calibration curve for "${name}". Once locked, it cannot be edited without the password.`,
+      buttonLabel: "🔒 Lock Curve",
       onSuccess: () => {
         setCompoundCalibrations(cc => {
           const existing = cc[compoundId] ?? getCC(compoundId);
@@ -2864,8 +2864,8 @@ export default function HplcSimulator() {
     setMasterAuthInput("");
     setMasterAuthError(null);
     setMasterAuthDialog({
-      description: `Insira a senha gerencial para LIBERAR a edição da curva de calibração de "${name}".`,
-      buttonLabel: "🔓 Liberar Curva",
+      description: `Enter the manager password to UNLOCK the calibration curve for "${name}".`,
+      buttonLabel: "🔓 Unlock Curve",
       onSuccess: () => {
         setCompoundCalibrations(cc => {
           const existing = cc[compoundId] ?? getCC(compoundId);
@@ -4149,14 +4149,14 @@ export default function HplcSimulator() {
               return (
                 <>
                   {/* Compound selector */}
-                  <ControlBox title="Calibração por Composto">
+                  <ControlBox title="Compound Calibration">
                     {activeCompounds.length === 0 ? (
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa" }}>
-                        Adicione compostos na aba Compostos Ativos primeiro.
+                        Add compounds in the Active Compounds tab first.
                       </div>
                     ) : (
                       <>
-                        <label style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", display: "block", marginBottom: 2 }}>Composto:</label>
+                        <label style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", display: "block", marginBottom: 2 }}>Compound:</label>
                         <select
                           value={calibCompoundId ?? ""}
                           onChange={e => setSelectedCalibCompoundId(e.target.value)}
@@ -4181,11 +4181,11 @@ export default function HplcSimulator() {
 
                   {/* Standards for selected compound */}
                   {calibCompound && cc && (
-                    <ControlBox title={`Padrões — ${calibCompound.name}`} extra={
+                    <ControlBox title={`Standards — ${calibCompound.name}`} extra={
                       <div className="flex gap-1 flex-wrap">
                         <button
                           type="button"
-                          title={syncAreasActive ? "Sincronização de áreas ATIVA — todos os níveis compartilham o mesmo valor. Clique para desativar." : "Sincronização de áreas DESATIVADA — clique para ativar: alterar uma área atualiza todos os níveis"}
+                          title={syncAreasActive ? "Area sync ACTIVE — all levels share the same area value. Click to disable." : "Area sync OFF — click to enable: changing one area updates all levels"}
                           onClick={() => setSyncAreasActive(v => !v)}
                           style={{
                             fontFamily: "Courier New, monospace", fontSize: 9,
@@ -4197,15 +4197,15 @@ export default function HplcSimulator() {
                             whiteSpace: "nowrap",
                           }}
                         >
-                          🔗 {syncAreasActive ? "Sincr. ON" : "Sincr. OFF"}
+                          🔗 {syncAreasActive ? "Sync ON" : "Sync OFF"}
                         </button>
                         <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2"
-                          title="Simula áreas para todos os níveis proporcionalmente ao pico atual do cromatograma"
+                          title="Simulate areas for all levels proportionally to the current chromatogram peak"
                           onClick={() => simulateCalibCurve(calibCompound.id)}>
-                          ⚡ Simular
+                          ⚡ Simulate
                         </Button>
                         <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2"
-                          title="Copiar estes padrões para os Padrões Globais — sincroniza sobreposição do cromatograma"
+                          title="Copy these standards to Global Standards — syncs the chromatogram overlay"
                           onClick={() => {
                             const ccData = getCC(calibCompound.id);
                             if (ccData.standards.length === 0) return;
@@ -4217,12 +4217,12 @@ export default function HplcSimulator() {
                           ⟳ Sync
                         </Button>
                         <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2" onClick={() => addCompoundStandard(calibCompound.id)}>
-                          <Plus className="h-3 w-3" /> Adicionar
+                          <Plus className="h-3 w-3" /> Add Std
                         </Button>
                         {cc.locked ? (
                           <button
                             type="button"
-                            title="Curva travada — clique para liberar com senha gerencial"
+                            title="Curve locked — click to unlock with manager password"
                             onClick={() => unlockCompoundCalib(calibCompound.id)}
                             style={{
                               fontFamily: "Courier New, monospace", fontSize: 9,
@@ -4230,12 +4230,12 @@ export default function HplcSimulator() {
                               border: "1px solid #f59e0b", background: "#fef3c7", color: "#b45309",
                               fontWeight: "bold", whiteSpace: "nowrap",
                             }}>
-                            🔒 Travada
+                            🔒 Locked
                           </button>
                         ) : (
                           <button
                             type="button"
-                            title="Travar esta curva de calibração com senha gerencial"
+                            title="Lock this calibration curve with manager password"
                             onClick={() => lockCompoundCalib(calibCompound.id)}
                             style={{
                               fontFamily: "Courier New, monospace", fontSize: 9,
@@ -4243,7 +4243,7 @@ export default function HplcSimulator() {
                               border: "1px solid #cbd5e1", background: "#f8fafc", color: "#64748b",
                               whiteSpace: "nowrap",
                             }}>
-                            🔓 Travar
+                            🔓 Lock
                           </button>
                         )}
                       </div>
@@ -4256,12 +4256,12 @@ export default function HplcSimulator() {
                         }}>
                           <span style={{ fontSize: 12 }}>🔒</span>
                           <span>
-                            Curva travada. Edição desativada para proteger a calibração homologada.{" "}
+                            Curve locked. Editing disabled to protect the approved calibration.{" "}
                             <button
                               type="button"
                               onClick={() => unlockCompoundCalib(calibCompound.id)}
                               style={{ color: "#b45309", textDecoration: "underline", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", fontWeight: "bold" }}>
-                              Liberar com senha →
+                              Unlock with password →
                             </button>
                           </span>
                         </div>
