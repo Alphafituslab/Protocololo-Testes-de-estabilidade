@@ -114,6 +114,7 @@ function CertEditField({
         value={value}
         onChange={e => onChange(e.target.value)}
         rows={2}
+        autoComplete="off"
         className={`bg-transparent border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 w-full resize-none print:border-none ${className}`}
       />
     );
@@ -122,6 +123,7 @@ function CertEditField({
     <input
       value={value}
       onChange={e => onChange(e.target.value)}
+      autoComplete="off"
       className={`bg-transparent border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 print:border-none ${className}`}
     />
   );
