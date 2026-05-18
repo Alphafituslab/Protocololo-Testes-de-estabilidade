@@ -320,7 +320,6 @@ function InfoFieldEL({ labelKey, def, value, lbl, setLabel }: {
   lbl: (key: string, def: string) => string;
   setLabel: (key: string, value: string) => void;
 }) {
-  if (!value) return null;
   const current = lbl(labelKey, def);
   return (
     <div className="border-b border-border pb-2">
@@ -330,7 +329,9 @@ function InfoFieldEL({ labelKey, def, value, lbl, setLabel }: {
         title="Clique para editar o rótulo deste campo"
         className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground bg-transparent border-0 border-b border-dashed border-transparent hover:border-primary/40 focus:outline-none focus:border-primary/60 w-full cursor-text"
       />
-      <dd className="mt-0.5 text-sm font-medium text-foreground">{value}</dd>
+      <dd className="mt-0.5 text-sm font-medium text-foreground">
+        {value || <span className="text-muted-foreground/50 text-xs italic">não preenchido</span>}
+      </dd>
     </div>
   );
 }
