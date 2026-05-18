@@ -3244,8 +3244,12 @@ export default function HplcSimulator() {
         {user && (
           <div className="flex items-center gap-2 border-l border-gray-300 pl-3 ml-1">
             <span style={{ ...MONO, fontSize: 11, color: "#444" }}>{user.displayName}</span>
+            <Button size="sm" variant="ghost" className="h-8 px-2 text-xs gap-1 text-slate-600 hover:text-slate-800 hover:bg-slate-100"
+              onClick={() => navigate("/dashboard")}>
+              <LayoutDashboard className="h-3.5 w-3.5" /> Painel
+            </Button>
             <Button size="sm" variant="ghost" className="h-8 px-2 text-xs gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-              onClick={async () => { await logout(); navigate("/login"); }}>
+              onClick={async () => { await logout(); const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? ""; window.location.replace(base + "/login"); }}>
               <LogOut className="h-3.5 w-3.5" /> Sair
             </Button>
           </div>

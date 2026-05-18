@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import HplcSimulator from "@/pages/HplcSimulator";
 import LoginPage from "@/pages/login";
+import DashboardPage from "@/pages/dashboard";
 import { AuthProvider } from "@/contexts/auth-context";
 import { useAuth } from "@/contexts/use-auth";
 import { Loader2 } from "lucide-react";
@@ -111,7 +112,9 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
-      <Route path="/" component={() => <ProtectedRoute component={HplcSimulator} />} />
+      <Route path="/dashboard" component={() => <ProtectedRoute component={DashboardPage} />} />
+      <Route path="/simulator" component={() => <ProtectedRoute component={HplcSimulator} />} />
+      <Route path="/" component={() => <Redirect to="/dashboard" />} />
       <Route component={NotFound} />
     </Switch>
   );
