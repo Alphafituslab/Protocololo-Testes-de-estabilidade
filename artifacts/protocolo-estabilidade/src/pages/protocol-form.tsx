@@ -23,7 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
 
 const formSchema = z.object({
-  certNumber: z.string().optional(),
+  certNumber: z.string().min(1, "Número do certificado obrigatório"),
   companyName: z.string().min(1, "Nome da empresa obrigatório"),
   cnpj: z.string().min(1, "CNPJ obrigatório"),
   ie: z.string().optional(),
@@ -252,14 +252,20 @@ export default function ProtocolForm() {
             <CardContent className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="certNumber" render={({ field }) => (
                 <FormItem>
-                  <AlwaysEL labelKey="certNumber" def="Número do Certificado de Análise" lbl={lbl} setLabel={setLabel} />
+                  <div className="flex items-center gap-1">
+                    <AlwaysEL labelKey="certNumber" def="Número do Certificado de Análise" lbl={lbl} setLabel={setLabel} />
+                    <span className="text-red-500 text-xs font-bold">*</span>
+                  </div>
                   <FormControl><Input data-testid="input-certNumber" placeholder="ex: CERT-AF-20241210/035" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="productName" render={({ field }) => (
                 <FormItem>
-                  <AlwaysEL labelKey="productName" def="Nome do Produto" lbl={lbl} setLabel={setLabel} />
+                  <div className="flex items-center gap-1">
+                    <AlwaysEL labelKey="productName" def="Nome do Produto" lbl={lbl} setLabel={setLabel} />
+                    <span className="text-red-500 text-xs font-bold">*</span>
+                  </div>
                   <FormControl><Input data-testid="input-productName" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
