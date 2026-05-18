@@ -58,7 +58,7 @@ export default function LoginPage() {
       const path = dest === "/dashboard" ? "/dashboard" : dest;
       window.location.replace(base + path);
     } catch (err) {
-      toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
+      toast({ variant: "destructive", title: "Error", description: (err as Error).message });
       setLoading(false);
     }
   }
@@ -66,7 +66,7 @@ export default function LoginPage() {
   async function handleSetup(e: React.FormEvent) {
     e.preventDefault();
     if (password !== confirmPassword) {
-      toast({ variant: "destructive", title: "Erro", description: "As senhas não coincidem." });
+      toast({ variant: "destructive", title: "Error", description: "Passwords do not match." });
       return;
     }
     setLoading(true);
@@ -78,14 +78,14 @@ export default function LoginPage() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        throw new Error((d as { error?: string }).error ?? "Erro ao configurar.");
+        throw new Error((d as { error?: string }).error ?? "Setup error.");
       }
       await login(username, password);
       hardNavPending.current = true;
       const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
       window.location.replace(base + "/dashboard");
     } catch (err) {
-      toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
+      toast({ variant: "destructive", title: "Error", description: (err as Error).message });
       setLoading(false);
     }
   }
@@ -106,11 +106,11 @@ export default function LoginPage() {
             <img src="/logo-alphafitus.png" alt="Alphafitus" className="h-20 w-auto" />
           </div>
           <div>
-            <CardTitle className="text-xl">Alphafitus Laboratório Nutracêutico</CardTitle>
+            <CardTitle className="text-xl">Alphafitus Nutraceutical Laboratory</CardTitle>
             <CardDescription className="mt-1">
               {setupNeeded
-                ? "Configure o primeiro administrador do sistema"
-                : "Simulador HPLC — Agilent ChemStation — Acesso seguro"}
+                ? "Set up the first system administrator"
+                : "HPLC Simulator — Agilent ChemStation — Secure Access"}
             </CardDescription>
           </div>
         </CardHeader>
@@ -119,17 +119,17 @@ export default function LoginPage() {
           {setupNeeded ? (
             <form onSubmit={handleSetup} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="displayName">Nome completo</Label>
+                <Label htmlFor="displayName">Full name</Label>
                 <Input id="displayName" placeholder="Ex: Ana Paula Silva" value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)} required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="username">Nome de usuário</Label>
+                <Label htmlFor="username">Username</Label>
                 <Input id="username" placeholder="Ex: ana.paula" value={username}
                   onChange={(e) => setUsername(e.target.value)} required autoCapitalize="none" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Senha (mínimo 6 caracteres)</Label>
+                <Label htmlFor="password">Password (minimum 6 characters)</Label>
                 <div className="relative">
                   <Input id="password" type={showPassword ? "text" : "password"} value={password}
                     onChange={(e) => setPassword(e.target.value)} required minLength={6} className="pr-10" />
@@ -140,24 +140,24 @@ export default function LoginPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmar senha</Label>
+                <Label htmlFor="confirmPassword">Confirm password</Label>
                 <Input id="confirmPassword" type="password" value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)} required />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Criar administrador e entrar
+                Create administrator and sign in
               </Button>
             </form>
           ) : (
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username">Usuário</Label>
+                <Label htmlFor="username">Username</Label>
                 <Input id="username" placeholder="nome.usuario" value={username}
                   onChange={(e) => setUsername(e.target.value)} required autoCapitalize="none" autoComplete="username" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
+                <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <Input id="password" type={showPassword ? "text" : "password"} value={password}
                     onChange={(e) => setPassword(e.target.value)} required className="pr-10" autoComplete="current-password" />
@@ -169,7 +169,7 @@ export default function LoginPage() {
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Entrar
+                Sign In
               </Button>
             </form>
           )}
