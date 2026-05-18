@@ -1267,19 +1267,19 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
           <div key={key}>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">{label}</h3>
             <div className="rounded-md border overflow-x-auto">
-              <Table style={{ minWidth: "100%" }}>
+              <Table style={{ minWidth: 680 }}>
                 <TableHeader>
                   <TableRow className="bg-muted">
-                    <TableHead className="w-44 text-xs sticky left-0 z-20 bg-muted border-r border-border/60">Parâmetro</TableHead>
-                    <TableHead className="w-52 text-xs sticky left-44 z-20 bg-muted border-r border-border/60">Critérios de Aceitação</TableHead>
-                    <TableHead className="w-6 text-xs sticky left-[24rem] z-20 bg-muted border-r border-border/40"></TableHead>
-                    <TableHead className="text-xs text-center font-semibold border-l border-border/30 w-32">Lote</TableHead>
+                    <TableHead className="w-36 text-xs sticky left-0 z-20 bg-muted border-r border-border/60">Parâmetro</TableHead>
+                    <TableHead className="w-40 text-xs sticky left-36 z-20 bg-muted border-r border-border/60">Critérios de Aceitação</TableHead>
+                    <TableHead className="w-6 text-xs sticky left-[19rem] z-20 bg-muted border-r border-border/40"></TableHead>
+                    <TableHead className="text-xs text-center font-semibold border-l border-border/30 w-20">Lote</TableHead>
                     {PERIODS.map((period) => (
                       <TableHead
                         key={period}
-                        className="text-xs text-center font-semibold whitespace-nowrap px-2 py-1.5 border-l border-border/30 w-28"
+                        className="text-xs text-center font-semibold whitespace-nowrap px-1 py-1.5 border-l border-border/30 w-24"
                       >
-                        T {period}
+                        T{period}m
                       </TableHead>
                     ))}
                   </TableRow>
@@ -1334,7 +1334,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                             </TableCell>
                             <TableCell
                               rowSpan={lots.length}
-                              className={`py-1 pr-1 sticky left-44 z-10 border-r border-border/60 align-top ${stickyBg}`}
+                              className={`py-1 pr-1 sticky left-36 z-10 border-r border-border/60 align-top ${stickyBg}`}
                             >
                               <input
                                 value={param.criterion}
@@ -1345,7 +1345,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                             </TableCell>
                             <TableCell
                               rowSpan={lots.length}
-                              className={`py-1 px-1 text-center sticky left-[24rem] z-10 border-r border-border/40 align-top ${stickyBg}`}
+                              className={`py-1 px-1 text-center sticky left-[19rem] z-10 border-r border-border/40 align-top ${stickyBg}`}
                             >
                               <button
                                 type="button"
