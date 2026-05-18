@@ -2334,7 +2334,7 @@ export default function HplcSimulator() {
   // Open the peak editor dialog from the context menu or sidebar button.
   const openEditorDialog = (id: string) => {
     const pk = peaks.find(p => p.id === id);
-    if (!pk) return;
+    if (!pk || pk.locked) return;
     dialogPeakRef.current = pk; // stable reference used by always-mounted dialog
     setEditingPeakId(id);
     setEditorDialogOpen(true);
@@ -2753,7 +2753,12 @@ export default function HplcSimulator() {
     setPeaks(ps => ps.filter(p => p.id !== id));
     markDirty();
   };
-  const savePeak = (updated: Peak) => { pushUndo(); setPeaks(ps => ps.map(p => p.id === updated.id ? updated : p)); markDirty(); };
+  const savePeak = (updated: Peak) => {
+    if (peaks.find(p => p.id === updated.id)?.locked) return;
+    pushUndo();
+    setPeaks(ps => ps.map(p => p.id === updated.id ? updated : p));
+    markDirty();
+  };
   const toggleLockPeak = (id: string) => {
     setPeaks(ps => ps.map(p => p.id === id ? { ...p, locked: !p.locked } : p));
     // Close the editor dialog gracefully — deferred so we never trigger a
@@ -2899,6 +2904,8 @@ export default function HplcSimulator() {
   // ── File attachment per peak ──────────────────────────────────────────────────
 
   const handlePeakFileOpen = (peakId: string) => {
+    const pk = peaks.find(p => p.id === peakId);
+    if (pk?.locked) return;
     fileTargetPeakIdRef.current = peakId;
     fileInputRef.current?.click();
   };
@@ -2913,7 +2920,7 @@ export default function HplcSimulator() {
       const rtMatch = text.match(/ret(?:ention)?[\s._\-]?time[\s:=,\t]+([0-9]+\.?[0-9]*)/i);
       const areaMatch = text.match(/\barea[\s:=,\t]+([0-9]+\.?[0-9]*)/i);
       setPeaks(ps => ps.map(p => {
-        if (p.id !== peakId) return p;
+        if (p.id !== peakId || p.locked) return p;
         const updated: Peak = { ...p, attachedFile: file.name };
         if (rtMatch) updated.retentionTime = parseFloat(rtMatch[1]);
         if (areaMatch) updated.manualArea = parseFloat(areaMatch[1]);
@@ -4023,8 +4030,10 @@ export default function HplcSimulator() {
                       <div className="flex items-center gap-1 pl-4 mt-0.5">
                         <button
                           type="button"
+                          disabled={!!p.locked}
                           onClick={() => handlePeakFileOpen(p.id)}
-                          style={{ fontFamily: "Courier New, monospace", fontSize: 8, padding: "1px 5px", border: "1px solid #bbb", borderRadius: 3, background: "#f9fafb", cursor: "pointer", color: "#555", flexShrink: 0 }}
+                          style={{ fontFamily: "Courier New, monospace", fontSize: 8, padding: "1px 5px", border: "1px solid #bbb", borderRadius: 3, background: p.locked ? "#f1f5f9" : "#f9fafb", cursor: p.locked ? "not-allowed" : "pointer", color: p.locked ? "#bbb" : "#555", flexShrink: 0 }}
+                          title={p.locked ? "Pico bloqueado — desbloqueie para anexar arquivo" : "Anexar arquivo ao pico"}
                         >
                           📂 Arquivo
                         </button>
