@@ -1008,6 +1008,15 @@ components:
         capsuleComposition:
           type: string
           nullable: true
+        packagingType:
+          type: string
+          nullable: true
+        activeIngredients:
+          type: string
+          nullable: true
+        excipients:
+          type: string
+          nullable: true
         ie:
           type: string
           nullable: true

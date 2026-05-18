@@ -732,11 +732,23 @@ export default function CertificatePage() {
           <div className="space-y-2">
             <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1">Identificação do Produto</h2>
             <dl className="space-y-1">
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Produto:</dt><dd className="font-medium flex-1 min-w-0" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{ef("productName", cert.productName, { multiline: true, className: "w-full font-medium text-sm" })}</dd></div>
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Tipo do Produto:</dt><dd className="flex-1 min-w-0">{ef("presentation", cert.presentation)}</dd></div>
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Validade:</dt><dd className="font-semibold flex-1 min-w-0">{ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-[7.5rem] flex-shrink-0">Produto:</dt><dd className="font-medium flex-1 min-w-0" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{ef("productName", cert.productName, { multiline: true, className: "w-full font-medium text-sm" })}</dd></div>
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-[7.5rem] flex-shrink-0">Tipo do Produto:</dt><dd className="flex-1 min-w-0">{ef("presentation", cert.presentation)}</dd></div>
+              {cert.packagingType && (
+                <div className="flex gap-2"><dt className="text-gray-500 min-w-[7.5rem] flex-shrink-0">Tipo de Pote:</dt><dd className="flex-1 min-w-0">{ef("packagingType", cert.packagingType)}</dd></div>
+              )}
+              {cert.activeIngredients && (
+                <div className="flex gap-2"><dt className="text-gray-500 min-w-[7.5rem] flex-shrink-0">Ingredientes Ativos:</dt><dd className="flex-1 min-w-0">{ef("activeIngredients", cert.activeIngredients)}</dd></div>
+              )}
+              {cert.excipients && (
+                <div className="flex gap-2"><dt className="text-gray-500 min-w-[7.5rem] flex-shrink-0">Excipientes:</dt><dd className="flex-1 min-w-0">{ef("excipients", cert.excipients)}</dd></div>
+              )}
+              {cert.capsuleComposition && (
+                <div className="flex gap-2"><dt className="text-gray-500 min-w-[7.5rem] flex-shrink-0">Composição da Cápsula:</dt><dd className="flex-1 min-w-0">{ef("capsuleComposition", cert.capsuleComposition)}</dd></div>
+              )}
+              <div className="flex gap-2"><dt className="text-gray-500 min-w-[7.5rem] flex-shrink-0">Validade:</dt><dd className="font-semibold flex-1 min-w-0">{ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}</dd></div>
               <div className="flex gap-2">
-                <dt className="text-gray-500 min-w-20 flex-shrink-0">N° do Lote:</dt>
+                <dt className="text-gray-500 min-w-[7.5rem] flex-shrink-0">N° do Lote:</dt>
                 <dd className="flex-1 min-w-0 space-y-0.5">
                   {cert.lotNumbers.map((lot, i) => (
                     <div key={lot}>{i + 1}- {lot}</div>

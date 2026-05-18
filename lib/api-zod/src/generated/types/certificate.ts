@@ -30,6 +30,9 @@ export interface Certificate {
   /** Observações da aba Cinética */
   kineticsNotes?: string | null;
   capsuleComposition?: string | null;
+  packagingType?: string | null;
+  activeIngredients?: string | null;
+  excipients?: string | null;
   ie?: string | null;
   cep?: string | null;
 }

@@ -709,6 +709,9 @@ export const GetCertificateResponse = zod.object({
   notes: zod.string().nullish(),
   kineticsNotes: zod.string().nullish().describe("Observações da aba Cinética"),
   capsuleComposition: zod.string().nullish(),
+  packagingType: zod.string().nullish(),
+  activeIngredients: zod.string().nullish(),
+  excipients: zod.string().nullish(),
   ie: zod.string().nullish(),
   cep: zod.string().nullish(),
 });
