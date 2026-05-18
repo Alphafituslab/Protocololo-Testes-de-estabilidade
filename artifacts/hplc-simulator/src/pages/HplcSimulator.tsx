@@ -425,6 +425,45 @@ function computeArea(p: Peak): number {
   return area * 60; // convert mAU·min → mAU·s
 }
 
+/** Linear interpolation of signal at time t from the chromatogram data array */
+function interpolateChromSignal(chrom: { time: number; signal: number }[], t: number): number {
+  if (chrom.length === 0) return 0;
+  if (t <= chrom[0].time) return chrom[0].signal;
+  if (t >= chrom[chrom.length - 1].time) return chrom[chrom.length - 1].signal;
+  let lo = 0, hi = chrom.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (chrom[mid].time <= t) lo = mid; else hi = mid;
+  }
+  const { time: t0, signal: y0 } = chrom[lo];
+  const { time: t1, signal: y1 } = chrom[hi];
+  return t1 > t0 ? y0 + (y1 - y0) * (t - t0) / (t1 - t0) : y0;
+}
+
+/** Peak integration window boundaries — valley-to-valley straight-baseline method.
+ *  Window = RT ± 3.5σ (left) and RT + 3.5σ·asymmetry (right). */
+function peakIntegBounds(p: Peak, runTime: number) {
+  const tStart = Math.max(0,       p.retentionTime - 3.5 * p.width);
+  const tEnd   = Math.min(runTime, p.retentionTime + 3.5 * p.width * p.asymmetry);
+  return { tStart, tEnd };
+}
+
+/** Baseline-corrected peak area: subtracts the trapezoid under the straight baseline
+ *  drawn from (tStart, yStart) to (tEnd, yEnd).  Returns mAU·s (≥ 0). */
+function computeBaselineCorrectedArea(
+  p: Peak,
+  chrom: { time: number; signal: number }[],
+  runTime: number,
+): number {
+  const { tStart, tEnd } = peakIntegBounds(p, runTime);
+  const yStart = interpolateChromSignal(chrom, tStart);
+  const yEnd   = interpolateChromSignal(chrom, tEnd);
+  const rawArea  = computeArea(p);
+  // Trapezoid under the straight baseline [mAU·min → mAU·s]
+  const trapArea = 0.5 * (yStart + yEnd) * (tEnd - tStart) * 60;
+  return Math.max(0, rawArea - trapArea);
+}
+
 /** Peak width at base (Wb) in minutes.
  *  For our asymmetric Gaussian: Wb = 2σ_left + 2σ_right = 2·σ·(1 + asymmetry)
  *  For a symmetric peak (asymmetry = 1): Wb = 4σ  (matches ChemStation convention) */
@@ -2239,6 +2278,7 @@ export default function HplcSimulator() {
   const [lastIdentified, setLastIdentified] = useState<string[]>([]);
   const [showControls, setShowControls] = useState(true);
   const [showStdPeak, setShowStdPeak] = useState(false);
+  const [showBaselines, setShowBaselines] = useState(false);
   const [formulas, setFormulas] = useState<Formula[]>(() => loadFormulas());
   const [lots, setLots] = useState<Lot[]>(() => loadLots());
   const [selectedFormulaId, setSelectedFormulaId] = useState<string | null>(null);
@@ -2592,8 +2632,10 @@ export default function HplcSimulator() {
 
   const peakStats = useMemo(() =>
     [...peaks].sort((a, b) => a.retentionTime - b.retentionTime).map((p, i) => {
-      const computedArea = computeArea(p);
-      const displayArea = p.manualArea > 0 ? p.manualArea : computedArea;
+      const computedArea    = computeArea(p);
+      const correctedArea   = computeBaselineCorrectedArea(p, chromatogram, detector.runTime);
+      const effectiveArea   = showBaselines ? correctedArea : computedArea;
+      const displayArea     = p.manualArea > 0 ? p.manualArea : effectiveArea;
       // Compute amount automatically: manual > amtPerArea × area > calibration regression
       let calcAmount = 0;
       if (p.amount > 0) {
@@ -2603,9 +2645,9 @@ export default function HplcSimulator() {
       } else if (reg.slope > 0) {
         calcAmount = Math.max(0, (displayArea - reg.intercept) / reg.slope);
       }
-      return { ...p, peakNum: i + 1, computedArea, displayArea, calcAmount };
+      return { ...p, peakNum: i + 1, computedArea, correctedArea, displayArea, calcAmount };
     }),
-    [peaks, reg]
+    [peaks, reg, chromatogram, detector.runTime, showBaselines]
   );
   const totalAmount = peakStats.reduce((s, p) => s + p.calcAmount, 0);
 
@@ -4901,6 +4943,29 @@ export default function HplcSimulator() {
               <div style={{ whiteSpace: "pre", wordBreak: "break-all" }}>{"              " + fullSignalLine}</div>
               <Div />
 
+              {/* ── Baseline toggle ──────────────────────────────────────── */}
+              <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <button
+                  onClick={() => setShowBaselines(s => !s)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 5, padding: "3px 10px",
+                    border: `1px solid ${showBaselines ? "#16a34a" : "#94a3b8"}`,
+                    borderRadius: 4, cursor: "pointer",
+                    background: showBaselines ? "#f0fdf4" : "#f8fafc",
+                    color: showBaselines ? "#16a34a" : "#64748b",
+                    fontSize: 9, fontFamily: "Courier New, monospace", fontWeight: "bold",
+                  }}
+                >
+                  {showBaselines ? "▼" : "▶"}&nbsp;Base de Integração&nbsp;
+                  <span style={{ fontWeight: "normal" }}>{showBaselines ? "ON — área corrigida" : "OFF"}</span>
+                </button>
+                {showBaselines && (
+                  <span style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#16a34a" }}>
+                    Linha verde = baseline de integração · área acima da baseline usada no cálculo de teor
+                  </span>
+                )}
+              </div>
+
               {/* Chromatogram chart */}
               <div
                 ref={chartContainerRef}
@@ -5060,6 +5125,70 @@ export default function HplcSimulator() {
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
+
+                {/* ── Integration Baseline SVG Overlay ─────────────────────── */}
+                {showBaselines && (() => {
+                  const CM_L = 54, CM_R = 16, CM_T = 75, CM_B = 24;
+                  const CHART_H = 360;
+                  const w = chartContainerRef.current?.clientWidth ?? 640;
+                  const plotW = w - CM_L - CM_R;
+                  const plotH = CHART_H - CM_T - CM_B;
+                  const tx = (t: number) => CM_L + (Math.max(0, Math.min(detector.runTime, t)) / detector.runTime) * plotW;
+                  const ty = (mAU: number) => CM_T + plotH * (1 - Math.max(0, Math.min(yMax, mAU)) / yMax);
+                  return (
+                    <svg
+                      className="no-print"
+                      style={{ position: "absolute", top: 0, left: 0, width: "100%", height: CHART_H, pointerEvents: "none", zIndex: 10 }}
+                    >
+                      {peakStats.map(p => {
+                        const { tStart, tEnd } = peakIntegBounds(p, detector.runTime);
+                        const yStart = interpolateChromSignal(chromatogram, tStart);
+                        const yEnd   = interpolateChromSignal(chromatogram, tEnd);
+                        const x1 = tx(tStart), y1 = ty(yStart);
+                        const x2 = tx(tEnd),   y2 = ty(yEnd);
+                        const color = p.name ? "#16a34a" : "#94a3b8";
+
+                        // Sample chromatogram points between the integration boundaries for the fill polygon
+                        const chromPts = chromatogram.filter(d => d.time >= tStart - 0.001 && d.time <= tEnd + 0.001);
+                        // Top edge: signal curve; bottom edge: straight baseline back from tEnd to tStart
+                        const polyPoints = [
+                          `${x1},${ty(yStart)}`,
+                          ...chromPts.map(d => `${tx(d.time)},${ty(d.signal)}`),
+                          `${x2},${ty(yEnd)}`,
+                          `${x2},${y2}`,
+                          `${x1},${y1}`,
+                        ].join(' ');
+
+                        return (
+                          <g key={p.id}>
+                            {/* Filled integration zone — light shading above the baseline */}
+                            <polygon points={polyPoints} fill={color} fillOpacity={0.09} stroke="none" />
+                            {/* Straight integration baseline — dashed */}
+                            <line x1={x1} y1={y1} x2={x2} y2={y2}
+                              stroke={color} strokeWidth={1.5} strokeDasharray="5 3" opacity={0.85} />
+                            {/* Boundary tick at integration start */}
+                            <line x1={x1} y1={y1 - 7} x2={x1} y2={y1 + 7}
+                              stroke={color} strokeWidth={1.5} opacity={0.85} />
+                            {/* Boundary tick at integration end */}
+                            <line x1={x2} y1={y2 - 7} x2={x2} y2={y2 + 7}
+                              stroke={color} strokeWidth={1.5} opacity={0.85} />
+                            {/* Corrected area label above the baseline midpoint */}
+                            {p.name && p.correctedArea > 0 && (
+                              <text
+                                x={(x1 + x2) / 2}
+                                y={Math.min(y1, y2) - 10}
+                                textAnchor="middle"
+                                style={{ fontFamily: "Courier New, monospace", fontSize: 8, fill: color, fontWeight: "bold" }}
+                              >
+                                {p.correctedArea.toFixed(0)} mAU·s
+                              </text>
+                            )}
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  );
+                })()}
 
                 {/* Legend when std peak is visible */}
                 {stdPeakInfo && (
