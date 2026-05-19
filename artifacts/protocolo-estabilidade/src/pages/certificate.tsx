@@ -262,6 +262,24 @@ export default function CertificatePage() {
     return <CertEditField value={val} onChange={v => setCertEdit(key, v)} multiline={opts?.multiline} className={opts?.className ?? "w-full"} />;
   };
 
+  // Helper: renders an editable row label when unlocked, plain text when locked
+  const el = (key: string, defaultLabel: string) => {
+    const stored = certEdits[`lbl_${key}`];
+    const val = stored !== undefined ? stored : defaultLabel;
+    if (certLocked) return <>{val}</>;
+    return (
+      <>
+        <input
+          value={val}
+          onChange={e => setCertEdit(`lbl_${key}`, e.target.value)}
+          className="bg-transparent border-b border-dashed border-blue-300 focus:outline-none focus:border-blue-500 text-gray-500 w-full print:hidden"
+          title="Clique para editar o nome deste campo"
+        />
+        <span className="hidden print:inline">{val}</span>
+      </>
+    );
+  };
+
   const { data: lotsRaw = [] } = useListLots(Number(id), {
     query: { enabled: !!id, queryKey: getListLotsQueryKey(Number(id)) },
   });
@@ -737,43 +755,56 @@ export default function CertificatePage() {
           </div>
           <div className="space-y-2">
             <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1">Identificação do Produto</h2>
-            <dl className="grid gap-x-3 gap-y-1" style={{ gridTemplateColumns: "auto 1fr" }}>
-              <dt className="text-gray-500 whitespace-nowrap self-start">Produto:</dt>
-              <dd className="font-medium min-w-0 break-words">{ef("productName", cert.productName, { multiline: true, className: "w-full font-medium text-sm" })}</dd>
-
-              <dt className="text-gray-500 whitespace-nowrap self-start">Tipo do Produto:</dt>
-              <dd className="min-w-0 break-words">{ef("presentation", cert.presentation)}</dd>
-
-              {!!getEdit("packagingType", cert.packagingType) && (<>
-                <dt className="text-gray-500 whitespace-nowrap self-start">Tipo de Pote:</dt>
-                <dd className="min-w-0 break-words">{ef("packagingType", cert.packagingType)}</dd>
-              </>)}
-
-              {!!getEdit("activeIngredients", cert.activeIngredients) && (<>
-                <dt className="text-gray-500 whitespace-nowrap self-start">Ingredientes Ativos:</dt>
-                <dd className="min-w-0 break-words">{ef("activeIngredients", cert.activeIngredients, { multiline: true })}</dd>
-              </>)}
-
-              {!!getEdit("excipients", cert.excipients) && (<>
-                <dt className="text-gray-500 whitespace-nowrap self-start">Excipientes:</dt>
-                <dd className="min-w-0 break-words">{ef("excipients", cert.excipients, { multiline: true })}</dd>
-              </>)}
-
-              {!!getEdit("capsuleComposition", cert.capsuleComposition) && (<>
-                <dt className="text-gray-500 whitespace-nowrap self-start">Composição da Cápsula:</dt>
-                <dd className="min-w-0 break-words">{ef("capsuleComposition", cert.capsuleComposition, { multiline: true })}</dd>
-              </>)}
-
-              <dt className="text-gray-500 whitespace-nowrap self-start">Validade:</dt>
-              <dd className="font-semibold min-w-0">{ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}</dd>
-
-              <dt className="text-gray-500 whitespace-nowrap self-start">N° do Lote:</dt>
-              <dd className="min-w-0 space-y-0.5">
-                {cert.lotNumbers.map((lot, i) => (
-                  <div key={lot}>{i + 1}- {lot}</div>
-                ))}
-              </dd>
-            </dl>
+            <table className="w-full text-sm border-collapse">
+              <tbody>
+                <tr>
+                  <td className="text-gray-500 align-top pr-3 pb-0.5 w-2/5 break-words">{el("productName", "Produto:")}</td>
+                  <td className="font-medium align-top pb-0.5 break-words">{ef("productName", cert.productName, { multiline: true, className: "w-full font-medium text-sm" })}</td>
+                </tr>
+                <tr>
+                  <td className="text-gray-500 align-top pr-3 pb-0.5 break-words">{el("presentation", "Tipo do Produto:")}</td>
+                  <td className="align-top pb-0.5 break-words">{ef("presentation", cert.presentation)}</td>
+                </tr>
+                {!!getEdit("packagingType", cert.packagingType) && (
+                  <tr>
+                    <td className="text-gray-500 align-top pr-3 pb-0.5 break-words">{el("packagingType", "Tipo de Pote:")}</td>
+                    <td className="align-top pb-0.5 break-words">{ef("packagingType", cert.packagingType)}</td>
+                  </tr>
+                )}
+                {!!getEdit("activeIngredients", cert.activeIngredients) && (
+                  <tr>
+                    <td className="text-gray-500 align-top pr-3 pb-0.5 break-words">{el("activeIngredients", "Ingredientes Ativos:")}</td>
+                    <td className="align-top pb-0.5 break-words">{ef("activeIngredients", cert.activeIngredients, { multiline: true })}</td>
+                  </tr>
+                )}
+                {!!getEdit("excipients", cert.excipients) && (
+                  <tr>
+                    <td className="text-gray-500 align-top pr-3 pb-0.5 break-words">{el("excipients", "Excipientes:")}</td>
+                    <td className="align-top pb-0.5 break-words">{ef("excipients", cert.excipients, { multiline: true })}</td>
+                  </tr>
+                )}
+                {!!getEdit("capsuleComposition", cert.capsuleComposition) && (
+                  <tr>
+                    <td className="text-gray-500 align-top pr-3 pb-0.5 break-words">{el("capsuleComposition", "Composição da Cápsula:")}</td>
+                    <td className="align-top pb-0.5 break-words">{ef("capsuleComposition", cert.capsuleComposition, { multiline: true })}</td>
+                  </tr>
+                )}
+                <tr>
+                  <td className="text-gray-500 align-top pr-3 pb-0.5 break-words">{el("validityMonths", "Validade:")}</td>
+                  <td className="font-semibold align-top pb-0.5">{ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}</td>
+                </tr>
+                <tr>
+                  <td className="text-gray-500 align-top pr-3 break-words">{el("lotNumbers", "N° do Lote:")}</td>
+                  <td className="align-top">
+                    <div className="space-y-0.5">
+                      {cert.lotNumbers.map((lot, i) => (
+                        <div key={lot}>{i + 1}- {lot}</div>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
