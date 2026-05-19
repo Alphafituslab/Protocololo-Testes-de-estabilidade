@@ -705,7 +705,7 @@ export default function CertificatePage() {
               style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.08))" }}
             />
             <div className="border-l border-gray-300 pl-5" style={{ minWidth: 0, flex: 1 }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5 truncate">Alphafitus Laboratório Nutracêutico</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Alphafitus Laboratório Nutracêutico</p>
               <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{ef("certTitle", "Certificado de Análise", { className: "w-full text-xl font-bold uppercase tracking-wide text-gray-800 bg-transparent border-0 outline-none focus:ring-1 focus:ring-blue-300 rounded px-0" })}</h1>
               <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{cert.productName}</p>
             </div>

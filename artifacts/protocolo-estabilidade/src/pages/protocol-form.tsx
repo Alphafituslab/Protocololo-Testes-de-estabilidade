@@ -72,7 +72,7 @@ function AlwaysEL({
   }, [current]);
 
   return (
-    <FormLabel>
+    <FormLabel className="block w-full">
       <textarea
         ref={ref}
         value={current}
@@ -81,7 +81,7 @@ function AlwaysEL({
           setLabel(labelKey, e.target.value);
         }}
         onClick={e => e.stopPropagation()}
-        className="font-medium text-sm border border-blue-300 rounded px-1.5 py-0.5 bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full resize-none overflow-hidden leading-snug"
+        className="font-medium text-sm border border-blue-300 rounded px-1.5 py-0.5 bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full resize-none overflow-hidden leading-normal"
         title="Clique para editar o nome deste campo"
         placeholder={def}
       />
