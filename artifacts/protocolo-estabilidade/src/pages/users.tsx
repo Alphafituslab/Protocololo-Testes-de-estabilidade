@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Pencil, Users, ArrowLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type User = {
   id: number;
@@ -41,20 +41,61 @@ async function apiFetch<T>(url: string, token: string | null, options?: RequestI
 
 type UserFormData = { username: string; displayName: string; password: string; role: string };
 
+function RoleToggle({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex rounded-md border overflow-hidden">
+      <button
+        type="button"
+        onClick={() => onChange("analyst")}
+        className={cn(
+          "flex-1 px-3 py-2 text-sm font-medium transition-colors",
+          value === "analyst"
+            ? "bg-primary text-primary-foreground"
+            : "bg-background text-muted-foreground hover:bg-muted"
+        )}
+      >
+        Analista
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("admin")}
+        className={cn(
+          "flex-1 px-3 py-2 text-sm font-medium transition-colors border-l",
+          value === "admin"
+            ? "bg-primary text-primary-foreground"
+            : "bg-background text-muted-foreground hover:bg-muted"
+        )}
+      >
+        Administrador
+      </button>
+    </div>
+  );
+}
+
 function UserForm({ initial, onSave, isEdit }: { initial?: Partial<UserFormData>; onSave: (data: UserFormData & { password?: string }) => Promise<void>; isEdit?: boolean }) {
-  const [form, setForm] = useState<UserFormData>({ username: initial?.username ?? "", displayName: initial?.displayName ?? "", password: "", role: initial?.role ?? "analyst" });
+  const [form, setForm] = useState<UserFormData>({
+    username: initial?.username ?? "",
+    displayName: initial?.displayName ?? "",
+    password: "",
+    role: initial?.role ?? "analyst",
+  });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!isEdit && form.password.length < 6) { toast({ variant: "destructive", title: "Erro", description: "Senha mínima de 6 caracteres." }); return; }
+    if (!isEdit && form.password.length < 6) {
+      toast({ variant: "destructive", title: "Erro", description: "Senha mínima de 6 caracteres." });
+      return;
+    }
     setLoading(true);
     try {
       await onSave(form);
     } catch (err) {
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -62,26 +103,38 @@ function UserForm({ initial, onSave, isEdit }: { initial?: Partial<UserFormData>
       {!isEdit && (
         <div className="space-y-2">
           <Label>Usuário (login)</Label>
-          <Input placeholder="ana.paula" value={form.username} onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))} required autoCapitalize="none" />
+          <Input
+            placeholder="ana.paula"
+            value={form.username}
+            onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+            required
+            autoCapitalize="none"
+          />
         </div>
       )}
       <div className="space-y-2">
         <Label>Nome completo</Label>
-        <Input placeholder="Ana Paula Silva" value={form.displayName} onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))} required />
+        <Input
+          placeholder="Ana Paula Silva"
+          value={form.displayName}
+          onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))}
+          required
+        />
       </div>
       <div className="space-y-2">
         <Label>Perfil</Label>
-        <Select value={form.role} onValueChange={(v) => setForm((f) => ({ ...f, role: v }))}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="analyst">Analista</SelectItem>
-            <SelectItem value="admin">Administrador</SelectItem>
-          </SelectContent>
-        </Select>
+        <RoleToggle value={form.role} onChange={(v) => setForm((f) => ({ ...f, role: v }))} />
       </div>
       <div className="space-y-2">
         <Label>{isEdit ? "Nova senha (deixe em branco para manter)" : "Senha"}</Label>
-        <Input type="password" placeholder={isEdit ? "••••••" : "Mínimo 6 caracteres"} value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} minLength={isEdit ? 0 : 6} required={!isEdit} />
+        <Input
+          type="password"
+          placeholder={isEdit ? "••••••" : "Mínimo 6 caracteres"}
+          value={form.password}
+          onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+          minLength={isEdit ? 0 : 6}
+          required={!isEdit}
+        />
       </div>
       <Button type="submit" disabled={loading} className="w-full">
         {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -107,15 +160,24 @@ export default function UsersPage() {
   });
 
   const createUser = useMutation({
-    mutationFn: (data: UserFormData) => apiFetch<User>("/api/users", token, { method: "POST", body: JSON.stringify(data) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); setNewOpen(false); toast({ title: "Usuário criado com sucesso." }); },
+    mutationFn: (data: UserFormData) =>
+      apiFetch<User>("/api/users", token, { method: "POST", body: JSON.stringify(data) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      setNewOpen(false);
+      toast({ title: "Usuário criado com sucesso." });
+    },
     onError: (err) => toast({ variant: "destructive", title: "Erro ao criar usuário", description: (err as Error).message }),
   });
 
   const updateUser = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<UserFormData> & { active?: boolean } }) =>
       apiFetch<User>(`/api/users/${id}`, token, { method: "PUT", body: JSON.stringify(data) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); setEditOpen(false); toast({ title: "Usuário atualizado." }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      setEditOpen(false);
+      toast({ title: "Usuário atualizado." });
+    },
     onError: (err) => toast({ variant: "destructive", title: "Erro ao atualizar usuário", description: (err as Error).message }),
   });
 
@@ -171,21 +233,31 @@ export default function UsersPage() {
               <TableBody>
                 {users?.map((u) => (
                   <TableRow key={u.id}>
-                    <TableCell className="font-medium">{u.displayName}{u.id === currentUser?.id && <span className="ml-2 text-xs text-muted-foreground">(você)</span>}</TableCell>
+                    <TableCell className="font-medium">
+                      {u.displayName}
+                      {u.id === currentUser?.id && <span className="ml-2 text-xs text-muted-foreground">(você)</span>}
+                    </TableCell>
                     <TableCell className="text-muted-foreground font-mono text-sm">{u.username}</TableCell>
                     <TableCell>
-                      <Badge variant={u.role === "admin" ? "default" : "secondary"}>{u.role === "admin" ? "Admin" : "Analista"}</Badge>
+                      <Badge variant={u.role === "admin" ? "default" : "secondary"}>
+                        {u.role === "admin" ? "Admin" : "Analista"}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Switch checked={u.active} disabled={u.id === currentUser?.id}
+                        <Switch
+                          checked={u.active}
+                          disabled={u.id === currentUser?.id}
                           onCheckedChange={(checked) => updateUser.mutate({ id: u.id, data: { active: checked } })}
                         />
                         <span className="text-sm text-muted-foreground">{u.active ? "Ativo" : "Inativo"}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Dialog open={editOpen && editUser?.id === u.id} onOpenChange={(o) => { setEditOpen(o); if (o) setEditUser(u); }}>
+                      <Dialog
+                        open={editOpen && editUser?.id === u.id}
+                        onOpenChange={(o) => { setEditOpen(o); if (o) setEditUser(u); }}
+                      >
                         <DialogTrigger asChild>
                           <Button variant="ghost" size="icon" onClick={() => { setEditUser(u); setEditOpen(true); }}>
                             <Pencil className="h-4 w-4" />
@@ -193,7 +265,9 @@ export default function UsersPage() {
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader><DialogTitle>Editar: {u.displayName}</DialogTitle></DialogHeader>
-                          <UserForm isEdit initial={{ displayName: u.displayName, role: u.role }}
+                          <UserForm
+                            isEdit
+                            initial={{ displayName: u.displayName, role: u.role }}
                             onSave={async (d) => {
                               const payload: Partial<UserFormData> = { displayName: d.displayName, role: d.role };
                               if (d.password) payload.password = d.password;
