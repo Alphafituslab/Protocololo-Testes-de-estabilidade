@@ -875,7 +875,16 @@ function InlineCell({
           autoFocus
           type="text"
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            const v = e.target.value;
+            setValue(v);
+            const shortcutMap: Record<string, typeof status> = {
+              c: "conforme", nc: "nao_conforme", na: "na",
+              ar: "aprovado_com_ressalva", nd: "nd", lq: "lq",
+            };
+            const mapped = shortcutMap[v.toLowerCase().trim()];
+            if (mapped) setStatus(mapped);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter") { e.preventDefault(); save(); }
             if (e.key === "Escape") setEditing(false);
@@ -891,7 +900,7 @@ function InlineCell({
           }}
           autoComplete="off"
           className="w-full border border-primary rounded px-1.5 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary"
-          placeholder="Resultado"
+          placeholder="Resultado ou C/NC/NA/ND/LQ/AR"
           data-testid="input-inline-result"
         />
         <div className="flex gap-0.5 justify-center flex-wrap">
@@ -899,7 +908,10 @@ function InlineCell({
             <button
               type="button"
               key={s}
-              onClick={() => setStatus(s)}
+              onClick={() => {
+                setStatus(s);
+                setValue(STATUS_LABEL[s] ?? s);
+              }}
               className={`text-[9px] px-1 py-0.5 rounded border transition-all ${status === s ? statusBtnColors[s] : "bg-white text-muted-foreground border-border"}`}
             >
               {STATUS_LABEL[s] ?? s}
