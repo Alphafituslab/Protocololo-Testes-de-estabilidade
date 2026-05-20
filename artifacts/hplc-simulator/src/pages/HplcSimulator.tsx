@@ -4172,7 +4172,12 @@ export default function HplcSimulator() {
                         <label style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", display: "block", marginBottom: 2 }}>Compound:</label>
                         <select
                           value={calibCompoundId ?? ""}
-                          onChange={e => setSelectedCalibCompoundId(e.target.value)}
+                          onChange={e => {
+                            const id = e.target.value;
+                            setSelectedCalibCompoundId(id);
+                            const chosen = activeCompounds.find(ac => ac.id === id);
+                            if (chosen) setCalib(cb => ({ ...cb, compoundName: chosen.name, expRT: chosen.expectedRT }));
+                          }}
                           className="w-full h-6 text-xs font-mono border border-input rounded px-1 bg-background mb-3"
                         >
                           {activeCompounds.map(c => (
@@ -5452,8 +5457,11 @@ export default function HplcSimulator() {
               {/* Per-compound Calibration Tables — only show the compound selected/configured in the chromatogram */}
               {activeCompounds
                 .filter(compound => {
-                  // Filter 1: must match calib.compoundName exactly (case-insensitive)
-                  if (calib.compoundName.trim()) {
+                  // Filter 1: match the compound selected in the Calibration panel (by ID, then by name fallback)
+                  const effectiveCalibId = selectedCalibCompoundId ?? activeCompounds[0]?.id ?? null;
+                  if (effectiveCalibId) {
+                    if (compound.id !== effectiveCalibId) return false;
+                  } else if (calib.compoundName.trim()) {
                     const n = compound.name.toLowerCase();
                     const cn = calib.compoundName.toLowerCase().trim();
                     if (n !== cn) return false;
