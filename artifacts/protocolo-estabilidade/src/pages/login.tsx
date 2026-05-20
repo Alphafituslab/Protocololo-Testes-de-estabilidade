@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/use-auth";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
@@ -31,17 +31,9 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Stores the destination route so the useEffect can navigate after React
-  // has flushed the new user state — avoids the race condition where navigate()
-  // called synchronously after login() sees user===null in ProtectedRoute.
-  const pendingDest = useRef<string | null>(null);
-
+  // Redirect if already logged in (session restored from sessionStorage on mount).
   useEffect(() => {
-    if (user) {
-      const dest = pendingDest.current ?? "/";
-      pendingDest.current = null;
-      navigate(dest, { replace: true });
-    }
+    if (user) navigate("/", { replace: true });
   }, [user]);
 
   useEffect(() => {
@@ -54,13 +46,13 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    pendingDest.current = popRedirect();
+    const dest = popRedirect();
     try {
       await login(username, password);
-      // Navigation is handled by the useEffect above once React flushes the
-      // new user state — calling navigate() here would race against it.
+      // login() uses flushSync internally — user state is committed by the time
+      // we reach this line, so navigate() sees user !== null in ProtectedRoute.
+      navigate(dest || "/", { replace: true });
     } catch (err) {
-      pendingDest.current = null;
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
       setLoading(false);
     }
@@ -84,9 +76,8 @@ export default function LoginPage() {
         throw new Error((d as { error?: string }).error ?? "Erro ao configurar.");
       }
       await login(username, password);
-      // Navigation handled by the useEffect watching user state.
+      navigate("/", { replace: true });
     } catch (err) {
-      pendingDest.current = null;
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
       setLoading(false);
     }

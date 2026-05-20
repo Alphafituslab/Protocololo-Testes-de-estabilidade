@@ -1,5 +1,6 @@
 // @refresh reset
 import { createContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 
 export type AuthUser = {
@@ -73,8 +74,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json() as { token: string; user: AuthUser };
     store.set(TOKEN_KEY, data.token);
     store.set(USER_KEY, JSON.stringify(data.user));
-    setToken(data.token);
-    setUser(data.user);
+    // flushSync forces React to commit the state update synchronously before
+    // login() returns — so any navigate() called right after will always see
+    // user !== null in ProtectedRoute (no race condition).
+    flushSync(() => {
+      setToken(data.token);
+      setUser(data.user);
+    });
     setAuthTokenGetter(() => data.token);
   }, []);
 
