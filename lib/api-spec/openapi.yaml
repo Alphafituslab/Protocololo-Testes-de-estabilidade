@@ -1023,6 +1023,18 @@ components:
         cep:
           type: string
           nullable: true
+        storageTemp:
+          type: string
+          nullable: true
+        storageHumidity:
+          type: string
+          nullable: true
+        studyPeriodMonths:
+          type: integer
+          nullable: true
+        testIntervals:
+          type: string
+          nullable: true
       required:
         - certNumber
         - issueDate

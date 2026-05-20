@@ -337,6 +337,10 @@ export interface Certificate {
   excipients?: string | null;
   ie?: string | null;
   cep?: string | null;
+  storageTemp?: string | null;
+  storageHumidity?: string | null;
+  studyPeriodMonths?: number | null;
+  testIntervals?: string | null;
 }
 
 export interface Methodology {

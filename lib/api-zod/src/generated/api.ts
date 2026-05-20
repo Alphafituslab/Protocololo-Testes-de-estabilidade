@@ -714,6 +714,10 @@ export const GetCertificateResponse = zod.object({
   excipients: zod.string().nullish(),
   ie: zod.string().nullish(),
   cep: zod.string().nullish(),
+  storageTemp: zod.string().nullish(),
+  storageHumidity: zod.string().nullish(),
+  studyPeriodMonths: zod.number().nullish(),
+  testIntervals: zod.string().nullish(),
 });
 
 /**

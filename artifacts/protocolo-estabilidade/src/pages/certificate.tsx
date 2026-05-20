@@ -808,6 +808,29 @@ export default function CertificatePage() {
           </div>
         </div>
 
+        {/* ── CONDIÇÕES DO ESTUDO ── always printed, fundamental to certificate */}
+        <div className="mb-6">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-gray-300 pb-1 mb-3">Condições do Estudo</h2>
+          <div className="grid grid-cols-4 gap-0 border border-gray-300 rounded overflow-hidden text-sm">
+            <div className="border-r border-gray-300 p-3 bg-gray-50">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Temperatura de Armazenamento</p>
+              <p className="font-semibold text-gray-800 text-base">{ef("storageTemp", cert.storageTemp ?? "40°C ± 2°C")}</p>
+            </div>
+            <div className="border-r border-gray-300 p-3 bg-gray-50">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Umidade Relativa</p>
+              <p className="font-semibold text-gray-800 text-base">{ef("storageHumidity", cert.storageHumidity ?? "75% UR ± 5% UR")}</p>
+            </div>
+            <div className="border-r border-gray-300 p-3 bg-gray-50">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Período do Estudo</p>
+              <p className="font-semibold text-gray-800 text-base">{ef("studyPeriodMonths", cert.studyPeriodMonths != null ? String(cert.studyPeriodMonths) + " meses" : "—")}</p>
+            </div>
+            <div className="p-3 bg-gray-50">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Intervalos de Teste</p>
+              <p className="font-semibold text-gray-800 text-base">{ef("testIntervals", cert.testIntervals ?? "—")}</p>
+            </div>
+          </div>
+        </div>
+
         {show.condicoesAmbientais && (
           <div className="mb-6 border border-gray-200 rounded p-3 bg-gray-50 text-xs space-y-2">
             <div className="flex items-center justify-between">
