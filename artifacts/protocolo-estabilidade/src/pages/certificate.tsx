@@ -810,7 +810,7 @@ export default function CertificatePage() {
 
         {/* ── CONDIÇÕES DO ESTUDO ── always printed, fundamental to certificate */}
         <div className="mb-6">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-gray-300 pb-1 mb-3">Condições do Estudo</h2>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-gray-300 pb-1 mb-3">Plano de Teste de Estabilidade</h2>
           <div className="grid grid-cols-4 gap-0 border border-gray-300 rounded overflow-hidden text-sm">
             <div className="border-r border-gray-300 p-3 bg-gray-50">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Temperatura de Armazenamento</p>
