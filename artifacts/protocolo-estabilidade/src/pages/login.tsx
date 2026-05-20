@@ -31,19 +31,16 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Tracks when handleLogin/handleSetup is responsible for navigation so that
-  // the useEffect below doesn't also call navigate() and cause a double render
-  // (which briefly mounts Dashboard and fires unauthenticated queries).
-  const hardNavPending = useRef(false);
+  // Stores the destination route so the useEffect can navigate after React
+  // has flushed the new user state — avoids the race condition where navigate()
+  // called synchronously after login() sees user===null in ProtectedRoute.
+  const pendingDest = useRef<string | null>(null);
 
-  // If the user already has a valid session (loaded from sessionStorage on mount),
-  // use Wouter navigate — no race condition here since auth-context has already
-  // committed the user state before this effect runs.
-  // When a hard navigation (window.location.replace) is already scheduled we
-  // skip the soft navigate to avoid the race condition.
   useEffect(() => {
-    if (user && !hardNavPending.current) {
-      navigate("/");
+    if (user) {
+      const dest = pendingDest.current ?? "/";
+      pendingDest.current = null;
+      navigate(dest, { replace: true });
     }
   }, [user]);
 
@@ -57,12 +54,13 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const dest = popRedirect();
+    pendingDest.current = popRedirect();
     try {
       await login(username, password);
-      hardNavPending.current = true;
-      navigate(dest || "/", { replace: true });
+      // Navigation is handled by the useEffect above once React flushes the
+      // new user state — calling navigate() here would race against it.
     } catch (err) {
+      pendingDest.current = null;
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
       setLoading(false);
     }
@@ -86,9 +84,9 @@ export default function LoginPage() {
         throw new Error((d as { error?: string }).error ?? "Erro ao configurar.");
       }
       await login(username, password);
-      hardNavPending.current = true;
-      navigate("/", { replace: true });
+      // Navigation handled by the useEffect watching user state.
     } catch (err) {
+      pendingDest.current = null;
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
       setLoading(false);
     }
