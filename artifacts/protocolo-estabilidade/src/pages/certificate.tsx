@@ -306,6 +306,14 @@ export default function CertificatePage() {
     );
   };
 
+  // Signature name-matching helpers (used in JSX to route sigs to the right column)
+  const normSigName = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+  const sigNameMatches = (a: string, b: string) => {
+    const na = normSigName(a), nb = normSigName(b);
+    return na === nb || na.includes(nb) || nb.includes(na);
+  };
+
   const { data: lotsRaw = [] } = useListLots(Number(id), {
     query: { enabled: !!id, queryKey: getListLotsQueryKey(Number(id)) },
   });
@@ -1170,138 +1178,156 @@ export default function CertificatePage() {
           </div>
         </div>
 
-        {/* ══ ASSINATURAS ELETRÔNICAS ══════════════════════════════════════ */}
-        <div className="mb-6 rounded border border-primary/20 overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-2 bg-primary/5 border-b border-primary/15">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-primary/70" />
-              <span className="text-xs font-bold uppercase tracking-widest text-primary/80">Assinaturas Eletrônicas</span>
-              {signatures.length > 0 && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 border border-green-300 text-green-700 font-medium">
-                  {signatures.length} assinatura{signatures.length !== 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-            {/* Sign button — screen only */}
-            {auth?.user && !currentUserAlreadySigned && (
-              <button
-                type="button"
-                onClick={() => setSigDialogOpen(true)}
-                className="print:hidden flex items-center gap-1.5 text-[11px] px-3 py-1 rounded border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium"
-              >
-                <PenLine className="h-3 w-3" /> Assinar digitalmente
-              </button>
-            )}
-            {auth?.user && currentUserAlreadySigned && (
-              <span className="print:hidden flex items-center gap-1 text-[11px] text-green-700 font-medium">
-                <UserCheck className="h-3.5 w-3.5" /> Você já assinou
-              </span>
-            )}
-            {!auth?.user && (
-              <span className="print:hidden text-[10px] text-gray-400 italic">Faça login para assinar</span>
-            )}
-          </div>
+        {/* ══ ASSINATURAS ELETRÔNICAS + RODAPÉ INTEGRADO ══════════════════ */}
+        {(() => {
+          const leftName  = cert.issuedBy    ?? "";
+          const rightName = cert.seniorAnalyst ?? "";
+          const leftSigs  = signatures.filter(s => sigNameMatches(s.userDisplay, leftName));
+          const rightSigs = signatures.filter(s => sigNameMatches(s.userDisplay, rightName));
+          const otherSigs = signatures.filter(s =>
+            !sigNameMatches(s.userDisplay, leftName) && !sigNameMatches(s.userDisplay, rightName)
+          );
+          const userInLeft   = !!auth?.user && sigNameMatches(auth.user.displayName, leftName);
+          const userInRight  = !!auth?.user && sigNameMatches(auth.user.displayName, rightName);
+          const userInOther  = !!auth?.user && !userInLeft && !userInRight;
 
-          {/* Signature dialog — screen only */}
-          {sigDialogOpen && (
-            <div className="print:hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setSigDialogOpen(false)}>
-              <div className="bg-white rounded-lg shadow-xl p-6 w-80 max-w-full" onClick={e => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-sm flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Assinatura Eletrônica</h3>
-                  <button type="button" onClick={() => setSigDialogOpen(false)} className="text-gray-400 hover:text-gray-700"><span className="text-lg leading-none">×</span></button>
-                </div>
-                <p className="text-xs text-gray-500 mb-4">
-                  Você está assinando como <strong>{auth?.user?.displayName}</strong>. Selecione sua função neste documento:
-                </p>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Função / Papel</label>
-                <select
-                  value={selectedRoleLabel}
-                  onChange={e => setSelectedRoleLabel(e.target.value)}
-                  className="w-full border border-input rounded px-2 py-1.5 text-sm mb-4 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+          const SigCard = ({ sig }: { sig: typeof signatures[0] }) => (
+            <div className="flex items-start gap-2.5 rounded border border-green-200 bg-green-50 p-2.5 mb-3 relative">
+              {auth?.user && (auth.isAdmin || sig.userId === auth.user.id) && (
+                <button
+                  type="button"
+                  title="Remover assinatura"
+                  onClick={() => deleteSig.mutate({ id: Number(id), sigId: sig.id })}
+                  className="print:hidden absolute top-1.5 right-1.5 text-gray-300 hover:text-red-500 transition-colors"
                 >
-                  {["Elaborador", "Analista Sênior", "Aprovador", "Revisor", "Gestor de Qualidade", "Responsável Técnico", "Representante Legal"].map(r => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
-                <p className="text-[10px] text-gray-400 mb-4">
-                  Esta assinatura eletrônica fica registrada com seu nome, função, data e hora no histórico do protocolo.
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              )}
+              <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-primary font-bold text-xs uppercase">
+                {sig.userDisplay.charAt(0)}
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-[11px] text-gray-800 leading-tight">{sig.userDisplay}</p>
+                <p className="text-[10px] text-primary/80 font-medium">{sig.roleLabel}</p>
+                <p className="text-[9px] text-gray-400 mt-0.5">
+                  {new Date(sig.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </p>
-                <div className="flex gap-2 justify-end">
-                  <button type="button" onClick={() => setSigDialogOpen(false)} className="text-xs px-3 py-1.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-50">Cancelar</button>
-                  <button
-                    type="button"
-                    disabled={addSig.isPending}
-                    onClick={() => addSig.mutate({ id: Number(id), data: { roleLabel: selectedRoleLabel } })}
-                    className="text-xs px-4 py-1.5 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50 flex items-center gap-1.5"
-                  >
-                    <ShieldCheck className="h-3 w-3" />
-                    {addSig.isPending ? "Assinando..." : "Confirmar assinatura"}
-                  </button>
+                <div className="flex items-center gap-0.5 mt-0.5">
+                  <ShieldCheck className="h-2.5 w-2.5 text-green-600" />
+                  <span className="text-[9px] text-green-600 font-medium">Assinatura verificada</span>
                 </div>
               </div>
             </div>
-          )}
+          );
 
-          {/* Signatures list */}
-          {signatures.length === 0 ? (
-            <div className="px-4 py-5 text-center text-xs text-gray-400 italic">
-              Nenhuma assinatura eletrônica registrada.{" "}
-              {!auth?.user && "Faça login para assinar."}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 p-4 print:grid-cols-3">
-              {signatures.map(sig => (
-                <div key={sig.id} className="flex items-start gap-3 rounded border border-gray-200 bg-gray-50 p-3 relative">
-                  {/* Remove button — own signature or admin, screen only */}
-                  {auth?.user && (auth.isAdmin || sig.userId === auth.user.id) && (
-                    <button
-                      type="button"
-                      title="Remover assinatura"
-                      onClick={() => deleteSig.mutate({ id: Number(id), sigId: sig.id })}
-                      className="print:hidden absolute top-1.5 right-1.5 text-gray-300 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  )}
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-primary font-bold text-sm uppercase">
-                    {sig.userDisplay.charAt(0)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-xs text-gray-800 truncate">{sig.userDisplay}</p>
-                    <p className="text-[10px] text-primary/80 font-medium">{sig.roleLabel}</p>
-                    <p className="text-[9px] text-gray-400 mt-0.5">
-                      {new Date(sig.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+          const SignBtn = ({ preRole }: { preRole?: string }) => (
+            <button
+              type="button"
+              onClick={() => { if (preRole) setSelectedRoleLabel(preRole); setSigDialogOpen(true); }}
+              className="print:hidden flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded border border-primary/40 bg-primary/8 text-primary hover:bg-primary/15 transition-colors font-medium mb-3 w-full justify-center"
+            >
+              <PenLine className="h-3 w-3" /> Assinar digitalmente
+            </button>
+          );
+
+          return (
+            <>
+              {/* Signature dialog — screen only */}
+              {sigDialogOpen && (
+                <div className="print:hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setSigDialogOpen(false)}>
+                  <div className="bg-white rounded-lg shadow-xl p-6 w-80 max-w-full" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-bold text-sm flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Assinatura Eletrônica</h3>
+                      <button type="button" onClick={() => setSigDialogOpen(false)} className="text-gray-400 hover:text-gray-700"><span className="text-lg leading-none">×</span></button>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-4">
+                      Você está assinando como <strong>{auth?.user?.displayName}</strong>. Selecione sua função neste documento:
                     </p>
-                    <div className="flex items-center gap-0.5 mt-1">
-                      <ShieldCheck className="h-2.5 w-2.5 text-green-600" />
-                      <span className="text-[9px] text-green-600 font-medium">Assinatura verificada</span>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Função / Papel</label>
+                    <select
+                      value={selectedRoleLabel}
+                      onChange={e => setSelectedRoleLabel(e.target.value)}
+                      className="w-full border border-input rounded px-2 py-1.5 text-sm mb-4 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      {["Elaborador", "Analista Sênior", "Aprovador", "Revisor", "Gestor de Qualidade", "Responsável Técnico", "Representante Legal"].map(r => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-gray-400 mb-4">
+                      Esta assinatura eletrônica fica registrada com seu nome, função, data e hora no histórico do protocolo.
+                    </p>
+                    <div className="flex gap-2 justify-end">
+                      <button type="button" onClick={() => setSigDialogOpen(false)} className="text-xs px-3 py-1.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-50">Cancelar</button>
+                      <button
+                        type="button"
+                        disabled={addSig.isPending}
+                        onClick={() => addSig.mutate({ id: Number(id), data: { roleLabel: selectedRoleLabel } })}
+                        className="text-xs px-4 py-1.5 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        <ShieldCheck className="h-3 w-3" />
+                        {addSig.isPending ? "Assinando..." : "Confirmar assinatura"}
+                      </button>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              )}
 
-        <div className="grid grid-cols-2 gap-8 pt-4 border-t border-gray-300">
-          <div>
-            <p className="font-semibold text-sm">{ef("issuedBy", cert.issuedBy)}</p>
-            <p className="text-xs text-gray-500">Responsavel Tecnico</p>
-            <p className="text-xs text-gray-500">{ef("issuedByEmail", cert.issuedByEmail)}</p>
-            <div className="mt-8 border-t border-gray-400 w-64">
-              <p className="text-xs text-gray-400 mt-1">Assinatura</p>
-            </div>
-          </div>
-          <div>
-            <p className="font-semibold text-sm">{ef("seniorAnalyst", cert.seniorAnalyst)}</p>
-            <p className="text-xs text-gray-500">Analista Senior / Representante Legal</p>
-            <p className="text-xs text-gray-500">{ef("seniorAnalystEmail", cert.seniorAnalystEmail)}</p>
-            <div className="mt-8 border-t border-gray-400 w-64">
-              <p className="text-xs text-gray-400 mt-1">Assinatura</p>
-            </div>
-          </div>
-        </div>
+              {/* Two-column signature footer */}
+              <div className="grid grid-cols-2 gap-8 pt-4 border-t border-gray-300">
+                {/* LEFT — Responsável Técnico */}
+                <div>
+                  {leftSigs.map(s => <SigCard key={s.id} sig={s} />)}
+                  {leftSigs.length === 0 && userInLeft && !currentUserAlreadySigned && (
+                    <SignBtn preRole="Responsável Técnico" />
+                  )}
+                  <p className="font-semibold text-sm">{ef("issuedBy", cert.issuedBy)}</p>
+                  <p className="text-xs text-gray-500">{el("label_issuedByRole", "Responsável Técnico")}</p>
+                  <p className="text-xs text-gray-500">{ef("issuedByEmail", cert.issuedByEmail)}</p>
+                  <div className="mt-6 border-t border-gray-400 w-64">
+                    <p className="text-xs text-gray-400 mt-1">Assinatura</p>
+                  </div>
+                </div>
+
+                {/* RIGHT — Analista Sênior / Representante Legal */}
+                <div>
+                  {rightSigs.map(s => <SigCard key={s.id} sig={s} />)}
+                  {rightSigs.length === 0 && userInRight && !currentUserAlreadySigned && (
+                    <SignBtn preRole="Analista Sênior" />
+                  )}
+                  <p className="font-semibold text-sm">{ef("seniorAnalyst", cert.seniorAnalyst)}</p>
+                  <p className="text-xs text-gray-500">{el("label_seniorAnalystRole", "Analista Sênior / Representante Legal")}</p>
+                  <p className="text-xs text-gray-500">{ef("seniorAnalystEmail", cert.seniorAnalystEmail)}</p>
+                  <div className="mt-6 border-t border-gray-400 w-64">
+                    <p className="text-xs text-gray-400 mt-1">Assinatura</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Extra signers (not matching either column) */}
+              {(otherSigs.length > 0 || (userInOther && !currentUserAlreadySigned)) && (
+                <div className="mt-4 pt-3 border-t border-dashed border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 flex items-center gap-1">
+                      <ShieldCheck className="h-3 w-3" /> Outras Assinaturas
+                    </span>
+                    {userInOther && !currentUserAlreadySigned && (
+                      <button
+                        type="button"
+                        onClick={() => setSigDialogOpen(true)}
+                        className="print:hidden flex items-center gap-1 text-[10px] px-2.5 py-1 rounded border border-primary/40 bg-primary/8 text-primary hover:bg-primary/15 font-medium"
+                      >
+                        <PenLine className="h-2.5 w-2.5" /> Assinar
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {otherSigs.map(s => <SigCard key={s.id} sig={s} />)}
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {/* ═══════════════════════════════════════════════════════
             AUDIT TRAIL COMPLEMENT — prints after main certificate
