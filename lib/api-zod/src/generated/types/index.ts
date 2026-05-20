@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./addSignatureBody";
 export * from "./analysisResult";
 export * from "./analysisResultCategory";
 export * from "./analysisResultStatus";
@@ -15,6 +16,7 @@ export * from "./certificateAnalysisCategory";
 export * from "./createLotBody";
 export * from "./createMethodologyBody";
 export * from "./createProtocolBody";
+export * from "./deleteSignature200";
 export * from "./errorResponse";
 export * from "./finalizeProtocolBody";
 export * from "./finalizeProtocolBodyFinalStatus";
@@ -28,6 +30,7 @@ export * from "./methodology";
 export * from "./protocol";
 export * from "./protocolDetail";
 export * from "./protocolFinalStatus";
+export * from "./protocolSignature";
 export * from "./protocolStats";
 export * from "./protocolStatus";
 export * from "./updateMethodologyBody";

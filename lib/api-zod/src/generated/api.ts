@@ -721,6 +721,51 @@ export const GetCertificateResponse = zod.object({
 });
 
 /**
+ * @summary List electronic signatures for a protocol
+ */
+export const ListSignaturesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListSignaturesResponseItem = zod.object({
+  id: zod.number(),
+  protocolId: zod.number(),
+  userId: zod.number().nullish(),
+  userDisplay: zod.string(),
+  userRole: zod.string(),
+  roleLabel: zod.string(),
+  signedAt: zod.string(),
+});
+export const ListSignaturesResponse = zod.array(ListSignaturesResponseItem);
+
+/**
+ * @summary Add an electronic signature to a protocol
+ */
+export const AddSignatureParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const AddSignatureBody = zod.object({
+  roleLabel: zod
+    .string()
+    .describe(
+      "Ex: Elaborador, Analista Sênior, Aprovador, Revisor, Gestor de Qualidade",
+    ),
+});
+
+/**
+ * @summary Remove an electronic signature
+ */
+export const DeleteSignatureParams = zod.object({
+  id: zod.coerce.number(),
+  sigId: zod.coerce.number(),
+});
+
+export const DeleteSignatureResponse = zod.object({
+  ok: zod.boolean().optional(),
+});
+
+/**
  * @summary Finalize a protocol with approval status
  */
 export const FinalizeProtocolParams = zod.object({

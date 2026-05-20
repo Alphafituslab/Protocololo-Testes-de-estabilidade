@@ -343,6 +343,77 @@ paths:
               schema:
                 $ref: "#/components/schemas/Certificate"
 
+  /protocols/{id}/signatures:
+    get:
+      operationId: listSignatures
+      tags: [protocols]
+      summary: List electronic signatures for a protocol
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of signatures
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProtocolSignature"
+    post:
+      operationId: addSignature
+      tags: [protocols]
+      summary: Add an electronic signature to a protocol
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddSignatureBody"
+      responses:
+        "201":
+          description: Signature created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProtocolSignature"
+
+  /protocols/{id}/signatures/{sigId}:
+    delete:
+      operationId: deleteSignature
+      tags: [protocols]
+      summary: Remove an electronic signature
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: sigId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Signature removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+
   /protocols/{id}/finalize:
     post:
       operationId: finalizeProtocol
@@ -1118,6 +1189,34 @@ components:
       required:
         - shortName
         - citation
+
+    ProtocolSignature:
+      type: object
+      required: [id, protocolId, userDisplay, userRole, roleLabel, signedAt]
+      properties:
+        id:
+          type: integer
+        protocolId:
+          type: integer
+        userId:
+          type: integer
+          nullable: true
+        userDisplay:
+          type: string
+        userRole:
+          type: string
+        roleLabel:
+          type: string
+        signedAt:
+          type: string
+
+    AddSignatureBody:
+      type: object
+      required: [roleLabel]
+      properties:
+        roleLabel:
+          type: string
+          description: "Ex: Elaborador, Analista Sênior, Aprovador, Revisor, Gestor de Qualidade"
 
     FinalizeProtocolBody:
       type: object

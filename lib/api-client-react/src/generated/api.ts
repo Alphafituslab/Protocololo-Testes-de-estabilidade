@@ -17,11 +17,13 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AddSignatureBody,
   AnalysisResult,
   Certificate,
   CreateLotBody,
   CreateMethodologyBody,
   CreateProtocolBody,
+  DeleteSignature200,
   ErrorResponse,
   FinalizeProtocolBody,
   HealthStatus,
@@ -31,6 +33,7 @@ import type {
   Methodology,
   Protocol,
   ProtocolDetail,
+  ProtocolSignature,
   ProtocolStats,
   UpdateMethodologyBody,
   UpdateProtocolBody,
@@ -1411,6 +1414,265 @@ export function useGetCertificate<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List electronic signatures for a protocol
+ */
+export const getListSignaturesUrl = (id: number) => {
+  return `/api/protocols/${id}/signatures`;
+};
+
+export const listSignatures = async (
+  id: number,
+  options?: RequestInit,
+): Promise<ProtocolSignature[]> => {
+  return customFetch<ProtocolSignature[]>(getListSignaturesUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListSignaturesQueryKey = (id: number) => {
+  return [`/api/protocols/${id}/signatures`] as const;
+};
+
+export const getListSignaturesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSignatures>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSignatures>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListSignaturesQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listSignatures>>> = ({
+    signal,
+  }) => listSignatures(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSignatures>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListSignaturesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listSignatures>>
+>;
+export type ListSignaturesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List electronic signatures for a protocol
+ */
+
+export function useListSignatures<
+  TData = Awaited<ReturnType<typeof listSignatures>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSignatures>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListSignaturesQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Add an electronic signature to a protocol
+ */
+export const getAddSignatureUrl = (id: number) => {
+  return `/api/protocols/${id}/signatures`;
+};
+
+export const addSignature = async (
+  id: number,
+  addSignatureBody: AddSignatureBody,
+  options?: RequestInit,
+): Promise<ProtocolSignature> => {
+  return customFetch<ProtocolSignature>(getAddSignatureUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(addSignatureBody),
+  });
+};
+
+export const getAddSignatureMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addSignature>>,
+    TError,
+    { id: number; data: BodyType<AddSignatureBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof addSignature>>,
+  TError,
+  { id: number; data: BodyType<AddSignatureBody> },
+  TContext
+> => {
+  const mutationKey = ["addSignature"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof addSignature>>,
+    { id: number; data: BodyType<AddSignatureBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return addSignature(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AddSignatureMutationResult = NonNullable<
+  Awaited<ReturnType<typeof addSignature>>
+>;
+export type AddSignatureMutationBody = BodyType<AddSignatureBody>;
+export type AddSignatureMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Add an electronic signature to a protocol
+ */
+export const useAddSignature = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addSignature>>,
+    TError,
+    { id: number; data: BodyType<AddSignatureBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof addSignature>>,
+  TError,
+  { id: number; data: BodyType<AddSignatureBody> },
+  TContext
+> => {
+  return useMutation(getAddSignatureMutationOptions(options));
+};
+
+/**
+ * @summary Remove an electronic signature
+ */
+export const getDeleteSignatureUrl = (id: number, sigId: number) => {
+  return `/api/protocols/${id}/signatures/${sigId}`;
+};
+
+export const deleteSignature = async (
+  id: number,
+  sigId: number,
+  options?: RequestInit,
+): Promise<DeleteSignature200> => {
+  return customFetch<DeleteSignature200>(getDeleteSignatureUrl(id, sigId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteSignatureMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteSignature>>,
+    TError,
+    { id: number; sigId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteSignature>>,
+  TError,
+  { id: number; sigId: number },
+  TContext
+> => {
+  const mutationKey = ["deleteSignature"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteSignature>>,
+    { id: number; sigId: number }
+  > = (props) => {
+    const { id, sigId } = props ?? {};
+
+    return deleteSignature(id, sigId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteSignatureMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteSignature>>
+>;
+
+export type DeleteSignatureMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Remove an electronic signature
+ */
+export const useDeleteSignature = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteSignature>>,
+    TError,
+    { id: number; sigId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteSignature>>,
+  TError,
+  { id: number; sigId: number },
+  TContext
+> => {
+  return useMutation(getDeleteSignatureMutationOptions(options));
+};
 
 /**
  * @summary Finalize a protocol with approval status

@@ -366,6 +366,21 @@ export interface UpdateMethodologyBody {
   category?: string | null;
 }
 
+export interface ProtocolSignature {
+  id: number;
+  protocolId: number;
+  userId?: number | null;
+  userDisplay: string;
+  userRole: string;
+  roleLabel: string;
+  signedAt: string;
+}
+
+export interface AddSignatureBody {
+  /** Ex: Elaborador, Analista Sênior, Aprovador, Revisor, Gestor de Qualidade */
+  roleLabel: string;
+}
+
 export type FinalizeProtocolBodyFinalStatus =
   (typeof FinalizeProtocolBodyFinalStatus)[keyof typeof FinalizeProtocolBodyFinalStatus];
 
@@ -403,3 +418,7 @@ export const ListProtocolsStatus = {
   aprovado_com_ressalva: "aprovado_com_ressalva",
   reprovado: "reprovado",
 } as const;
+
+export type DeleteSignature200 = {
+  ok?: boolean;
+};

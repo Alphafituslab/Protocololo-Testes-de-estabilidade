@@ -11,6 +11,7 @@ import methodologiesRouter from "./methodologies";
 import usersRouter from "./users";
 import auditLogsRouter from "./audit-logs";
 import settingsRouter from "./settings";
+import signaturesRouter from "./signatures";
 
 const router: IRouter = Router();
 
@@ -27,5 +28,6 @@ router.use(methodologiesRouter);
 router.use(usersRouter);
 router.use(auditLogsRouter);
 router.use(settingsRouter);
+router.use(signaturesRouter);
 
 export default router;
