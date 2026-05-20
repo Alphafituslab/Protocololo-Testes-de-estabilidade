@@ -31,10 +31,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Redirect if already logged in (session restored from sessionStorage on mount).
+  // Redirect only on mount if session was restored from sessionStorage.
+  // Do NOT put [user] in deps — handleLogin calls navigate() directly after
+  // login() returns (flushSync guarantees the state is committed by then).
+  // Reacting to user changes here would cause a duplicate navigate() call.
   useEffect(() => {
     if (user) navigate("/", { replace: true });
-  }, [user]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     fetch("/api/auth/setup-needed")
