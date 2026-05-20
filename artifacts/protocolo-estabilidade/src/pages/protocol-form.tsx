@@ -1,5 +1,5 @@
 import { useParams, useLocation } from "wouter";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -62,26 +62,15 @@ function AlwaysEL({
   setLabel: (key: string, value: string) => void;
 }) {
   const current = lbl(labelKey, def);
-  const ref = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (ref.current) {
-      ref.current.style.height = "auto";
-      ref.current.style.height = ref.current.scrollHeight + "px";
-    }
-  }, [current]);
 
   return (
-    <FormLabel className="block w-full">
-      <textarea
-        ref={ref}
+    <FormLabel className="block w-full mb-0.5">
+      <input
+        type="text"
         value={current}
-        rows={1}
-        onChange={e => {
-          setLabel(labelKey, e.target.value);
-        }}
+        onChange={e => setLabel(labelKey, e.target.value)}
         onClick={e => e.stopPropagation()}
-        className="font-medium text-sm border border-blue-300 rounded px-1.5 py-0.5 bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full resize-none overflow-hidden leading-normal"
+        className="font-medium text-sm border border-blue-300 rounded px-1.5 py-0.5 bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full"
         title="Clique para editar o nome deste campo"
         placeholder={def}
       />
