@@ -222,11 +222,13 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   }
 
   return (
-    <Layout>
-      <AppErrorBoundary>
-        <Component />
-      </AppErrorBoundary>
-    </Layout>
+    <AppErrorBoundary>
+      <Layout>
+        <AppErrorBoundary>
+          <Component />
+        </AppErrorBoundary>
+      </Layout>
+    </AppErrorBoundary>
   );
 }
 

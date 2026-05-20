@@ -60,13 +60,8 @@ export default function LoginPage() {
     const dest = popRedirect();
     try {
       await login(username, password);
-      // Signal that we are about to do a hard navigation so the useEffect
-      // above does not also call navigate() and briefly mount the Dashboard
-      // (which would fire queries and flash an error before the reload).
       hardNavPending.current = true;
-      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-      const path = dest === "/" ? "" : dest;
-      window.location.replace(base + path || "/");
+      navigate(dest || "/", { replace: true });
     } catch (err) {
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
       setLoading(false);
@@ -92,8 +87,7 @@ export default function LoginPage() {
       }
       await login(username, password);
       hardNavPending.current = true;
-      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-      window.location.replace(base || "/");
+      navigate("/", { replace: true });
     } catch (err) {
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
       setLoading(false);
