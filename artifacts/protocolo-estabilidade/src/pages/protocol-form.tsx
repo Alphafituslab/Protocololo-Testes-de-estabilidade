@@ -263,6 +263,36 @@ export default function ProtocolForm() {
               <CardTitle className="text-base">2. Identificação do Produto</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="productName" render={({ field }) => (
+                <FormItem className="col-span-2">
+                  <div className="flex items-center gap-1">
+                    <AlwaysEL labelKey="productName" def="Produto" lbl={lbl} setLabel={setLabel} />
+                    <span className="text-red-500 text-xs font-bold">*</span>
+                  </div>
+                  <FormControl><Input data-testid="input-productName" placeholder="ex: Cálcio + Vitamina D 60 cápsulas" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="studyStartDate" render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-center gap-1">
+                    <AlwaysEL labelKey="studyStartDate" def="Data de Início do Estudo" lbl={lbl} setLabel={setLabel} />
+                    <span className="text-red-500 text-xs font-bold">*</span>
+                  </div>
+                  <FormControl><Input type="date" data-testid="input-studyStartDate" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="studyEndDate" render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-center gap-1">
+                    <AlwaysEL labelKey="studyEndDate" def="Data de Fim do Estudo" lbl={lbl} setLabel={setLabel} />
+                    <span className="text-red-500 text-xs font-bold">*</span>
+                  </div>
+                  <FormControl><Input type="date" data-testid="input-studyEndDate" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
               <FormField control={form.control} name="certNumber" render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center gap-1">
@@ -270,16 +300,6 @@ export default function ProtocolForm() {
                     <span className="text-red-500 text-xs font-bold">*</span>
                   </div>
                   <FormControl><Input data-testid="input-certNumber" placeholder="ex: CERT-AF-20241210/035" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="productName" render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center gap-1">
-                    <AlwaysEL labelKey="productName" def="Nome do Produto" lbl={lbl} setLabel={setLabel} />
-                    <span className="text-red-500 text-xs font-bold">*</span>
-                  </div>
-                  <FormControl><Input data-testid="input-productName" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -292,29 +312,29 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="packagingType" render={({ field }) => (
                 <FormItem>
-                  <AlwaysEL labelKey="packagingType" def="Tipo de Pote" lbl={lbl} setLabel={setLabel} />
-                  <FormControl><Input data-testid="input-packagingType" {...field} /></FormControl>
+                  <AlwaysEL labelKey="packagingType" def="Tipo de Embalagem" lbl={lbl} setLabel={setLabel} />
+                  <FormControl><Input data-testid="input-packagingType" placeholder="ex: Pote HDPE 60 cápsulas" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="capsuleComposition" render={({ field }) => (
+                <FormItem>
+                  <AlwaysEL labelKey="capsuleComposition" def="Composição da Cápsula" lbl={lbl} setLabel={setLabel} />
+                  <FormControl><Input data-testid="input-capsuleComposition" placeholder="ex: Gelatina bovina, tamanho 0" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="activeIngredients" render={({ field }) => (
                 <FormItem className="col-span-2">
                   <AlwaysEL labelKey="activeIngredients" def="Ingredientes Ativos" lbl={lbl} setLabel={setLabel} />
-                  <FormControl><Input data-testid="input-activeIngredients" {...field} /></FormControl>
+                  <FormControl><Textarea data-testid="input-activeIngredients" rows={2} placeholder="ex: Carbonato de Cálcio 1250 mg, Colecalciferol 400 UI..." {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="excipients" render={({ field }) => (
                 <FormItem className="col-span-2">
                   <AlwaysEL labelKey="excipients" def="Excipientes" lbl={lbl} setLabel={setLabel} />
-                  <FormControl><Input data-testid="input-excipients" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="capsuleComposition" render={({ field }) => (
-                <FormItem className="col-span-2">
-                  <AlwaysEL labelKey="capsuleComposition" def="Composição da Cápsula" lbl={lbl} setLabel={setLabel} />
-                  <FormControl><Input data-testid="input-capsuleComposition" {...field} /></FormControl>
+                  <FormControl><Textarea data-testid="input-excipients" rows={2} placeholder="ex: Dióxido de Silício, Estearato de Magnésio..." {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -326,20 +346,6 @@ export default function ProtocolForm() {
               <CardTitle className="text-base">3. Plano de Estudo de Estabilidade</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="studyStartDate" render={({ field }) => (
-                <FormItem>
-                  <AlwaysEL labelKey="studyStartDate" def="Data de Início" lbl={lbl} setLabel={setLabel} />
-                  <FormControl><Input type="date" data-testid="input-studyStartDate" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="studyEndDate" render={({ field }) => (
-                <FormItem>
-                  <AlwaysEL labelKey="studyEndDate" def="Data Final" lbl={lbl} setLabel={setLabel} />
-                  <FormControl><Input type="date" data-testid="input-studyEndDate" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
               <FormField control={form.control} name="storageTemp" render={({ field }) => (
                 <FormItem>
                   <AlwaysEL labelKey="storageTemp" def="Temperatura de Armazenamento" lbl={lbl} setLabel={setLabel} />
@@ -356,7 +362,7 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="studyPeriodMonths" render={({ field }) => (
                 <FormItem>
-                  <AlwaysEL labelKey="studyPeriodMonths" def="Período do Estudo (meses)" lbl={lbl} setLabel={setLabel} />
+                  <AlwaysEL labelKey="studyPeriodMonths" def="Período (meses)" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Input type="number" data-testid="input-studyPeriodMonths" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -370,7 +376,7 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="studyObjective" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <AlwaysEL labelKey="studyObjective" def="OBJETIVO DO ESTUDO" lbl={lbl} setLabel={setLabel} />
+                  <AlwaysEL labelKey="studyObjective" def="Objetivo do Estudo" lbl={lbl} setLabel={setLabel} />
                   <FormControl>
                     <Textarea data-testid="input-studyObjective" rows={3} {...field} />
                   </FormControl>
