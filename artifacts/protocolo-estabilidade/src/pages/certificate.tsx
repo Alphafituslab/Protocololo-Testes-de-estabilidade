@@ -246,7 +246,12 @@ export default function CertificatePage() {
   // These are section headers / row labels that users should not permanently
   // change; the editable input is just for one-off print adjustments.
   const ALWAYS_CLEAR_KEYS = [
+    // Old renamed keys
     "certTitle",
+    // Document title — always reset to "Certificado de Análise" on load to
+    // prevent stale user-typed values (e.g. "BIS DE ANÁLISE") from persisting.
+    "docTitle",
+    // Structural row/section labels — always use current code defaults
     "lbl_capsuleComposition",
     "lbl_hdr_storageTemp",
     "lbl_hdr_humidity",
