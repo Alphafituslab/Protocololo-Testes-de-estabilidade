@@ -784,24 +784,30 @@ export default function CertificatePage() {
           </div>
         </div>
 
-        {/* Company / product info */}
-        <div className="grid grid-cols-2 gap-6 mb-6 text-sm">
-          <div className="space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1">Dados do Produto</h2>
-            <dl className="space-y-1">
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Empresa:</dt><dd className="font-medium flex-1 min-w-0">{ef("companyName", cert.companyName)}</dd></div>
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">CNPJ:</dt><dd className="font-medium flex-1 min-w-0">{ef("cnpj", cert.cnpj)}</dd></div>
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">IE:</dt><dd className="flex-1 min-w-0">{ef("ie", (cert as any).ie)}</dd></div>
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Endereço:</dt><dd className="flex-1 min-w-0">{ef("address", cert.address)}</dd></div>
-              <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Email:</dt><dd className="flex-1 min-w-0">{ef("email", cert.email)}</dd></div>
-            </dl>
+        {/* ── DADOS DA EMPRESA ──────────────────────────────────────────────── */}
+        <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden text-sm">
+          <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Dados da Empresa</h2>
           </div>
-          <div className="space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1">Identificação do Produto</h2>
+          <div className="px-4 py-3 grid grid-cols-2 gap-x-8 gap-y-1">
+            <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Empresa:</dt><dd className="font-medium flex-1 min-w-0">{ef("companyName", cert.companyName)}</dd></div>
+            <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">CNPJ:</dt><dd className="font-medium flex-1 min-w-0">{ef("cnpj", cert.cnpj)}</dd></div>
+            <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">IE:</dt><dd className="flex-1 min-w-0">{ef("ie", (cert as any).ie)}</dd></div>
+            <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Email:</dt><dd className="flex-1 min-w-0">{ef("email", cert.email)}</dd></div>
+            <div className="flex gap-2 col-span-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Endereço:</dt><dd className="flex-1 min-w-0">{ef("address", cert.address)}</dd></div>
+          </div>
+        </div>
+
+        {/* ── IDENTIFICAÇÃO DO PRODUTO ──────────────────────────────────────── */}
+        <div className="mb-6 border border-gray-200 rounded-lg overflow-hidden text-sm">
+          <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Identificação do Produto</h2>
+          </div>
+          <div className="px-4 py-3">
             <table className="w-full text-sm border-collapse">
               <colgroup>
-                <col style={{ width: "34%" }} />
-                <col style={{ width: "66%" }} />
+                <col style={{ width: "22%" }} />
+                <col style={{ width: "78%" }} />
               </colgroup>
               <tbody>
                 <tr>
