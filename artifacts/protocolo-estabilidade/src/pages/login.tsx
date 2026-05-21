@@ -53,9 +53,10 @@ export default function LoginPage() {
     const dest = popRedirect();
     try {
       await login(username, password);
-      // login() uses flushSync internally — user state is committed by the time
-      // we reach this line, so navigate() sees user !== null in ProtectedRoute.
-      navigate(dest || "/", { replace: true });
+      // Full page replace ensures the auth token is wired up before any
+      // React Query request fires, avoiding any 401 race that would redirect
+      // back to /login.
+      window.location.replace(dest || "/");
     } catch (err) {
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
       setLoading(false);

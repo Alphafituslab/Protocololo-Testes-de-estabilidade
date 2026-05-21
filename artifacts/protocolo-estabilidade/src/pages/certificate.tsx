@@ -891,7 +891,7 @@ export default function CertificatePage() {
                 )}
                 {!!getEdit("capsuleComposition", cert.capsuleComposition) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">{el("capsuleComposition", "Agente da Cápsula:")}</td>
+                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">{el("capsuleComposition", "Composição da Cápsula:")}</td>
                     <td className="align-top pb-1 text-justify">{ef("capsuleComposition", cert.capsuleComposition, { multiline: true })}</td>
                   </tr>
                 )}
@@ -945,21 +945,21 @@ export default function CertificatePage() {
             <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
               <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Condições Ambientais</h2>
             </div>
-            <div className="px-4 py-3 grid grid-cols-2 gap-x-8 gap-y-1.5">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-500 shrink-0">{el("envlbl_amostrTemp", "Amostragem — Temperatura:")}</span>
+            <div className="px-4 py-3 grid grid-cols-2 gap-x-8 gap-y-2">
+              <div className="space-y-0.5">
+                <div className="text-gray-500">{el("envlbl_amostrTemp", "Amostragem — Temperatura:")}</div>
                 <CertEditField value={tempAmostragem} onChange={setTempAmostragem} className="w-20 text-xs" />
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-500 shrink-0">{el("envlbl_amostrUmid", "Amostragem — Umidade:")}</span>
+              <div className="space-y-0.5">
+                <div className="text-gray-500">{el("envlbl_amostrUmid", "Amostragem — Umidade:")}</div>
                 <CertEditField value={umidAmostragem} onChange={setUmidAmostragem} className="w-20 text-xs" />
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-500 shrink-0">{el("envlbl_recebTemp", "Recebimento — Temperatura:")}</span>
+              <div className="space-y-0.5">
+                <div className="text-gray-500">{el("envlbl_recebTemp", "Recebimento — Temperatura:")}</div>
                 <CertEditField value={tempRecebimento} onChange={setTempRecebimento} className="w-20 text-xs" />
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-500 shrink-0">{el("envlbl_recebUmid", "Recebimento — Umidade:")}</span>
+              <div className="space-y-0.5">
+                <div className="text-gray-500">{el("envlbl_recebUmid", "Recebimento — Umidade:")}</div>
                 <CertEditField value={umidRecebimento} onChange={setUmidRecebimento} className="w-20 text-xs" />
               </div>
             </div>

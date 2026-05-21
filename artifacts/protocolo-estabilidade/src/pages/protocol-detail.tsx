@@ -464,12 +464,13 @@ function LotsTab({ protocolId }: { protocolId: number }) {
         const justAdded = form.getValues().lotNumber;
         setLastAdded(justAdded);
         form.reset({ lotNumber: "", manufacturingDate: "", quantity: 20, notes: "" });
-        toast({ title: `Lote ${justAdded} adicionado` });
-        setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
-          queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
-          form.setFocus("lotNumber");
-        }, 50);
+        // Do NOT call toast() here — it mounts a portal simultaneously with the
+        // Dialog portal, which triggers a DOM insertBefore error that causes the
+        // error boundary to re-mount ProtocolDetail and reset open=false.
+        // The dialog already shows the green "Lote X cadastrado" banner.
+        queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
+        queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
+        setTimeout(() => form.setFocus("lotNumber"), 50);
       },
     },
   });
