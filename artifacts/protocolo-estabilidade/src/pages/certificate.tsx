@@ -161,18 +161,8 @@ export default function CertificatePage() {
     query: { enabled: !!id, queryKey: getGetCertificateQueryKey(Number(id)), staleTime: 0 },
   });
 
-  // When the DB has authoritative values for issuedBy / seniorAnalyst, drop any
-  // stale localStorage overrides so the correct name shows immediately.
-  useEffect(() => {
-    if (!cert) return;
-    if (cert.issuedBy)     clearCertEdit("issuedBy");
-    if (cert.seniorAnalyst) clearCertEdit("seniorAnalyst");
-    // certTitle is always "Certificado de Análise" — never editable; clear any stale override
-    clearCertEdit("certTitle");
-    // capsuleComposition label default changed to "Agente da Cápsula:" — clear corrupted stored label
-    clearCertEdit("lbl_capsuleComposition");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cert?.issuedBy, cert?.seniorAnalyst]);
+  // certTitle and lbl_capsuleComposition are cleaned synchronously in the
+  // useState initializer above (ALWAYS_CLEAR_KEYS). No useEffect needed.
 
   const [showSettings, setShowSettings] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
