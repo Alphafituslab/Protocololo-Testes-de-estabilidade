@@ -125,7 +125,7 @@ function CertEditField({
     );
   }
   return (
-    <span className="relative block w-full min-w-0 overflow-hidden">
+    <span className="relative block w-full min-w-0 overflow-hidden print:overflow-visible">
       <input
         value={value}
         onChange={e => onChange(e.target.value)}
@@ -1624,24 +1624,52 @@ export default function CertificatePage() {
         }
 
         @media print {
+          /* ── Remove overflow/height constraints from layout containers ──────── */
+          /* Without this, overflow:hidden on main/flex wrappers clips the
+             absolutely-positioned certificate div in some browsers.             */
+          html, body {
+            overflow: visible !important;
+            height: auto !important;
+          }
+          #root, #root > div, #root > div > div {
+            overflow: visible !important;
+            height: auto !important;
+            display: block !important;
+          }
+          main {
+            overflow: visible !important;
+            height: auto !important;
+            display: block !important;
+          }
+          main > div {
+            overflow: visible !important;
+            height: auto !important;
+            display: block !important;
+            padding: 0 !important;
+          }
+
+          /* ── Hide all non-certificate content ────────────────────────────────── */
           body * { visibility: hidden; }
           #certificate-document,
           #certificate-document * { visibility: visible; }
+
+          /* ── Certificate fills the full printed page ──────────────────────────  */
           #certificate-document {
             position: absolute; left: 0; top: 0;
-            width: 100%; box-shadow: none; border: none;
-            padding: 15mm 20mm;
+            width: 100% !important;
+            box-shadow: none !important;
+            border: none !important;
+            padding: 15mm 20mm !important;
             font-size: 10pt;
+            overflow: visible !important;
           }
 
-          /* ── Editable fields hidden in print; print-only spans take their place ── */
-          /* Force print spans to be visible */
-          span.print-value {
-            display: inline !important;
-            visibility: visible !important;
+          /* ── Editable field wrappers must not clip their print spans ─────────── */
+          #certificate-document span.cert-field-wrap {
+            overflow: visible !important;
           }
 
-          /* ── Table cells: let their height grow with content ── */
+          /* ── Table cells: let their height grow with content ────────────────── */
           td, th { overflow: visible !important; }
 
           /* Photo appendix always starts on a fresh page */
