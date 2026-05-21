@@ -125,14 +125,15 @@ function CertEditField({
     );
   }
   return (
-    <span className="relative inline-block w-full">
+    <span className="relative block w-full min-w-0 overflow-hidden">
       <input
         value={value}
         onChange={e => onChange(e.target.value)}
         autoComplete="new-password"
-        className={`bg-transparent border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 print:hidden w-full ${className}`}
+        style={{ minWidth: 0 }}
+        className={`bg-transparent border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 print:hidden w-full min-w-0 ${className}`}
       />
-      <span className="hidden print:inline">{value}</span>
+      <span className="hidden print:inline break-words">{value}</span>
     </span>
   );
 }
@@ -349,10 +350,11 @@ export default function CertificatePage() {
           value={val}
           onChange={e => setCertEdit(`lbl_${key}`, e.target.value)}
           autoComplete="new-password"
-          className="bg-transparent border-b border-dashed border-blue-300 focus:outline-none focus:border-blue-500 text-gray-500 w-full print:hidden"
+          style={{ minWidth: 0 }}
+          className="bg-transparent border-b border-dashed border-blue-300 focus:outline-none focus:border-blue-500 text-gray-500 w-full min-w-0 print:hidden"
           title="Clique para editar o nome deste campo"
         />
-        <span className="hidden print:inline">{val}</span>
+        <span className="hidden print:inline break-words">{val}</span>
       </>
     );
   };
@@ -819,7 +821,7 @@ export default function CertificatePage() {
             <div className="border-l border-gray-300 pl-5" style={{ minWidth: 0, flex: 1 }}>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">{el("companyHeader", "Alphafitus Laboratório Nutracêutico")}</p>
               <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{ef("docTitle", "Certificado de Análise", { className: "text-xl font-bold uppercase tracking-wide text-gray-800 w-full bg-transparent" })}</h1>
-              <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{ef("productName", cert.productName, { className: "text-sm font-semibold text-emerald-700 w-full bg-transparent" })}</p>
+              <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{ef("productName", cert.productName, { multiline: true, className: "text-sm font-semibold text-emerald-700 w-full bg-transparent resize-none" })}</p>
             </div>
           </div>
           {/* Cert info */}
