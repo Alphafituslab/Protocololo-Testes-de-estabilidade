@@ -251,8 +251,17 @@ export default function CertificatePage() {
   // ── Cert-level field overrides (all free-text edits by operator) ──────────
   const CERT_EDITS_KEY = `cert_edits_${id}`;
   const CERT_LOCKED_KEY = `cert_locked_${id}`;
+  // Keys that must never appear in certEdits (fixed values or renamed labels).
+  // Removed synchronously during init so they never reach the first render.
+  const ALWAYS_CLEAR_KEYS = ["certTitle", "lbl_capsuleComposition"];
   const [certEdits, setCertEditsState] = useState<Record<string, string>>(() => {
-    try { return JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}"); } catch { return {}; }
+    try {
+      const raw = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}") as Record<string, string>;
+      let dirty = false;
+      ALWAYS_CLEAR_KEYS.forEach(k => { if (k in raw) { delete raw[k]; dirty = true; } });
+      if (dirty) localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(raw));
+      return raw;
+    } catch { return {}; }
   });
   const [certLocked, setCertLockedState] = useState<boolean>(() => {
     try { return localStorage.getItem(`cert_locked_${id}`) === "1"; } catch { return false; }
@@ -295,9 +304,6 @@ export default function CertificatePage() {
     setCertLockedState(false);
   };
 
-  // Keys that are now fixed/renamed and should be removed from every protocol's certEdits.
-  const STALE_CERT_EDIT_KEYS = ["certTitle", "lbl_capsuleComposition"];
-
   // Walks every cert_edits_* entry in localStorage and removes stale keys.
   const cleanAllProtocolsCertEdits = () => {
     try {
@@ -308,7 +314,7 @@ export default function CertificatePage() {
         try {
           const obj = JSON.parse(localStorage.getItem(k) ?? "{}") as Record<string, string>;
           const before = JSON.stringify(obj);
-          STALE_CERT_EDIT_KEYS.forEach(stale => { delete obj[stale]; });
+          ALWAYS_CLEAR_KEYS.forEach(stale => { delete obj[stale]; });
           if (JSON.stringify(obj) !== before) {
             localStorage.setItem(k, JSON.stringify(obj));
             count++;
