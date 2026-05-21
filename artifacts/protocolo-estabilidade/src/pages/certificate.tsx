@@ -249,9 +249,14 @@ export default function CertificatePage() {
       let dirty = false;
       // Remove specific stale keys
       ALWAYS_CLEAR_KEYS.forEach(k => { if (k in raw) { delete raw[k]; dirty = true; } });
-      // Remove ALL lbl_* keys — section headers are now static text; any old stored
-      // label override would show corrupted text (e.g. "TEMPERATURA DE CADA").
-      Object.keys(raw).forEach(k => { if (k.startsWith("lbl_")) { delete raw[k]; dirty = true; } });
+      // One-time migration v3: wipe lbl_* keys that may have been saved under old/wrong
+      // key names (e.g. "TEMPERATURA DE CADA", "sargem — Temperatura:").
+      // After the migration flag is set globally, skip so user label edits persist.
+      const MIG_KEY = "cert_lbl_migration_v";
+      if (localStorage.getItem(MIG_KEY) !== "3") {
+        Object.keys(raw).forEach(k => { if (k.startsWith("lbl_")) { delete raw[k]; dirty = true; } });
+        try { localStorage.setItem(MIG_KEY, "3"); } catch { /* ignore */ }
+      }
       if (dirty) localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(raw));
       return raw;
     } catch { return {}; }
@@ -912,19 +917,19 @@ export default function CertificatePage() {
           </div>
           <div className="grid grid-cols-4 divide-x divide-gray-200">
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Temperatura de Armazenamento</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{el("hdr_storageTemp", "Temperatura de Armazenamento")}</p>
               <p className="font-semibold text-gray-800">{ef("storageTemp", cert.storageTemp ?? "40°C ± 2°C")}</p>
             </div>
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Umidade Relativa</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{el("hdr_humidity", "Umidade Relativa")}</p>
               <p className="font-semibold text-gray-800">{ef("storageHumidity", cert.storageHumidity ?? "75% UR ± 5% UR")}</p>
             </div>
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Período do Estudo</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{el("hdr_studyPeriod", "Período do Estudo")}</p>
               <p className="font-semibold text-gray-800">{ef("studyPeriodMonths", cert.studyPeriodMonths != null ? String(cert.studyPeriodMonths) + " meses" : "—")}</p>
             </div>
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Intervalos de Teste</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{el("hdr_testIntervals", "Intervalos de Teste")}</p>
               <p className="font-semibold text-gray-800">{ef("testIntervals", cert.testIntervals ?? "—")}</p>
             </div>
           </div>
@@ -938,19 +943,19 @@ export default function CertificatePage() {
             </div>
             <div className="px-4 py-3 grid grid-cols-2 gap-x-8 gap-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-500 shrink-0">Amostragem — Temperatura:</span>
+                <span className="text-gray-500 shrink-0">{el("envlbl_amostrTemp", "Amostragem — Temperatura:")}</span>
                 <CertEditField value={tempAmostragem} onChange={setTempAmostragem} className="w-20 text-xs" />
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-500 shrink-0">Amostragem — Umidade:</span>
+                <span className="text-gray-500 shrink-0">{el("envlbl_amostrUmid", "Amostragem — Umidade:")}</span>
                 <CertEditField value={umidAmostragem} onChange={setUmidAmostragem} className="w-20 text-xs" />
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-500 shrink-0">Recebimento — Temperatura:</span>
+                <span className="text-gray-500 shrink-0">{el("envlbl_recebTemp", "Recebimento — Temperatura:")}</span>
                 <CertEditField value={tempRecebimento} onChange={setTempRecebimento} className="w-20 text-xs" />
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-500 shrink-0">Recebimento — Umidade:</span>
+                <span className="text-gray-500 shrink-0">{el("envlbl_recebUmid", "Recebimento — Umidade:")}</span>
                 <CertEditField value={umidRecebimento} onChange={setUmidRecebimento} className="w-20 text-xs" />
               </div>
             </div>
