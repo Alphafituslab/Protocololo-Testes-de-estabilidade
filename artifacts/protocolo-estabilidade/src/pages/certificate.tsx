@@ -253,9 +253,9 @@ export default function CertificatePage() {
       // key names (e.g. "TEMPERATURA DE CADA", "sargem — Temperatura:").
       // After the migration flag is set globally, skip so user label edits persist.
       const MIG_KEY = "cert_lbl_migration_v";
-      if (localStorage.getItem(MIG_KEY) !== "3") {
+      if (localStorage.getItem(MIG_KEY) !== "4") {
         Object.keys(raw).forEach(k => { if (k.startsWith("lbl_")) { delete raw[k]; dirty = true; } });
-        try { localStorage.setItem(MIG_KEY, "3"); } catch { /* ignore */ }
+        try { localStorage.setItem(MIG_KEY, "4"); } catch { /* ignore */ }
       }
       if (dirty) localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(raw));
       return raw;
@@ -320,12 +320,14 @@ export default function CertificatePage() {
           }
         } catch { /* malformed entry — skip */ }
       }
+      // Reset migration flag so the per-protocol init also re-clears on next load
+      try { localStorage.removeItem("cert_lbl_migration_v"); } catch { /* ignore */ }
       // Refresh the current protocol's edits from the updated localStorage
       try {
         const updated = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}");
         setCertEditsState(updated);
       } catch { /* ignore */ }
-      window.alert(`Atualização concluída. ${count} protocolo(s) atualizados.`);
+      window.alert(`Rótulos redefinidos. ${count} protocolo(s) atualizados.`);
     } catch { /* ignore */ }
   };
 
@@ -588,10 +590,10 @@ export default function CertificatePage() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => { if (window.confirm("Aplicar correções de versão em TODOS os protocolos salvos? Isso remove apenas valores obsoletos (título fixo, rótulos renomeados) — suas edições manuais são mantidas.")) cleanAllProtocolsCertEdits(); }}
-                className="text-xs px-3 py-1.5 rounded border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors"
+                onClick={() => { if (window.confirm('Redefinir todos os rótulos de seção para os textos padrão?\n\nIsso corrige textos errados como "Temperatura de cada" ou "sargem — Temperatura:". Somente os rótulos de seção são redefinidos — seus dados e valores são mantidos.')) cleanAllProtocolsCertEdits(); }}
+                className="text-xs px-3 py-1.5 rounded border border-orange-200 text-orange-700 hover:bg-orange-50 transition-colors font-medium"
               >
-                🔄 Atualizar todos os protocolos
+                🔄 Redefinir rótulos de seção
               </button>
               <button
                 type="button"
