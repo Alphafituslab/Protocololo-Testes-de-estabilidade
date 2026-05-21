@@ -242,21 +242,35 @@ export default function CertificatePage() {
   // ── Cert-level field overrides (all free-text edits by operator) ──────────
   const CERT_EDITS_KEY = `cert_edits_${id}`;
   const CERT_LOCKED_KEY = `cert_locked_${id}`;
-  // Specific keys that must never appear in certEdits (fixed/renamed).
-  const ALWAYS_CLEAR_KEYS = ["certTitle", "lbl_capsuleComposition"];
+  // Structural label keys that are always reset to defaults on load.
+  // These are section headers / row labels that users should not permanently
+  // change; the editable input is just for one-off print adjustments.
+  const ALWAYS_CLEAR_KEYS = [
+    "certTitle",
+    "lbl_capsuleComposition",
+    "lbl_hdr_storageTemp",
+    "lbl_hdr_humidity",
+    "lbl_hdr_studyPeriod",
+    "lbl_hdr_testIntervals",
+    "lbl_envlbl_amostrTemp",
+    "lbl_envlbl_amostrUmid",
+    "lbl_envlbl_recebTemp",
+    "lbl_envlbl_recebUmid",
+  ];
   const [certEdits, setCertEditsState] = useState<Record<string, string>>(() => {
     try {
       const raw = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}") as Record<string, string>;
       let dirty = false;
-      // Remove specific stale keys
+      // Always remove structural label keys so they always show current defaults.
       ALWAYS_CLEAR_KEYS.forEach(k => { if (k in raw) { delete raw[k]; dirty = true; } });
-      // One-time migration v3: wipe lbl_* keys that may have been saved under old/wrong
-      // key names (e.g. "TEMPERATURA DE CADA", "sargem — Temperatura:").
-      // After the migration flag is set globally, skip so user label edits persist.
+      // One-time migration v5: wipe ALL lbl_* keys that may have been saved under
+      // old/wrong key names from previous code versions.
+      // Bumped from v4→v5 to force-clear stale env/header labels that persisted
+      // after v4 ran.
       const MIG_KEY = "cert_lbl_migration_v";
-      if (localStorage.getItem(MIG_KEY) !== "4") {
+      if (localStorage.getItem(MIG_KEY) !== "5") {
         Object.keys(raw).forEach(k => { if (k.startsWith("lbl_")) { delete raw[k]; dirty = true; } });
-        try { localStorage.setItem(MIG_KEY, "4"); } catch { /* ignore */ }
+        try { localStorage.setItem(MIG_KEY, "5"); } catch { /* ignore */ }
       }
       if (dirty) localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(raw));
       return raw;
