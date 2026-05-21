@@ -590,7 +590,7 @@ export default function CertificatePage() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => { if (window.confirm('Redefinir todos os rótulos de seção para os textos padrão?\n\nIsso corrige textos errados como "Temperatura de cada" ou "sargem — Temperatura:". Somente os rótulos de seção são redefinidos — seus dados e valores são mantidos.')) cleanAllProtocolsCertEdits(); }}
+                onClick={() => { if (window.confirm('Redefinir todos os rotulos de secao para os textos padrao? Somente os rotulos de secao sao redefinidos - seus dados e valores sao mantidos.')) cleanAllProtocolsCertEdits(); }}
                 className="text-xs px-3 py-1.5 rounded border border-orange-200 text-orange-700 hover:bg-orange-50 transition-colors font-medium"
               >
                 🔄 Redefinir rótulos de seção
