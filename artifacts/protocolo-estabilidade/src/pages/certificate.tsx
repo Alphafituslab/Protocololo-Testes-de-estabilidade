@@ -241,14 +241,17 @@ export default function CertificatePage() {
   // ── Cert-level field overrides (all free-text edits by operator) ──────────
   const CERT_EDITS_KEY = `cert_edits_${id}`;
   const CERT_LOCKED_KEY = `cert_locked_${id}`;
-  // Keys that must never appear in certEdits (fixed values or renamed labels).
-  // Removed synchronously during init so they never reach the first render.
+  // Specific keys that must never appear in certEdits (fixed/renamed).
   const ALWAYS_CLEAR_KEYS = ["certTitle", "lbl_capsuleComposition"];
   const [certEdits, setCertEditsState] = useState<Record<string, string>>(() => {
     try {
       const raw = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}") as Record<string, string>;
       let dirty = false;
+      // Remove specific stale keys
       ALWAYS_CLEAR_KEYS.forEach(k => { if (k in raw) { delete raw[k]; dirty = true; } });
+      // Remove ALL lbl_* keys — section headers are now static text; any old stored
+      // label override would show corrupted text (e.g. "TEMPERATURA DE CADA").
+      Object.keys(raw).forEach(k => { if (k.startsWith("lbl_")) { delete raw[k]; dirty = true; } });
       if (dirty) localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(raw));
       return raw;
     } catch { return {}; }
@@ -305,6 +308,7 @@ export default function CertificatePage() {
           const obj = JSON.parse(localStorage.getItem(k) ?? "{}") as Record<string, string>;
           const before = JSON.stringify(obj);
           ALWAYS_CLEAR_KEYS.forEach(stale => { delete obj[stale]; });
+          Object.keys(obj).forEach(k => { if (k.startsWith("lbl_")) delete obj[k]; });
           if (JSON.stringify(obj) !== before) {
             localStorage.setItem(k, JSON.stringify(obj));
             count++;
