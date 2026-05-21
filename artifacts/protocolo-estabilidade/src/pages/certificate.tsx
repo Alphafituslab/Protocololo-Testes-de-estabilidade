@@ -861,58 +861,64 @@ export default function CertificatePage() {
           </div>
         </div>
 
-        {/* ── CONDIÇÕES DO ESTUDO ── always printed, fundamental to certificate */}
-        <div className="mb-6">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-gray-300 pb-1 mb-3">Plano de Teste de Estabilidade</h2>
-          <div className="grid grid-cols-4 gap-0 border border-gray-300 rounded overflow-hidden text-sm">
-            <div className="border-r border-gray-300 p-3 bg-gray-50">
+        {/* ── PLANO DE TESTE DE ESTABILIDADE ─────────────────────────────── */}
+        <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden text-sm">
+          <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Plano de Teste de Estabilidade</h2>
+          </div>
+          <div className="grid grid-cols-4 divide-x divide-gray-200">
+            <div className="p-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Temperatura de Armazenamento</p>
-              <p className="font-semibold text-gray-800 text-base">{ef("storageTemp", cert.storageTemp ?? "40°C ± 2°C")}</p>
+              <p className="font-semibold text-gray-800">{ef("storageTemp", cert.storageTemp ?? "40°C ± 2°C")}</p>
             </div>
-            <div className="border-r border-gray-300 p-3 bg-gray-50">
+            <div className="p-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Umidade Relativa</p>
-              <p className="font-semibold text-gray-800 text-base">{ef("storageHumidity", cert.storageHumidity ?? "75% UR ± 5% UR")}</p>
+              <p className="font-semibold text-gray-800">{ef("storageHumidity", cert.storageHumidity ?? "75% UR ± 5% UR")}</p>
             </div>
-            <div className="border-r border-gray-300 p-3 bg-gray-50">
+            <div className="p-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Período do Estudo</p>
-              <p className="font-semibold text-gray-800 text-base">{ef("studyPeriodMonths", cert.studyPeriodMonths != null ? String(cert.studyPeriodMonths) + " meses" : "—")}</p>
+              <p className="font-semibold text-gray-800">{ef("studyPeriodMonths", cert.studyPeriodMonths != null ? String(cert.studyPeriodMonths) + " meses" : "—")}</p>
             </div>
-            <div className="p-3 bg-gray-50">
+            <div className="p-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Intervalos de Teste</p>
-              <p className="font-semibold text-gray-800 text-base">{ef("testIntervals", cert.testIntervals ?? "—")}</p>
+              <p className="font-semibold text-gray-800">{ef("testIntervals", cert.testIntervals ?? "—")}</p>
             </div>
           </div>
         </div>
 
+        {/* ── CONDIÇÕES AMBIENTAIS ─────────────────────────────────────────── */}
         {show.condicoesAmbientais && (
-          <div className="mb-6 border border-gray-200 rounded p-3 bg-gray-50 text-xs space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="font-bold uppercase tracking-widest text-gray-500">Condições Ambientais</p>
+          <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden text-xs">
+            <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Condições Ambientais</h2>
             </div>
-            <div className="space-y-1.5">
+            <div className="px-4 py-3 grid grid-cols-2 gap-x-8 gap-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-500 shrink-0">Condições ambientais durante amostragem — Temperatura:</span>
+                <span className="text-gray-500 shrink-0">Amostragem — Temperatura:</span>
                 <CertEditField value={tempAmostragem} onChange={setTempAmostragem} className="w-20 text-xs" />
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-500 shrink-0">Condições ambientais durante amostragem — Umidade:</span>
+                <span className="text-gray-500 shrink-0">Amostragem — Umidade:</span>
                 <CertEditField value={umidAmostragem} onChange={setUmidAmostragem} className="w-20 text-xs" />
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-500 shrink-0">Condições de recebimento da amostra — Temperatura:</span>
+                <span className="text-gray-500 shrink-0">Recebimento — Temperatura:</span>
                 <CertEditField value={tempRecebimento} onChange={setTempRecebimento} className="w-20 text-xs" />
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-500 shrink-0">Condições de recebimento da amostra — Umidade:</span>
+                <span className="text-gray-500 shrink-0">Recebimento — Umidade:</span>
                 <CertEditField value={umidRecebimento} onChange={setUmidRecebimento} className="w-20 text-xs" />
               </div>
             </div>
           </div>
         )}
 
-        {/* Analysis table */}
-        <div className="mb-6">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b pb-1 mb-3">Método de Análise</h2>
+        {/* ── MÉTODO DE ANÁLISE ────────────────────────────────────────────── */}
+        <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden text-sm">
+          <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Método de Análise</h2>
+          </div>
+          <div className="px-0 py-0">
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-gray-100">
@@ -987,59 +993,84 @@ export default function CertificatePage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
 
+        {/* ── OBSERVAÇÕES SOBRE OS LOTES ───────────────────────────────────── */}
         {show.textoLotes && (
-          <div className="mb-6 border-l-4 border-gray-400 pl-4 bg-gray-50 py-3 pr-3 rounded-r text-xs text-gray-700 space-y-2">
-            <p>{ef("textoLotes1", "Os lotes piloto foram produzidos em datas distintas, sob condições equivalentes de fabricação, visando assegurar a independência entre os lotes, a rastreabilidade do estudo e a minimização do risco de desvios operacionais ou interferências de processo.", { multiline: true })}</p>
-            <p>{ef("textoLotes2", "Alimento está sendo testado em embalagem equivalente e sistema de fechamento nos quais será comercializado.", { multiline: true })}</p>
+          <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden text-xs">
+            <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Observações sobre os Lotes</h2>
+            </div>
+            <div className="px-4 py-3 text-gray-700 space-y-2">
+              <p>{ef("textoLotes1", "Os lotes piloto foram produzidos em datas distintas, sob condições equivalentes de fabricação, visando assegurar a independência entre os lotes, a rastreabilidade do estudo e a minimização do risco de desvios operacionais ou interferências de processo.", { multiline: true })}</p>
+              <p>{ef("textoLotes2", "Alimento está sendo testado em embalagem equivalente e sistema de fechamento nos quais será comercializado.", { multiline: true })}</p>
+            </div>
           </div>
         )}
 
+        {/* ── INFORMAÇÕES ADICIONAIS ───────────────────────────────────────── */}
         {show.infoAdicionais && (
-          <div className="mb-6 border border-gray-200 rounded p-3 bg-gray-50 text-xs space-y-1">
-            <p className="text-gray-500 font-semibold">Informacoes Adicionais</p>
-            <p>{ef("infoAdicionais1", "Este documento deve ser reproduzido integralmente. A reproducao parcial somente e permitida mediante autorizacao formal e escrita do laboratorio.", { multiline: true })}</p>
-            <p>{ef("infoAdicionais2", "Os resultados apresentados referem-se exclusivamente as amostras recebidas e foram obtidos e reportados de acordo com as condicoes analiticas estabelecidas e metodologias aplicaveis.", { multiline: true })}</p>
-            <p>{ef("infoAdicionais3", "NA = Nao se aplica   ND = Nao detectado   LQ = Limite de quantificacao   AR = Aprovado com Ressalva", { multiline: true })}</p>
+          <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden text-xs">
+            <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Informações Adicionais</h2>
+            </div>
+            <div className="px-4 py-3 text-gray-700 space-y-1">
+              <p>{ef("infoAdicionais1", "Este documento deve ser reproduzido integralmente. A reproducao parcial somente e permitida mediante autorizacao formal e escrita do laboratorio.", { multiline: true })}</p>
+              <p>{ef("infoAdicionais2", "Os resultados apresentados referem-se exclusivamente as amostras recebidas e foram obtidos e reportados de acordo com as condicoes analiticas estabelecidas e metodologias aplicaveis.", { multiline: true })}</p>
+              <p>{ef("infoAdicionais3", "NA = Nao se aplica   ND = Nao detectado   LQ = Limite de quantificacao   AR = Aprovado com Ressalva", { multiline: true })}</p>
+            </div>
           </div>
         )}
 
+        {/* ── CONCLUSÃO ────────────────────────────────────────────────────── */}
         {show.conclusao && (
-          <div className="mb-6 font-semibold text-center text-sm border-t border-b border-gray-300 py-3" style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
-            <span className="uppercase tracking-wide">CONCLUSÃO:</span>{" "}
-            <span className="font-normal normal-case">{ef("conclusion", cert.conclusion, { multiline: true, className: "w-full text-sm font-normal" })}</span>
+          <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden text-sm">
+            <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Conclusão</h2>
+            </div>
+            <div className="px-4 py-3 text-center" style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
+              <span className="font-normal">{ef("conclusion", cert.conclusion, { multiline: true, className: "w-full text-sm font-normal" })}</span>
+            </div>
           </div>
         )}
 
-        {hasNonConforming && (
-          <div className="mb-4 rounded border border-red-400 bg-red-50 px-4 py-3 print:border-red-600 print:bg-red-50">
-            <p className="text-sm font-bold text-red-700 uppercase tracking-wide">⚠ Atenção — Resultado(s) Fora do Especificado</p>
-            <p className="text-xs text-red-600 mt-1">
-              Este protocolo contém um ou mais parâmetros com resultado <strong>Não Conforme</strong>.
-              O status do certificado foi automaticamente alterado para <strong>REPROVADO</strong>.
-            </p>
+        {/* ── DELIBERAÇÃO ──────────────────────────────────────────────────── */}
+        <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden text-sm">
+          <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Deliberação</h2>
           </div>
-        )}
-        <div className="mb-6 flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <div className={`w-5 h-5 border-2 flex items-center justify-center ${effectiveIsApproved ? "border-gray-800 bg-gray-800" : "border-gray-400"}`}>
-              {effectiveIsApproved && <span className="text-white text-xs font-bold">X</span>}
+          <div className="px-4 py-3">
+            {hasNonConforming && (
+              <div className="mb-3 rounded border border-red-400 bg-red-50 px-3 py-2 print:border-red-600 print:bg-red-50">
+                <p className="text-xs font-bold text-red-700 uppercase tracking-wide">⚠ Atenção — Resultado(s) Fora do Especificado</p>
+                <p className="text-xs text-red-600 mt-0.5">
+                  Este protocolo contém um ou mais parâmetros com resultado <strong>Não Conforme</strong>.
+                  O status do certificado foi automaticamente alterado para <strong>REPROVADO</strong>.
+                </p>
+              </div>
+            )}
+            <div className="flex items-center gap-8">
+              <div className="flex items-center gap-3">
+                <div className={`w-5 h-5 border-2 flex items-center justify-center ${effectiveIsApproved ? "border-gray-800 bg-gray-800" : "border-gray-400"}`}>
+                  {effectiveIsApproved && <span className="text-white text-xs font-bold">X</span>}
+                </div>
+                <span className="font-medium">
+                  APROVADO
+                  {cert.finalStatus === "aprovado_com_ressalva" && effectiveIsApproved && (
+                    <span className="ml-1 text-amber-700 font-semibold text-xs">(COM RESSALVA)</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className={`w-5 h-5 border-2 flex items-center justify-center ${effectiveIsRepproved ? "border-red-700 bg-red-700" : "border-gray-400"}`}>
+                  {effectiveIsRepproved && <span className="text-white text-xs font-bold">X</span>}
+                </div>
+                <span className={`font-medium ${effectiveIsRepproved ? "text-red-700" : ""}`}>REPROVADO</span>
+              </div>
+              {cert.issueDate && <span className="ml-auto text-gray-500 text-xs">DATA: {cert.issueDate}</span>}
             </div>
-            <span className="font-medium">
-              APROVADO
-              {cert.finalStatus === "aprovado_com_ressalva" && effectiveIsApproved && (
-                <span className="ml-1 text-amber-700 font-semibold text-xs">(COM RESSALVA)</span>
-              )}
-            </span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className={`w-5 h-5 border-2 flex items-center justify-center ${effectiveIsRepproved ? "border-red-700 bg-red-700" : "border-gray-400"}`}>
-              {effectiveIsRepproved && <span className="text-white text-xs font-bold">X</span>}
-            </div>
-            <span className={`font-medium ${effectiveIsRepproved ? "text-red-700" : ""}`}>REPROVADO</span>
-          </div>
-          {cert.issueDate && <span className="ml-auto text-gray-500 text-xs">DATA: {cert.issueDate}</span>}
         </div>
 
         {(() => {
@@ -1287,59 +1318,68 @@ export default function CertificatePage() {
                 </div>
               )}
 
-              {/* Two-column signature footer */}
-              <div className="grid grid-cols-2 gap-8 pt-4 border-t border-gray-300">
-                {/* LEFT — Responsável Técnico */}
-                <div>
-                  <div className="border-t border-gray-400 w-64 mb-4">
-                    <p className="text-xs text-gray-400 mt-1">Assinatura</p>
-                  </div>
-                  {leftSigs.map(s => <SigCard key={s.id} sig={s} />)}
-                  {leftSigs.length === 0 && userInLeft && !currentUserAlreadySigned && (
-                    <SignBtn preRole="Responsável Técnico" />
-                  )}
-                  <p className="font-semibold text-sm">{ef("issuedBy", cert.issuedBy)}</p>
-                  <p className="text-xs text-gray-500">{el("label_issuedByRole", "Responsável Técnico")}</p>
-                  <p className="text-xs text-gray-500">{ef("issuedByEmail", cert.issuedByEmail)}</p>
+              {/* ── ASSINATURAS ─────────────────────────────────────────────── */}
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
+                  <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-1.5">
+                    <ShieldCheck className="h-3 w-3" /> Assinaturas
+                  </h2>
                 </div>
+                <div className="px-4 py-4">
+                  <div className="grid grid-cols-2 gap-8">
+                    {/* LEFT — Responsável Técnico */}
+                    <div>
+                      <div className="border-t border-gray-400 w-64 mb-4">
+                        <p className="text-xs text-gray-400 mt-1">Assinatura</p>
+                      </div>
+                      {leftSigs.map(s => <SigCard key={s.id} sig={s} />)}
+                      {leftSigs.length === 0 && userInLeft && !currentUserAlreadySigned && (
+                        <SignBtn preRole="Responsável Técnico" />
+                      )}
+                      <p className="font-semibold text-sm">{ef("issuedBy", cert.issuedBy)}</p>
+                      <p className="text-xs text-gray-500">{el("label_issuedByRole", "Responsável Técnico")}</p>
+                      <p className="text-xs text-gray-500">{ef("issuedByEmail", cert.issuedByEmail)}</p>
+                    </div>
 
-                {/* RIGHT — Analista Sênior / Representante Legal */}
-                <div>
-                  <div className="border-t border-gray-400 w-64 mb-4">
-                    <p className="text-xs text-gray-400 mt-1">Assinatura</p>
+                    {/* RIGHT — Analista Sênior / Representante Legal */}
+                    <div>
+                      <div className="border-t border-gray-400 w-64 mb-4">
+                        <p className="text-xs text-gray-400 mt-1">Assinatura</p>
+                      </div>
+                      {rightSigs.map(s => <SigCard key={s.id} sig={s} />)}
+                      {rightSigs.length === 0 && userInRight && !currentUserAlreadySigned && (
+                        <SignBtn preRole="Analista Sênior" />
+                      )}
+                      <p className="font-semibold text-sm">{ef("seniorAnalyst", cert.seniorAnalyst)}</p>
+                      <p className="text-xs text-gray-500">{el("label_seniorAnalystRole", "Analista Sênior / Representante Legal")}</p>
+                      <p className="text-xs text-gray-500">{ef("seniorAnalystEmail", cert.seniorAnalystEmail)}</p>
+                    </div>
                   </div>
-                  {rightSigs.map(s => <SigCard key={s.id} sig={s} />)}
-                  {rightSigs.length === 0 && userInRight && !currentUserAlreadySigned && (
-                    <SignBtn preRole="Analista Sênior" />
+
+                  {/* Extra signers (not matching either column) */}
+                  {(otherSigs.length > 0 || (userInOther && !currentUserAlreadySigned)) && (
+                    <div className="mt-4 pt-3 border-t border-dashed border-gray-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 flex items-center gap-1">
+                          <ShieldCheck className="h-3 w-3" /> Outras Assinaturas
+                        </span>
+                        {userInOther && !currentUserAlreadySigned && (
+                          <button
+                            type="button"
+                            onClick={() => setSigDialogOpen(true)}
+                            className="print:hidden flex items-center gap-1 text-[10px] px-2.5 py-1 rounded border border-primary/40 bg-primary/8 text-primary hover:bg-primary/15 font-medium"
+                          >
+                            <PenLine className="h-2.5 w-2.5" /> Assinar
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {otherSigs.map(s => <SigCard key={s.id} sig={s} />)}
+                      </div>
+                    </div>
                   )}
-                  <p className="font-semibold text-sm">{ef("seniorAnalyst", cert.seniorAnalyst)}</p>
-                  <p className="text-xs text-gray-500">{el("label_seniorAnalystRole", "Analista Sênior / Representante Legal")}</p>
-                  <p className="text-xs text-gray-500">{ef("seniorAnalystEmail", cert.seniorAnalystEmail)}</p>
                 </div>
               </div>
-
-              {/* Extra signers (not matching either column) */}
-              {(otherSigs.length > 0 || (userInOther && !currentUserAlreadySigned)) && (
-                <div className="mt-4 pt-3 border-t border-dashed border-gray-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 flex items-center gap-1">
-                      <ShieldCheck className="h-3 w-3" /> Outras Assinaturas
-                    </span>
-                    {userInOther && !currentUserAlreadySigned && (
-                      <button
-                        type="button"
-                        onClick={() => setSigDialogOpen(true)}
-                        className="print:hidden flex items-center gap-1 text-[10px] px-2.5 py-1 rounded border border-primary/40 bg-primary/8 text-primary hover:bg-primary/15 font-medium"
-                      >
-                        <PenLine className="h-2.5 w-2.5" /> Assinar
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {otherSigs.map(s => <SigCard key={s.id} sig={s} />)}
-                  </div>
-                </div>
-              )}
             </>
           );
         })()}
