@@ -167,6 +167,10 @@ export default function CertificatePage() {
     if (!cert) return;
     if (cert.issuedBy)     clearCertEdit("issuedBy");
     if (cert.seniorAnalyst) clearCertEdit("seniorAnalyst");
+    // certTitle is always "Certificado de Análise" — never editable; clear any stale override
+    clearCertEdit("certTitle");
+    // capsuleComposition label default changed to "Agente da Cápsula:" — clear corrupted stored label
+    clearCertEdit("lbl_capsuleComposition");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cert?.issuedBy, cert?.seniorAnalyst]);
 
@@ -308,6 +312,7 @@ export default function CertificatePage() {
         <input
           value={val}
           onChange={e => setCertEdit(`lbl_${key}`, e.target.value)}
+          autoComplete="new-password"
           className="bg-transparent border-b border-dashed border-blue-300 focus:outline-none focus:border-blue-500 text-gray-500 w-full print:hidden"
           title="Clique para editar o nome deste campo"
         />
@@ -768,7 +773,7 @@ export default function CertificatePage() {
             />
             <div className="border-l border-gray-300 pl-5" style={{ minWidth: 0, flex: 1 }}>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Alphafitus Laboratório Nutracêutico</p>
-              <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{ef("certTitle", "Certificado de Análise", { className: "w-full text-xl font-bold uppercase tracking-wide text-gray-800 bg-transparent border-0 outline-none focus:ring-1 focus:ring-blue-300 rounded px-0" })}</h1>
+              <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>Certificado de Análise</h1>
               <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{cert.productName}</p>
             </div>
           </div>
@@ -839,7 +844,7 @@ export default function CertificatePage() {
                 )}
                 {!!getEdit("capsuleComposition", cert.capsuleComposition) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">{el("capsuleComposition", "Composição da Cápsula:")}</td>
+                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">{el("capsuleComposition", "Agente da Cápsula:")}</td>
                     <td className="align-top pb-1 text-justify">{ef("capsuleComposition", cert.capsuleComposition, { multiline: true })}</td>
                   </tr>
                 )}
