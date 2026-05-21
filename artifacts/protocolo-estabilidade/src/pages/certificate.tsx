@@ -161,6 +161,15 @@ export default function CertificatePage() {
     query: { enabled: !!id, queryKey: getGetCertificateQueryKey(Number(id)), staleTime: 0 },
   });
 
+  // When the DB has authoritative values for issuedBy / seniorAnalyst, drop any
+  // stale localStorage overrides so the correct name shows immediately.
+  useEffect(() => {
+    if (!cert) return;
+    if (cert.issuedBy)     clearCertEdit("issuedBy");
+    if (cert.seniorAnalyst) clearCertEdit("seniorAnalyst");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cert?.issuedBy, cert?.seniorAnalyst]);
+
   const [showSettings, setShowSettings] = useState(false);
   const [show, setShow] = useState<ShowSections>({
     condicoesAmbientais: true,
@@ -1276,6 +1285,9 @@ export default function CertificatePage() {
               <div className="grid grid-cols-2 gap-8 pt-4 border-t border-gray-300">
                 {/* LEFT — Responsável Técnico */}
                 <div>
+                  <div className="border-t border-gray-400 w-64 mb-4">
+                    <p className="text-xs text-gray-400 mt-1">Assinatura</p>
+                  </div>
                   {leftSigs.map(s => <SigCard key={s.id} sig={s} />)}
                   {leftSigs.length === 0 && userInLeft && !currentUserAlreadySigned && (
                     <SignBtn preRole="Responsável Técnico" />
@@ -1283,13 +1295,13 @@ export default function CertificatePage() {
                   <p className="font-semibold text-sm">{ef("issuedBy", cert.issuedBy)}</p>
                   <p className="text-xs text-gray-500">{el("label_issuedByRole", "Responsável Técnico")}</p>
                   <p className="text-xs text-gray-500">{ef("issuedByEmail", cert.issuedByEmail)}</p>
-                  <div className="mt-6 border-t border-gray-400 w-64">
-                    <p className="text-xs text-gray-400 mt-1">Assinatura</p>
-                  </div>
                 </div>
 
                 {/* RIGHT — Analista Sênior / Representante Legal */}
                 <div>
+                  <div className="border-t border-gray-400 w-64 mb-4">
+                    <p className="text-xs text-gray-400 mt-1">Assinatura</p>
+                  </div>
                   {rightSigs.map(s => <SigCard key={s.id} sig={s} />)}
                   {rightSigs.length === 0 && userInRight && !currentUserAlreadySigned && (
                     <SignBtn preRole="Analista Sênior" />
@@ -1297,9 +1309,6 @@ export default function CertificatePage() {
                   <p className="font-semibold text-sm">{ef("seniorAnalyst", cert.seniorAnalyst)}</p>
                   <p className="text-xs text-gray-500">{el("label_seniorAnalystRole", "Analista Sênior / Representante Legal")}</p>
                   <p className="text-xs text-gray-500">{ef("seniorAnalystEmail", cert.seniorAnalystEmail)}</p>
-                  <div className="mt-6 border-t border-gray-400 w-64">
-                    <p className="text-xs text-gray-400 mt-1">Assinatura</p>
-                  </div>
                 </div>
               </div>
 
