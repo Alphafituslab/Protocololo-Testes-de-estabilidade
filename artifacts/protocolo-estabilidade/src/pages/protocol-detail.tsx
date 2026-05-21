@@ -592,7 +592,11 @@ function LotsTab({ protocolId }: { protocolId: number }) {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent
+          className="max-w-lg"
+          onInteractOutside={e => { if (!editLot) e.preventDefault(); }}
+          onEscapeKeyDown={e => { if (!editLot) e.preventDefault(); }}
+        >
           <DialogHeader>
             <DialogTitle>{editLot ? "Editar Lote" : "Adicionar Lotes"}</DialogTitle>
             {!editLot && (

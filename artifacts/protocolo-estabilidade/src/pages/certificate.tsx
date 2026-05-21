@@ -129,7 +129,7 @@ function CertEditField({
       <input
         value={value}
         onChange={e => onChange(e.target.value)}
-        autoComplete="off"
+        autoComplete="new-password"
         className={`bg-transparent border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 print:hidden w-full ${className}`}
       />
       <span className="hidden print:inline">{value}</span>
@@ -171,6 +171,7 @@ export default function CertificatePage() {
   }, [cert?.issuedBy, cert?.seniorAnalyst]);
 
   const [showSettings, setShowSettings] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [show, setShow] = useState<ShowSections>({
     condicoesAmbientais: true,
     textoLotes: true,
@@ -1487,7 +1488,11 @@ export default function CertificatePage() {
                             const figNum = imgCounter;
                             return (
                               <figure key={ii} className="photo-figure flex flex-col items-center">
-                                <div className="border-2 border-gray-300 rounded overflow-hidden shadow-sm">
+                                <div
+                                  className="border-2 border-gray-300 rounded overflow-hidden shadow-sm print:cursor-default cursor-zoom-in"
+                                  onClick={() => setLightboxSrc(img)}
+                                  title="Clique para ver em tamanho real"
+                                >
                                   <img
                                     src={img}
                                     alt={`${param} — Lote ${entry.lotNumber} — T${entry.period} — Imagem ${ii + 1}`}
@@ -1529,6 +1534,36 @@ export default function CertificatePage() {
           </div>
         )}
       </div>
+
+      {/* Lightbox overlay — opens when a photo thumbnail is clicked */}
+      {lightboxSrc && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 print:hidden"
+          onClick={() => setLightboxSrc(null)}
+        >
+          <div className="relative max-w-[90vw] max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <button
+              className="absolute -top-9 right-0 text-white/80 hover:text-white text-sm font-medium flex items-center gap-1"
+              onClick={() => setLightboxSrc(null)}
+            >
+              ✕ Fechar
+            </button>
+            <img
+              src={lightboxSrc}
+              alt="Imagem ampliada"
+              className="max-w-[90vw] max-h-[90vh] object-contain rounded shadow-2xl border border-white/10"
+            />
+            <a
+              href={lightboxSrc}
+              download
+              className="absolute -bottom-9 right-0 text-white/70 hover:text-white text-xs underline"
+              onClick={e => e.stopPropagation()}
+            >
+              ⬇ Salvar imagem
+            </a>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @page {
