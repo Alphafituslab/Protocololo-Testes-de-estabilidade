@@ -295,6 +295,35 @@ export default function CertificatePage() {
     setCertLockedState(false);
   };
 
+  // Keys that are now fixed/renamed and should be removed from every protocol's certEdits.
+  const STALE_CERT_EDIT_KEYS = ["certTitle", "lbl_capsuleComposition"];
+
+  // Walks every cert_edits_* entry in localStorage and removes stale keys.
+  const cleanAllProtocolsCertEdits = () => {
+    try {
+      let count = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k?.startsWith("cert_edits_")) continue;
+        try {
+          const obj = JSON.parse(localStorage.getItem(k) ?? "{}") as Record<string, string>;
+          const before = JSON.stringify(obj);
+          STALE_CERT_EDIT_KEYS.forEach(stale => { delete obj[stale]; });
+          if (JSON.stringify(obj) !== before) {
+            localStorage.setItem(k, JSON.stringify(obj));
+            count++;
+          }
+        } catch { /* malformed entry — skip */ }
+      }
+      // Refresh the current protocol's edits from the updated localStorage
+      try {
+        const updated = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}");
+        setCertEditsState(updated);
+      } catch { /* ignore */ }
+      window.alert(`Atualização concluída. ${count} protocolo(s) atualizados.`);
+    } catch { /* ignore */ }
+  };
+
   // Helper: renders a CertEditField when unlocked, plain text when locked
   const ef = (key: string, fallback: string | null | undefined, opts?: { multiline?: boolean; className?: string }) => {
     const val = getEdit(key, fallback);
@@ -551,13 +580,22 @@ export default function CertificatePage() {
         <div className="print:hidden border rounded-lg bg-white shadow-sm p-5 space-y-5">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-gray-800">Configurações de Impressão / PDF</p>
-            <button
-              type="button"
-              onClick={() => { if (window.confirm("Restaurar todos os campos do certificado para os valores originais? As edições manuais serão perdidas.")) clearCertEdits(); }}
-              className="text-xs px-3 py-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
-            >
-              Restaurar campos originais
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => { if (window.confirm("Aplicar correções de versão em TODOS os protocolos salvos? Isso remove apenas valores obsoletos (título fixo, rótulos renomeados) — suas edições manuais são mantidas.")) cleanAllProtocolsCertEdits(); }}
+                className="text-xs px-3 py-1.5 rounded border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors"
+              >
+                🔄 Atualizar todos os protocolos
+              </button>
+              <button
+                type="button"
+                onClick={() => { if (window.confirm("Restaurar todos os campos do certificado para os valores originais? As edições manuais serão perdidas.")) clearCertEdits(); }}
+                className="text-xs px-3 py-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+              >
+                Restaurar campos originais
+              </button>
+            </div>
           </div>
           <div className="space-y-2">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Seções do documento</p>
