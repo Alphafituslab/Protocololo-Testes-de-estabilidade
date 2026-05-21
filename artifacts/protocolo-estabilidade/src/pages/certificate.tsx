@@ -242,45 +242,31 @@ export default function CertificatePage() {
   // ── Cert-level field overrides (all free-text edits by operator) ──────────
   const CERT_EDITS_KEY = `cert_edits_${id}`;
   const CERT_LOCKED_KEY = `cert_locked_${id}`;
-  // Structural label keys that are always reset to defaults on load.
-  // These are section headers / row labels that users should not permanently
-  // change; the editable input is just for one-off print adjustments.
-  const ALWAYS_CLEAR_KEYS = [
-    // Old renamed keys
-    "certTitle",
-    // Document title — always reset to "Certificado de Análise" on load to
-    // prevent stale user-typed values (e.g. "BIS DE ANÁLISE") from persisting.
-    "docTitle",
-    // Structural row/section labels — always use current code defaults
-    "lbl_capsuleComposition",
-    "lbl_hdr_storageTemp",
-    "lbl_hdr_humidity",
-    "lbl_hdr_studyPeriod",
-    "lbl_hdr_testIntervals",
-    "lbl_envlbl_amostrTemp",
-    "lbl_envlbl_amostrUmid",
-    "lbl_envlbl_recebTemp",
-    "lbl_envlbl_recebUmid",
-  ];
+  // Keys that must never persist in localStorage (always cleared on load).
+  const ALWAYS_CLEAR_KEYS = ["certTitle", "docTitle"];
   const [certEdits, setCertEditsState] = useState<Record<string, string>>(() => {
     try {
       const raw = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}") as Record<string, string>;
       let dirty = false;
-      // Always remove structural label keys so they always show current defaults.
       ALWAYS_CLEAR_KEYS.forEach(k => { if (k in raw) { delete raw[k]; dirty = true; } });
-      // One-time migration v5: wipe ALL lbl_* keys that may have been saved under
-      // old/wrong key names from previous code versions.
-      // Bumped from v4→v5 to force-clear stale env/header labels that persisted
-      // after v4 ran.
+      // Migration: wipe ALL lbl_* keys previously saved to localStorage.
+      // Labels are now session-only (labelOverrides state) so any stored lbl_*
+      // values from older versions should be purged.
       const MIG_KEY = "cert_lbl_migration_v";
-      if (localStorage.getItem(MIG_KEY) !== "5") {
+      if (localStorage.getItem(MIG_KEY) !== "6") {
         Object.keys(raw).forEach(k => { if (k.startsWith("lbl_")) { delete raw[k]; dirty = true; } });
-        try { localStorage.setItem(MIG_KEY, "5"); } catch { /* ignore */ }
+        try { localStorage.setItem(MIG_KEY, "6"); } catch { /* ignore */ }
       }
       if (dirty) localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(raw));
       return raw;
     } catch { return {}; }
   });
+
+  // Session-only label overrides — intentionally NOT backed by localStorage.
+  // Labels (el()) reset to code defaults on every page load; the user may still
+  // change them during the session for a one-off print, but stale values can
+  // never survive a reload and corrupt future PDFs.
+  const [labelOverrides, setLabelOverrides] = useState<Record<string, string>>({});
   const [certLocked, setCertLockedState] = useState<boolean>(() => {
     try { return localStorage.getItem(`cert_locked_${id}`) === "1"; } catch { return false; }
   });
@@ -322,9 +308,13 @@ export default function CertificatePage() {
     setCertLockedState(false);
   };
 
-  // Walks every cert_edits_* entry in localStorage and removes stale keys.
+  // Resets all session-only label overrides back to code defaults and also
+  // scrubs any leftover lbl_* entries from older localStorage versions.
   const cleanAllProtocolsCertEdits = () => {
     try {
+      // Clear session label overrides immediately
+      setLabelOverrides({});
+      // Scrub any legacy lbl_* keys still in localStorage across all protocols
       let count = 0;
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
@@ -333,16 +323,14 @@ export default function CertificatePage() {
           const obj = JSON.parse(localStorage.getItem(k) ?? "{}") as Record<string, string>;
           const before = JSON.stringify(obj);
           ALWAYS_CLEAR_KEYS.forEach(stale => { delete obj[stale]; });
-          Object.keys(obj).forEach(k => { if (k.startsWith("lbl_")) delete obj[k]; });
+          Object.keys(obj).forEach(ek => { if (ek.startsWith("lbl_")) delete obj[ek]; });
           if (JSON.stringify(obj) !== before) {
             localStorage.setItem(k, JSON.stringify(obj));
             count++;
           }
         } catch { /* malformed entry — skip */ }
       }
-      // Reset migration flag so the per-protocol init also re-clears on next load
       try { localStorage.removeItem("cert_lbl_migration_v"); } catch { /* ignore */ }
-      // Refresh the current protocol's edits from the updated localStorage
       try {
         const updated = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}");
         setCertEditsState(updated);
@@ -358,16 +346,17 @@ export default function CertificatePage() {
     return <CertEditField value={val} onChange={v => setCertEdit(key, v)} multiline={opts?.multiline} className={opts?.className ?? "w-full"} />;
   };
 
-  // Helper: renders an editable row label when unlocked, plain text when locked
+  // Helper: renders an editable row label when unlocked, plain text when locked.
+  // Label overrides are session-only (labelOverrides state) — they are NEVER
+  // saved to localStorage so stale values can never corrupt future prints.
   const el = (key: string, defaultLabel: string) => {
-    const stored = certEdits[`lbl_${key}`];
-    const val = stored !== undefined ? stored : defaultLabel;
+    const val = labelOverrides[key] ?? defaultLabel;
     if (certLocked) return <>{val}</>;
     return (
       <>
         <input
           value={val}
-          onChange={e => setCertEdit(`lbl_${key}`, e.target.value)}
+          onChange={e => setLabelOverrides(prev => ({ ...prev, [key]: e.target.value }))}
           autoComplete="new-password"
           style={{ minWidth: 0 }}
           className="bg-transparent border-b border-dashed border-blue-300 focus:outline-none focus:border-blue-500 text-gray-500 w-full min-w-0 print:hidden"
