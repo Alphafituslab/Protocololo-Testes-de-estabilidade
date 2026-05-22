@@ -1632,48 +1632,39 @@ export default function CertificatePage() {
         }
 
         @media print {
-          /* ── Remove overflow/height constraints from layout containers ──────── */
-          /* Without this, overflow:hidden on main/flex wrappers clips the
-             absolutely-positioned certificate div in some browsers.             */
-          html, body {
+          /* ── Reset all layout containers so nothing clips the certificate ──── */
+          html, body, #root, #root > *, #root > * > * {
             overflow: visible !important;
             height: auto !important;
-          }
-          #root, #root > div, #root > div > div {
-            overflow: visible !important;
-            height: auto !important;
+            min-height: 0 !important;
             display: block !important;
-          }
-          main {
-            overflow: visible !important;
-            height: auto !important;
-            display: block !important;
-          }
-          main > div {
-            overflow: visible !important;
-            height: auto !important;
-            display: block !important;
-            padding: 0 !important;
+            background: white !important;
           }
 
-          /* ── Hide all non-certificate content ────────────────────────────────── */
-          body * { visibility: hidden; }
+          /* ── Hide everything except the certificate ──────────────────────────  */
+          body > * { display: none !important; }
+          #root { display: block !important; }
+          body * { visibility: hidden !important; }
           #certificate-document,
-          #certificate-document * { visibility: visible; }
+          #certificate-document * { visibility: visible !important; }
 
-          /* ── Certificate fills the full printed page ──────────────────────────  */
+          /* ── Certificate: normal flow, full width, no positioning tricks ─────  */
+          /* Using position:static (normal flow) avoids all containing-block
+             issues that occur with absolute/fixed across different browsers.    */
           #certificate-document {
-            position: absolute; left: 0; top: 0;
+            position: static !important;
+            display: block !important;
             width: 100% !important;
+            margin: 0 !important;
             box-shadow: none !important;
             border: none !important;
             padding: 15mm 20mm !important;
-            font-size: 10pt;
+            font-size: 10pt !important;
             overflow: visible !important;
           }
 
           /* ── Editable field wrappers must not clip their print spans ─────────── */
-          #certificate-document span.cert-field-wrap {
+          #certificate-document span {
             overflow: visible !important;
           }
 
