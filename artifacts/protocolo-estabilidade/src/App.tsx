@@ -46,22 +46,18 @@ class AppErrorBoundary extends Component<
 
   static getDerivedStateFromError(error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    return { hasError: true, errorMessage: msg };
-  }
-
-  // DOM portal reconciliation errors (insertBefore / removeChild) are transient —
-  // they occur when a Dialog portal unmounts during a simultaneous query refetch.
-  // Auto-reset silently so the user never sees the error screen for these cases.
-  componentDidCatch(error: Error) {
-    const msg = error?.message ?? "";
-    if (
+    // DOM portal reconciliation errors are transient — never show the error screen.
+    const isTransient =
       msg.includes("insertBefore") ||
       msg.includes("removeChild") ||
       msg.includes("NotFoundError") ||
-      msg.includes("não é filho")
-    ) {
-      setTimeout(() => this.setState({ hasError: false, errorMessage: "" }), 0);
-    }
+      msg.includes("não é filho");
+    if (isTransient) return { hasError: false, errorMessage: "" };
+    return { hasError: true, errorMessage: msg };
+  }
+
+  componentDidCatch() {
+    // No-op: transient errors are already suppressed in getDerivedStateFromError.
   }
 
   render() {

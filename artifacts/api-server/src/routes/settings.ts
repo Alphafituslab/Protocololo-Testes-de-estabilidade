@@ -13,7 +13,7 @@ router.get("/settings", async (_req, res): Promise<void> => {
 });
 
 router.put("/settings/:key", requireAuth, async (req, res): Promise<void> => {
-  const { key } = req.params;
+  const key = String(req.params["key"]);
   const { value } = req.body as { value?: string };
   if (value === undefined || value === null) {
     res.status(400).json({ error: "value obrigatório" });
@@ -30,7 +30,7 @@ router.put("/settings/:key", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.delete("/settings/:key", requireAuth, async (req, res): Promise<void> => {
-  const { key } = req.params;
+  const key = String(req.params["key"]);
   await db.delete(settingsTable).where(eq(settingsTable.key, key));
   res.json({ ok: true });
 });

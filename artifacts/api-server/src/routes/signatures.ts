@@ -20,7 +20,7 @@ router.get("/protocols/:id/signatures", async (req, res): Promise<void> => {
 });
 
 router.post("/protocols/:id/signatures", requireAuth, async (req, res): Promise<void> => {
-  const protocolId = parseInt(req.params["id"]);
+  const protocolId = parseInt(String(req.params["id"]));
   if (isNaN(protocolId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const { roleLabel } = req.body as { roleLabel?: string };
@@ -48,8 +48,8 @@ router.post("/protocols/:id/signatures", requireAuth, async (req, res): Promise<
 });
 
 router.delete("/protocols/:id/signatures/:sigId", requireAuth, async (req, res): Promise<void> => {
-  const protocolId = parseInt(req.params["id"]);
-  const sigId = parseInt(req.params["sigId"]);
+  const protocolId = parseInt(String(req.params["id"]));
+  const sigId = parseInt(String(req.params["sigId"]));
   if (isNaN(protocolId) || isNaN(sigId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const user = req.authUser!;
