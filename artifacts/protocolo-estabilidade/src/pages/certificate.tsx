@@ -118,6 +118,9 @@ function CertEditField({
           onChange={e => onChange(e.target.value)}
           rows={2}
           autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
           className={`bg-transparent border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 w-full resize-none print:hidden ${className}`}
         />
         <span className="hidden print:block whitespace-pre-wrap break-words">{value}</span>
@@ -129,7 +132,11 @@ function CertEditField({
       <input
         value={value}
         onChange={e => onChange(e.target.value)}
-        autoComplete="new-password"
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        data-form-type="other"
         style={{ minWidth: 0 }}
         className={`bg-transparent border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 print:hidden w-full min-w-0 ${className}`}
       />
@@ -828,7 +835,7 @@ export default function CertificatePage() {
             />
             <div className="border-l border-gray-300 pl-5" style={{ minWidth: 0, flex: 1 }}>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">{el("companyHeader", "Alphafitus Laboratório Nutracêutico")}</p>
-              <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{ef("docTitle", "Certificado de Análise", { className: "text-xl font-bold uppercase tracking-wide text-gray-800 w-full bg-transparent" })}</h1>
+              <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>Certificado de Análise</h1>
               <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{ef("productName", cert.productName, { multiline: true, className: "text-sm font-semibold text-emerald-700 w-full bg-transparent resize-none" })}</p>
             </div>
           </div>
