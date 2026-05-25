@@ -780,8 +780,8 @@ export default function CertificatePage() {
             />
             <div className="border-l border-gray-300 pl-5" style={{ minWidth: 0, flex: 1 }}>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Alphafitus Laboratório Nutracêutico</p>
-              <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>Certificado de Análise</h1>
-              <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{ef("productName", cert.productName, { multiline: true, className: "text-sm font-semibold text-emerald-700 w-full bg-transparent resize-none" })}</p>
+              <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800">Certificado de Análise</h1>
+              <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug">{cert.productName}</p>
             </div>
           </div>
           {/* Cert info */}
