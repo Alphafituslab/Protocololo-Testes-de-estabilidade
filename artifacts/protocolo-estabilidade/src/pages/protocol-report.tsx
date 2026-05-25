@@ -41,11 +41,11 @@ const STATUS_COLOR: Record<string, string> = {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="report-section mb-6 border border-gray-200 rounded-lg overflow-hidden text-xs">
-      <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
+    <div className="report-section mb-6 border border-gray-200 rounded-lg overflow-hidden print:overflow-visible print:rounded-none text-xs">
+      <div className="bg-gray-100 border-b border-gray-200 px-4 py-2 print:bg-white">
         <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{title}</h2>
       </div>
-      <div className="px-4 py-3">{children}</div>
+      <div className="px-4 py-3 overflow-visible">{children}</div>
     </div>
   );
 }
@@ -279,7 +279,7 @@ export default function ProtocolReportPage() {
           {/* ── 5. Resultados das Análises ────────────────────────────── */}
           <Section title="5. Resultados das Análises">
             {parameters.length > 0 && lots.length > 0 ? (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto print:overflow-visible">
                 <table className="w-full text-xs border-collapse">
                   <thead>
                     <tr className="bg-gray-50">
@@ -555,10 +555,26 @@ export default function ProtocolReportPage() {
             page-break-inside: avoid;
           }
 
-          /* ── Section blocks try to stay together ─────────────────────────── */
+          /* ── Section blocks: visible + no clipping ────────────────────────── */
           .report-section {
             break-inside: avoid;
             page-break-inside: avoid;
+            overflow: visible !important;
+            border-radius: 0 !important;
+          }
+
+          /* ── Unclip any overflow containers ──────────────────────────────── */
+          .overflow-x-auto,
+          .overflow-hidden,
+          .overflow-auto {
+            overflow: visible !important;
+          }
+
+          /* ── Tables: full width, no clipping ─────────────────────────────── */
+          table {
+            width: 100% !important;
+            overflow: visible !important;
+            table-layout: auto !important;
           }
         }
       `}</style>

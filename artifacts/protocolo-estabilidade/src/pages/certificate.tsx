@@ -260,23 +260,12 @@ export default function CertificatePage() {
       let raw = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}") as Record<string, string>;
       let dirty = false;
 
-      // ── First-time migration from v1 key ──────────────────────────────────
-      // If v2 is empty and v1 exists, copy over ONLY safe (non-corrupted) fields.
-      if (Object.keys(raw).length === 0) {
-        const oldStr = localStorage.getItem(CERT_EDITS_KEY_OLD);
-        if (oldStr) {
-          try {
-            const old = JSON.parse(oldStr) as Record<string, string>;
-            for (const [k, v] of Object.entries(old)) {
-              if (k.startsWith("lbl_") || ALWAYS_CLEAR_KEYS.has(k)) continue;
-              raw[k] = v;
-              dirty = true;
-            }
-          } catch { /* ignore */ }
-          // Remove old key regardless of whether migration succeeded
-          try { localStorage.removeItem(CERT_EDITS_KEY_OLD); } catch { /* ignore */ }
-        }
-      }
+      // ── First-time v1 cleanup ─────────────────────────────────────────────
+      // Delete the old v1 key entirely — do NOT migrate any fields.
+      // Old data may contain corrupted values (e.g. productName overridden with
+      // wrong text). Starting v2 fresh ensures the page always shows the correct
+      // database values on first load. Users can re-enter any desired overrides.
+      try { localStorage.removeItem(CERT_EDITS_KEY_OLD); } catch { /* ignore */ }
 
       // ── Always strip any stale bad keys even from v2 data ─────────────────
       ALWAYS_CLEAR_KEYS.forEach(k => { if (k in raw) { delete raw[k]; dirty = true; } });
