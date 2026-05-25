@@ -247,19 +247,42 @@ export default function CertificatePage() {
   }> | null>(null);
 
   // ── Cert-level field overrides (all free-text edits by operator) ──────────
-  const CERT_EDITS_KEY = `cert_edits_${id}`;
+  // v2 key — completely separate from the old cert_edits_${id} key so that
+  // any corrupted data (lbl_*, certTitle, docTitle) from older code is never
+  // read again. Safe fields are migrated from the old key on first load.
+  const CERT_EDITS_KEY = `cert_edits_v2_${id}`;
+  const CERT_EDITS_KEY_OLD = `cert_edits_${id}`;
   const CERT_LOCKED_KEY = `cert_locked_${id}`;
-  // Keys that must never persist in localStorage (always cleared on load).
-  const ALWAYS_CLEAR_KEYS = ["certTitle", "docTitle"];
+  // Keys that must never persist (always stripped, even in v2 data).
+  const ALWAYS_CLEAR_KEYS = new Set(["certTitle", "docTitle"]);
   const [certEdits, setCertEditsState] = useState<Record<string, string>>(() => {
     try {
-      const raw = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}") as Record<string, string>;
+      let raw = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}") as Record<string, string>;
       let dirty = false;
+
+      // ── First-time migration from v1 key ──────────────────────────────────
+      // If v2 is empty and v1 exists, copy over ONLY safe (non-corrupted) fields.
+      if (Object.keys(raw).length === 0) {
+        const oldStr = localStorage.getItem(CERT_EDITS_KEY_OLD);
+        if (oldStr) {
+          try {
+            const old = JSON.parse(oldStr) as Record<string, string>;
+            for (const [k, v] of Object.entries(old)) {
+              if (k.startsWith("lbl_") || ALWAYS_CLEAR_KEYS.has(k)) continue;
+              raw[k] = v;
+              dirty = true;
+            }
+          } catch { /* ignore */ }
+          // Remove old key regardless of whether migration succeeded
+          try { localStorage.removeItem(CERT_EDITS_KEY_OLD); } catch { /* ignore */ }
+        }
+      }
+
+      // ── Always strip any stale bad keys even from v2 data ─────────────────
       ALWAYS_CLEAR_KEYS.forEach(k => { if (k in raw) { delete raw[k]; dirty = true; } });
-      // Always purge any legacy lbl_* keys — labels are now static text,
-      // never stored in localStorage. Also remove the old migration flag.
       Object.keys(raw).forEach(k => { if (k.startsWith("lbl_")) { delete raw[k]; dirty = true; } });
       try { localStorage.removeItem("cert_lbl_migration_v"); } catch { /* ignore */ }
+
       if (dirty) localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(raw));
       return raw;
     } catch { return {}; }

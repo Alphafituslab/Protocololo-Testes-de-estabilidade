@@ -287,7 +287,40 @@ function Router() {
   );
 }
 
+// ── One-time global localStorage migration ────────────────────────────────────
+// Runs on every page load. Scans ALL cert_edits_* keys and purges any
+// lbl_*, certTitle, docTitle fields that older versions of the app stored.
+// This guarantees that even if the browser is running a cached old JS bundle,
+// the bad values are cleaned before the certificate can display them.
+function useGlobalLocalStorageMigration() {
+  useEffect(() => {
+    try {
+      const BAD_KEYS = new Set(["certTitle", "docTitle"]);
+      const keysToScan: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("cert_edits_")) keysToScan.push(k);
+      }
+      for (const storeKey of keysToScan) {
+        try {
+          const obj = JSON.parse(localStorage.getItem(storeKey) ?? "{}") as Record<string, string>;
+          let dirty = false;
+          for (const field of Object.keys(obj)) {
+            if (field.startsWith("lbl_") || BAD_KEYS.has(field)) {
+              delete obj[field];
+              dirty = true;
+            }
+          }
+          if (dirty) localStorage.setItem(storeKey, JSON.stringify(obj));
+        } catch { /* skip malformed entry */ }
+      }
+      try { localStorage.removeItem("cert_lbl_migration_v"); } catch { /* ignore */ }
+    } catch { /* ignore */ }
+  }, []);
+}
+
 function App() {
+  useGlobalLocalStorageMigration();
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
