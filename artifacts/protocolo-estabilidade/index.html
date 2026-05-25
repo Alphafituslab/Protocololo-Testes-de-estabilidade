@@ -12,6 +12,72 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!--
+      VERSION-GATED CACHE BUSTER — runs before React loads.
+      When the browser fetches new HTML (due to deployment), this script
+      detects a version mismatch, purges corrupted localStorage data that
+      old JavaScript bundles stored, and forces a fresh navigation so the
+      browser discards any cached JS bundle and loads the current one.
+    -->
+    <script>
+      (function () {
+        var APP_VER = "20260525-006";
+        var VER_KEY = "__alpha_app_ver";
+        try {
+          var stored = localStorage.getItem(VER_KEY);
+          if (stored === APP_VER) return; /* already current — nothing to do */
+
+          /* ── Purge all legacy cert_edits_v1 / cert_edits_v2 keys ── */
+          var toRemove = [];
+          for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (!k) continue;
+            /* Keep only cert_edits_v3_* — delete everything else */
+            if (k.startsWith("cert_edits") && k.indexOf("cert_edits_v3_") !== 0) {
+              toRemove.push(k);
+            }
+          }
+          for (var r = 0; r < toRemove.length; r++) {
+            try { localStorage.removeItem(toRemove[r]); } catch (e) {}
+          }
+
+          /* ── In v3 keys: strip certTitle / docTitle (always invalid) ── */
+          var bad = ["certTitle", "docTitle"];
+          for (var j = 0; j < localStorage.length; j++) {
+            var lk = localStorage.key(j);
+            if (!lk || lk.indexOf("cert_edits_v3_") !== 0) continue;
+            try {
+              var obj = JSON.parse(localStorage.getItem(lk) || "{}");
+              var dirty = false;
+              for (var b = 0; b < bad.length; b++) {
+                if (bad[b] in obj) { delete obj[bad[b]]; dirty = true; }
+              }
+              /* Also purge any lbl_* keys */
+              var keys = Object.keys(obj);
+              for (var f = 0; f < keys.length; f++) {
+                if (keys[f].indexOf("lbl_") === 0) { delete obj[keys[f]]; dirty = true; }
+              }
+              if (dirty) localStorage.setItem(lk, JSON.stringify(obj));
+            } catch (e) {}
+          }
+
+          /* ── Mark as current version ── */
+          localStorage.setItem(VER_KEY, APP_VER);
+
+          /* ── Force a fresh navigation (bypasses JS bundle cache) ──
+             Only do this if the user was on an older version (not first visit).
+             We append a cache-busting query param so the browser doesn't
+             serve the old cached response for the current URL.            */
+          if (stored !== null) {
+            var url = location.pathname + location.search;
+            /* Strip any previous _v param */
+            var sep = url.indexOf("?") === -1 ? "?" : "&";
+            location.replace(url + sep + "_v=" + APP_VER);
+          }
+        } catch (e) { /* ignore any storage/navigation errors */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
