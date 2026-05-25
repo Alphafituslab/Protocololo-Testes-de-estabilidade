@@ -8,6 +8,7 @@ import ProtocolsList from "./pages/protocols-list";
 import ProtocolForm from "./pages/protocol-form";
 import ProtocolDetail from "./pages/protocol-detail";
 import CertificatePage from "./pages/certificate";
+import ProtocolReportPage from "./pages/protocol-report";
 import LoginPage from "./pages/login";
 import UsersPage from "./pages/users";
 import { AuthProvider } from "@/contexts/auth-context";
@@ -265,6 +266,7 @@ const DashboardRoute = () => <ProtectedRoute component={Dashboard} />;
 const ProtocolsListRoute = () => <ProtectedRoute component={ProtocolsList} />;
 const ProtocolFormRoute = () => <ProtectedRoute component={ProtocolForm} />;
 const CertificateRoute = () => <ProtectedDetailRoute component={CertificatePage} />;
+const ProtocolReportRoute = () => <ProtectedDetailRoute component={ProtocolReportPage} />;
 const ProtocolDetailRoute = () => <ProtectedRoute component={ProtocolDetail} />;
 const UsersRoute = () => <ProtectedRoute component={UsersPage} />;
 
@@ -277,6 +279,7 @@ function Router() {
       <Route path="/protocols/new" component={ProtocolFormRoute} />
       <Route path="/protocols/:id/edit" component={ProtocolFormRoute} />
       <Route path="/protocols/:id/certificate" component={CertificateRoute} />
+      <Route path="/protocols/:id/report" component={ProtocolReportRoute} />
       <Route path="/protocols/:id" component={ProtocolDetailRoute} />
       <Route path="/users" component={UsersRoute} />
       <Route component={NotFound} />

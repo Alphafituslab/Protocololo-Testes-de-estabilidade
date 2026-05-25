@@ -256,24 +256,15 @@ export default function CertificatePage() {
       const raw = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}") as Record<string, string>;
       let dirty = false;
       ALWAYS_CLEAR_KEYS.forEach(k => { if (k in raw) { delete raw[k]; dirty = true; } });
-      // Migration: wipe ALL lbl_* keys previously saved to localStorage.
-      // Labels are now session-only (labelOverrides state) so any stored lbl_*
-      // values from older versions should be purged.
-      const MIG_KEY = "cert_lbl_migration_v";
-      if (localStorage.getItem(MIG_KEY) !== "6") {
-        Object.keys(raw).forEach(k => { if (k.startsWith("lbl_")) { delete raw[k]; dirty = true; } });
-        try { localStorage.setItem(MIG_KEY, "6"); } catch { /* ignore */ }
-      }
+      // Always purge any legacy lbl_* keys — labels are now static text,
+      // never stored in localStorage. Also remove the old migration flag.
+      Object.keys(raw).forEach(k => { if (k.startsWith("lbl_")) { delete raw[k]; dirty = true; } });
+      try { localStorage.removeItem("cert_lbl_migration_v"); } catch { /* ignore */ }
       if (dirty) localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(raw));
       return raw;
     } catch { return {}; }
   });
 
-  // Session-only label overrides — intentionally NOT backed by localStorage.
-  // Labels (el()) reset to code defaults on every page load; the user may still
-  // change them during the session for a one-off print, but stale values can
-  // never survive a reload and corrupt future PDFs.
-  const [labelOverrides, setLabelOverrides] = useState<Record<string, string>>({});
   const [certLocked, setCertLockedState] = useState<boolean>(() => {
     try { return localStorage.getItem(`cert_locked_${id}`) === "1"; } catch { return false; }
   });
@@ -315,37 +306,6 @@ export default function CertificatePage() {
     setCertLockedState(false);
   };
 
-  // Resets all session-only label overrides back to code defaults and also
-  // scrubs any leftover lbl_* entries from older localStorage versions.
-  const cleanAllProtocolsCertEdits = () => {
-    try {
-      // Clear session label overrides immediately
-      setLabelOverrides({});
-      // Scrub any legacy lbl_* keys still in localStorage across all protocols
-      let count = 0;
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (!k?.startsWith("cert_edits_")) continue;
-        try {
-          const obj = JSON.parse(localStorage.getItem(k) ?? "{}") as Record<string, string>;
-          const before = JSON.stringify(obj);
-          ALWAYS_CLEAR_KEYS.forEach(stale => { delete obj[stale]; });
-          Object.keys(obj).forEach(ek => { if (ek.startsWith("lbl_")) delete obj[ek]; });
-          if (JSON.stringify(obj) !== before) {
-            localStorage.setItem(k, JSON.stringify(obj));
-            count++;
-          }
-        } catch { /* malformed entry — skip */ }
-      }
-      try { localStorage.removeItem("cert_lbl_migration_v"); } catch { /* ignore */ }
-      try {
-        const updated = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}");
-        setCertEditsState(updated);
-      } catch { /* ignore */ }
-      window.alert(`Rótulos redefinidos. ${count} protocolo(s) atualizados.`);
-    } catch { /* ignore */ }
-  };
-
   // Helper: renders a CertEditField when unlocked, plain text when locked
   const ef = (key: string, fallback: string | null | undefined, opts?: { multiline?: boolean; className?: string }) => {
     const val = getEdit(key, fallback);
@@ -353,26 +313,6 @@ export default function CertificatePage() {
     return <CertEditField value={val} onChange={v => setCertEdit(key, v)} multiline={opts?.multiline} className={opts?.className ?? "w-full"} />;
   };
 
-  // Helper: renders an editable row label when unlocked, plain text when locked.
-  // Label overrides are session-only (labelOverrides state) — they are NEVER
-  // saved to localStorage so stale values can never corrupt future prints.
-  const el = (key: string, defaultLabel: string) => {
-    const val = labelOverrides[key] ?? defaultLabel;
-    if (certLocked) return <>{val}</>;
-    return (
-      <>
-        <input
-          value={val}
-          onChange={e => setLabelOverrides(prev => ({ ...prev, [key]: e.target.value }))}
-          autoComplete="new-password"
-          style={{ minWidth: 0 }}
-          className="bg-transparent border-b border-dashed border-blue-300 focus:outline-none focus:border-blue-500 text-gray-500 w-full min-w-0 print:hidden"
-          title="Clique para editar o nome deste campo"
-        />
-        <span className="hidden print:inline break-words">{val}</span>
-      </>
-    );
-  };
 
   // Signature name-matching helpers (used in JSX to route sigs to the right column)
   const normSigName = (s: string) =>
@@ -607,13 +547,6 @@ export default function CertificatePage() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => { if (window.confirm('Redefinir todos os rotulos de secao para os textos padrao? Somente os rotulos de secao sao redefinidos - seus dados e valores sao mantidos.')) cleanAllProtocolsCertEdits(); }}
-                className="text-xs px-3 py-1.5 rounded border border-orange-200 text-orange-700 hover:bg-orange-50 transition-colors font-medium"
-              >
-                🔄 Redefinir rótulos de seção
-              </button>
-              <button
-                type="button"
                 onClick={() => { if (window.confirm("Restaurar todos os campos do certificado para os valores originais? As edições manuais serão perdidas.")) clearCertEdits(); }}
                 className="text-xs px-3 py-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
               >
@@ -834,7 +767,7 @@ export default function CertificatePage() {
               style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.08))" }}
             />
             <div className="border-l border-gray-300 pl-5" style={{ minWidth: 0, flex: 1 }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">{el("companyHeader", "Alphafitus Laboratório Nutracêutico")}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Alphafitus Laboratório Nutracêutico</p>
               <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>Certificado de Análise</h1>
               <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug" style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{ef("productName", cert.productName, { multiline: true, className: "text-sm font-semibold text-emerald-700 w-full bg-transparent resize-none" })}</p>
             </div>
@@ -879,43 +812,43 @@ export default function CertificatePage() {
               </colgroup>
               <tbody>
                 <tr>
-                  <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">{el("productName", "Produto:")}</td>
+                  <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Produto:</td>
                   <td className="font-medium align-top pb-1 text-justify">{ef("productName", cert.productName, { multiline: true, className: "w-full font-medium text-sm text-justify" })}</td>
                 </tr>
                 <tr>
-                  <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">{el("presentation", "Tipo do Produto:")}</td>
+                  <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Tipo do Produto:</td>
                   <td className="align-top pb-1 text-justify">{ef("presentation", cert.presentation)}</td>
                 </tr>
                 {!!getEdit("packagingType", cert.packagingType) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">{el("packagingType", "Tipo de Pote:")}</td>
+                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Tipo de Pote:</td>
                     <td className="align-top pb-1 text-justify">{ef("packagingType", cert.packagingType)}</td>
                   </tr>
                 )}
                 {!!getEdit("activeIngredients", cert.activeIngredients) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">{el("activeIngredients", "Ingredientes Ativos:")}</td>
+                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Ingredientes Ativos:</td>
                     <td className="align-top pb-1 text-justify">{ef("activeIngredients", cert.activeIngredients, { multiline: true })}</td>
                   </tr>
                 )}
                 {!!getEdit("excipients", cert.excipients) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">{el("excipients", "Excipientes:")}</td>
+                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Excipientes:</td>
                     <td className="align-top pb-1 text-justify">{ef("excipients", cert.excipients, { multiline: true })}</td>
                   </tr>
                 )}
                 {!!getEdit("capsuleComposition", cert.capsuleComposition) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">{el("capsuleComposition", "Composição da Cápsula:")}</td>
+                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Composição da Cápsula:</td>
                     <td className="align-top pb-1 text-justify">{ef("capsuleComposition", cert.capsuleComposition, { multiline: true })}</td>
                   </tr>
                 )}
                 <tr>
-                  <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">{el("validityMonths", "Validade:")}</td>
+                  <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Validade:</td>
                   <td className="font-semibold align-top pb-1">{ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}</td>
                 </tr>
                 <tr>
-                  <td className="text-gray-500 align-top pr-4 whitespace-nowrap font-medium">{el("lotNumbers", "N° do Lote:")}</td>
+                  <td className="text-gray-500 align-top pr-4 whitespace-nowrap font-medium">N° do Lote:</td>
                   <td className="align-top">
                     <div className="space-y-0.5">
                       {cert.lotNumbers.map((lot, i) => (
@@ -936,19 +869,19 @@ export default function CertificatePage() {
           </div>
           <div className="grid grid-cols-4 divide-x divide-gray-200">
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{el("hdr_storageTemp", "Temperatura de Armazenamento")}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Temperatura de Armazenamento</p>
               <p className="font-semibold text-gray-800">{ef("storageTemp", cert.storageTemp ?? "40°C ± 2°C")}</p>
             </div>
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{el("hdr_humidity", "Umidade Relativa")}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Umidade Relativa</p>
               <p className="font-semibold text-gray-800">{ef("storageHumidity", cert.storageHumidity ?? "75% UR ± 5% UR")}</p>
             </div>
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{el("hdr_studyPeriod", "Período do Estudo")}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Período do Estudo</p>
               <p className="font-semibold text-gray-800">{ef("studyPeriodMonths", cert.studyPeriodMonths != null ? String(cert.studyPeriodMonths) + " meses" : "—")}</p>
             </div>
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{el("hdr_testIntervals", "Intervalos de Teste")}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Intervalos de Teste</p>
               <p className="font-semibold text-gray-800">{ef("testIntervals", cert.testIntervals ?? "—")}</p>
             </div>
           </div>
@@ -962,19 +895,19 @@ export default function CertificatePage() {
             </div>
             <div className="px-4 py-3 grid grid-cols-2 gap-x-8 gap-y-2">
               <div className="space-y-0.5">
-                <div className="text-gray-500">{el("envlbl_amostrTemp", "Amostragem — Temperatura:")}</div>
+                <div className="text-gray-500">Amostragem — Temperatura:</div>
                 <CertEditField value={tempAmostragem} onChange={setTempAmostragem} className="w-20 text-xs" />
               </div>
               <div className="space-y-0.5">
-                <div className="text-gray-500">{el("envlbl_amostrUmid", "Amostragem — Umidade:")}</div>
+                <div className="text-gray-500">Amostragem — Umidade:</div>
                 <CertEditField value={umidAmostragem} onChange={setUmidAmostragem} className="w-20 text-xs" />
               </div>
               <div className="space-y-0.5">
-                <div className="text-gray-500">{el("envlbl_recebTemp", "Recebimento — Temperatura:")}</div>
+                <div className="text-gray-500">Recebimento — Temperatura:</div>
                 <CertEditField value={tempRecebimento} onChange={setTempRecebimento} className="w-20 text-xs" />
               </div>
               <div className="space-y-0.5">
-                <div className="text-gray-500">{el("envlbl_recebUmid", "Recebimento — Umidade:")}</div>
+                <div className="text-gray-500">Recebimento — Umidade:</div>
                 <CertEditField value={umidRecebimento} onChange={setUmidRecebimento} className="w-20 text-xs" />
               </div>
             </div>
@@ -1073,6 +1006,7 @@ export default function CertificatePage() {
             <div className="px-4 py-3 text-gray-700 space-y-2">
               <p>{ef("textoLotes1", "Os lotes piloto foram produzidos em datas distintas, sob condições equivalentes de fabricação, visando assegurar a independência entre os lotes, a rastreabilidade do estudo e a minimização do risco de desvios operacionais ou interferências de processo.", { multiline: true })}</p>
               <p>{ef("textoLotes2", "Alimento está sendo testado em embalagem equivalente e sistema de fechamento nos quais será comercializado.", { multiline: true })}</p>
+              <p>{ef("textoLotes3", "Os resultados apresentados neste certificado referem-se à média dos valores obtidos nos lotes piloto avaliados.", { multiline: true })}</p>
             </div>
           </div>
         )}
@@ -1405,7 +1339,7 @@ export default function CertificatePage() {
                         <SignBtn preRole="Responsável Técnico" />
                       )}
                       <p className="font-semibold text-sm">{ef("issuedBy", cert.issuedBy)}</p>
-                      <p className="text-xs text-gray-500">{el("label_issuedByRole", "Responsável Técnico")}</p>
+                      <p className="text-xs text-gray-500">Responsável Técnico</p>
                       <p className="text-xs text-gray-500">{ef("issuedByEmail", cert.issuedByEmail)}</p>
                     </div>
 
@@ -1419,7 +1353,7 @@ export default function CertificatePage() {
                         <SignBtn preRole="Analista Sênior" />
                       )}
                       <p className="font-semibold text-sm">{ef("seniorAnalyst", cert.seniorAnalyst)}</p>
-                      <p className="text-xs text-gray-500">{el("label_seniorAnalystRole", "Analista Sênior / Representante Legal")}</p>
+                      <p className="text-xs text-gray-500">Analista Sênior / Representante Legal</p>
                       <p className="text-xs text-gray-500">{ef("seniorAnalystEmail", cert.seniorAnalystEmail)}</p>
                     </div>
                   </div>

@@ -2540,11 +2540,18 @@ export default function ProtocolDetail() {
               );
             }
             return (
-              <Link href={`/protocols/${id}/certificate`}>
-                <Button variant="outline" size="sm" data-testid="button-view-certificate">
-                  <Award className="h-4 w-4 mr-1" /> Certificado
-                </Button>
-              </Link>
+              <>
+                <Link href={`/protocols/${id}/certificate`}>
+                  <Button variant="outline" size="sm" data-testid="button-view-certificate">
+                    <Award className="h-4 w-4 mr-1" /> Certificado
+                  </Button>
+                </Link>
+                <Link href={`/protocols/${id}/report`}>
+                  <Button variant="outline" size="sm">
+                    <FileText className="h-4 w-4 mr-1" /> Relatório ANVISA
+                  </Button>
+                </Link>
+              </>
             );
           })()}
           {/* Edit — always accessible */}
