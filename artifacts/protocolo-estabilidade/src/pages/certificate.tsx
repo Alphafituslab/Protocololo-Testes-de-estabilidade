@@ -781,7 +781,7 @@ export default function CertificatePage() {
             <div className="border-l border-gray-300 pl-5" style={{ minWidth: 0, flex: 1 }}>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Alphafitus Laboratório Nutracêutico</p>
               <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800">Certificado de Análise</h1>
-              <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug">{cert.productName}</p>
+              <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug">{ef("productName", cert.productName, { multiline: true, className: "text-sm font-semibold text-emerald-700 w-full bg-transparent resize-none leading-snug" })}</p>
             </div>
           </div>
           {/* Cert info */}
@@ -825,7 +825,7 @@ export default function CertificatePage() {
               <tbody>
                 <tr>
                   <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Produto:</td>
-                  <td className="font-medium align-top pb-1 text-justify">{cert.productName}</td>
+                  <td className="font-medium align-top pb-1 text-justify">{ef("productName", cert.productName, { multiline: true, className: "w-full font-medium text-sm text-justify bg-transparent resize-none" })}</td>
                 </tr>
                 <tr>
                   <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Tipo do Produto:</td>
