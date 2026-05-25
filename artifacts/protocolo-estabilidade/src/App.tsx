@@ -295,9 +295,9 @@ function Router() {
 function useGlobalLocalStorageMigration() {
   useEffect(() => {
     try {
-      // certTitle / docTitle are always invalid (legacy corruption).
-      // productName is now intentionally editable via ef() — do NOT purge it.
-      const BAD_KEYS = new Set(["certTitle", "docTitle"]);
+      // docTitle is always invalid (legacy corruption).
+      // certTitle and productName are now intentionally editable — do NOT purge.
+      const BAD_KEYS = new Set(["docTitle"]);
       const keysToScan: string[] = [];
       const keysToDelete: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {

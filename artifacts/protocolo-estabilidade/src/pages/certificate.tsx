@@ -253,8 +253,9 @@ export default function CertificatePage() {
   const CERT_EDITS_KEY = `cert_edits_v3_${id}`;
   const CERT_EDITS_KEY_OLD = `cert_edits_${id}`;
   const CERT_LOCKED_KEY = `cert_locked_${id}`;
-  // Keys that must never persist (always stripped, even in v2 data).
-  const ALWAYS_CLEAR_KEYS = new Set(["certTitle", "docTitle"]);
+  // Keys that must never persist (always stripped).
+  // NOTE: "certTitle" is intentionally editable — do NOT add it here.
+  const ALWAYS_CLEAR_KEYS = new Set(["docTitle"]);
   const [certEdits, setCertEditsState] = useState<Record<string, string>>(() => {
     try {
       let raw = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}") as Record<string, string>;
@@ -780,7 +781,9 @@ export default function CertificatePage() {
             />
             <div className="border-l border-gray-300 pl-5" style={{ minWidth: 0, flex: 1 }}>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Alphafitus Laboratório Nutracêutico</p>
-              <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800">Certificado de Análise</h1>
+              <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800 leading-tight">
+                {ef("certTitle", "Certificado de Análise", { className: "w-full bg-transparent resize-none text-xl font-bold uppercase tracking-wide text-gray-800 leading-tight" })}
+              </h1>
               <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug">{ef("productName", cert.productName, { multiline: true, className: "text-sm font-semibold text-emerald-700 w-full bg-transparent resize-none leading-snug" })}</p>
             </div>
           </div>
