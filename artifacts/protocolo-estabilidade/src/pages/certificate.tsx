@@ -250,7 +250,7 @@ export default function CertificatePage() {
   // v2 key — completely separate from the old cert_edits_${id} key so that
   // any corrupted data (lbl_*, certTitle, docTitle) from older code is never
   // read again. Safe fields are migrated from the old key on first load.
-  const CERT_EDITS_KEY = `cert_edits_v2_${id}`;
+  const CERT_EDITS_KEY = `cert_edits_v3_${id}`;
   const CERT_EDITS_KEY_OLD = `cert_edits_${id}`;
   const CERT_LOCKED_KEY = `cert_locked_${id}`;
   // Keys that must never persist (always stripped, even in v2 data).
@@ -825,7 +825,7 @@ export default function CertificatePage() {
               <tbody>
                 <tr>
                   <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Produto:</td>
-                  <td className="font-medium align-top pb-1 text-justify">{ef("productName", cert.productName, { multiline: true, className: "w-full font-medium text-sm text-justify" })}</td>
+                  <td className="font-medium align-top pb-1 text-justify">{cert.productName}</td>
                 </tr>
                 <tr>
                   <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Tipo do Produto:</td>

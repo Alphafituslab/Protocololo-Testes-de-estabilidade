@@ -295,12 +295,22 @@ function Router() {
 function useGlobalLocalStorageMigration() {
   useEffect(() => {
     try {
-      const BAD_KEYS = new Set(["certTitle", "docTitle"]);
+      // productName was removed from the ef() system — it must never be read
+      // from localStorage. certTitle / docTitle are also always invalid.
+      const BAD_KEYS = new Set(["certTitle", "docTitle", "productName"]);
       const keysToScan: string[] = [];
+      const keysToDelete: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && k.startsWith("cert_edits_")) keysToScan.push(k);
+        if (!k) continue;
+        // Wipe all old v1 and v2 keys entirely — they may have corrupt data.
+        if (k.match(/^cert_edits_(?!v3_)\d+$/) || k.match(/^cert_edits_v2_/)) {
+          keysToDelete.push(k);
+        } else if (k.startsWith("cert_edits_")) {
+          keysToScan.push(k);
+        }
       }
+      keysToDelete.forEach(k => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
       for (const storeKey of keysToScan) {
         try {
           const obj = JSON.parse(localStorage.getItem(storeKey) ?? "{}") as Record<string, string>;
