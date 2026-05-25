@@ -111,8 +111,9 @@
   }
 }
 
-/* Remove browser URL/date headers and footers from all printed pages */
+/* Base @page rule — individual pages (certificate, report) override this
+   with their own <style> blocks which take precedence in the print dialog. */
 @page {
-  size: A4;
-  margin: 0;
+  size: A4 portrait;
+  margin: 15mm 18mm;
 }

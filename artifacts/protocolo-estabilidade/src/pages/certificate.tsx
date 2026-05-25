@@ -1568,7 +1568,7 @@ export default function CertificatePage() {
 
       <style>{`
         @page {
-          size: A4;
+          size: A4 portrait;
           margin: 0;
         }
 
@@ -1590,27 +1590,50 @@ export default function CertificatePage() {
           #certificate-document * { visibility: visible !important; }
 
           /* ── Certificate: normal flow, full width, no positioning tricks ─────  */
-          /* Using position:static (normal flow) avoids all containing-block
-             issues that occur with absolute/fixed across different browsers.    */
           #certificate-document {
             position: static !important;
             display: block !important;
             width: 100% !important;
+            max-width: 100% !important;
             margin: 0 !important;
             box-shadow: none !important;
             border: none !important;
-            padding: 15mm 20mm !important;
-            font-size: 10pt !important;
+            border-radius: 0 !important;
+            padding: 14mm 18mm !important;
+            font-size: 9.5pt !important;
             overflow: visible !important;
+            /* Preserve background colours (table headers, coloured cells, etc.) */
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
 
           /* ── Editable field wrappers must not clip their print spans ─────────── */
-          #certificate-document span {
-            overflow: visible !important;
-          }
+          #certificate-document span { overflow: visible !important; }
 
           /* ── Table cells: let their height grow with content ────────────────── */
-          td, th { overflow: visible !important; }
+          td, th {
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          /* ── Keep table rows together — avoid splitting a row across pages ───── */
+          tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          /* ── Section blocks: try to stay together ───────────────────────────── */
+          #certificate-document > div {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          /* ── Audit appendix: always starts on a fresh page ──────────────────── */
+          .audit-appendix-section {
+            page-break-before: always;
+            break-before: page;
+          }
 
           /* Photo appendix always starts on a fresh page */
           .photo-appendix-section {

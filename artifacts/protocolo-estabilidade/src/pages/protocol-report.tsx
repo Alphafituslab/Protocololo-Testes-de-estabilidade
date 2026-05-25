@@ -41,7 +41,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mb-6 border border-gray-200 rounded-lg overflow-hidden text-xs">
+    <div className="report-section mb-6 border border-gray-200 rounded-lg overflow-hidden text-xs">
       <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
         <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{title}</h2>
       </div>
@@ -175,7 +175,7 @@ export default function ProtocolReportPage() {
       {/* ── Document ────────────────────────────────────────────────────── */}
       <div
         id="report-document"
-        className="max-w-4xl mx-auto bg-white my-6 shadow-lg rounded-lg overflow-hidden print:my-0 print:shadow-none print:rounded-none print:max-w-none"
+        className="max-w-4xl mx-auto bg-white my-6 shadow-lg rounded-lg print:my-0 print:shadow-none print:rounded-none print:max-w-none"
       >
         {/* ── Header ──────────────────────────────────────────────────── */}
         <div className="border-b border-gray-200 px-8 py-6 flex items-start gap-6">
@@ -463,7 +463,7 @@ export default function ProtocolReportPage() {
 
           {/* ── 10. Histórico do Protocolo ────────────────────────────── */}
           <Section title="10. Histórico e Rastreabilidade">
-            <AuditTrail protocolId={numId} />
+            <AuditTrail protocolId={numId} printMode />
           </Section>
 
           {/* ── 11. Assinaturas ───────────────────────────────────────── */}
@@ -503,17 +503,62 @@ export default function ProtocolReportPage() {
 
       {/* ── Print CSS ────────────────────────────────────────────────────── */}
       <style>{`
+        @page {
+          size: A4 portrait;
+          margin: 0;
+        }
+
         @media print {
-          @page { margin: 15mm 12mm; size: A4 portrait; }
-          html, body { background: white !important; }
+          /* ── Reset all containers so nothing clips the report ─────────────── */
+          html, body, #root, #root > *, #root > * > * {
+            overflow: visible !important;
+            height: auto !important;
+            min-height: 0 !important;
+            display: block !important;
+            background: white !important;
+          }
+
+          /* ── Hide everything except the report ────────────────────────────── */
+          body > * { display: none !important; }
+          #root { display: block !important; }
           body * { visibility: hidden !important; }
-          #report-document, #report-document * { visibility: visible !important; }
+          #report-document,
+          #report-document * { visibility: visible !important; }
+
+          /* ── Report document: normal flow, full width ─────────────────────── */
           #report-document {
             position: static !important;
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
             margin: 0 !important;
-            padding: 0 !important;
             box-shadow: none !important;
+            border: none !important;
             border-radius: 0 !important;
+            padding: 14mm 18mm !important;
+            font-size: 9pt !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          /* ── Preserve colours in cells ───────────────────────────────────── */
+          td, th {
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          /* ── Avoid splitting table rows across pages ──────────────────────── */
+          tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          /* ── Section blocks try to stay together ─────────────────────────── */
+          .report-section {
+            break-inside: avoid;
+            page-break-inside: avoid;
           }
         }
       `}</style>
