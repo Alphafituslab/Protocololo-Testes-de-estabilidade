@@ -253,9 +253,36 @@ export default function CertificatePage() {
   const CERT_EDITS_KEY = `cert_edits_v3_${id}`;
   const CERT_EDITS_KEY_OLD = `cert_edits_${id}`;
   const CERT_LOCKED_KEY = `cert_locked_${id}`;
-  // Keys that must never persist (always stripped).
-  // NOTE: "certTitle" is intentionally editable — do NOT add it here.
-  const ALWAYS_CLEAR_KEYS = new Set(["docTitle"]);
+  // Keys that must NEVER be loaded from cert_edits (always stripped).
+  // certTitle lives in its own dedicated key (CERT_TITLE_KEY) so it is
+  // completely isolated from any legacy corruption in cert_edits_v3.
+  const ALWAYS_CLEAR_KEYS = new Set(["certTitle", "docTitle"]);
+
+  // ── Dedicated key for the certificate title (completely separate from cert_edits) ──
+  // Using a separate key ensures old corrupted values (e.g. "BIS DE ANALYSE")
+  // stored in cert_edits_v3 can never contaminate the displayed title.
+  const CERT_TITLE_KEY = `cert_custom_title_${id}`;
+  const [certCustomTitle, setCertCustomTitleState] = useState<string>(() => {
+    try {
+      const v = localStorage.getItem(CERT_TITLE_KEY) ?? "";
+      // Purge obviously corrupted values written by old code
+      if (v === "BIS DE ANALYSE" || v === "BIS DE ANALISE" || v === "CERTIFICADO DE ANÁLISE" || v === "Certificado de Análise") {
+        localStorage.removeItem(CERT_TITLE_KEY);
+        return "";
+      }
+      return v;
+    } catch { return ""; }
+  });
+  const setCertCustomTitle = (v: string) => {
+    setCertCustomTitleState(v);
+    try {
+      if (v.trim() === "" || v.trim() === "Certificado de Análise") {
+        localStorage.removeItem(CERT_TITLE_KEY);
+      } else {
+        localStorage.setItem(CERT_TITLE_KEY, v);
+      }
+    } catch { /* ignore */ }
+  };
   const [certEdits, setCertEditsState] = useState<Record<string, string>>(() => {
     try {
       let raw = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}") as Record<string, string>;
@@ -782,7 +809,14 @@ export default function CertificatePage() {
             <div className="border-l border-gray-300 pl-5" style={{ minWidth: 0, flex: 1 }}>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Alphafitus Laboratório Nutracêutico</p>
               <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800 leading-tight">
-                {ef("certTitle", "Certificado de Análise", { className: "w-full bg-transparent resize-none text-xl font-bold uppercase tracking-wide text-gray-800 leading-tight" })}
+                {certLocked
+                  ? <span>{certCustomTitle.trim() || "Certificado de Análise"}</span>
+                  : <CertEditField
+                      value={certCustomTitle.trim() || "Certificado de Análise"}
+                      onChange={setCertCustomTitle}
+                      className="w-full bg-transparent resize-none text-xl font-bold uppercase tracking-wide text-gray-800 leading-tight"
+                    />
+                }
               </h1>
               <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug">{ef("productName", cert.productName, { multiline: true, className: "text-sm font-semibold text-emerald-700 w-full bg-transparent resize-none leading-snug" })}</p>
             </div>

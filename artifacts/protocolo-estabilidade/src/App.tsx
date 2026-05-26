@@ -295,9 +295,9 @@ function Router() {
 function useGlobalLocalStorageMigration() {
   useEffect(() => {
     try {
-      // docTitle is always invalid (legacy corruption).
-      // certTitle and productName are now intentionally editable — do NOT purge.
-      const BAD_KEYS = new Set(["docTitle"]);
+      // certTitle and docTitle are always invalid inside cert_edits_v3 —
+      // certTitle now lives in its own dedicated cert_custom_title_${id} key.
+      const BAD_KEYS = new Set(["certTitle", "docTitle"]);
       const keysToScan: string[] = [];
       const keysToDelete: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
