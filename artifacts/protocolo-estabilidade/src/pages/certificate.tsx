@@ -455,6 +455,38 @@ export default function CertificatePage() {
     setCertLockedState(false);
   };
 
+  /** Wipes ALL cert localStorage for this protocol and reloads from the database.
+   *  Use when corrupted autofill values (e.g. "BIS DE ANALISE", "GENT DA CAPSULA")
+   *  are stuck in localStorage and can't be cleared by the nuclear scan. */
+  const resetAllCertData = () => {
+    if (!window.confirm(
+      "Isso vai apagar todos os dados editados localmente deste certificado (título, campos personalizados, bloqueio) e recarregar os valores originais do banco de dados.\n\nContinuar?"
+    )) return;
+    try {
+      const prefix = `cert_`;
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (
+          k === CERT_TITLE_KEY ||
+          k === CERT_EDITS_KEY ||
+          k === CERT_LOCKED_KEY ||
+          k.startsWith(`cert_overrides_${id}`) ||
+          k.startsWith(`cert_edits_v3_${id}`) ||
+          k.startsWith(`cert_custom_title_${id}`) ||
+          k.startsWith(`cert_locked_${id}`) ||
+          k.startsWith(`param_methods_${id}`) ||
+          k.startsWith(`param_methods_citations_${id}`)
+        )) keysToRemove.push(k);
+      }
+      keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
+    } catch { /* ignore */ }
+    // Reset React state
+    setCertCustomTitleState("");
+    setCertEditsState({});
+    setCertLockedState(false);
+  };
+
   // Helper: renders a CertEditField when unlocked, plain text when locked
   const ef = (key: string, fallback: string | null | undefined, opts?: { multiline?: boolean; className?: string }) => {
     const val = getEdit(key, fallback);
@@ -681,6 +713,14 @@ export default function CertificatePage() {
             <Settings2 className="h-4 w-4 mr-2" />
             Configurar Impressão
             {showSettings ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
+          </Button>
+          <Button
+            variant="outline" size="sm"
+            onClick={resetAllCertData}
+            className="border-red-200 text-red-600 hover:bg-red-50"
+            title="Limpa dados corrompidos do cache local e recarrega os valores do banco"
+          >
+            <Trash2 className="h-4 w-4 mr-2" /> Limpar cache
           </Button>
           <Button onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-2" /> Imprimir / Salvar PDF

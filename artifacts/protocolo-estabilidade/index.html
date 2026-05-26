@@ -30,17 +30,41 @@
     <script>
       (function () {
         var BAD_FIELDS = ["certTitle", "docTitle"];
-        var APP_VER   = "20260526-003";
-        /* Nuclear scan: remove any localStorage value that contains "BIS DE ANAL"
-           (case-insensitive). This catches old corrupted data regardless of key name. */
+        var APP_VER   = "20260526-004";
+
+        /* ── Nuclear scan ────────────────────────────────────────────────────
+           Known autofill-corrupted substrings (case-insensitive).
+           For cert_edits_v3_* we scan each FIELD VALUE individually so that
+           only the bad field is removed — valid edits are preserved. */
+        var BAD_SUBSTRS = ["BIS DE ANAL", "GENT DA CAPSULA"];
+        function containsBad(str) {
+          var up = (str || "").toUpperCase();
+          for (var b = 0; b < BAD_SUBSTRS.length; b++) {
+            if (up.indexOf(BAD_SUBSTRS[b]) !== -1) return true;
+          }
+          return false;
+        }
         try {
-          var BAD_SUBSTR = "BIS DE ANAL";
           var nuclearDelete = [];
           for (var n = 0; n < localStorage.length; n++) {
             var nk = localStorage.key(n);
             if (!nk) continue;
             var nv = localStorage.getItem(nk) || "";
-            if (nv.toUpperCase().indexOf(BAD_SUBSTR) !== -1) {
+            if (nk.indexOf("cert_edits_v3_") === 0) {
+              /* Parse JSON and purge only corrupted individual field values */
+              try {
+                var obj = JSON.parse(nv);
+                var dirty = false;
+                var objKeys = Object.keys(obj);
+                for (var ok = 0; ok < objKeys.length; ok++) {
+                  if (typeof obj[objKeys[ok]] === "string" && containsBad(obj[objKeys[ok]])) {
+                    delete obj[objKeys[ok]]; dirty = true;
+                  }
+                }
+                if (dirty) localStorage.setItem(nk, JSON.stringify(obj));
+              } catch(e) {}
+            } else if (containsBad(nv)) {
+              /* For other keys (e.g. cert_custom_title_*), delete if value is bad */
               nuclearDelete.push(nk);
             }
           }
