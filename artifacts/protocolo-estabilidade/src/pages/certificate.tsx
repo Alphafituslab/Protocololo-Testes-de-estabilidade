@@ -981,14 +981,14 @@ export default function CertificatePage() {
             </div>
           </div>
           {/* Cert info */}
-          <div className="text-right text-sm space-y-2 flex-shrink-0 w-56">
-            <div className="bg-gray-50 border border-gray-200 rounded px-3 py-2">
-              <span className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider block leading-tight mb-1">Número do Certificado de Análise</span>
-              <span className="font-bold tracking-wide text-base">{ef("certNumber", cert.certNumber)}</span>
+          <div className="text-right text-sm space-y-2 flex-shrink-0">
+            <div className="bg-gray-50 border border-gray-200 rounded px-3 py-2 whitespace-nowrap">
+              <span className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider block leading-tight mb-1">Nº do Certificado de Análise</span>
+              <span className="font-bold tracking-wide text-base whitespace-nowrap">{ef("certNumber", cert.certNumber)}</span>
             </div>
-            <div>
+            <div className="whitespace-nowrap">
               <span className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider block">Data de Emissão</span>
-              <span className="font-medium text-gray-700">{ef("issueDate", cert.issueDate)}</span>
+              <span className="font-medium text-gray-700 whitespace-nowrap">{ef("issueDate", cert.issueDate)}</span>
             </div>
           </div>
         </div>
