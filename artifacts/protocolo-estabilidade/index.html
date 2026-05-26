@@ -30,15 +30,21 @@
     <script>
       (function () {
         var BAD_FIELDS = ["certTitle", "docTitle"];
-        var APP_VER   = "20260526-004";
+        var APP_VER   = "20260526-005";
 
         /* ── Nuclear scan ────────────────────────────────────────────────────
            Known autofill-corrupted substrings (case-insensitive).
            For cert_edits_v3_* we scan each FIELD VALUE individually so that
            only the bad field is removed — valid edits are preserved. */
         var BAD_SUBSTRS = ["BIS DE ANAL", "GENT DA CAPSULA"];
+        /* Strip Portuguese/French diacritics before substring matching so that
+           "ANÁLISE" (with accented Á) matches "ANAL" and "CÁPSULA" matches "CAPSULA". */
+        function stripAccents(str) {
+          try { return str.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
+          catch(e) { return str; }
+        }
         function containsBad(str) {
-          var up = (str || "").toUpperCase();
+          var up = stripAccents((str || "").toUpperCase());
           for (var b = 0; b < BAD_SUBSTRS.length; b++) {
             if (up.indexOf(BAD_SUBSTRS[b]) !== -1) return true;
           }

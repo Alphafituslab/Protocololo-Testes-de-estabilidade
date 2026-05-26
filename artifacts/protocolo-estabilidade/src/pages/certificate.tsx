@@ -198,11 +198,16 @@ const SECTION_LABELS: { key: keyof ShowSections; label: string }[] = [
 // ── Module-level: certificate title corruption guard ──────────────────────────
 // "BIS DE ANALISE" is a browser autofill corruption. These values must NEVER
 // appear as the certificate title regardless of how they get into state/storage.
-const CERT_BAD_TITLES = new Set([
-  "BIS DE ANALYSE", "BIS DE ANALISE", "BIS DE ANÁLISE",
-  "BIS DE ANALISE.", "BIS DE ANALYSE.", "BIS DE ANÁLISE.",
+// Strip Portuguese/French diacritics before comparing so "Análise" matches "ANALISE"
+const stripAccents = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+const BAD_TITLE_STRIPPED = new Set([
+  "BIS DE ANALYSE", "BIS DE ANALISE",
+  "BIS DE ANALYSE.", "BIS DE ANALISE.",
 ]);
-const isBadCertTitle = (v: string) => CERT_BAD_TITLES.has(v.trim().toUpperCase());
+const isBadCertTitle = (v: string) =>
+  BAD_TITLE_STRIPPED.has(stripAccents(v.trim()).toUpperCase());
 
 /**
  * ContentEditable title editor — Chrome NEVER autofills contentEditable elements.
@@ -211,12 +216,16 @@ const isBadCertTitle = (v: string) => CERT_BAD_TITLES.has(v.trim().toUpperCase()
 function TitleEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const ref = React.useRef<HTMLSpanElement>(null);
   const lastGood = React.useRef(value);
+  const isFocused = React.useRef(false);
 
-  // Set DOM content on mount only (uncontrolled after that, synced via onInput)
+  // Sync DOM whenever value changes from outside (e.g. async cert load),
+  // but only when not currently being edited to avoid cursor disruption.
   React.useEffect(() => {
-    if (ref.current) ref.current.textContent = value;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!isFocused.current && ref.current && ref.current.textContent !== value) {
+      ref.current.textContent = value;
+      lastGood.current = value;
+    }
+  }, [value]);
 
   return (
     <>
@@ -226,10 +235,11 @@ function TitleEditor({ value, onChange }: { value: string; onChange: (v: string)
         suppressContentEditableWarning
         className="outline-none border-b border-dashed border-gray-400 focus:border-gray-700 cursor-text min-w-[10ch] inline-block print:hidden"
         title="Clique para editar o título"
+        onFocus={() => { isFocused.current = true; }}
+        onBlur={() => { isFocused.current = false; }}
         onInput={() => {
           const text = ref.current?.textContent ?? "";
           if (isBadCertTitle(text)) {
-            // Revert immediately — do not allow bad values to stick
             if (ref.current) ref.current.textContent = lastGood.current;
             return;
           }
@@ -1006,39 +1016,39 @@ export default function CertificatePage() {
               </colgroup>
               <tbody>
                 <tr>
-                  <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Produto:</td>
+                  <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_productName", "Produto:", { className: "text-gray-500 font-medium text-sm" })}</td>
                   <td className="font-medium align-top pb-1 text-justify">{ef("productName", cert.productName, { multiline: true, className: "w-full font-medium text-sm text-justify bg-transparent resize-none" })}</td>
                 </tr>
                 <tr>
-                  <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Tipo do Produto:</td>
+                  <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_presentation", "Tipo do Produto:", { className: "text-gray-500 font-medium text-sm" })}</td>
                   <td className="align-top pb-1 text-justify">{ef("presentation", cert.presentation)}</td>
                 </tr>
                 {!!getEdit("packagingType", cert.packagingType) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Tipo de Pote:</td>
+                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_packagingType", "Tipo de Pote:", { className: "text-gray-500 font-medium text-sm" })}</td>
                     <td className="align-top pb-1 text-justify">{ef("packagingType", cert.packagingType)}</td>
                   </tr>
                 )}
                 {!!getEdit("activeIngredients", cert.activeIngredients) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Ingredientes Ativos:</td>
+                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_activeIngredients", "Ingredientes Ativos:", { className: "text-gray-500 font-medium text-sm" })}</td>
                     <td className="align-top pb-1 text-justify">{ef("activeIngredients", cert.activeIngredients, { multiline: true })}</td>
                   </tr>
                 )}
                 {!!getEdit("excipients", cert.excipients) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Excipientes:</td>
+                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_excipients", "Excipientes:", { className: "text-gray-500 font-medium text-sm" })}</td>
                     <td className="align-top pb-1 text-justify">{ef("excipients", cert.excipients, { multiline: true })}</td>
                   </tr>
                 )}
                 {!!getEdit("capsuleComposition", cert.capsuleComposition) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Composição da Cápsula:</td>
+                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_capsuleComposition", "Composição da Cápsula:", { className: "text-gray-500 font-medium text-sm" })}</td>
                     <td className="align-top pb-1 text-justify">{ef("capsuleComposition", cert.capsuleComposition, { multiline: true })}</td>
                   </tr>
                 )}
                 <tr>
-                  <td className="text-gray-500 align-top pr-4 pb-1 whitespace-nowrap font-medium">Validade:</td>
+                  <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_validityMonths", "Validade:", { className: "text-gray-500 font-medium text-sm" })}</td>
                   <td className="font-semibold align-top pb-1">{ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}</td>
                 </tr>
                 <tr>
