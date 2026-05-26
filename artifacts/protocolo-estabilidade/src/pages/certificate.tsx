@@ -3,7 +3,7 @@ import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQ
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, History, Lock, Unlock, Save, ShieldCheck, PenLine, Trash2, UserCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState, useMemo, useEffect, useContext } from "react";
+import React, { useState, useMemo, useEffect, useContext, useRef } from "react";
 import { AuditTrail } from "@/components/audit-trail";
 import { useUnlock } from "@/hooks/use-unlock";
 import { UnlockDialog } from "@/components/unlock-dialog";
@@ -166,6 +166,64 @@ const SECTION_LABELS: { key: keyof ShowSections; label: string }[] = [
   { key: "fundamentacaoCinetica", label: "Fundamentação Cinética" },
 ];
 
+// ── Module-level: certificate title corruption guard ──────────────────────────
+// "BIS DE ANALISE" is a browser autofill corruption. These values must NEVER
+// appear as the certificate title regardless of how they get into state/storage.
+const CERT_BAD_TITLES = new Set([
+  "BIS DE ANALYSE", "BIS DE ANALISE", "BIS DE ANÁLISE",
+  "BIS DE ANALISE.", "BIS DE ANALYSE.", "BIS DE ANÁLISE.",
+]);
+const isBadCertTitle = (v: string) => CERT_BAD_TITLES.has(v.trim().toUpperCase());
+
+/**
+ * ContentEditable title editor — Chrome NEVER autofills contentEditable elements.
+ * This is the only browser-proof way to allow free-text editing of the H1 title.
+ */
+function TitleEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const ref = React.useRef<HTMLSpanElement>(null);
+  const lastGood = React.useRef(value);
+
+  // Set DOM content on mount only (uncontrolled after that, synced via onInput)
+  React.useEffect(() => {
+    if (ref.current) ref.current.textContent = value;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <>
+      <span
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        className="outline-none border-b border-dashed border-gray-400 focus:border-gray-700 cursor-text min-w-[10ch] inline-block print:hidden"
+        title="Clique para editar o título"
+        onInput={() => {
+          const text = ref.current?.textContent ?? "";
+          if (isBadCertTitle(text)) {
+            // Revert immediately — do not allow bad values to stick
+            if (ref.current) ref.current.textContent = lastGood.current;
+            return;
+          }
+          lastGood.current = text;
+          onChange(text);
+        }}
+        onPaste={(e) => {
+          e.preventDefault();
+          const text = e.clipboardData.getData("text/plain");
+          if (!isBadCertTitle(text) && ref.current) {
+            ref.current.textContent = text;
+            lastGood.current = text;
+            onChange(text);
+          }
+        }}
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); ref.current?.blur(); } }}
+      />
+      {/* Shown only when printing — uses React state value (already sanitized) */}
+      <span className="hidden print:inline">{value}</span>
+    </>
+  );
+}
+
 export default function CertificatePage() {
   const { id } = useParams<{ id: string }>();
   const { data: cert, isLoading } = useGetCertificate(Number(id), {
@@ -268,24 +326,32 @@ export default function CertificatePage() {
   const [certCustomTitle, setCertCustomTitleState] = useState<string>(() => {
     try {
       const v = localStorage.getItem(CERT_TITLE_KEY) ?? "";
-      // Purge obviously corrupted values written by old code
-      if (v === "BIS DE ANALYSE" || v === "BIS DE ANALISE" || v === "CERTIFICADO DE ANÁLISE" || v === "Certificado de Análise") {
+      // Case-insensitive purge of all known corrupted values
+      if (isBadCertTitle(v) || v.trim() === "Certificado de Análise") {
         localStorage.removeItem(CERT_TITLE_KEY);
         return "";
       }
       return v;
     } catch { return ""; }
   });
-  const BAD_TITLE_VALUES = new Set([
-    "BIS DE ANALYSE", "BIS DE ANALISE", "BIS DE ANÁLISE",
-    "BIS DE ANALISE.", "BIS DE ANALYSE.",
-  ]);
+
+  // Watchdog: if autofill somehow updated the React state, purge it immediately
+  useEffect(() => {
+    if (isBadCertTitle(certCustomTitle)) {
+      setCertCustomTitleState("");
+      try { localStorage.removeItem(CERT_TITLE_KEY); } catch { /* ignore */ }
+    }
+  }, [certCustomTitle, CERT_TITLE_KEY]);
+
+  // Render-time sanitization: NEVER render a bad title even if state is corrupted
+  const safeTitle = isBadCertTitle(certCustomTitle) ? "" : certCustomTitle;
+  const displayTitle = safeTitle.trim() || "Certificado de Análise";
+
   const setCertCustomTitle = (v: string) => {
-    // Reject autofill corruption — never store or display these values
-    if (BAD_TITLE_VALUES.has(v.trim().toUpperCase())) return;
+    if (isBadCertTitle(v)) return;
     setCertCustomTitleState(v);
     try {
-      if (v.trim() === "" || v.trim() === "Certificado de Análise") {
+      if (!v.trim() || v.trim() === "Certificado de Análise") {
         localStorage.removeItem(CERT_TITLE_KEY);
       } else {
         localStorage.setItem(CERT_TITLE_KEY, v);
@@ -339,9 +405,8 @@ export default function CertificatePage() {
     certEdits[key] !== undefined ? certEdits[key] : (fallback ?? "");
 
   const saveCert = () => {
-    // Purge any autofill-corrupted title before locking
-    const bad = new Set(["BIS DE ANALYSE", "BIS DE ANALISE", "BIS DE ANÁLISE"]);
-    if (bad.has(certCustomTitle.trim().toUpperCase())) {
+    // Final safety net: purge corrupted title before locking
+    if (isBadCertTitle(certCustomTitle)) {
       setCertCustomTitleState("");
       try { localStorage.removeItem(CERT_TITLE_KEY); } catch { /* ignore */ }
     }
@@ -825,12 +890,8 @@ export default function CertificatePage() {
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Alphafitus Laboratório Nutracêutico</p>
               <h1 className="text-xl font-bold uppercase tracking-wide text-gray-800 leading-tight">
                 {certLocked
-                  ? <span>{certCustomTitle.trim() || "Certificado de Análise"}</span>
-                  : <CertEditField
-                      value={certCustomTitle.trim() || "Certificado de Análise"}
-                      onChange={setCertCustomTitle}
-                      className="w-full bg-transparent resize-none text-xl font-bold uppercase tracking-wide text-gray-800 leading-tight"
-                    />
+                  ? <span>{displayTitle}</span>
+                  : <TitleEditor value={displayTitle} onChange={setCertCustomTitle} />
                 }
               </h1>
               <p className="text-sm font-semibold text-emerald-700 mt-0.5 leading-snug">{ef("productName", cert.productName, { multiline: true, className: "text-sm font-semibold text-emerald-700 w-full bg-transparent resize-none leading-snug" })}</p>
