@@ -46,7 +46,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink } from "lucide-react";
 import { AuditTrail } from "@/components/audit-trail";
 import { useToast } from "@/hooks/use-toast";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
@@ -446,9 +446,13 @@ function LotsTab({ protocolId }: { protocolId: number }) {
           <DialogHeader>
             <DialogTitle>{editLot ? "Editar Lote" : "Adicionar Lotes"}</DialogTitle>
             {!editLot && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Preencha e clique em <strong>Adicionar</strong> para cada lote. Clique em <strong>Fechar</strong> quando terminar.
-              </p>
+              <div className="mt-1.5 rounded-md bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-800 flex items-start gap-2">
+                <Plus className="h-3.5 w-3.5 shrink-0 mt-0.5 text-blue-600" />
+                <span>
+                  Preencha os campos e clique em <strong>Adicionar +</strong> para cada lote.
+                  A tela <strong>permanece aberta</strong> — clique em <strong>Fechar</strong> apenas quando terminar de incluir todos os lotes.
+                </span>
+              </div>
             )}
           </DialogHeader>
 
@@ -515,7 +519,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
                 </Button>
                 <Button type="submit" disabled={createLot.isPending || updateLot.isPending}>
                   {(createLot.isPending || updateLot.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {editLot ? "Salvar" : "Adicionar"}
+                  {editLot ? "Salvar" : "Adicionar +"}
                 </Button>
               </div>
             </form>
@@ -758,18 +762,20 @@ function InlineCell({
           placeholder="Resultado ou C/NC/NA/ND/LQ/AR"
           data-testid="input-inline-result"
         />
-        <div className="flex gap-0.5 justify-center flex-wrap">
+        <div className="flex gap-0.5 justify-center flex-wrap" translate="no">
           {(["conforme", "nao_conforme", "na", "aprovado_com_ressalva", "nd", "lq"] as const).map((s) => (
             <button
               type="button"
               key={s}
+              translate="no"
+              lang="pt-BR"
               onClick={() => {
                 setStatus(s);
                 setValue(STATUS_LABEL[s] ?? s);
               }}
               className={`text-[9px] px-1 py-0.5 rounded border transition-all ${status === s ? statusBtnColors[s] : "bg-white text-muted-foreground border-border"}`}
             >
-              {STATUS_LABEL[s] ?? s}
+              <span translate="no">{STATUS_LABEL[s] ?? s}</span>
             </button>
           ))}
         </div>
@@ -1816,11 +1822,83 @@ type MethodologyDialogState =
   | { mode: "create" }
   | { mode: "edit"; id: number; shortName: string; citation: string; category: string };
 
-function MethodologiaTab() {
+function MethodologiaTab({
+  protocolId,
+  initialCustomParamsJson,
+}: {
+  protocolId: number;
+  initialCustomParamsJson?: string | null;
+}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: methodologies = [], isLoading } = useListMethodologies();
+  const updateProtocol = useUpdateProtocol();
+  const isMountedRef = useRef(false);
 
+  // ── Parâmetros editáveis ───────────────────────────────────────────
+  const defaultParams = ANALYSIS_PARAMETERS.map((p, i) => ({ ...p, uid: `${p.category}_${i}` }));
+  const [editableParams, setEditableParams] = useState<EditableParam[]>(() => {
+    if (initialCustomParamsJson) {
+      try { return JSON.parse(initialCustomParamsJson) as EditableParam[]; } catch { /* fall */ }
+    }
+    return defaultParams;
+  });
+
+  useEffect(() => {
+    if (!isMountedRef.current) { isMountedRef.current = true; return; }
+    const t = setTimeout(() => {
+      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: JSON.stringify(editableParams) } });
+    }, 800);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editableParams]);
+
+  const addParam = (category: string) => {
+    const uid = `${category}_${Date.now()}`;
+    setEditableParams(prev => [...prev, { uid, parameter: "", criterion: "", category }]);
+  };
+
+  const updateParam = (uid: string, field: "parameter" | "criterion", val: string) => {
+    setEditableParams(prev => prev.map(p => p.uid === uid ? { ...p, [field]: val } : p));
+  };
+
+  const removeParam = (uid: string) => {
+    setEditableParams(prev => {
+      const next = prev.filter(p => p.uid !== uid);
+      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: JSON.stringify(next) } });
+      queryClient.setQueryData(
+        getGetProtocolQueryKey(protocolId),
+        (old: Record<string, unknown> | undefined) => old ? { ...old, customParamsJson: JSON.stringify(next) } : old,
+      );
+      return next;
+    });
+  };
+
+  const paramCategories = [
+    { label: "Físico-Química", key: "fisico_quimica" },
+    { label: "Microbiológica", key: "microbiologica" },
+    { label: "Teor do Ativo", key: "teor_ativo" },
+    { label: "Embalagem", key: "embalagem" },
+  ];
+
+  // ── Links de documentos (localStorage) ────────────────────────────
+  const [docUrls, setDocUrlsState] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem("method_doc_urls") ?? "{}"); } catch { return {}; }
+  });
+  const [editingDocId, setEditingDocId] = useState<number | null>(null);
+  const [docUrlInput, setDocUrlInput] = useState("");
+
+  const saveDocUrl = (id: number) => {
+    const next = { ...docUrls };
+    if (docUrlInput.trim()) next[String(id)] = docUrlInput.trim();
+    else delete next[String(id)];
+    localStorage.setItem("method_doc_urls", JSON.stringify(next));
+    setDocUrlsState(next);
+    setEditingDocId(null);
+    setDocUrlInput("");
+  };
+
+  // ── Dialog de referência bibliográfica ────────────────────────────
   const [dialog, setDialog] = useState<MethodologyDialogState>({ mode: "closed" });
   const isOpen = dialog.mode !== "closed";
   const isEditing = dialog.mode === "edit";
@@ -1829,10 +1907,7 @@ function MethodologiaTab() {
   const [citation, setCitation] = useState("");
   const [category, setCategory] = useState("");
 
-  const openCreate = () => {
-    setShortName(""); setCitation(""); setCategory("");
-    setDialog({ mode: "create" });
-  };
+  const openCreate = () => { setShortName(""); setCitation(""); setCategory(""); setDialog({ mode: "create" }); };
 
   const openEdit = (m: { id: number; shortName: string; citation: string; category?: string | null }) => {
     setShortName(m.shortName);
@@ -1842,7 +1917,6 @@ function MethodologiaTab() {
   };
 
   const closeDialog = () => setDialog({ mode: "closed" });
-
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListMethodologiesQueryKey() });
 
   const createMutation = useCreateMethodology({
@@ -1880,121 +1954,286 @@ function MethodologiaTab() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-semibold">Biblioteca de Metodologias</h3>
-          <p className="text-sm text-muted-foreground">
-            Referências bibliográficas usadas nos ensaios (ex: Farmacopeia Brasileira, AOAC, ISO).
-          </p>
+    <div className="space-y-6">
+
+      {/* ═══════════════════════════════════════════════════════════════
+          SEÇÃO 1 — PARÂMETROS CADASTRADOS
+      ═══════════════════════════════════════════════════════════════ */}
+      <div>
+        <div className="flex items-start justify-between mb-3 gap-2">
+          <div>
+            <h3 className="font-semibold">Parâmetros Cadastrados</h3>
+            <p className="text-sm text-muted-foreground">
+              Todos os parâmetros de análise do protocolo. Clique em qualquer campo para editar o nome ou o critério.
+            </p>
+          </div>
         </div>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-1" /> Nova Referência
-        </Button>
+
+        <div className="space-y-3">
+          {paramCategories.map(({ label, key }) => {
+            const catParams = editableParams.filter(p => p.category === key);
+            return (
+              <div key={key} className="border rounded-lg overflow-hidden">
+                <div className="bg-muted/50 px-3 py-1.5 border-b flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-[10px] px-2 text-muted-foreground hover:text-primary"
+                    onClick={() => addParam(key)}
+                  >
+                    <Plus className="h-3 w-3 mr-0.5" /> Novo parâmetro
+                  </Button>
+                </div>
+                {catParams.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic px-3 py-3">
+                    Nenhum parâmetro nesta categoria.{" "}
+                    <button type="button" className="underline hover:text-foreground" onClick={() => addParam(key)}>
+                      Adicionar
+                    </button>
+                    .
+                  </p>
+                ) : (
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/20">
+                        <th className="px-3 py-1.5 text-left font-semibold w-2/5">Parâmetro</th>
+                        <th className="px-3 py-1.5 text-left font-semibold">Critério / Especificação</th>
+                        <th className="w-8"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {catParams.map((p) => (
+                        <tr key={p.uid} className="border-b last:border-0 hover:bg-muted/20 transition-colors group">
+                          <td className="px-3 py-1.5">
+                            <input
+                              value={p.parameter}
+                              onChange={e => updateParam(p.uid, "parameter", e.target.value)}
+                              className="w-full bg-transparent focus:outline-none border-b border-transparent focus:border-primary text-xs font-medium transition-colors placeholder:text-muted-foreground/40"
+                              placeholder="Nome do parâmetro"
+                            />
+                          </td>
+                          <td className="px-3 py-1.5">
+                            <input
+                              value={p.criterion}
+                              onChange={e => updateParam(p.uid, "criterion", e.target.value)}
+                              className="w-full bg-transparent focus:outline-none border-b border-transparent focus:border-primary text-xs text-muted-foreground font-mono transition-colors placeholder:text-muted-foreground/40"
+                              placeholder="Critério de aceitação"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 text-center">
+                            <button
+                              type="button"
+                              onClick={() => removeParam(p.uid)}
+                              className="text-muted-foreground/30 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                              title="Remover parâmetro"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-2 italic">
+          Alterações são salvas automaticamente e refletidas na aba "Resultado das Análises".
+        </p>
       </div>
 
-      {/* Create / Edit dialog */}
-      <Dialog open={isOpen} onOpenChange={(o) => { if (!o) closeDialog(); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{isEditing ? "Editar Referência" : "Adicionar Referência Metodológica"}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Nome curto *</label>
-              <Input
-                placeholder='ex: FB 7ª ed., JP 18ª ed., AOAC 2019'
-                value={shortName}
-                onChange={(e) => setShortName(e.target.value)}
-                required
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Citação completa *</label>
-              <Textarea
-                placeholder='ex: BRASIL. ANVISA. Farmacopeia Brasileira, 7ª edição. Brasília: ANVISA, 2019.'
-                value={citation}
-                onChange={(e) => setCitation(e.target.value)}
-                rows={3}
-                required
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Categoria (opcional)</label>
-              <Input
-                placeholder='ex: Fisico-Quimica, Microbiologica, Teor do Ativo'
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                {isEditing ? "Salvar alterações" : "Adicionar"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* ═══════════════════════════════════════════════════════════════
+          SEÇÃO 2 — BIBLIOTECA DE REFERÊNCIAS METODOLÓGICAS
+      ═══════════════════════════════════════════════════════════════ */}
+      <div className="border-t pt-5">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="font-semibold">Biblioteca de Referências Metodológicas</h3>
+            <p className="text-sm text-muted-foreground">
+              Referências bibliográficas usadas nos ensaios (Farmacopeia Brasileira, AOAC, ISO…).
+              Você pode anexar o link de cada documento (POP, manual técnico, PDF).
+            </p>
+          </div>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-1" /> Nova Referência
+          </Button>
+        </div>
 
-      {isLoading ? (
-        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
-        </div>
-      ) : methodologies.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Nenhuma referência cadastrada. Clique em "Nova Referência" para começar.
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {methodologies.map((m) => (
-            <div
-              key={m.id}
-              className="flex items-start gap-3 rounded-lg border bg-muted/30 px-4 py-3"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-sm">{m.shortName}</span>
-                  {m.category && (
-                    <Badge variant="outline" className="text-xs">{m.category}</Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5 break-words">{m.citation}</p>
+        {/* Dialog de criação / edição */}
+        <Dialog open={isOpen} onOpenChange={(o) => { if (!o) closeDialog(); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{isEditing ? "Editar Referência" : "Adicionar Referência Metodológica"}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Nome curto *</label>
+                <Input
+                  placeholder='ex: FB 7ª ed., JP 18ª ed., AOAC 2019'
+                  value={shortName}
+                  onChange={(e) => setShortName(e.target.value)}
+                  required
+                  autoFocus
+                />
               </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-primary"
-                  title="Editar"
-                  onClick={() => openEdit(m)}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Citação completa *</label>
+                <Textarea
+                  placeholder='ex: BRASIL. ANVISA. Farmacopeia Brasileira, 7ª edição. Brasília: ANVISA, 2019.'
+                  value={citation}
+                  onChange={(e) => setCitation(e.target.value)}
+                  rows={3}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Categoria (opcional)</label>
+                <Input
+                  placeholder='ex: Fisico-Quimica, Microbiologica, Teor do Ativo'
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
+                <Button type="submit" disabled={isPending}>
+                  {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                  {isEditing ? "Salvar alterações" : "Adicionar"}
                 </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Remover referência?</AlertDialogTitle>
-                      <AlertDialogDescription>"{m.shortName}" será removida permanentemente.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => deleteMutation.mutate({ id: m.id })}>Remover</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
+          </div>
+        ) : methodologies.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+            Nenhuma referência cadastrada. Clique em "Nova Referência" para começar.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {methodologies.map((m) => {
+              const docUrl = docUrls[String(m.id)];
+              const isEditingDoc = editingDocId === m.id;
+              return (
+                <div key={m.id} className="flex items-start gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm">{m.shortName}</span>
+                      {m.category && <Badge variant="outline" className="text-xs">{m.category}</Badge>}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 break-words">{m.citation}</p>
+
+                    {/* Documento anexado */}
+                    {isEditingDoc ? (
+                      <div className="flex gap-1.5 mt-2 items-center">
+                        <Paperclip className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <input
+                          autoFocus
+                          type="url"
+                          value={docUrlInput}
+                          onChange={e => setDocUrlInput(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") { e.preventDefault(); saveDocUrl(m.id); }
+                            if (e.key === "Escape") setEditingDocId(null);
+                          }}
+                          placeholder="https://... (Google Drive, SharePoint, Dropbox, etc.)"
+                          className="flex-1 text-xs border border-primary/50 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => saveDocUrl(m.id)}
+                          className="text-[10px] px-2 py-0.5 rounded bg-primary text-white hover:bg-primary/80 shrink-0"
+                        >
+                          OK
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingDocId(null)}
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : docUrl ? (
+                      <div className="flex gap-1.5 mt-1.5 items-center flex-wrap">
+                        <Paperclip className="h-3 w-3 text-primary flex-shrink-0" />
+                        <a
+                          href={docUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline flex items-center gap-0.5 truncate max-w-xs"
+                        >
+                          {docUrl.length > 60 ? docUrl.slice(0, 57) + "…" : docUrl}
+                          <ExternalLink className="h-2.5 w-2.5 flex-shrink-0" />
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => { setDocUrlInput(docUrl); setEditingDocId(m.id); }}
+                          className="text-[9px] text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setDocUrlInput(""); saveDocUrl(m.id); }}
+                          className="text-[9px] text-destructive hover:text-destructive/80 transition-colors"
+                        >
+                          remover
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => { setDocUrlInput(""); setEditingDocId(m.id); }}
+                        className="flex items-center gap-1 text-[10px] text-muted-foreground/50 hover:text-muted-foreground mt-1.5 transition-colors"
+                      >
+                        <Paperclip className="h-2.5 w-2.5" />
+                        Anexar link (POP, manual técnico, PDF…)
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-primary"
+                      title="Editar"
+                      onClick={() => openEdit(m)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remover referência?</AlertDialogTitle>
+                          <AlertDialogDescription>"{m.shortName}" será removida permanentemente.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteMutation.mutate({ id: m.id })}>Remover</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -2616,7 +2855,7 @@ export default function ProtocolDetail() {
         <TabsContent value="metodologia">
           <Card>
             <CardContent className="pt-6">
-              <MethodologiaTab />
+              <MethodologiaTab protocolId={numId} initialCustomParamsJson={protocol.customParamsJson} />
             </CardContent>
           </Card>
         </TabsContent>
