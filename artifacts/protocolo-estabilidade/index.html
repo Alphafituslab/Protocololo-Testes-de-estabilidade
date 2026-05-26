@@ -14,68 +14,70 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <!--
-      VERSION-GATED CACHE BUSTER — runs before React loads.
-      When the browser fetches new HTML (due to deployment), this script
-      detects a version mismatch, purges corrupted localStorage data that
-      old JavaScript bundles stored, and forces a fresh navigation so the
-      browser discards any cached JS bundle and loads the current one.
+      PRE-REACT STORAGE SANITISER
+      Runs synchronously before any JavaScript bundle loads, on EVERY page load.
+
+      TWO independent jobs:
+      A) ALWAYS-ON CLEANUP  — strips certTitle / docTitle / lbl_* from every
+         cert_edits_v3_* key and deletes all cert_edits_v1/v2 keys.
+         This runs unconditionally so that even if the browser caches an old JS
+         bundle that still reads certTitle from cert_edits_v3, it will ALWAYS
+         find the field absent and fall back to "Certificado de Análise".
+      B) VERSION-GATED REDIRECT — when the stored app version differs from
+         APP_VER, forces a hard navigation with a cache-bust query param so the
+         browser discards its cached JS bundle and fetches the current one.
     -->
     <script>
       (function () {
-        var APP_VER = "20260525-008";
-        var VER_KEY = "__alpha_app_ver";
-        try {
-          var stored = localStorage.getItem(VER_KEY);
-          if (stored === APP_VER) return; /* already current — nothing to do */
+        var BAD_FIELDS = ["certTitle", "docTitle"];
+        var APP_VER   = "20260526-001";
+        var VER_KEY   = "__alpha_app_ver";
 
-          /* ── Purge all legacy cert_edits_v1 / cert_edits_v2 keys ── */
-          var toRemove = [];
+        try {
+          /* ── A) ALWAYS-ON: sanitise every cert_edits_v3_* entry ─────────── */
+          var toDelete = [];
           for (var i = 0; i < localStorage.length; i++) {
             var k = localStorage.key(i);
             if (!k) continue;
-            /* Keep only cert_edits_v3_* — delete everything else */
             if (k.startsWith("cert_edits") && k.indexOf("cert_edits_v3_") !== 0) {
-              toRemove.push(k);
+              /* Old v1 / v2 keys — delete entirely */
+              toDelete.push(k);
+            } else if (k.indexOf("cert_edits_v3_") === 0) {
+              /* v3 key — strip bad fields in-place */
+              try {
+                var obj = JSON.parse(localStorage.getItem(k) || "{}");
+                var dirty = false;
+                for (var b = 0; b < BAD_FIELDS.length; b++) {
+                  if (BAD_FIELDS[b] in obj) { delete obj[BAD_FIELDS[b]]; dirty = true; }
+                }
+                var flds = Object.keys(obj);
+                for (var f = 0; f < flds.length; f++) {
+                  if (flds[f].indexOf("lbl_") === 0) { delete obj[flds[f]]; dirty = true; }
+                }
+                if (dirty) localStorage.setItem(k, JSON.stringify(obj));
+              } catch (e) {}
             }
           }
-          for (var r = 0; r < toRemove.length; r++) {
-            try { localStorage.removeItem(toRemove[r]); } catch (e) {}
+          for (var d = 0; d < toDelete.length; d++) {
+            try { localStorage.removeItem(toDelete[d]); } catch (e) {}
           }
+          /* Clean up stale migration marker */
+          try { localStorage.removeItem("cert_lbl_migration_v"); } catch (e) {}
 
-          /* ── In v3 keys: strip certTitle / docTitle (always invalid) ── */
-          var bad = ["certTitle", "docTitle"];
-          for (var j = 0; j < localStorage.length; j++) {
-            var lk = localStorage.key(j);
-            if (!lk || lk.indexOf("cert_edits_v3_") !== 0) continue;
-            try {
-              var obj = JSON.parse(localStorage.getItem(lk) || "{}");
-              var dirty = false;
-              for (var b = 0; b < bad.length; b++) {
-                if (bad[b] in obj) { delete obj[bad[b]]; dirty = true; }
-              }
-              /* Also purge any lbl_* keys */
-              var keys = Object.keys(obj);
-              for (var f = 0; f < keys.length; f++) {
-                if (keys[f].indexOf("lbl_") === 0) { delete obj[keys[f]]; dirty = true; }
-              }
-              if (dirty) localStorage.setItem(lk, JSON.stringify(obj));
-            } catch (e) {}
-          }
-
-          /* ── Mark as current version ── */
+          /* ── B) VERSION-GATED: redirect to force fresh JS bundle ─────────── */
+          var stored = localStorage.getItem(VER_KEY);
           localStorage.setItem(VER_KEY, APP_VER);
-
-          /* ── Force a fresh navigation (bypasses JS bundle cache) ──
-             Only do this if the user was on an older version (not first visit).
-             We append a cache-busting query param so the browser doesn't
-             serve the old cached response for the current URL.            */
-          if (stored !== null) {
-            var url = location.pathname + location.search;
-            /* Strip any previous _v param */
-            var sep = url.indexOf("?") === -1 ? "?" : "&";
-            location.replace(url + sep + "_v=" + APP_VER);
+          if (stored !== null && stored !== APP_VER) {
+            /* Append a cache-busting param to the current URL and hard-navigate.
+               The new URL won't be in the browser cache, so the server always
+               serves the fresh response (with no-store headers). */
+            var base = location.pathname;
+            /* Strip any existing _v param to avoid stacking */
+            var qs = location.search.replace(/[?&]_v=[^&]*/g, "").replace(/^\?$/, "");
+            var sep = qs ? "&" : "?";
+            location.replace(base + qs + sep + "_v=" + APP_VER + location.hash);
           }
-        } catch (e) { /* ignore any storage/navigation errors */ }
+        } catch (e) { /* silently ignore any storage / navigation errors */ }
       })();
     </script>
   </head>
