@@ -30,7 +30,24 @@
     <script>
       (function () {
         var BAD_FIELDS = ["certTitle", "docTitle"];
-        var APP_VER   = "20260526-001";
+        var APP_VER   = "20260526-003";
+        /* Nuclear scan: remove any localStorage value that contains "BIS DE ANAL"
+           (case-insensitive). This catches old corrupted data regardless of key name. */
+        try {
+          var BAD_SUBSTR = "BIS DE ANAL";
+          var nuclearDelete = [];
+          for (var n = 0; n < localStorage.length; n++) {
+            var nk = localStorage.key(n);
+            if (!nk) continue;
+            var nv = localStorage.getItem(nk) || "";
+            if (nv.toUpperCase().indexOf(BAD_SUBSTR) !== -1) {
+              nuclearDelete.push(nk);
+            }
+          }
+          for (var nd = 0; nd < nuclearDelete.length; nd++) {
+            try { localStorage.removeItem(nuclearDelete[nd]); } catch(e) {}
+          }
+        } catch(e) {}
         var VER_KEY   = "__alpha_app_ver";
 
         try {

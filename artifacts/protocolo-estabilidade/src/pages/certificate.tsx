@@ -107,43 +107,60 @@ function collectProtocolImages(
   );
 }
 
+/**
+ * CertEditField — uses contentEditable so Chrome/password-managers can NEVER
+ * autofill any certificate field. Regular <input>/<textarea> elements are
+ * vulnerable to autofill injection even with autoComplete="new-password".
+ */
 function CertEditField({
   value, onChange, className = "", multiline = false,
 }: { value: string; onChange: (v: string) => void; className?: string; multiline?: boolean }) {
-  if (multiline) {
-    return (
-      <span className="relative w-full block">
-        <textarea
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          rows={2}
-          autoComplete="new-password"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          data-form-type="other"
-          data-lpignore="true"
-          className={`bg-transparent border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 w-full resize-none print:hidden ${className}`}
-        />
-        <span className="hidden print:block whitespace-pre-wrap break-words">{value}</span>
-      </span>
-    );
-  }
+  const ref = React.useRef<HTMLSpanElement>(null);
+  const lastCommitted = React.useRef(value);
+
+  // Sync DOM → state on mount (uncontrolled after mount; onInput keeps in sync)
+  React.useEffect(() => {
+    if (ref.current && ref.current.textContent !== value) {
+      ref.current.textContent = value;
+    }
+    lastCommitted.current = value;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleInput = () => {
+    const text = ref.current?.textContent ?? "";
+    lastCommitted.current = text;
+    onChange(text);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData("text/plain");
+    if (ref.current) ref.current.textContent = text;
+    lastCommitted.current = text;
+    onChange(text);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!multiline && e.key === "Enter") {
+      e.preventDefault();
+      ref.current?.blur();
+    }
+  };
+
   return (
-    <span className="relative block w-full min-w-0 overflow-hidden print:overflow-visible">
-      <input
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        autoComplete="new-password"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck={false}
-        data-form-type="other"
-        data-lpignore="true"
-        style={{ minWidth: 0 }}
-        className={`bg-transparent border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 print:hidden w-full min-w-0 ${className}`}
+    <span className="relative block w-full min-w-0">
+      <span
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={handleInput}
+        onPaste={handlePaste}
+        onKeyDown={handleKeyDown}
+        className={`inline-block w-full border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 cursor-text print:hidden ${multiline ? "whitespace-pre-wrap" : ""} ${className}`}
       />
-      <span className="hidden print:inline break-words">{value}</span>
+      {/* Print-only: use React state value (already sanitised by parent) */}
+      <span className={`hidden print:${multiline ? "block whitespace-pre-wrap break-words" : "inline break-words"}`}>{value}</span>
     </span>
   );
 }
