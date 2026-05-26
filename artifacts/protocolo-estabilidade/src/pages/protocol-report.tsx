@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   useGetCertificate, getGetCertificateQueryKey,
   useGetProtocol, getGetProtocolQueryKey,
@@ -11,17 +11,6 @@ import { AuditTrail } from "@/components/audit-trail";
 import { Button } from "@/components/ui/button";
 import { Loader2, Printer, ArrowLeft } from "lucide-react";
 
-// ── HPLC images (saved by simulator via localStorage) ─────────────────────
-interface HplcSavedImage {
-  id: string;
-  sessionId: string;
-  sessionName: string;
-  formulaName: string;
-  createdAt: string;
-  imageData: string;
-  notes: string;
-  certificateNumber?: string;
-}
 
 const STATUS_LABEL: Record<string, string> = {
   aprovado: "Aprovado",
@@ -84,18 +73,6 @@ export default function ProtocolReportPage() {
     query: { enabled: !!id, queryKey: getListSignaturesQueryKey(numId) },
   });
 
-  const [hplcImages, setHplcImages] = useState<HplcSavedImage[]>([]);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("hplc_images_v1");
-      const all: HplcSavedImage[] = raw ? JSON.parse(raw) : [];
-      const certNum = cert?.certNumber ?? "";
-      const filtered = certNum
-        ? all.filter(img => !img.certificateNumber || img.certificateNumber === certNum)
-        : all;
-      setHplcImages(filtered);
-    } catch { setHplcImages([]); }
-  }, [cert?.certNumber]);
 
   const isLoading = certLoading || protLoading;
 
@@ -425,50 +402,21 @@ export default function ProtocolReportPage() {
             </Section>
           )}
 
-          {/* ── 8. Cromatogramas HPLC ────────────────────────────────── */}
-          <Section title="8. Cromatogramas HPLC">
-            {hplcImages.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6">
-                {hplcImages.map(img => (
-                  <div key={img.id} className="border border-gray-200 rounded p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">
-                      {img.sessionName} — {img.formulaName}
-                    </p>
-                    <p className="text-[10px] text-gray-400 mb-2">
-                      {new Date(img.createdAt).toLocaleDateString("pt-BR")}
-                      {img.notes ? ` — ${img.notes}` : ""}
-                    </p>
-                    <img
-                      src={img.imageData}
-                      alt={`Cromatograma ${img.sessionName}`}
-                      className="w-full border border-gray-100 rounded"
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 italic text-xs">
-                Nenhum cromatograma salvo no simulador HPLC para este protocolo.
-                Utilize o Simulador HPLC (menu lateral) para gerar e salvar cromatogramas — eles aparecerão aqui automaticamente.
-              </p>
-            )}
-          </Section>
-
-          {/* ── 9. Conclusão ─────────────────────────────────────────── */}
+          {/* ── 8. Conclusão ─────────────────────────────────────────── */}
           {cert.conclusion && (
-            <Section title="9. Conclusão">
+            <Section title="8. Conclusão">
               <p className="text-xs text-gray-700 whitespace-pre-wrap">{cert.conclusion}</p>
             </Section>
           )}
 
           {/* ── 10. Histórico do Protocolo ────────────────────────────── */}
-          <Section title="10. Histórico e Rastreabilidade">
+          <Section title="9. Histórico e Rastreabilidade">
             <AuditTrail protocolId={numId} printMode />
           </Section>
 
           {/* ── 11. Assinaturas ───────────────────────────────────────── */}
           {signatures.length > 0 && (
-            <Section title="11. Assinaturas Eletrônicas">
+            <Section title="10. Assinaturas Eletrônicas">
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-gray-50">
