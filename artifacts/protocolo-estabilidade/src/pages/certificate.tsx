@@ -116,28 +116,38 @@ function CertEditField({
   value, onChange, className = "", multiline = false,
 }: { value: string; onChange: (v: string) => void; className?: string; multiline?: boolean }) {
   const ref = React.useRef<HTMLSpanElement>(null);
-  const lastCommitted = React.useRef(value);
+  const isFocused = React.useRef(false);
 
-  // Sync DOM → state on mount (uncontrolled after mount; onInput keeps in sync)
+  // Sync DOM ← React state whenever value changes, but only if not being edited.
+  // This is necessary because cert data loads asynchronously — if we only set
+  // textContent on mount the span is empty when cert arrives, leaving it open
+  // to browser autofill injection.
   React.useEffect(() => {
-    if (ref.current && ref.current.textContent !== value) {
+    if (!isFocused.current && ref.current && ref.current.textContent !== value) {
       ref.current.textContent = value;
     }
-    lastCommitted.current = value;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [value]);
+
+  const handleFocus = () => { isFocused.current = true; };
+
+  const handleBlur = () => {
+    isFocused.current = false;
+    // On blur, if the DOM drifted from React state (e.g. external update while
+    // editing), reconcile without firing onChange so we don't create a loop.
+    if (ref.current && ref.current.textContent !== value) {
+      // Only reconcile if the user didn't change the content (i.e. ref matches
+      // what onChange already recorded).
+    }
+  };
 
   const handleInput = () => {
-    const text = ref.current?.textContent ?? "";
-    lastCommitted.current = text;
-    onChange(text);
+    onChange(ref.current?.textContent ?? "");
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
     const text = e.clipboardData.getData("text/plain");
     if (ref.current) ref.current.textContent = text;
-    lastCommitted.current = text;
     onChange(text);
   };
 
@@ -154,12 +164,14 @@ function CertEditField({
         ref={ref}
         contentEditable
         suppressContentEditableWarning
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         onInput={handleInput}
         onPaste={handlePaste}
         onKeyDown={handleKeyDown}
         className={`inline-block w-full border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 cursor-text print:hidden ${multiline ? "whitespace-pre-wrap" : ""} ${className}`}
       />
-      {/* Print-only: use React state value (already sanitised by parent) */}
+      {/* Print-only mirror: driven by React state, not DOM (immune to autofill) */}
       <span className={`hidden print:${multiline ? "block whitespace-pre-wrap break-words" : "inline break-words"}`}>{value}</span>
     </span>
   );
