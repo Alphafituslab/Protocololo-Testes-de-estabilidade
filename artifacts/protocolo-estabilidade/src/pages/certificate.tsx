@@ -117,10 +117,12 @@ function CertEditField({
           value={value}
           onChange={e => onChange(e.target.value)}
           rows={2}
-          autoComplete="off"
+          autoComplete="new-password"
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck={false}
+          data-form-type="other"
+          data-lpignore="true"
           className={`bg-transparent border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 w-full resize-none print:hidden ${className}`}
         />
         <span className="hidden print:block whitespace-pre-wrap break-words">{value}</span>
@@ -132,11 +134,12 @@ function CertEditField({
       <input
         value={value}
         onChange={e => onChange(e.target.value)}
-        autoComplete="off"
+        autoComplete="new-password"
         autoCorrect="off"
         autoCapitalize="off"
         spellCheck={false}
         data-form-type="other"
+        data-lpignore="true"
         style={{ minWidth: 0 }}
         className={`bg-transparent border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 print:hidden w-full min-w-0 ${className}`}
       />
@@ -273,7 +276,13 @@ export default function CertificatePage() {
       return v;
     } catch { return ""; }
   });
+  const BAD_TITLE_VALUES = new Set([
+    "BIS DE ANALYSE", "BIS DE ANALISE", "BIS DE ANÁLISE",
+    "BIS DE ANALISE.", "BIS DE ANALYSE.",
+  ]);
   const setCertCustomTitle = (v: string) => {
+    // Reject autofill corruption — never store or display these values
+    if (BAD_TITLE_VALUES.has(v.trim().toUpperCase())) return;
     setCertCustomTitleState(v);
     try {
       if (v.trim() === "" || v.trim() === "Certificado de Análise") {
@@ -330,6 +339,12 @@ export default function CertificatePage() {
     certEdits[key] !== undefined ? certEdits[key] : (fallback ?? "");
 
   const saveCert = () => {
+    // Purge any autofill-corrupted title before locking
+    const bad = new Set(["BIS DE ANALYSE", "BIS DE ANALISE", "BIS DE ANÁLISE"]);
+    if (bad.has(certCustomTitle.trim().toUpperCase())) {
+      setCertCustomTitleState("");
+      try { localStorage.removeItem(CERT_TITLE_KEY); } catch { /* ignore */ }
+    }
     setCertLockedState(true);
     try { localStorage.setItem(CERT_LOCKED_KEY, "1"); } catch { /* ignore */ }
   };

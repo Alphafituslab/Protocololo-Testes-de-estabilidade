@@ -748,7 +748,12 @@ function InlineCell({
               if (next) { setEditing(false); setTimeout(() => { next.focus(); next.click(); }, 30); }
             }
           }}
-          autoComplete="off"
+          autoComplete="new-password"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          data-form-type="other"
+          data-lpignore="true"
           className="w-full border border-primary rounded px-1.5 py-0.5 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary"
           placeholder="Resultado ou C/NC/NA/ND/LQ/AR"
           data-testid="input-inline-result"
@@ -953,6 +958,52 @@ function ParamMethodSelector({
   );
 }
 
+/** Banco de parâmetros pré-definidos por categoria. */
+const CATEGORY_PRESETS: Record<string, { parameter: string; criterion: string }[]> = {
+  teor_ativo: [
+    { parameter: "Cálcio", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Vitamina D", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Vitamina C (Ácido Ascórbico)", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Vitamina E (Tocoferol)", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Vitamina K", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Vitamina A (Retinol)", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Vitamina B1 (Tiamina)", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Vitamina B2 (Riboflavina)", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Vitamina B3 (Niacina)", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Vitamina B5 (Ác. Pantotênico)", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Vitamina B6 (Piridoxina)", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Vitamina B9 (Ác. Fólico)", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Vitamina B12 (Cobalamina)", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Biotina (Vitamina H)", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Magnésio", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Ferro", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Zinco", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Selênio", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Potássio", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Manganês", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Cromo", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Cobre", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Iodo", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Coenzima Q10", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Ômega-3 (EPA+DHA)", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Colágeno Hidrolisado", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Creatina", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Extrato de Cúrcuma", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Extrato de Própolis", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Probióticos (UFC/g)", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Ácido Hialurônico", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Resveratrol", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Extrato de Açaí", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Licopeno", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Luteína", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Zeaxantina", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "L-Glutamina", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "L-Carnitina", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Beta-Glucana", criterion: "Mín. 80% do valor declarado" },
+    { parameter: "Inulina", criterion: "Mín. 80% do valor declarado" },
+  ],
+};
+
 function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }: { protocolId: number; initialCustomParamsJson?: string | null; protocolFinalStatus?: string | null }) {
   const protocolIsAR = protocolFinalStatus === "aprovado_com_ressalva";
   const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
@@ -1063,9 +1114,9 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
     setEditableParams((prev) => prev.map((p) => (p.uid === uid ? { ...p, [field]: val } : p)));
   };
 
-  const addParam = (category: string) => {
+  const addParam = (category: string, parameter = "", criterion = "") => {
     const uid = `${category}_${Date.now()}`;
-    setEditableParams((prev) => [...prev, { uid, parameter: "", criterion: "", category }]);
+    setEditableParams((prev) => [...prev, { uid, parameter, criterion, category }]);
   };
 
   const removeParam = (uid: string) => {
@@ -1185,6 +1236,12 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                                     renameResultParam(orig, param.parameter);
                                   }
                                 }}
+                                autoComplete="new-password"
+                                autoCorrect="off"
+                                autoCapitalize="off"
+                                spellCheck={false}
+                                data-form-type="other"
+                                data-lpignore="true"
                                 className="w-full text-xs font-medium bg-transparent border-b border-dashed border-transparent hover:border-muted-foreground/30 focus:border-primary focus:outline-none py-0.5 placeholder:text-muted-foreground/40"
                                 placeholder="Nome do parâmetro"
                               />
@@ -1202,6 +1259,12 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                               <input
                                 value={param.criterion}
                                 onChange={(e) => updateParam(param.uid, "criterion", e.target.value)}
+                                autoComplete="new-password"
+                                autoCorrect="off"
+                                autoCapitalize="off"
+                                spellCheck={false}
+                                data-form-type="other"
+                                data-lpignore="true"
                                 className="w-full text-xs text-muted-foreground bg-transparent border-b border-dashed border-transparent hover:border-muted-foreground/30 focus:border-primary focus:outline-none py-0.5 placeholder:text-muted-foreground/40"
                                 placeholder="Critério de aceitação"
                               />
@@ -1257,13 +1320,38 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                 </TableBody>
               </Table>
             </div>
+            {/* ── Banco de parâmetros (teor_ativo) ─────────────────────── */}
+            {CATEGORY_PRESETS[key] && (() => {
+              const alreadyAdded = new Set(catParams.map(p => p.parameter));
+              const available = CATEGORY_PRESETS[key].filter(p => !alreadyAdded.has(p.parameter));
+              if (available.length === 0) return null;
+              return (
+                <div className="mt-2 px-1 pb-1">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                    Banco de parâmetros — clique para adicionar com critério pré-preenchido:
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {available.map(p => (
+                      <button
+                        key={p.parameter}
+                        type="button"
+                        onClick={() => addParam(key, p.parameter, p.criterion)}
+                        className="text-[10px] px-2 py-0.5 rounded-full border border-primary/25 text-primary/70 hover:bg-primary/8 hover:border-primary/50 hover:text-primary transition-colors"
+                      >
+                        + {p.parameter}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
             <div className="flex justify-end mt-1 pr-1">
               <button
                 type="button"
                 onClick={() => addParam(key)}
                 className="text-xs text-muted-foreground/60 hover:text-primary flex items-center gap-1 py-1 px-2 rounded hover:bg-muted transition-colors"
               >
-                <Plus className="h-3 w-3" /> Adicionar parâmetro
+                <Plus className="h-3 w-3" /> Adicionar parâmetro em branco
               </button>
             </div>
           </div>
@@ -1346,6 +1434,12 @@ function EditableNum({
     <input
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      autoComplete="new-password"
+      autoCorrect="off"
+      autoCapitalize="off"
+      spellCheck={false}
+      data-form-type="other"
+      data-lpignore="true"
       className={`${width} border border-border rounded px-1.5 py-0.5 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary bg-white`}
       placeholder={placeholder}
     />
