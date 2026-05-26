@@ -955,6 +955,10 @@ export default function CertificatePage() {
         className="bg-white text-gray-900 border border-gray-300 shadow-lg rounded-sm p-10 font-sans text-sm leading-relaxed"
         data-testid="certificate-document"
       >
+        {/* ── BLOCO INTRODUTÓRIO — Header + Empresa + Produto + Plano ───────
+             Agrupados num único div para nunca quebrar a página dentro deles  */}
+        <div className="cert-intro-block">
+
         {/* Header */}
         <div className="flex items-start justify-between border-b-2 border-gray-800 pb-5 mb-6 gap-4">
           {/* Logo + título */}
@@ -1118,8 +1122,10 @@ export default function CertificatePage() {
           </div>
         )}
 
+        </div>{/* /cert-intro-block */}
+
         {/* ── MÉTODO DE ANÁLISE ────────────────────────────────────────────── */}
-        <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden text-sm">
+        <div className="cert-analysis-table mb-4 border border-gray-200 rounded-lg overflow-hidden text-sm">
           <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
             <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Método de Análise</h2>
           </div>
@@ -1144,7 +1150,7 @@ export default function CertificatePage() {
                 const allCatHidden = catRows.every(r => !r.visible);
                 return (
                   <>
-                    <tr key={`cat-${cat}`} className={allCatHidden ? "print:hidden" : ""}>
+                    <tr key={`cat-${cat}`} className={`cert-category-row ${allCatHidden ? "print:hidden" : ""}`}>
                       <td colSpan={6} className="border border-gray-300 px-2 py-1 bg-gray-200 font-bold text-[10px] uppercase tracking-widest text-gray-600">
                         {CATEGORY_LABELS[cat] ?? cat}
                       </td>
@@ -1203,7 +1209,7 @@ export default function CertificatePage() {
 
         {/* ── OBSERVAÇÕES SOBRE OS LOTES ───────────────────────────────────── */}
         {show.textoLotes && (
-          <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden text-xs">
+          <div className="cert-section mb-4 border border-gray-200 rounded-lg overflow-hidden text-xs">
             <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
               <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Observações sobre os Lotes</h2>
             </div>
@@ -1217,7 +1223,7 @@ export default function CertificatePage() {
 
         {/* ── INFORMAÇÕES ADICIONAIS ───────────────────────────────────────── */}
         {show.infoAdicionais && (
-          <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden text-xs">
+          <div className="cert-section mb-4 border border-gray-200 rounded-lg overflow-hidden text-xs">
             <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
               <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Informações Adicionais</h2>
             </div>
@@ -1231,7 +1237,7 @@ export default function CertificatePage() {
 
         {/* ── CONCLUSÃO ────────────────────────────────────────────────────── */}
         {show.conclusao && (
-          <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden text-sm">
+          <div className="cert-section mb-4 border border-gray-200 rounded-lg overflow-hidden text-sm">
             <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
               <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Conclusão</h2>
             </div>
@@ -1242,7 +1248,7 @@ export default function CertificatePage() {
         )}
 
         {/* ── DELIBERAÇÃO ──────────────────────────────────────────────────── */}
-        <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden text-sm">
+        <div className="cert-section cert-deliberacao mb-4 border border-gray-200 rounded-lg overflow-hidden text-sm">
           <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
             <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Deliberação</h2>
           </div>
@@ -1525,7 +1531,7 @@ export default function CertificatePage() {
               )}
 
               {/* ── ASSINATURAS ─────────────────────────────────────────────── */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="cert-signatures border border-gray-200 rounded-lg overflow-hidden">
                 <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
                   <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-1.5">
                     <ShieldCheck className="h-3 w-3" /> Assinaturas
@@ -1771,9 +1777,10 @@ export default function CertificatePage() {
       )}
 
       <style>{`
+        /* ── Margens de página: aplicadas a TODAS as folhas, inclusive a 2ª, 3ª… ── */
         @page {
           size: A4 portrait;
-          margin: 0;
+          margin: 15mm 18mm;
         }
 
         @media print {
@@ -1793,7 +1800,7 @@ export default function CertificatePage() {
           #certificate-document,
           #certificate-document * { visibility: visible !important; }
 
-          /* ── Certificate: normal flow, full width, no positioning tricks ─────  */
+          /* ── Certificate: padding zerado — margens vêm do @page acima ────────  */
           #certificate-document {
             position: static !important;
             display: block !important;
@@ -1803,10 +1810,9 @@ export default function CertificatePage() {
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
-            padding: 14mm 18mm !important;
+            padding: 0 !important;
             font-size: 9.5pt !important;
             overflow: visible !important;
-            /* Preserve background colours (table headers, coloured cells, etc.) */
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -1821,25 +1827,66 @@ export default function CertificatePage() {
             print-color-adjust: exact !important;
           }
 
-          /* ── Keep table rows together — avoid splitting a row across pages ───── */
+          /* ══════════════════════════════════════════════════════════════════════
+             CONTROLE DE QUEBRAS DE PÁGINA
+          ══════════════════════════════════════════════════════════════════════ */
+
+          /* ── Bloco introdutório (header + empresa + produto + plano): nunca quebra ── */
+          .cert-intro-block {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          /* ── Seções de texto (lotes, info, conclusão, deliberação): nunca quebra ── */
+          .cert-section {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          /* ── Assinaturas: sempre permanecem juntas ───────────────────────────── */
+          .cert-signatures {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          /* ── Deliberação: evitar que fique órfã no fim de uma página ──────────── */
+          .cert-deliberacao {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          /* ── Tabela de análises: PODE quebrar entre linhas (é grande demais) ─── */
+          .cert-analysis-table {
+            break-inside: auto !important;
+            page-break-inside: auto !important;
+          }
+
+          /* ── Cabeçalho da tabela repete em todas as páginas ─────────────────── */
+          .cert-analysis-table thead {
+            display: table-header-group;
+          }
+
+          /* ── Linha de categoria: nunca fica sozinha no fim da página ────────── */
+          .cert-category-row {
+            break-after: avoid;
+            page-break-after: avoid;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          /* ── Linhas de dados: nunca partem ao meio ───────────────────────────── */
           tr {
             break-inside: avoid;
             page-break-inside: avoid;
           }
 
-          /* ── Section blocks: try to stay together ───────────────────────────── */
-          #certificate-document > div {
-            break-inside: avoid;
-            page-break-inside: avoid;
-          }
-
-          /* ── Audit appendix: always starts on a fresh page ──────────────────── */
+          /* ── Audit appendix: sempre em nova folha ────────────────────────────── */
           .audit-appendix-section {
             page-break-before: always;
             break-before: page;
           }
 
-          /* Photo appendix always starts on a fresh page */
+          /* ── Photo appendix: sempre em nova folha ────────────────────────────── */
           .photo-appendix-section {
             page-break-before: always;
             break-before: page;
