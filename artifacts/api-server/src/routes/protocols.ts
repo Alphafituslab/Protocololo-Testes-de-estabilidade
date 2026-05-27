@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, count, and, inArray } from "drizzle-orm";
+import { eq, desc, count, and, inArray, ne } from "drizzle-orm";
 import { db, protocolsTable, lotsTable, analysisResultsTable } from "@workspace/db";
 import {
   CreateProtocolBody,
@@ -68,6 +68,15 @@ router.get("/protocols/stats", async (req, res): Promise<void> => {
 router.post("/protocols", requireAuth, async (req, res): Promise<void> => {
   const parsed = CreateProtocolBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  // Prevent duplicate certificate numbers
+  const cn = parsed.data.certNumber?.trim();
+  if (cn) {
+    const [dup] = await db.select({ id: protocolsTable.id }).from(protocolsTable).where(eq(protocolsTable.certNumber, cn)).limit(1);
+    if (dup) {
+      res.status(409).json({ error: `Número de certificado "${cn}" já está em uso no protocolo #${dup.id}. Cada protocolo deve ter um número único.`, field: "certNumber" });
+      return;
+    }
+  }
   const [protocol] = await db.insert(protocolsTable).values({ ...parsed.data, status: "em_andamento" }).returning();
   await logAudit(req, "CRIAR_PROTOCOLO", "protocolo", `Protocolo "${protocol.productName}" criado`, { entityId: protocol.id, protocolId: protocol.id });
   res.status(201).json(protocol);
@@ -90,6 +99,17 @@ router.put("/protocols/:id", requireAuth, async (req, res): Promise<void> => {
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = UpdateProtocolBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  // Prevent duplicate certificate numbers (excluding the current protocol itself)
+  const cn = (parsed.data as Record<string, unknown>).certNumber as string | undefined;
+  if (cn && cn.trim()) {
+    const [dup] = await db.select({ id: protocolsTable.id }).from(protocolsTable)
+      .where(and(eq(protocolsTable.certNumber, cn.trim()), ne(protocolsTable.id, params.data.id)))
+      .limit(1);
+    if (dup) {
+      res.status(409).json({ error: `Número de certificado "${cn.trim()}" já está em uso no protocolo #${dup.id}. Cada protocolo deve ter um número único.`, field: "certNumber" });
+      return;
+    }
+  }
   const [protocol] = await db.update(protocolsTable).set(parsed.data).where(eq(protocolsTable.id, params.data.id)).returning();
   if (!protocol) { res.status(404).json({ error: "Protocol not found" }); return; }
   await logAudit(req, "ATUALIZAR_PROTOCOLO", "protocolo", `Protocolo "${protocol.productName}" atualizado`, { entityId: protocol.id, protocolId: protocol.id });

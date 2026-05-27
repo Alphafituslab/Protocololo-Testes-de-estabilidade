@@ -10,6 +10,7 @@ import {
   getGetProtocolQueryKey,
   getListProtocolsQueryKey,
   getGetProtocolStatsQueryKey,
+  ApiError,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -150,6 +151,17 @@ export default function ProtocolForm() {
         },
   });
 
+  const handleApiError = (err: unknown, action: string) => {
+    if (err instanceof ApiError && err.status === 409) {
+      const body = err.data as { error?: string; field?: string } | null;
+      if (body?.field === "certNumber") {
+        form.setError("certNumber", { type: "server", message: body.error ?? "Número já em uso." });
+        return;
+      }
+    }
+    toast({ title: `Erro ao ${action} protocolo`, variant: "destructive" });
+  };
+
   const createProtocol = useCreateProtocol({
     mutation: {
       onSuccess: (data) => {
@@ -158,7 +170,7 @@ export default function ProtocolForm() {
         toast({ title: "Protocolo criado com sucesso" });
         setLocation(`/protocols/${data.id}`);
       },
-      onError: () => toast({ title: "Erro ao criar protocolo", variant: "destructive" }),
+      onError: (err) => handleApiError(err, "criar"),
     },
   });
 
@@ -170,7 +182,7 @@ export default function ProtocolForm() {
         toast({ title: "Protocolo atualizado com sucesso" });
         setLocation(`/protocols/${id}`);
       },
-      onError: () => toast({ title: "Erro ao atualizar protocolo", variant: "destructive" }),
+      onError: (err) => handleApiError(err, "atualizar"),
     },
   });
 
