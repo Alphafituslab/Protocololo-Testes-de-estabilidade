@@ -309,12 +309,12 @@ function LotsTab({ protocolId }: { protocolId: number }) {
         const justAdded = form.getValues().lotNumber;
         setLastAdded(justAdded);
         form.reset({ lotNumber: "", manufacturingDate: "", quantity: 20, notes: "" });
-        // Do NOT call toast() here — it mounts a portal simultaneously with the
-        // Dialog portal, which triggers a DOM insertBefore error that causes the
-        // error boundary to re-mount ProtocolDetail and reset open=false.
-        // The dialog already shows the green "Lote X cadastrado" banner.
+        // Do NOT call toast() or invalidate the protocol query here — both mount
+        // portals / trigger ProtocolDetail re-renders simultaneously with the Dialog
+        // portal, causing a DOM insertBefore error that makes the error boundary
+        // re-mount ProtocolDetail and reset open=false.
+        // Protocol query is invalidated when the dialog finally closes instead.
         queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
-        queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
         setTimeout(() => form.setFocus("lotNumber"), 50);
       },
     },
@@ -437,7 +437,15 @@ function LotsTab({ protocolId }: { protocolId: number }) {
         </p>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(next) => {
+        setOpen(next);
+        // Invalidate the protocol query only on close — doing it during createLot.onSuccess
+        // triggers a ProtocolDetail re-render while the Dialog portal is mounted, which
+        // causes the error boundary to re-mount and reset open=false.
+        if (!next) {
+          queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
+        }
+      }}>
         <DialogContent
           className="max-w-lg"
           onInteractOutside={e => { if (!editLot) e.preventDefault(); }}
