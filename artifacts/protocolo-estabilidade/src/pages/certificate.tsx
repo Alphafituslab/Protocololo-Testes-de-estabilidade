@@ -357,10 +357,10 @@ export default function CertificatePage() {
   }> | null>(null);
 
   // ── Cert-level field overrides (all free-text edits by operator) ──────────
-  // v2 key — completely separate from the old cert_edits_${id} key so that
-  // any corrupted data (lbl_*, certTitle, docTitle) from older code is never
-  // read again. Safe fields are migrated from the old key on first load.
-  const CERT_EDITS_KEY = `cert_edits_v3_${id}`;
+  // v4 key — v3 data is discarded entirely on first load because the isSyncing
+  // bug (programmatic textContent causing handleInput to fire) caused many
+  // browsers to persist autofill-corrupted values into v3. v4 starts fresh.
+  const CERT_EDITS_KEY = `cert_edits_v4_${id}`;
   const CERT_EDITS_KEY_OLD = `cert_edits_${id}`;
   const CERT_LOCKED_KEY = `cert_locked_${id}`;
   // Keys that must NEVER be loaded from cert_edits (always stripped).
@@ -412,12 +412,12 @@ export default function CertificatePage() {
       let raw = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}") as Record<string, string>;
       let dirty = false;
 
-      // ── First-time v1 cleanup ─────────────────────────────────────────────
-      // Delete the old v1 key entirely — do NOT migrate any fields.
-      // Old data may contain corrupted values (e.g. productName overridden with
-      // wrong text). Starting v2 fresh ensures the page always shows the correct
-      // database values on first load. Users can re-enter any desired overrides.
+      // ── Clean up all old version keys (v1, v2, v3) ──────────────────────
+      // v3 is discarded because the isSyncing bug caused autofill-corrupted
+      // values to be saved silently. v4 starts fresh for all users.
       try { localStorage.removeItem(CERT_EDITS_KEY_OLD); } catch { /* ignore */ }
+      try { localStorage.removeItem(`cert_edits_v3_${id}`); } catch { /* ignore */ }
+      try { localStorage.removeItem(`cert_edits_v2_${id}`); } catch { /* ignore */ }
 
       // ── Always strip any stale bad keys even from v2 data ─────────────────
       ALWAYS_CLEAR_KEYS.forEach(k => { if (k in raw) { delete raw[k]; dirty = true; } });

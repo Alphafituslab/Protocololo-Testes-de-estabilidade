@@ -307,15 +307,19 @@ function LotsTab({ protocolId }: { protocolId: number }) {
     mutation: {
       onSuccess: () => {
         const justAdded = form.getValues().lotNumber;
-        setLastAdded(justAdded);
-        form.reset({ lotNumber: "", manufacturingDate: "", quantity: 20, notes: "" });
-        // Do NOT call toast() or invalidate the protocol query here — both mount
-        // portals / trigger ProtocolDetail re-renders simultaneously with the Dialog
-        // portal, causing a DOM insertBefore error that makes the error boundary
-        // re-mount ProtocolDetail and reset open=false.
-        // Protocol query is invalidated when the dialog finally closes instead.
-        queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
-        setTimeout(() => form.setFocus("lotNumber"), 50);
+        // ALL side-effects are deferred to the next event-loop tick (after React's
+        // commit phase finishes). Running setState / invalidateQueries synchronously
+        // inside onSuccess while a Dialog portal is mounted causes concurrent DOM
+        // operations (insertBefore / removeChild conflicts) that the AppErrorBoundary
+        // catches as a transient error — but React still unmounts & remounts the
+        // entire subtree, resetting open=false and closing the dialog.
+        setTimeout(() => {
+          setLastAdded(justAdded);
+          form.reset({ lotNumber: "", manufacturingDate: "", quantity: 20, notes: "" });
+          // Protocol query is invalidated when the dialog finally closes (onOpenChange).
+          queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
+          form.setFocus("lotNumber");
+        }, 0);
       },
     },
   });
