@@ -117,6 +117,13 @@ function CertEditField({
 }: { value: string; onChange: (v: string) => void; className?: string; multiline?: boolean }) {
   const ref = React.useRef<HTMLSpanElement>(null);
   const isFocused = React.useRef(false);
+  // Guard: prevents handleInput from firing during programmatic DOM updates.
+  // Setting textContent on a contentEditable element can dispatch synthetic
+  // `input` events in some browsers/extensions, which would incorrectly save
+  // the API-provided default value to localStorage as if it were a user edit.
+  // That stale cached value would then override the correct database value on
+  // every subsequent visit. The guard blocks exactly this path.
+  const isSyncing = React.useRef(false);
 
   // Sync DOM ← React state whenever value changes, but only if not being edited.
   // This is necessary because cert data loads asynchronously — if we only set
@@ -124,7 +131,11 @@ function CertEditField({
   // to browser autofill injection.
   React.useEffect(() => {
     if (!isFocused.current && ref.current && ref.current.textContent !== value) {
+      isSyncing.current = true;
       ref.current.textContent = value;
+      // Reset after the microtask queue so any synchronously-dispatched input
+      // events are swallowed, but genuine user input afterwards is captured.
+      Promise.resolve().then(() => { isSyncing.current = false; });
     }
   }, [value]);
 
@@ -132,15 +143,11 @@ function CertEditField({
 
   const handleBlur = () => {
     isFocused.current = false;
-    // On blur, if the DOM drifted from React state (e.g. external update while
-    // editing), reconcile without firing onChange so we don't create a loop.
-    if (ref.current && ref.current.textContent !== value) {
-      // Only reconcile if the user didn't change the content (i.e. ref matches
-      // what onChange already recorded).
-    }
   };
 
   const handleInput = () => {
+    // Ignore input events fired by programmatic textContent assignment.
+    if (isSyncing.current) return;
     onChange(ref.current?.textContent ?? "");
   };
 
@@ -740,6 +747,23 @@ export default function CertificatePage() {
           </Button>
         </div>
       </div>
+
+      {/* ─── Banner: edições em cache detectadas ─── */}
+      {Object.keys(certEdits).length > 0 && !certLocked && (
+        <div className="print:hidden flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+          <span>
+            <strong>⚠ Atenção:</strong> Este certificado possui <strong>{Object.keys(certEdits).length}</strong> campo(s) com edições manuais salvas localmente.
+            Se os dados estiverem incorretos, clique em <strong>Restaurar</strong> para recarregar os valores originais do banco de dados.
+          </span>
+          <button
+            type="button"
+            onClick={() => { if (window.confirm("Restaurar todos os campos do certificado para os valores originais do banco de dados?\n\nAs edições manuais salvas localmente serão perdidas.")) clearCertEdits(); }}
+            className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded border border-amber-400 bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors"
+          >
+            ↺ Restaurar campos originais
+          </button>
+        </div>
+      )}
 
       {/* ─── Settings panel ─── */}
       {showSettings && (
