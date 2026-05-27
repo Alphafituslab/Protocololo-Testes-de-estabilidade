@@ -1295,7 +1295,7 @@ export default function CertificatePage() {
           const hasData = validParams.length > 0;
 
           return (
-            <div className={`mb-6 rounded border border-blue-200 overflow-hidden text-xs text-gray-700 ${!show.cineticaProtocolo ? "print:hidden" : ""}`}>
+            <div className={`cert-kinetica-block mb-6 rounded border border-blue-200 overflow-hidden text-xs text-gray-700 ${!show.cineticaProtocolo ? "print:hidden" : ""}`}>
               {/* Accordion header — screen only */}
               <div
                 className="print:hidden flex items-center justify-between px-4 py-2 bg-blue-50 border-b border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors select-none"
@@ -1400,7 +1400,7 @@ export default function CertificatePage() {
           );
         })()}
 
-        <div className={`mb-6 rounded border border-gray-200 overflow-hidden text-xs text-gray-700 ${!show.fundamentacaoCinetica ? "print:hidden" : ""}`}>
+        <div className={`cert-kinetica-block mb-6 rounded border border-gray-200 overflow-hidden text-xs text-gray-700 ${!show.fundamentacaoCinetica ? "print:hidden" : ""}`}>
           {/* Accordion header — screen only */}
           <div
             className="print:hidden flex items-center justify-between px-4 py-2 bg-gray-100 border-b border-gray-200 cursor-pointer hover:bg-gray-200 transition-colors select-none"
@@ -1777,15 +1777,32 @@ export default function CertificatePage() {
       )}
 
       <style>{`
-        /* ── Margens de página: aplicadas a TODAS as folhas, inclusive a 2ª, 3ª… ── */
+        /* ══════════════════════════════════════════════════════════════════════════
+           MARGENS DE PÁGINA — aplicadas a TODAS as folhas (1ª, 2ª, 3ª…)
+        ══════════════════════════════════════════════════════════════════════════ */
         @page {
           size: A4 portrait;
-          margin: 15mm 18mm;
+          margin: 12mm 15mm;
         }
 
         @media print {
-          /* ── Reset all layout containers so nothing clips the certificate ──── */
-          html, body, #root, #root > *, #root > * > * {
+          /* ── 1. Zerar margin/padding de TODOS os containers ancestrais ──────────
+             Sem isso, o padding do layout da app (barra de navegação, wrappers)
+             cria um espaço em branco invisível acima do certificado.           */
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            height: auto !important;
+            min-height: 0 !important;
+            background: white !important;
+          }
+          #root,
+          #root > *,
+          #root > * > *,
+          #root > * > * > * {
+            margin: 0 !important;
+            padding: 0 !important;
             overflow: visible !important;
             height: auto !important;
             min-height: 0 !important;
@@ -1793,18 +1810,28 @@ export default function CertificatePage() {
             background: white !important;
           }
 
-          /* ── Hide everything except the certificate ──────────────────────────  */
+          /* ── 2. Esconder todo o conteúdo da app visualmente ──────────────────── */
           body > * { display: none !important; }
           #root { display: block !important; }
           body * { visibility: hidden !important; }
+
+          /* ── 3. Tornar o certificado visível ─────────────────────────────────── */
           #certificate-document,
           #certificate-document * { visibility: visible !important; }
 
-          /* ── Certificate: padding zerado — margens vêm do @page acima ────────  */
+          /* ── 4. Posicionar o certificado no topo absoluto da área de conteúdo ──
+             position: absolute com top:0 / left:0 / right:0 ancora o certificado
+             exatamente no início da área de impressão (após as margens do @page),
+             eliminando qualquer espaço proveniente de elementos ocultos acima.
+             Em impressão multi-página o browser pagina conteúdo absoluto
+             normalmente — cada folha mostra a fatia correspondente.            */
           #certificate-document {
-            position: static !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
             display: block !important;
-            width: 100% !important;
+            width: auto !important;
             max-width: 100% !important;
             margin: 0 !important;
             box-shadow: none !important;
@@ -1817,10 +1844,19 @@ export default function CertificatePage() {
             print-color-adjust: exact !important;
           }
 
-          /* ── Editable field wrappers must not clip their print spans ─────────── */
-          #certificate-document span { overflow: visible !important; }
+          /* ── 5. Remover overflow:hidden de todos os containers internos ─────────
+             Classes como "rounded-lg overflow-hidden" cortam o conteúdo quando
+             a quebra de página acontece dentro do container.
+             Em impressão todos os containers devem ser overflow:visible.        */
+          #certificate-document div,
+          #certificate-document section,
+          #certificate-document article,
+          #certificate-document span,
+          #certificate-document p {
+            overflow: visible !important;
+          }
 
-          /* ── Table cells: let their height grow with content ────────────────── */
+          /* ── 6. Células de tabela: crescem com o conteúdo ────────────────────── */
           td, th {
             overflow: visible !important;
             -webkit-print-color-adjust: exact !important;
@@ -1831,34 +1867,39 @@ export default function CertificatePage() {
              CONTROLE DE QUEBRAS DE PÁGINA
           ══════════════════════════════════════════════════════════════════════ */
 
-          /* ── Bloco introdutório (header + empresa + produto + plano): nunca quebra ── */
+          /* ── Bloco introdutório (header + empresa + produto + plano) ─────────── */
           .cert-intro-block {
             break-inside: avoid;
             page-break-inside: avoid;
+            overflow: visible !important;
           }
 
-          /* ── Seções de texto (lotes, info, conclusão, deliberação): nunca quebra ── */
+          /* ── Seções de texto (lotes, info, conclusão, deliberação, cinética) ─── */
           .cert-section {
             break-inside: avoid;
             page-break-inside: avoid;
+            overflow: visible !important;
           }
 
           /* ── Assinaturas: sempre permanecem juntas ───────────────────────────── */
           .cert-signatures {
             break-inside: avoid;
             page-break-inside: avoid;
+            overflow: visible !important;
           }
 
-          /* ── Deliberação: evitar que fique órfã no fim de uma página ──────────── */
+          /* ── Deliberação: não fica órfã no fim de uma página ────────────────── */
           .cert-deliberacao {
             break-inside: avoid;
             page-break-inside: avoid;
+            overflow: visible !important;
           }
 
-          /* ── Tabela de análises: PODE quebrar entre linhas (é grande demais) ─── */
+          /* ── Tabela de análises: PODE quebrar entre linhas (tabela grande) ───── */
           .cert-analysis-table {
             break-inside: auto !important;
             page-break-inside: auto !important;
+            overflow: visible !important;
           }
 
           /* ── Cabeçalho da tabela repete em todas as páginas ─────────────────── */
@@ -1866,7 +1907,7 @@ export default function CertificatePage() {
             display: table-header-group;
           }
 
-          /* ── Linha de categoria: nunca fica sozinha no fim da página ────────── */
+          /* ── Linha de categoria: não fica sozinha no fim da página ──────────── */
           .cert-category-row {
             break-after: avoid;
             page-break-after: avoid;
@@ -1874,48 +1915,64 @@ export default function CertificatePage() {
             page-break-inside: avoid;
           }
 
-          /* ── Linhas de dados: nunca partem ao meio ───────────────────────────── */
+          /* ── Linhas de dados: não partem ao meio ─────────────────────────────── */
           tr {
             break-inside: avoid;
             page-break-inside: avoid;
+          }
+
+          /* ── Seção cinética e fundamentação: nunca parte no meio ────────────── */
+          .cert-kinetica-block {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            overflow: visible !important;
           }
 
           /* ── Audit appendix: sempre em nova folha ────────────────────────────── */
           .audit-appendix-section {
             page-break-before: always;
             break-before: page;
+            overflow: visible !important;
           }
 
           /* ── Photo appendix: sempre em nova folha ────────────────────────────── */
           .photo-appendix-section {
             page-break-before: always;
             break-before: page;
+            overflow: visible !important;
           }
-          .photo-appendix-header { page-break-inside: avoid; break-inside: avoid; }
+          .photo-appendix-header {
+            page-break-inside: avoid;
+            break-inside: avoid;
+            overflow: visible !important;
+          }
 
-          /* Each parameter group tries to stay together */
+          /* Grupo de parâmetro fotográfico: mantém junto ─────────────────────── */
           .photo-param-group {
             page-break-inside: avoid;
             break-inside: avoid;
+            overflow: visible !important;
           }
 
-          /* Each photo figure stays together */
+          /* Figura fotográfica individual: mantém junto ──────────────────────── */
           .photo-figure {
             page-break-inside: avoid;
             break-inside: avoid;
             display: inline-flex !important;
             flex-direction: column;
             align-items: center;
+            overflow: visible !important;
           }
 
-          /* Photo grid wraps naturally */
+          /* Grade de fotos: wrapping natural ─────────────────────────────────── */
           .photo-grid {
             display: flex;
             flex-wrap: wrap;
             gap: 12px;
+            overflow: visible !important;
           }
 
-          /* Fixed image size for print */
+          /* Tamanho fixo de imagem para impressão ────────────────────────────── */
           .photo-img {
             width: 180px !important;
             height: 180px !important;
