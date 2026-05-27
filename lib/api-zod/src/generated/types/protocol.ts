@@ -30,6 +30,14 @@ export interface Protocol {
   storageHumidity?: string;
   studyPeriodMonths?: number;
   testIntervals?: string;
+  /** Condições ambientais durante amostragem — temperatura */
+  samplingTemp?: string | null;
+  /** Condições ambientais durante amostragem — umidade */
+  samplingHumidity?: string | null;
+  /** Condições de coleta/recebimento — temperatura */
+  receptionTemp?: string | null;
+  /** Condições de coleta/recebimento — umidade */
+  receptionHumidity?: string | null;
   elaboratedBy?: string;
   approvedBy?: string;
   issuedBy?: string;

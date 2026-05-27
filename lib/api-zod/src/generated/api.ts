@@ -52,6 +52,22 @@ export const ListProtocolsResponseItem = zod.object({
   storageHumidity: zod.string().optional(),
   studyPeriodMonths: zod.number().optional(),
   testIntervals: zod.string().optional(),
+  samplingTemp: zod
+    .string()
+    .nullish()
+    .describe("Condições ambientais durante amostragem — temperatura"),
+  samplingHumidity: zod
+    .string()
+    .nullish()
+    .describe("Condições ambientais durante amostragem — umidade"),
+  receptionTemp: zod
+    .string()
+    .nullish()
+    .describe("Condições de coleta\/recebimento — temperatura"),
+  receptionHumidity: zod
+    .string()
+    .nullish()
+    .describe("Condições de coleta\/recebimento — umidade"),
   elaboratedBy: zod.string().optional(),
   approvedBy: zod.string().optional(),
   issuedBy: zod.string().optional(),
@@ -118,6 +134,10 @@ export const CreateProtocolBody = zod.object({
   storageHumidity: zod.string().optional(),
   studyPeriodMonths: zod.number().optional(),
   testIntervals: zod.string().optional(),
+  samplingTemp: zod.string().nullish(),
+  samplingHumidity: zod.string().nullish(),
+  receptionTemp: zod.string().nullish(),
+  receptionHumidity: zod.string().nullish(),
   elaboratedBy: zod.string().optional(),
   approvedBy: zod.string().optional(),
   issuedBy: zod.string().optional(),
@@ -161,6 +181,22 @@ export const GetProtocolStatsResponse = zod.object({
       storageHumidity: zod.string().optional(),
       studyPeriodMonths: zod.number().optional(),
       testIntervals: zod.string().optional(),
+      samplingTemp: zod
+        .string()
+        .nullish()
+        .describe("Condições ambientais durante amostragem — temperatura"),
+      samplingHumidity: zod
+        .string()
+        .nullish()
+        .describe("Condições ambientais durante amostragem — umidade"),
+      receptionTemp: zod
+        .string()
+        .nullish()
+        .describe("Condições de coleta\/recebimento — temperatura"),
+      receptionHumidity: zod
+        .string()
+        .nullish()
+        .describe("Condições de coleta\/recebimento — umidade"),
       elaboratedBy: zod.string().optional(),
       approvedBy: zod.string().optional(),
       issuedBy: zod.string().optional(),
@@ -239,6 +275,22 @@ export const GetProtocolResponse = zod
     storageHumidity: zod.string().optional(),
     studyPeriodMonths: zod.number().optional(),
     testIntervals: zod.string().optional(),
+    samplingTemp: zod
+      .string()
+      .nullish()
+      .describe("Condições ambientais durante amostragem — temperatura"),
+    samplingHumidity: zod
+      .string()
+      .nullish()
+      .describe("Condições ambientais durante amostragem — umidade"),
+    receptionTemp: zod
+      .string()
+      .nullish()
+      .describe("Condições de coleta\/recebimento — temperatura"),
+    receptionHumidity: zod
+      .string()
+      .nullish()
+      .describe("Condições de coleta\/recebimento — umidade"),
     elaboratedBy: zod.string().optional(),
     approvedBy: zod.string().optional(),
     issuedBy: zod.string().optional(),
@@ -357,6 +409,10 @@ export const UpdateProtocolBody = zod.object({
   storageHumidity: zod.string().optional(),
   studyPeriodMonths: zod.number().optional(),
   testIntervals: zod.string().optional(),
+  samplingTemp: zod.string().nullish(),
+  samplingHumidity: zod.string().nullish(),
+  receptionTemp: zod.string().nullish(),
+  receptionHumidity: zod.string().nullish(),
   elaboratedBy: zod.string().optional(),
   approvedBy: zod.string().optional(),
   issuedBy: zod.string().optional(),
@@ -393,6 +449,22 @@ export const UpdateProtocolResponse = zod.object({
   storageHumidity: zod.string().optional(),
   studyPeriodMonths: zod.number().optional(),
   testIntervals: zod.string().optional(),
+  samplingTemp: zod
+    .string()
+    .nullish()
+    .describe("Condições ambientais durante amostragem — temperatura"),
+  samplingHumidity: zod
+    .string()
+    .nullish()
+    .describe("Condições ambientais durante amostragem — umidade"),
+  receptionTemp: zod
+    .string()
+    .nullish()
+    .describe("Condições de coleta\/recebimento — temperatura"),
+  receptionHumidity: zod
+    .string()
+    .nullish()
+    .describe("Condições de coleta\/recebimento — umidade"),
   elaboratedBy: zod.string().optional(),
   approvedBy: zod.string().optional(),
   issuedBy: zod.string().optional(),
@@ -722,6 +794,22 @@ export const GetCertificateResponse = zod.object({
   storageHumidity: zod.string().nullish(),
   studyPeriodMonths: zod.number().nullish(),
   testIntervals: zod.string().nullish(),
+  samplingTemp: zod
+    .string()
+    .nullish()
+    .describe("Condições ambientais durante amostragem — temperatura"),
+  samplingHumidity: zod
+    .string()
+    .nullish()
+    .describe("Condições ambientais durante amostragem — umidade"),
+  receptionTemp: zod
+    .string()
+    .nullish()
+    .describe("Condições de coleta\/recebimento — temperatura"),
+  receptionHumidity: zod
+    .string()
+    .nullish()
+    .describe("Condições de coleta\/recebimento — umidade"),
 });
 
 /**
@@ -819,6 +907,22 @@ export const FinalizeProtocolResponse = zod.object({
   storageHumidity: zod.string().optional(),
   studyPeriodMonths: zod.number().optional(),
   testIntervals: zod.string().optional(),
+  samplingTemp: zod
+    .string()
+    .nullish()
+    .describe("Condições ambientais durante amostragem — temperatura"),
+  samplingHumidity: zod
+    .string()
+    .nullish()
+    .describe("Condições ambientais durante amostragem — umidade"),
+  receptionTemp: zod
+    .string()
+    .nullish()
+    .describe("Condições de coleta\/recebimento — temperatura"),
+  receptionHumidity: zod
+    .string()
+    .nullish()
+    .describe("Condições de coleta\/recebimento — umidade"),
   elaboratedBy: zod.string().optional(),
   approvedBy: zod.string().optional(),
   issuedBy: zod.string().optional(),

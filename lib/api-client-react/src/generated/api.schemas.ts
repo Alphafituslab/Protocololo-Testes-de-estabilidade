@@ -57,6 +57,14 @@ export interface Protocol {
   storageHumidity?: string;
   studyPeriodMonths?: number;
   testIntervals?: string;
+  /** Condições ambientais durante amostragem — temperatura */
+  samplingTemp?: string | null;
+  /** Condições ambientais durante amostragem — umidade */
+  samplingHumidity?: string | null;
+  /** Condições de coleta/recebimento — temperatura */
+  receptionTemp?: string | null;
+  /** Condições de coleta/recebimento — umidade */
+  receptionHumidity?: string | null;
   elaboratedBy?: string;
   approvedBy?: string;
   issuedBy?: string;
@@ -156,6 +164,10 @@ export interface CreateProtocolBody {
   storageHumidity?: string;
   studyPeriodMonths?: number;
   testIntervals?: string;
+  samplingTemp?: string | null;
+  samplingHumidity?: string | null;
+  receptionTemp?: string | null;
+  receptionHumidity?: string | null;
   elaboratedBy?: string;
   approvedBy?: string;
   issuedBy?: string;
@@ -196,6 +208,10 @@ export interface UpdateProtocolBody {
   storageHumidity?: string;
   studyPeriodMonths?: number;
   testIntervals?: string;
+  samplingTemp?: string | null;
+  samplingHumidity?: string | null;
+  receptionTemp?: string | null;
+  receptionHumidity?: string | null;
   elaboratedBy?: string;
   approvedBy?: string;
   issuedBy?: string;
@@ -343,6 +359,14 @@ export interface Certificate {
   storageHumidity?: string | null;
   studyPeriodMonths?: number | null;
   testIntervals?: string | null;
+  /** Condições ambientais durante amostragem — temperatura */
+  samplingTemp?: string | null;
+  /** Condições ambientais durante amostragem — umidade */
+  samplingHumidity?: string | null;
+  /** Condições de coleta/recebimento — temperatura */
+  receptionTemp?: string | null;
+  /** Condições de coleta/recebimento — umidade */
+  receptionHumidity?: string | null;
 }
 
 export interface Methodology {

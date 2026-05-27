@@ -144,13 +144,14 @@ function InfoField({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-function EditableInfoField({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+function EditableInfoField({ label, value, onChange, onBlur, placeholder }: { label: string; value: string; onChange: (v: string) => void; onBlur?: () => void; placeholder?: string }) {
   return (
     <div className="border-b border-border pb-2">
       <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">{label}</dt>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         placeholder={placeholder}
         className="w-full text-sm font-medium bg-transparent border-0 border-b border-dashed border-primary/40 focus:outline-none focus:border-primary py-0.5 placeholder:text-muted-foreground/40"
       />
@@ -182,32 +183,32 @@ function InfoFieldEL({ labelKey, def, value, lbl, setLabel }: {
 }
 
 function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
-  const ENV_KEY = `cert_env_${protocol.id}`;
   const { lbl, setLabel } = useLabelOverrides();
+  const queryClient = useQueryClient();
+  const updateProtocol = useUpdateProtocol();
 
-  const [tempAmostragem, setTempAmostragemRaw] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").tempAmostragem ?? "22,8°C"; } catch { return "22,8°C"; }
-  });
-  const [umidAmostragem, setUmidAmostragemRaw] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").umidAmostragem ?? "60% UR"; } catch { return "60% UR"; }
-  });
-  const [tempRecebimento, setTempRecebimentoRaw] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").tempRecebimento ?? "22,8°C"; } catch { return "22,8°C"; }
-  });
-  const [umidRecebimento, setUmidRecebimentoRaw] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").umidRecebimento ?? "60% UR"; } catch { return "60% UR"; }
-  });
+  // Environmental conditions — now persisted in the database.
+  // We clean up the old localStorage key on mount so stale values are gone.
+  const [samplingTemp, setSamplingTempRaw] = useState(protocol.samplingTemp ?? "22,8°C");
+  const [samplingHumidity, setSamplingHumidityRaw] = useState(protocol.samplingHumidity ?? "60% UR");
+  const [receptionTemp, setReceptionTempRaw] = useState(protocol.receptionTemp ?? "22,8°C");
+  const [receptionHumidity, setReceptionHumidityRaw] = useState(protocol.receptionHumidity ?? "60% UR");
 
-  const saveEnv = (patch: Partial<{ tempAmostragem: string; umidAmostragem: string; tempRecebimento: string; umidRecebimento: string }>) => {
-    try {
-      const current = JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}");
-      localStorage.setItem(ENV_KEY, JSON.stringify({ ...current, ...patch }));
-    } catch { /* ignore */ }
-  };
-  const setTempAmostragem = (v: string) => { setTempAmostragemRaw(v); saveEnv({ tempAmostragem: v }); };
-  const setUmidAmostragem = (v: string) => { setUmidAmostragemRaw(v); saveEnv({ umidAmostragem: v }); };
-  const setTempRecebimento = (v: string) => { setTempRecebimentoRaw(v); saveEnv({ tempRecebimento: v }); };
-  const setUmidRecebimento = (v: string) => { setUmidRecebimentoRaw(v); saveEnv({ umidRecebimento: v }); };
+  useEffect(() => {
+    try { localStorage.removeItem(`cert_env_${protocol.id}`); } catch { /* ignore */ }
+  }, [protocol.id]);
+
+  const saveField = useCallback((field: string, value: string) => {
+    updateProtocol.mutate(
+      { id: protocol.id, data: { [field]: value } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocol.id) });
+          queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocol.id) });
+        },
+      }
+    );
+  }, [protocol.id, updateProtocol, queryClient]);
 
   const fieldsTop: { labelKey: string; def: string; value?: string | null }[] = [
     { labelKey: "certNumber", def: "Número do Certificado de Análise", value: protocol.certNumber },
@@ -256,26 +257,30 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
         <div className="grid grid-cols-2 gap-x-8 gap-y-3">
           <EditableInfoField
             label="Condições ambientais durante amostragem — Temperatura"
-            value={tempAmostragem}
-            onChange={setTempAmostragem}
+            value={samplingTemp}
+            onChange={setSamplingTempRaw}
+            onBlur={() => saveField("samplingTemp", samplingTemp)}
             placeholder="ex: 22,8°C"
           />
           <EditableInfoField
             label="Condições ambientais durante amostragem — Umidade"
-            value={umidAmostragem}
-            onChange={setUmidAmostragem}
+            value={samplingHumidity}
+            onChange={setSamplingHumidityRaw}
+            onBlur={() => saveField("samplingHumidity", samplingHumidity)}
             placeholder="ex: 60% UR"
           />
           <EditableInfoField
             label="Condições de recebimento da amostra — Temperatura"
-            value={tempRecebimento}
-            onChange={setTempRecebimento}
+            value={receptionTemp}
+            onChange={setReceptionTempRaw}
+            onBlur={() => saveField("receptionTemp", receptionTemp)}
             placeholder="ex: 22,8°C"
           />
           <EditableInfoField
             label="Condições de recebimento da amostra — Umidade"
-            value={umidRecebimento}
-            onChange={setUmidRecebimento}
+            value={receptionHumidity}
+            onChange={setReceptionHumidityRaw}
+            onBlur={() => saveField("receptionHumidity", receptionHumidity)}
             placeholder="ex: 60% UR"
           />
         </div>

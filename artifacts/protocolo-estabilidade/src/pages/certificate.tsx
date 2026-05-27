@@ -303,31 +303,8 @@ export default function CertificatePage() {
   const [cineticaExpanded, setCineticaExpanded] = useState(true);
   const [fundamentacaoExpanded, setFundamentacaoExpanded] = useState(true);
 
-  // Environmental conditions — persisted in localStorage so edits survive navigation
-  const ENV_KEY = `cert_env_${id}`;
-  const [tempAmostragem, setTempAmostragemRaw] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").tempAmostragem ?? "22,8°C"; } catch { return "22,8°C"; }
-  });
-  const [umidAmostragem, setUmidAmostragemRaw] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").umidAmostragem ?? "60% UR"; } catch { return "60% UR"; }
-  });
-  const [tempRecebimento, setTempRecebimentoRaw] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").tempRecebimento ?? "22,8°C"; } catch { return "22,8°C"; }
-  });
-  const [umidRecebimento, setUmidRecebimentoRaw] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}").umidRecebimento ?? "60% UR"; } catch { return "60% UR"; }
-  });
-
-  const saveEnv = (patch: Partial<{ tempAmostragem: string; umidAmostragem: string; tempRecebimento: string; umidRecebimento: string }>) => {
-    try {
-      const current = JSON.parse(localStorage.getItem(ENV_KEY) ?? "{}");
-      localStorage.setItem(ENV_KEY, JSON.stringify({ ...current, ...patch }));
-    } catch { /* ignore */ }
-  };
-  const setTempAmostragem = (v: string) => { setTempAmostragemRaw(v); saveEnv({ tempAmostragem: v }); };
-  const setUmidAmostragem = (v: string) => { setUmidAmostragemRaw(v); saveEnv({ umidAmostragem: v }); };
-  const setTempRecebimento = (v: string) => { setTempRecebimentoRaw(v); saveEnv({ tempRecebimento: v }); };
-  const setUmidRecebimento = (v: string) => { setUmidRecebimentoRaw(v); saveEnv({ umidRecebimento: v }); };
+  // Environmental conditions — now stored in the database (samplingTemp/Humidity, receptionTemp/Humidity).
+  // The old cert_env_* localStorage key is cleaned up during the v4 migration below.
 
   // ── Electronic signatures ─────────────────────────────────────────────────
   const auth = useContext(AuthContext);
@@ -421,6 +398,7 @@ export default function CertificatePage() {
       try { localStorage.removeItem(CERT_EDITS_KEY_OLD); } catch { /* ignore */ }
       try { localStorage.removeItem(`cert_edits_v3_${id}`); } catch { /* ignore */ }
       try { localStorage.removeItem(`cert_edits_v2_${id}`); } catch { /* ignore */ }
+      try { localStorage.removeItem(`cert_env_${id}`); } catch { /* ignore */ }
 
       // ── Always strip any stale bad keys even from v2 data ─────────────────
       ALWAYS_CLEAR_KEYS.forEach(k => { if (k in raw) { delete raw[k]; dirty = true; } });
@@ -1147,19 +1125,19 @@ export default function CertificatePage() {
             <div className="px-4 py-3 grid grid-cols-2 gap-x-8 gap-y-2">
               <div className="space-y-0.5">
                 <div className="text-gray-500">{ef("lbl_amostragemTemp", "Amostragem — Temperatura:")}</div>
-                <CertEditField value={tempAmostragem} onChange={setTempAmostragem} className="w-20 text-xs" />
+                {ef("samplingTemp", cert?.samplingTemp ?? "22,8°C", { className: "w-20 text-xs" })}
               </div>
               <div className="space-y-0.5">
                 <div className="text-gray-500">{ef("lbl_amostragemUmid", "Amostragem — Umidade:")}</div>
-                <CertEditField value={umidAmostragem} onChange={setUmidAmostragem} className="w-20 text-xs" />
+                {ef("samplingHumidity", cert?.samplingHumidity ?? "60% UR", { className: "w-20 text-xs" })}
               </div>
               <div className="space-y-0.5">
                 <div className="text-gray-500">{ef("lbl_recebimentoTemp", "Recebimento — Temperatura:")}</div>
-                <CertEditField value={tempRecebimento} onChange={setTempRecebimento} className="w-20 text-xs" />
+                {ef("receptionTemp", cert?.receptionTemp ?? "22,8°C", { className: "w-20 text-xs" })}
               </div>
               <div className="space-y-0.5">
                 <div className="text-gray-500">{ef("lbl_recebimentoUmid", "Recebimento — Umidade:")}</div>
-                <CertEditField value={umidRecebimento} onChange={setUmidRecebimento} className="w-20 text-xs" />
+                {ef("receptionHumidity", cert?.receptionHumidity ?? "60% UR", { className: "w-20 text-xs" })}
               </div>
             </div>
           </div>

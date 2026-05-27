@@ -583,6 +583,22 @@ components:
           type: integer
         testIntervals:
           type: string
+        samplingTemp:
+          type: string
+          nullable: true
+          description: Condições ambientais durante amostragem — temperatura
+        samplingHumidity:
+          type: string
+          nullable: true
+          description: Condições ambientais durante amostragem — umidade
+        receptionTemp:
+          type: string
+          nullable: true
+          description: Condições de coleta/recebimento — temperatura
+        receptionHumidity:
+          type: string
+          nullable: true
+          description: Condições de coleta/recebimento — umidade
         elaboratedBy:
           type: string
         approvedBy:
@@ -699,6 +715,18 @@ components:
           type: integer
         testIntervals:
           type: string
+        samplingTemp:
+          type: string
+          nullable: true
+        samplingHumidity:
+          type: string
+          nullable: true
+        receptionTemp:
+          type: string
+          nullable: true
+        receptionHumidity:
+          type: string
+          nullable: true
         elaboratedBy:
           type: string
         approvedBy:
@@ -760,6 +788,18 @@ components:
           type: integer
         testIntervals:
           type: string
+        samplingTemp:
+          type: string
+          nullable: true
+        samplingHumidity:
+          type: string
+          nullable: true
+        receptionTemp:
+          type: string
+          nullable: true
+        receptionHumidity:
+          type: string
+          nullable: true
         elaboratedBy:
           type: string
         approvedBy:
@@ -1110,6 +1150,22 @@ components:
         testIntervals:
           type: string
           nullable: true
+        samplingTemp:
+          type: string
+          nullable: true
+          description: Condições ambientais durante amostragem — temperatura
+        samplingHumidity:
+          type: string
+          nullable: true
+          description: Condições ambientais durante amostragem — umidade
+        receptionTemp:
+          type: string
+          nullable: true
+          description: Condições de coleta/recebimento — temperatura
+        receptionHumidity:
+          type: string
+          nullable: true
+          description: Condições de coleta/recebimento — umidade
       required:
         - certNumber
         - issueDate

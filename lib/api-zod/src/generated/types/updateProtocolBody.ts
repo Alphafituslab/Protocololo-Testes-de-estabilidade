@@ -27,6 +27,10 @@ export interface UpdateProtocolBody {
   storageHumidity?: string;
   studyPeriodMonths?: number;
   testIntervals?: string;
+  samplingTemp?: string | null;
+  samplingHumidity?: string | null;
+  receptionTemp?: string | null;
+  receptionHumidity?: string | null;
   elaboratedBy?: string;
   approvedBy?: string;
   issuedBy?: string;
