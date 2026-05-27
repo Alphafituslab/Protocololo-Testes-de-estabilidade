@@ -108,6 +108,7 @@ export default function ProtocolReportPage() {
   const { id } = useParams<{ id: string }>();
   const numId = Number(id);
   const [_showAll, _setShowAll] = useState(true);
+  const [showRessalva, setShowRessalva] = useState(true);
 
   const { data: cert, isLoading: certLoading } = useGetCertificate(numId, {
     query: { enabled: !!id, queryKey: getGetCertificateQueryKey(numId), staleTime: 0 },
@@ -180,9 +181,22 @@ export default function ProtocolReportPage() {
           <span className="text-sm font-semibold text-gray-800">Relatório Técnico — ANVISA</span>
           <StatusBadge status={protocol.status} />
         </div>
-        <Button onClick={() => window.print()} className="gap-2">
-          <Printer className="h-4 w-4" /> Imprimir / Salvar PDF
-        </Button>
+        <div className="flex items-center gap-2">
+          {protocol.status === "aprovado_com_ressalva" && cert.ressalva && (
+            <label className="flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 transition-colors">
+              <input
+                type="checkbox"
+                checked={showRessalva}
+                onChange={() => setShowRessalva(v => !v)}
+                className="w-3.5 h-3.5 accent-amber-600"
+              />
+              <span className="text-xs font-medium text-amber-800">Nota de Ressalva</span>
+            </label>
+          )}
+          <Button onClick={() => window.print()} className="gap-2">
+            <Printer className="h-4 w-4" /> Imprimir / Salvar PDF
+          </Button>
+        </div>
       </div>
 
       {/* ── Document ────────────────────────────────────────────────── */}
@@ -499,6 +513,19 @@ export default function ProtocolReportPage() {
                 </div>
               </div>
             </Section>
+          )}
+
+          {/* Nota de Ressalva */}
+          {protocol.status === "aprovado_com_ressalva" && cert.ressalva && showRessalva && (
+            <div className="report-section mb-5 border border-amber-300 rounded-lg overflow-hidden text-[10px]">
+              <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2">
+                <span className="text-amber-600">⚠</span>
+                <h2 className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Nota de Ressalva</h2>
+              </div>
+              <div className="px-4 py-3 bg-amber-50/30">
+                <p className="text-[10px] text-amber-900 leading-relaxed whitespace-pre-wrap">{cert.ressalva}</p>
+              </div>
+            </div>
           )}
 
           {/* 9. Assinaturas */}

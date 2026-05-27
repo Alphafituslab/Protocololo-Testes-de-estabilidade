@@ -184,15 +184,17 @@ type ShowSections = {
   conclusao: boolean;
   cineticaProtocolo: boolean;
   fundamentacaoCinetica: boolean;
+  ressalvaNote: boolean;
 };
 
-const SECTION_LABELS: { key: keyof ShowSections; label: string }[] = [
+const SECTION_LABELS: { key: keyof ShowSections; label: string; onlyWhenAR?: boolean }[] = [
   { key: "condicoesAmbientais", label: "Condições Ambientais" },
   { key: "textoLotes", label: "Texto Lotes Piloto" },
   { key: "infoAdicionais", label: "Informações Adicionais" },
   { key: "conclusao", label: "Conclusão" },
   { key: "cineticaProtocolo", label: "Parâmetros Cinéticos e Validade" },
   { key: "fundamentacaoCinetica", label: "Fundamentação Cinética" },
+  { key: "ressalvaNote", label: "Nota de Ressalva", onlyWhenAR: true },
 ];
 
 // ── Module-level: certificate title corruption guard ──────────────────────────
@@ -281,6 +283,7 @@ export default function CertificatePage() {
     conclusao: true,
     cineticaProtocolo: true,
     fundamentacaoCinetica: true,
+    ressalvaNote: true,
   });
 
   const [includePhotos, setIncludePhotos] = useState(true);
@@ -756,10 +759,10 @@ export default function CertificatePage() {
           <div className="space-y-2">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Seções do documento</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {SECTION_LABELS.map(({ key, label }) => (
-                <label key={key} className="flex items-center gap-2 cursor-pointer select-none p-2 rounded-md border border-gray-100 hover:bg-gray-50">
+              {SECTION_LABELS.filter(s => !s.onlyWhenAR || isAR).map(({ key, label, onlyWhenAR }) => (
+                <label key={key} className={`flex items-center gap-2 cursor-pointer select-none p-2 rounded-md border hover:bg-gray-50 ${onlyWhenAR ? "border-amber-200 bg-amber-50/40" : "border-gray-100"}`}>
                   <input type="checkbox" checked={show[key]} onChange={() => toggle(key)} className="w-4 h-4 accent-primary" />
-                  <span className="text-sm text-gray-700">{label}</span>
+                  <span className={`text-sm ${onlyWhenAR ? "text-amber-800 font-medium" : "text-gray-700"}`}>{label}</span>
                 </label>
               ))}
             </div>
@@ -1284,6 +1287,19 @@ export default function CertificatePage() {
             </div>
           </div>
         </div>
+
+        {/* ── NOTA DE RESSALVA ──────────────────────────────────────────────── */}
+        {isAR && cert.ressalva && (
+          <div className={`cert-section mb-4 border border-amber-300 rounded-lg overflow-hidden text-xs ${!show.ressalvaNote ? "print:hidden" : ""}`}>
+            <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2">
+              <span className="text-amber-600 text-sm">⚠</span>
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Nota de Ressalva</h2>
+            </div>
+            <div className="px-4 py-3 bg-amber-50/30">
+              <p className="text-xs text-amber-900 leading-relaxed whitespace-pre-wrap">{cert.ressalva}</p>
+            </div>
+          </div>
+        )}
 
         {(() => {
           const kParams = kineticsData?.parameters ?? [];

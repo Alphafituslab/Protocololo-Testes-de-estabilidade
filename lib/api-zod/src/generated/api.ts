@@ -708,6 +708,10 @@ export const GetCertificateResponse = zod.object({
   issuedByEmail: zod.string().nullish(),
   notes: zod.string().nullish(),
   kineticsNotes: zod.string().nullish().describe("Observações da aba Cinética"),
+  ressalva: zod
+    .string()
+    .nullish()
+    .describe("Texto da ressalva quando finalStatus é aprovado_com_ressalva"),
   capsuleComposition: zod.string().nullish(),
   packagingType: zod.string().nullish(),
   activeIngredients: zod.string().nullish(),

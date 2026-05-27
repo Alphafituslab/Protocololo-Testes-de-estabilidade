@@ -29,6 +29,8 @@ export interface Certificate {
   notes?: string | null;
   /** Observações da aba Cinética */
   kineticsNotes?: string | null;
+  /** Texto da ressalva quando finalStatus é aprovado_com_ressalva */
+  ressalva?: string | null;
   capsuleComposition?: string | null;
   packagingType?: string | null;
   activeIngredients?: string | null;

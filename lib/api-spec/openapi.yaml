@@ -1076,6 +1076,10 @@ components:
           type: string
           nullable: true
           description: Observações da aba Cinética
+        ressalva:
+          type: string
+          nullable: true
+          description: Texto da ressalva quando finalStatus é aprovado_com_ressalva
         capsuleComposition:
           type: string
           nullable: true
