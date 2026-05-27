@@ -1,0 +1,1 @@
+- [Certificate localStorage architecture](cert-localstorage.md) — edits only persist to localStorage on lock; unlocked cert always shows fresh API data

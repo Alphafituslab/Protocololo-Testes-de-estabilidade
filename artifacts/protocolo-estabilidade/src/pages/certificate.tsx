@@ -171,6 +171,9 @@ function CertEditField({
         ref={ref}
         contentEditable
         suppressContentEditableWarning
+        spellCheck={false}
+        autoCorrect="off"
+        autoCapitalize="off"
         onFocus={handleFocus}
         onBlur={handleBlur}
         onInput={handleInput}
@@ -438,7 +441,12 @@ export default function CertificatePage() {
   const setCertEdit = (key: string, val: string) => {
     setCertEditsState(prev => {
       const next = { ...prev, [key]: val };
-      try { localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      // Only persist to localStorage when the cert is LOCKED (after "Salvar e Bloquear").
+      // When unlocked, edits live in React state only — browser autocorrect/autofill
+      // can modify contentEditable DOM without any persistent side-effect.
+      if (certLocked) {
+        try { localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      }
       return next;
     });
   };
@@ -446,7 +454,9 @@ export default function CertificatePage() {
     setCertEditsState(prev => {
       const next = { ...prev };
       delete next[key];
-      try { localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      if (certLocked) {
+        try { localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      }
       return next;
     });
   };
@@ -460,7 +470,13 @@ export default function CertificatePage() {
       try { localStorage.removeItem(CERT_TITLE_KEY); } catch { /* ignore */ }
     }
     setCertLockedState(true);
-    try { localStorage.setItem(CERT_LOCKED_KEY, "1"); } catch { /* ignore */ }
+    // Persist ALL in-memory edits to localStorage NOW (first time they are saved).
+    // Edits are only held in React state while unlocked, so this is the single
+    // point of truth where they get written to localStorage.
+    try {
+      localStorage.setItem(CERT_LOCKED_KEY, "1");
+      localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(certEdits));
+    } catch { /* ignore */ }
   };
   const unlockCert = () => {
     setCertLockedState(false);
@@ -1104,19 +1120,19 @@ export default function CertificatePage() {
           </div>
           <div className="grid grid-cols-4 divide-x divide-gray-200">
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Temperatura de Armazenamento</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{ef("lbl_storageTemp", "Temperatura de Armazenamento", { className: "text-[10px] font-bold uppercase tracking-widest text-gray-400" })}</p>
               <p className="font-semibold text-gray-800">{ef("storageTemp", cert.storageTemp ?? "40°C ± 2°C")}</p>
             </div>
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Umidade Relativa</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{ef("lbl_storageHumidity", "Umidade Relativa", { className: "text-[10px] font-bold uppercase tracking-widest text-gray-400" })}</p>
               <p className="font-semibold text-gray-800">{ef("storageHumidity", cert.storageHumidity ?? "75% UR ± 5% UR")}</p>
             </div>
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Período do Estudo</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{ef("lbl_studyPeriodMonths", "Período do Estudo", { className: "text-[10px] font-bold uppercase tracking-widest text-gray-400" })}</p>
               <p className="font-semibold text-gray-800">{ef("studyPeriodMonths", cert.studyPeriodMonths != null ? String(cert.studyPeriodMonths) + " meses" : "—")}</p>
             </div>
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Intervalos de Teste</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{ef("lbl_testIntervals", "Intervalos de Teste", { className: "text-[10px] font-bold uppercase tracking-widest text-gray-400" })}</p>
               <p className="font-semibold text-gray-800">{ef("testIntervals", cert.testIntervals ?? "—")}</p>
             </div>
           </div>
