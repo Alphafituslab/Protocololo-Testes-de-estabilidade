@@ -1106,19 +1106,19 @@ export default function CertificatePage() {
             </div>
             <div className="px-4 py-3 grid grid-cols-2 gap-x-8 gap-y-2">
               <div className="space-y-0.5">
-                <div className="text-gray-500">Amostragem — Temperatura:</div>
+                <div className="text-gray-500">{ef("lbl_amostragemTemp", "Amostragem — Temperatura:")}</div>
                 <CertEditField value={tempAmostragem} onChange={setTempAmostragem} className="w-20 text-xs" />
               </div>
               <div className="space-y-0.5">
-                <div className="text-gray-500">Amostragem — Umidade:</div>
+                <div className="text-gray-500">{ef("lbl_amostragemUmid", "Amostragem — Umidade:")}</div>
                 <CertEditField value={umidAmostragem} onChange={setUmidAmostragem} className="w-20 text-xs" />
               </div>
               <div className="space-y-0.5">
-                <div className="text-gray-500">Recebimento — Temperatura:</div>
+                <div className="text-gray-500">{ef("lbl_recebimentoTemp", "Recebimento — Temperatura:")}</div>
                 <CertEditField value={tempRecebimento} onChange={setTempRecebimento} className="w-20 text-xs" />
               </div>
               <div className="space-y-0.5">
-                <div className="text-gray-500">Recebimento — Umidade:</div>
+                <div className="text-gray-500">{ef("lbl_recebimentoUmid", "Recebimento — Umidade:")}</div>
                 <CertEditField value={umidRecebimento} onChange={setUmidRecebimento} className="w-20 text-xs" />
               </div>
             </div>
@@ -1136,11 +1136,11 @@ export default function CertificatePage() {
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-gray-100">
-                <th className="border border-gray-300 px-2 py-2 text-left font-semibold uppercase tracking-wide w-28">Analise</th>
-                <th className="border border-gray-300 px-2 py-2 text-left font-semibold uppercase tracking-wide">Metodo</th>
-                <th className="border border-gray-300 px-2 py-2 text-left font-semibold uppercase tracking-wide w-28">Critérios de Aceitação</th>
-                <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-20">Resultado</th>
-                <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-24">Status</th>
+                <th className="border border-gray-300 px-2 py-2 text-left font-semibold uppercase tracking-wide w-28">{ef("thAnalise", "Analise")}</th>
+                <th className="border border-gray-300 px-2 py-2 text-left font-semibold uppercase tracking-wide">{ef("thMetodo", "Metodo")}</th>
+                <th className="border border-gray-300 px-2 py-2 text-left font-semibold uppercase tracking-wide w-28">{ef("thCriterios", "Critérios de Aceitação")}</th>
+                <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-20">{ef("thResultado", "Resultado")}</th>
+                <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-24">{ef("thStatus", "Status")}</th>
                 <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-10 print:hidden">
                   <span className="text-[9px] text-gray-400 uppercase tracking-wide">PDF</span>
                 </th>
@@ -1198,7 +1198,7 @@ export default function CertificatePage() {
                     {cat === "embalagem" && !allCatHidden && (
                       <tr key="embalagem-note">
                         <td colSpan={6} className="border border-gray-300 px-2 py-1.5 bg-amber-50 text-[10px] text-amber-800 italic">
-                          * Os resultados de embalagem representam a média dos ensaios realizados ao longo dos 6 meses de estudo de estabilidade (T0, T3 e T6).
+                          {ef("notaEmbalagem", "* Os resultados de embalagem representam a média dos ensaios realizados ao longo dos 6 meses de estudo de estabilidade (T0, T3 e T6).", { multiline: true })}
                         </td>
                       </tr>
                     )}
@@ -1446,7 +1446,7 @@ export default function CertificatePage() {
           {/* Content — hidden on screen when collapsed, but always printed when show=true */}
           <div className={`bg-gray-50 p-4 space-y-3 ${!fundamentacaoExpanded ? "hidden print:block" : ""}`}>
             <p className="font-semibold text-gray-800 uppercase tracking-wide hidden print:block">Fundamentação do Modelo Cinético</p>
-            <p className="leading-relaxed">Para a estimativa do tempo de validade do produto, foi empregado o modelo cinético de degradação de primeira ordem, amplamente descrito na literatura para substâncias bioativas submetidas à avaliação de estabilidade sob condições de estresse controlado, como temperatura e umidade.</p>
+            <p className="leading-relaxed">{ef("fundamentacaoTexto", "Para a estimativa do tempo de validade do produto, foi empregado o modelo cinético de degradação de primeira ordem, amplamente descrito na literatura para substâncias bioativas submetidas à avaliação de estabilidade sob condições de estresse controlado, como temperatura e umidade.", { multiline: true })}</p>
             <p className="font-mono bg-white border border-gray-200 rounded px-3 py-1.5 inline-block">C<sub>t</sub> = C<sub>0</sub> · e<sup>−kt</sup></p>
             <p className="font-mono bg-white border border-gray-200 rounded px-3 py-1.5 inline-block ml-4">k = A · e<sup>−E<sub>a</sub>/RT</sup></p>
           </div>
@@ -1565,7 +1565,7 @@ export default function CertificatePage() {
                         <SignBtn preRole="Responsável Técnico" />
                       )}
                       <p className="font-semibold text-sm">{ef("issuedBy", cert.issuedBy)}</p>
-                      <p className="text-xs text-gray-500">Responsável Técnico</p>
+                      <p className="text-xs text-gray-500">{ef("lbl_cargoEsquerdo", "Responsável Técnico")}</p>
                       <p className="text-xs text-gray-500">{ef("issuedByEmail", cert.issuedByEmail)}</p>
                     </div>
 
@@ -1579,7 +1579,7 @@ export default function CertificatePage() {
                         <SignBtn preRole="Analista Sênior" />
                       )}
                       <p className="font-semibold text-sm">{ef("seniorAnalyst", cert.seniorAnalyst)}</p>
-                      <p className="text-xs text-gray-500">Analista Sênior / Representante Legal</p>
+                      <p className="text-xs text-gray-500">{ef("lbl_cargoDireito", "Analista Sênior / Representante Legal")}</p>
                       <p className="text-xs text-gray-500">{ef("seniorAnalystEmail", cert.seniorAnalystEmail)}</p>
                     </div>
                   </div>
