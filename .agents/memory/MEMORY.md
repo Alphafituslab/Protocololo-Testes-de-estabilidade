@@ -1,1 +1,2 @@
-- [Certificate localStorage architecture](cert-localstorage.md) — edits only persist to localStorage on lock; unlocked cert always shows fresh API data
+- [CertEditField — contentEditable obrigatório](cert-edit-field.md) — NUNCA substituir contentEditable por <input>: autofill do Chrome destrói campos do certificado silenciosamente.
+- [setCertEdit — sempre gravar no localStorage](cert-edits-persist.md) — setCertEdit deve sempre gravar no localStorage (não só quando bloqueado) pois contentEditable é autofill-proof.

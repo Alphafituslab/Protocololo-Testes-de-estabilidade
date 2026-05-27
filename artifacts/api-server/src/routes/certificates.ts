@@ -151,7 +151,7 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     companyName: protocol.companyName,
     cnpj: protocol.cnpj,
     ie: protocol.ie ?? null,
-    email: protocol.seniorAnalystEmail ?? null,
+    email: protocol.issuedByEmail ?? protocol.seniorAnalystEmail ?? null,
     address: protocol.address ?? null,
     cep: protocol.cep ?? null,
     city,

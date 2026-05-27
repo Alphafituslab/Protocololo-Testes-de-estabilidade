@@ -110,46 +110,59 @@ function collectProtocolImages(
 /**
  * CertEditField — controlled <input>/<textarea> element styled to look like
  * plain text (transparent background, dashed underline only).
- * Using React controlled inputs guarantees onChange fires synchronously in
- * React's event system — no race conditions, no isSyncing guards, no stale
- * closures. The print mirror is a sibling <span> driven by React state.
+ * Uses contentEditable so Chrome / password-managers can NEVER autofill any
+ * certificate field. Regular <input>/<textarea> elements are vulnerable to
+ * autofill injection even with autoComplete="new-password". contentEditable
+ * divs are completely invisible to browser autofill engines.
  */
 function CertEditField({
   value, onChange, className = "", multiline = false,
 }: { value: string; onChange: (v: string) => void; className?: string; multiline?: boolean }) {
-  const BASE = "bg-transparent rounded-none px-0 focus:outline-none focus:ring-0 cursor-text print:hidden border-b border-t-0 border-x-0 border-dashed border-gray-400 focus:border-gray-700";
+  const ref = React.useRef<HTMLDivElement>(null);
+  const isSyncing = React.useRef(false);
+  const isFocused = React.useRef(false);
 
-  if (multiline) {
-    return (
-      <span className="relative block w-full min-w-0">
-        <textarea
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          spellCheck={false}
-          autoCorrect="off"
-          autoCapitalize="off"
-          autoComplete="off"
-          rows={3}
-          className={`${BASE} inline-block w-full resize-none whitespace-pre-wrap ${className}`}
-        />
-        <span className="hidden print:block whitespace-pre-wrap break-words">{value}</span>
-      </span>
-    );
-  }
+  // Sync DOM ← prop only when not focused (avoids clobbering in-progress typing).
+  React.useEffect(() => {
+    if (!isFocused.current && ref.current) {
+      const current = ref.current.textContent ?? "";
+      if (current !== value) {
+        isSyncing.current = true;
+        ref.current.textContent = value;
+        // Reset flag after microtask so the input event handler ignores this change.
+        Promise.resolve().then(() => { isSyncing.current = false; });
+      }
+    }
+  }, [value]);
+
+  const handleInput = () => {
+    if (isSyncing.current) return;
+    onChange(ref.current?.textContent ?? "");
+  };
+
+  const BASE =
+    "outline-none cursor-text min-h-[1em] print:hidden border-b border-t-0 border-x-0 border-dashed border-gray-400 focus:border-gray-700";
 
   return (
     <span className="relative block w-full min-w-0">
-      <input
-        type="text"
-        value={value}
-        onChange={e => onChange(e.target.value)}
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
         spellCheck={false}
-        autoCorrect="off"
-        autoCapitalize="off"
-        autoComplete="off"
-        className={`${BASE} inline-block w-full ${className}`}
+        onFocus={() => { isFocused.current = true; }}
+        onBlur={() => {
+          isFocused.current = false;
+          // Re-sync on blur in case the value prop was updated while focused
+          // (e.g. external reset). Only fires if they diverge.
+          if (ref.current && ref.current.textContent !== value) {
+            onChange(ref.current.textContent ?? "");
+          }
+        }}
+        onInput={handleInput}
+        className={`${BASE} ${multiline ? "whitespace-pre-wrap break-words" : "whitespace-nowrap overflow-hidden"} ${className}`}
       />
-      <span className="hidden print:inline break-words">{value}</span>
+      <span className={`hidden print:${multiline ? "block" : "inline"} whitespace-pre-wrap break-words`}>{value}</span>
     </span>
   );
 }
@@ -386,12 +399,11 @@ export default function CertificatePage() {
   const setCertEdit = (key: string, val: string) => {
     setCertEditsState(prev => {
       const next = { ...prev, [key]: val };
-      // Only persist to localStorage when the cert is LOCKED (after "Salvar e Bloquear").
-      // When unlocked, edits live in React state only — browser autocorrect/autofill
-      // can modify contentEditable DOM without any persistent side-effect.
-      if (certLocked) {
-        try { localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-      }
+      // Always persist immediately — contentEditable is autofill-proof so there
+      // is no risk of browser-injected garbage reaching localStorage. Writing on
+      // every keystroke means saveCert never depends on capturing React state
+      // in a closure; the data is already safe in localStorage before Save is clicked.
+      try { localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
   };
@@ -399,9 +411,7 @@ export default function CertificatePage() {
     setCertEditsState(prev => {
       const next = { ...prev };
       delete next[key];
-      if (certLocked) {
-        try { localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-      }
+      try { localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
   };
