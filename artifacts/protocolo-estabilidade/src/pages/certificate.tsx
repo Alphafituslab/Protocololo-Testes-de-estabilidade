@@ -108,81 +108,48 @@ function collectProtocolImages(
 }
 
 /**
- * CertEditField — uses contentEditable so Chrome/password-managers can NEVER
- * autofill any certificate field. Regular <input>/<textarea> elements are
- * vulnerable to autofill injection even with autoComplete="new-password".
+ * CertEditField — controlled <input>/<textarea> element styled to look like
+ * plain text (transparent background, dashed underline only).
+ * Using React controlled inputs guarantees onChange fires synchronously in
+ * React's event system — no race conditions, no isSyncing guards, no stale
+ * closures. The print mirror is a sibling <span> driven by React state.
  */
 function CertEditField({
   value, onChange, className = "", multiline = false,
 }: { value: string; onChange: (v: string) => void; className?: string; multiline?: boolean }) {
-  const ref = React.useRef<HTMLSpanElement>(null);
-  const isFocused = React.useRef(false);
-  // Guard: prevents handleInput from firing during programmatic DOM updates.
-  // Setting textContent on a contentEditable element can dispatch synthetic
-  // `input` events in some browsers/extensions, which would incorrectly save
-  // the API-provided default value to localStorage as if it were a user edit.
-  // That stale cached value would then override the correct database value on
-  // every subsequent visit. The guard blocks exactly this path.
-  const isSyncing = React.useRef(false);
+  const BASE = "bg-transparent rounded-none px-0 focus:outline-none focus:ring-0 cursor-text print:hidden border-b border-t-0 border-x-0 border-dashed border-gray-400 focus:border-gray-700";
 
-  // Sync DOM ← React state whenever value changes, but only if not being edited.
-  // This is necessary because cert data loads asynchronously — if we only set
-  // textContent on mount the span is empty when cert arrives, leaving it open
-  // to browser autofill injection.
-  React.useEffect(() => {
-    if (!isFocused.current && ref.current && ref.current.textContent !== value) {
-      isSyncing.current = true;
-      ref.current.textContent = value;
-      // Reset after the microtask queue so any synchronously-dispatched input
-      // events are swallowed, but genuine user input afterwards is captured.
-      Promise.resolve().then(() => { isSyncing.current = false; });
-    }
-  }, [value]);
-
-  const handleFocus = () => { isFocused.current = true; };
-
-  const handleBlur = () => {
-    isFocused.current = false;
-  };
-
-  const handleInput = () => {
-    // Ignore input events fired by programmatic textContent assignment.
-    if (isSyncing.current) return;
-    onChange(ref.current?.textContent ?? "");
-  };
-
-  const handlePaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const text = e.clipboardData.getData("text/plain");
-    if (ref.current) ref.current.textContent = text;
-    onChange(text);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!multiline && e.key === "Enter") {
-      e.preventDefault();
-      ref.current?.blur();
-    }
-  };
+  if (multiline) {
+    return (
+      <span className="relative block w-full min-w-0">
+        <textarea
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
+          autoComplete="off"
+          rows={3}
+          className={`${BASE} inline-block w-full resize-none whitespace-pre-wrap ${className}`}
+        />
+        <span className="hidden print:block whitespace-pre-wrap break-words">{value}</span>
+      </span>
+    );
+  }
 
   return (
     <span className="relative block w-full min-w-0">
-      <span
-        ref={ref}
-        contentEditable
-        suppressContentEditableWarning
+      <input
+        type="text"
+        value={value}
+        onChange={e => onChange(e.target.value)}
         spellCheck={false}
         autoCorrect="off"
         autoCapitalize="off"
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        onInput={handleInput}
-        onPaste={handlePaste}
-        onKeyDown={handleKeyDown}
-        className={`inline-block w-full border-b border-dashed border-gray-400 focus:outline-none focus:border-gray-700 cursor-text print:hidden ${multiline ? "whitespace-pre-wrap" : ""} ${className}`}
+        autoComplete="off"
+        className={`${BASE} inline-block w-full ${className}`}
       />
-      {/* Print-only mirror: driven by React state, not DOM (immune to autofill) */}
-      <span className={`hidden print:${multiline ? "block whitespace-pre-wrap break-words" : "inline break-words"}`}>{value}</span>
+      <span className="hidden print:inline break-words">{value}</span>
     </span>
   );
 }
@@ -447,14 +414,18 @@ export default function CertificatePage() {
       setCertCustomTitleState("");
       try { localStorage.removeItem(CERT_TITLE_KEY); } catch { /* ignore */ }
     }
+    // Use functional update to read the LATEST certEdits state rather than the
+    // closure-captured value. When the user edits a field and immediately clicks
+    // Save, React batches both state updates — the functional form guarantees
+    // we see all pending setCertEdit calls before persisting to localStorage.
+    setCertEditsState(current => {
+      try {
+        localStorage.setItem(CERT_LOCKED_KEY, "1");
+        localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(current));
+      } catch { /* ignore */ }
+      return current;
+    });
     setCertLockedState(true);
-    // Persist ALL in-memory edits to localStorage NOW (first time they are saved).
-    // Edits are only held in React state while unlocked, so this is the single
-    // point of truth where they get written to localStorage.
-    try {
-      localStorage.setItem(CERT_LOCKED_KEY, "1");
-      localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(certEdits));
-    } catch { /* ignore */ }
   };
   const unlockCert = () => {
     setCertLockedState(false);

@@ -312,17 +312,14 @@ function LotsTab({ protocolId }: { protocolId: number }) {
     mutation: {
       onSuccess: () => {
         const justAdded = form.getValues().lotNumber;
-        // ALL side-effects are deferred to the next event-loop tick (after React's
-        // commit phase finishes). Running setState / invalidateQueries synchronously
-        // inside onSuccess while a Dialog portal is mounted causes concurrent DOM
-        // operations (insertBefore / removeChild conflicts) that the AppErrorBoundary
-        // catches as a transient error — but React still unmounts & remounts the
-        // entire subtree, resetting open=false and closing the dialog.
+        // Defer ONLY form reset / focus to next tick (avoids concurrent portal
+        // DOM operations during React's commit phase). The lots query is NOT
+        // invalidated here — doing so while the Dialog is mounted triggers a
+        // LotsTab re-render that can cause the error boundary to reset open=false
+        // and close the dialog. The query is invalidated in onOpenChange instead.
         setTimeout(() => {
           setLastAdded(justAdded);
           form.reset({ lotNumber: "", manufacturingDate: "", quantity: 20, notes: "" });
-          // Protocol query is invalidated when the dialog finally closes (onOpenChange).
-          queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
           form.setFocus("lotNumber");
         }, 0);
       },
@@ -448,11 +445,13 @@ function LotsTab({ protocolId }: { protocolId: number }) {
 
       <Dialog open={open} onOpenChange={(next) => {
         setOpen(next);
-        // Invalidate the protocol query only on close — doing it during createLot.onSuccess
-        // triggers a ProtocolDetail re-render while the Dialog portal is mounted, which
-        // causes the error boundary to re-mount and reset open=false.
         if (!next) {
+          // Invalidate both queries only when the dialog closes — never while it
+          // is open. Invalidating with a mounted Dialog portal can trigger a
+          // LotsTab re-render that causes the error boundary to reset open=false.
           queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
+          queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
+          setLastAdded(null);
         }
       }}>
         <DialogContent
