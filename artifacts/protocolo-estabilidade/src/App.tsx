@@ -26,7 +26,13 @@ const queryClient = new QueryClient({
     },
     mutations: {
       onError: (err) => {
-        if ((err as { status?: number }).status === 401) {
+        // Only redirect to /login on 401 when NOT already on the login page.
+        // Prevents a loop where a background mutation fires on /login and
+        // causes a full-page reload that wipes the login form.
+        if (
+          (err as { status?: number }).status === 401 &&
+          !window.location.pathname.endsWith("/login")
+        ) {
           window.location.replace("/login");
         }
       },
