@@ -30,9 +30,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
+  const [showResetMasterPwd, setShowResetMasterPwd] = useState(false);
+  const [showResetNewPwd, setShowResetNewPwd] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetUsername, setResetUsername] = useState("");
   const [resetMasterPwd, setResetMasterPwd] = useState("");
@@ -170,8 +173,14 @@ export default function LoginPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirmar senha</Label>
-                <Input id="confirmPassword" type="password" value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)} required />
+                <div className="relative">
+                  <Input id="confirmPassword" type={showConfirmPassword ? "text" : "password"} value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)} required className="pr-10" />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    onClick={() => setShowConfirmPassword((s) => !s)}>
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -248,24 +257,38 @@ export default function LoginPage() {
             </div>
             <div className="space-y-2">
               <Label>Senha mestra do sistema</Label>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                value={resetMasterPwd}
-                onChange={(e) => setResetMasterPwd(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <Input
+                  type={showResetMasterPwd ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={resetMasterPwd}
+                  onChange={(e) => setResetMasterPwd(e.target.value)}
+                  required
+                  className="pr-10"
+                />
+                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  onClick={() => setShowResetMasterPwd((s) => !s)}>
+                  {showResetMasterPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Nova senha (mín. 6 caracteres)</Label>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                value={resetNewPwd}
-                onChange={(e) => setResetNewPwd(e.target.value)}
-                required
-                minLength={6}
-              />
+              <div className="relative">
+                <Input
+                  type={showResetNewPwd ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={resetNewPwd}
+                  onChange={(e) => setResetNewPwd(e.target.value)}
+                  required
+                  minLength={6}
+                  className="pr-10"
+                />
+                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  onClick={() => setShowResetNewPwd((s) => !s)}>
+                  {showResetNewPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             {resetError && (
               <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">

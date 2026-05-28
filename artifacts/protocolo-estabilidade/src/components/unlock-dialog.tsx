@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Lock, Loader2 } from "lucide-react";
+import { Lock, Loader2, Eye, EyeOff } from "lucide-react";
 
 interface UnlockDialogProps {
   open: boolean;
@@ -16,6 +16,7 @@ interface UnlockDialogProps {
 
 export function UnlockDialog({ open, onOpenChange, onUnlock, onSuccess, title, description, submitLabel }: UnlockDialogProps) {
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -60,15 +61,22 @@ export function UnlockDialog({ open, onOpenChange, onUnlock, onSuccess, title, d
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div>
-            <Input
-              ref={inputRef}
-              type="password"
-              placeholder="Senha mestra"
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setError(""); }}
-              disabled={loading}
-              autoComplete="current-password"
-            />
+            <div className="relative">
+              <Input
+                ref={inputRef}
+                type={showPassword ? "text" : "password"}
+                placeholder="Senha mestra"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                disabled={loading}
+                autoComplete="current-password"
+                className="pr-10"
+              />
+              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                onClick={() => setShowPassword((s) => !s)} tabIndex={-1}>
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
             {error && (
               <p className="text-xs text-destructive mt-1.5 font-medium">{error}</p>
             )}

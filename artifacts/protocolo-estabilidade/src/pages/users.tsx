@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Pencil, Users, ArrowLeft } from "lucide-react";
+import { Loader2, Plus, Pencil, Users, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type User = {
@@ -80,6 +80,7 @@ function UserForm({ initial, onSave, isEdit }: { initial?: Partial<UserFormData>
     role: initial?.role ?? "analyst",
   });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -127,14 +128,21 @@ function UserForm({ initial, onSave, isEdit }: { initial?: Partial<UserFormData>
       </div>
       <div className="space-y-2">
         <Label>{isEdit ? "Nova senha (deixe em branco para manter)" : "Senha"}</Label>
-        <Input
-          type="password"
-          placeholder={isEdit ? "••••••" : "Mínimo 6 caracteres"}
-          value={form.password}
-          onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-          minLength={isEdit ? 0 : 6}
-          required={!isEdit}
-        />
+        <div className="relative">
+          <Input
+            type={showPassword ? "text" : "password"}
+            placeholder={isEdit ? "••••••" : "Mínimo 6 caracteres"}
+            value={form.password}
+            onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+            minLength={isEdit ? 0 : 6}
+            required={!isEdit}
+            className="pr-10"
+          />
+          <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            onClick={() => setShowPassword((s) => !s)}>
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
       <Button type="submit" disabled={loading} className="w-full">
         {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
