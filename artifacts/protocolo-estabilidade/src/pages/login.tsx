@@ -40,11 +40,10 @@ export default function LoginPage() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
 
-  // If already authenticated (token in localStorage), go straight to dashboard.
   useEffect(() => {
-    if (user) window.location.replace("/");
+    if (user) navigate("/");
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetch("/api/auth/setup-needed")
@@ -60,12 +59,7 @@ export default function LoginPage() {
     const dest = popRedirect();
     try {
       await login(username, password);
-      // Full-page navigation after login. This avoids DOM reconciliation errors
-      // triggered by browser extensions (Google Translate, password managers)
-      // during the React route transition. sessionStorage already has the token
-      // (set synchronously inside login()), so the new page load reads it and
-      // renders the protected route without any auth flash.
-      window.location.replace(dest || "/");
+      navigate(dest || "/");
     } catch (err) {
       const msg = (err as Error).message ?? "Erro ao fazer login.";
       setLoginError(msg);

@@ -71,13 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error((data as { error?: string }).error ?? "Erro ao fazer login.");
     }
     const data = await res.json() as { token: string; user: AuthUser };
-    // Write to sessionStorage only. The caller always uses window.location.replace()
-    // for a full-page reload, so no React state update is needed here — the new
-    // page load will read these values synchronously from sessionStorage in the
-    // useState lazy initialisers, avoiding any re-render on the login page that
-    // could be intercepted by browser extensions (Google Translate, etc.).
     store.set(TOKEN_KEY, data.token);
     store.set(USER_KEY, JSON.stringify(data.user));
+    setToken(data.token);
+    setUser(data.user);
     setAuthTokenGetter(() => data.token);
   }, []);
 
