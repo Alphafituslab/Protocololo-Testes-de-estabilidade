@@ -478,6 +478,22 @@ export interface CatalogItemInput {
   description?: string;
 }
 
+export interface ProductTypeItem {
+  id: number;
+  name: string;
+  description?: string | null;
+  isPowder: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductTypeInput {
+  /** @minLength 1 */
+  name: string;
+  description?: string;
+  isPowder?: boolean;
+}
+
 export type DeleteAttachment200 = {
   ok?: boolean;
 };

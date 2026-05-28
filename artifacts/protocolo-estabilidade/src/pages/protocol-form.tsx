@@ -23,7 +23,7 @@ import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
-import { useListContainerTypes, useListCapsuleTypes } from "@workspace/api-client-react";
+import { useListContainerTypes, useListCapsuleTypes, useListProductTypes } from "@workspace/api-client-react";
 
 const formSchema = z.object({
   certNumber: z.string().min(1, "Número do certificado obrigatório"),
@@ -91,6 +91,7 @@ export default function ProtocolForm() {
   const { lbl, setLabel } = useLabelOverrides();
   const { data: containerTypes = [] } = useListContainerTypes();
   const { data: capsuleTypes = [] } = useListCapsuleTypes();
+  const { data: productTypes = [] } = useListProductTypes();
 
   const { data: existing } = useGetProtocol(Number(id), {
     query: { enabled: isEdit, queryKey: getGetProtocolQueryKey(Number(id)) },
@@ -154,6 +155,10 @@ export default function ProtocolForm() {
           issuedByEmail: "carolinepacheco@alphafitus.com.br",
         },
   });
+
+  const watchedProductType = form.watch("productType");
+  const selectedProductType = productTypes.find((pt) => pt.name === watchedProductType);
+  const isPowderProduct = selectedProductType?.isPowder ?? false;
 
   const handleApiError = (err: unknown, action: string) => {
     if (err instanceof ApiError && err.status === 409) {
@@ -316,7 +321,26 @@ export default function ProtocolForm() {
                     <AlwaysEL labelKey="productType" def="Tipo de Produto" lbl={lbl} setLabel={setLabel} />
                     <span className="text-red-500 text-xs font-bold">*</span>
                   </div>
-                  <FormControl><Input data-testid="input-productType" {...field} /></FormControl>
+                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                    <FormControl>
+                      <SelectTrigger data-testid="input-productType">
+                        <SelectValue placeholder="Selecionar tipo de produto..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {productTypes.map((pt) => (
+                        <SelectItem key={pt.id} value={pt.name}>
+                          <span>{pt.name}</span>
+                          {pt.isPowder && <span className="ml-2 text-xs text-amber-600 font-medium">(Em pó)</span>}
+                        </SelectItem>
+                      ))}
+                      {productTypes.length === 0 && (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                          Nenhum tipo cadastrado. Acesse Cadastros &gt; Tipos de Produto.
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -346,23 +370,29 @@ export default function ProtocolForm() {
               <FormField control={form.control} name="capsuleComposition" render={({ field }) => (
                 <FormItem>
                   <AlwaysEL labelKey="capsuleComposition" def="Tipo de Cápsula" lbl={lbl} setLabel={setLabel} />
-                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                    <FormControl>
-                      <SelectTrigger data-testid="input-capsuleComposition">
-                        <SelectValue placeholder="Selecionar tipo de cápsula..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {capsuleTypes.map((ct) => (
-                        <SelectItem key={ct.id} value={ct.name}>{ct.name}</SelectItem>
-                      ))}
-                      {capsuleTypes.length === 0 && (
-                        <div className="px-3 py-2 text-xs text-muted-foreground">
-                          Nenhum tipo cadastrado. Acesse Cadastros &gt; Tipos de Cápsula.
-                        </div>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  {isPowderProduct ? (
+                    <div className="flex items-center gap-2 h-9 rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
+                      <span>Não aplicável — produto em pó</span>
+                    </div>
+                  ) : (
+                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                      <FormControl>
+                        <SelectTrigger data-testid="input-capsuleComposition">
+                          <SelectValue placeholder="Selecionar tipo de cápsula..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {capsuleTypes.map((ct) => (
+                          <SelectItem key={ct.id} value={ct.name}>{ct.name}</SelectItem>
+                        ))}
+                        {capsuleTypes.length === 0 && (
+                          <div className="px-3 py-2 text-xs text-muted-foreground">
+                            Nenhum tipo cadastrado. Acesse Cadastros &gt; Tipos de Cápsula.
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )} />

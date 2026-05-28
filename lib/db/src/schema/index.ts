@@ -10,3 +10,4 @@ export * from "./protocol_signatures";
 export * from "./protocol_attachments";
 export * from "./container_types";
 export * from "./capsule_types";
+export * from "./product_types";

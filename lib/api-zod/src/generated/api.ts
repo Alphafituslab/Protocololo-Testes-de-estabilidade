@@ -1196,3 +1196,55 @@ export const UpdateCapsuleTypeResponse = zod.object({
 export const DeleteCapsuleTypeParams = zod.object({
   id: zod.coerce.number(),
 });
+
+/**
+ * @summary List product types
+ */
+export const ListProductTypesResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  isPowder: zod.boolean(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListProductTypesResponse = zod.array(ListProductTypesResponseItem);
+
+/**
+ * @summary Create a product type
+ */
+
+export const CreateProductTypeBody = zod.object({
+  name: zod.string().min(1),
+  description: zod.string().optional(),
+  isPowder: zod.boolean().optional(),
+});
+
+/**
+ * @summary Update a product type
+ */
+export const UpdateProductTypeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateProductTypeBody = zod.object({
+  name: zod.string().min(1),
+  description: zod.string().optional(),
+  isPowder: zod.boolean().optional(),
+});
+
+export const UpdateProductTypeResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  isPowder: zod.boolean(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a product type
+ */
+export const DeleteProductTypeParams = zod.object({
+  id: zod.coerce.number(),
+});

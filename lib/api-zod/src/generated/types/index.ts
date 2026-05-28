@@ -31,6 +31,8 @@ export * from "./listProtocolsParams";
 export * from "./listProtocolsStatus";
 export * from "./lot";
 export * from "./methodology";
+export * from "./productTypeInput";
+export * from "./productTypeItem";
 export * from "./protocol";
 export * from "./protocolAttachment";
 export * from "./protocolDetail";
