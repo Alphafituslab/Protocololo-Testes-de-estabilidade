@@ -62,7 +62,7 @@ export default function LoginPage() {
     const dest = popRedirect();
     try {
       await login(username, password);
-      navigate(dest || "/");
+      window.location.replace(dest || "/");
     } catch (err) {
       const msg = (err as Error).message ?? "Erro ao fazer login.";
       setLoginError(msg);
