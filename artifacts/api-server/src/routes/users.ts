@@ -61,11 +61,12 @@ router.delete("/users/:userId", requireAuth, requireAdmin, async (req, res): Pro
 router.put("/users/:userId", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const userId = parseInt(String(req.params["userId"] ?? ""));
   if (isNaN(userId)) { res.status(400).json({ error: "ID inválido." }); return; }
-  const { displayName, password, role, active, hplcAccess, permissions } = req.body as {
-    displayName?: string; password?: string; role?: string; active?: boolean;
+  const { username, displayName, password, role, active, hplcAccess, permissions } = req.body as {
+    username?: string; displayName?: string; password?: string; role?: string; active?: boolean;
     hplcAccess?: boolean; permissions?: string[];
   };
   const updates: Partial<typeof usersTable.$inferInsert> = {};
+  if (username) updates.username = username.trim().toLowerCase();
   if (displayName) updates.displayName = displayName.trim();
   if (role && VALID_ROLES.includes(role as ValidRole)) updates.role = role;
   if (Array.isArray(permissions)) updates.permissions = permissions;
@@ -78,9 +79,11 @@ router.put("/users/:userId", requireAuth, requireAdmin, async (req, res): Promis
     if (password.length < 6) { res.status(400).json({ error: "Senha mínima de 6 caracteres." }); return; }
     updates.passwordHash = await bcrypt.hash(password, 10);
   }
-  const [updated] = await db.update(usersTable).set(updates).where(eq(usersTable.id, userId)).returning(PUBLIC_FIELDS);
-  if (!updated) { res.status(404).json({ error: "Usuário não encontrado." }); return; }
-  res.json(updated);
+  try {
+    const [updated] = await db.update(usersTable).set(updates).where(eq(usersTable.id, userId)).returning(PUBLIC_FIELDS);
+    if (!updated) { res.status(404).json({ error: "Usuário não encontrado." }); return; }
+    res.json(updated);
+  } catch { res.status(409).json({ error: "Nome de usuário já existe." }); }
 });
 
 export default router;

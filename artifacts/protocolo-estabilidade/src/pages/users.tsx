@@ -234,18 +234,22 @@ function UserForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-      {!isEdit && (
-        <div className="space-y-2">
-          <Label>Usuário (login)</Label>
-          <Input
-            placeholder="ana.paula"
-            value={form.username}
-            onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-            required
-            autoCapitalize="none"
-          />
-        </div>
-      )}
+      <div className="space-y-2">
+        <Label>Usuário (login)</Label>
+        <Input
+          placeholder="ana.paula"
+          value={form.username}
+          onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+          required
+          autoCapitalize="none"
+          autoComplete="off"
+        />
+        {isEdit && (
+          <p className="text-xs text-muted-foreground">
+            Alterar o login exige que o usuário use o novo nome na próxima entrada.
+          </p>
+        )}
+      </div>
       <div className="space-y-2">
         <Label>Nome completo</Label>
         <Input
@@ -452,6 +456,7 @@ export default function UsersPage() {
                             <UserForm
                               isEdit
                               initial={{
+                                username: u.username,
                                 displayName: u.displayName,
                                 role: u.role,
                                 permissions: u.permissions ?? [],
@@ -462,6 +467,7 @@ export default function UsersPage() {
                                   role: d.role,
                                   permissions: d.permissions,
                                 };
+                                if (d.username && d.username !== u.username) payload.username = d.username;
                                 if (d.password) payload.password = d.password;
                                 await updateUser.mutateAsync({ id: u.id, data: payload });
                               }}
