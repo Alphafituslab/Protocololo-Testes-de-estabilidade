@@ -155,7 +155,9 @@ export default function ProtocolForm() {
     if (err instanceof ApiError && err.status === 409) {
       const body = err.data as { error?: string; field?: string } | null;
       if (body?.field === "certNumber") {
-        form.setError("certNumber", { type: "server", message: body.error ?? "Número já em uso." });
+        const msg = body.error ?? "Número de certificado já em uso.";
+        form.setError("certNumber", { type: "server", message: msg });
+        toast({ title: "Número de certificado duplicado", description: msg, variant: "destructive" });
         return;
       }
     }
