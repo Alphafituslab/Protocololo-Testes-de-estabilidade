@@ -7,7 +7,7 @@ import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   FileText, Plus, CheckCircle2, Clock, XCircle, ShieldCheck,
-  TrendingUp, ArrowRight, Activity, Beaker, Search, X, Trash2,
+  TrendingUp, ArrowRight, Activity, Beaker, Search, X, Trash2, PenLine,
 } from "lucide-react";
 import { useUnlock } from "@/hooks/use-unlock";
 import { UnlockDialog } from "@/components/unlock-dialog";
@@ -275,7 +275,7 @@ export default function Dashboard() {
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3 shrink-0 ml-4">
+                          <div className="flex items-center gap-2 shrink-0 ml-4 flex-wrap justify-end">
                             {protocol.status === "em_andamento" && (protocol as { progressPercent?: number | null }).progressPercent != null && (
                               <div className="flex items-center gap-2">
                                 <div className="w-20 h-1.5 rounded-full bg-blue-100 overflow-hidden">
@@ -288,6 +288,12 @@ export default function Dashboard() {
                                   {(protocol as { progressPercent?: number | null }).progressPercent}%
                                 </span>
                               </div>
+                            )}
+                            {(protocol as { pendingSignatures?: boolean }).pendingSignatures && (
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-300 rounded-full px-2.5 py-0.5">
+                                <PenLine className="h-3 w-3" />
+                                Ag. Assinatura
+                              </span>
                             )}
                             <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />

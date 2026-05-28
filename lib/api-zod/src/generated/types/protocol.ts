@@ -57,6 +57,8 @@ export interface Protocol {
   kineticsNotes?: string | null;
   /** JSON com lista de parâmetros editáveis (nomes e critérios) */
   customParamsJson?: string | null;
+  /** true se algum dos assinantes obrigatórios (issuedBy / seniorAnalyst) ainda não assinou */
+  pendingSignatures?: boolean | null;
   createdAt: string;
   updatedAt: string;
 }

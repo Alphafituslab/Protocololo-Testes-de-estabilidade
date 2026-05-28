@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Link, useLocation } from "wouter";
-import { AlertCircle, Loader2, Search, X } from "lucide-react";
+import { AlertCircle, Loader2, Search, X, PenLine } from "lucide-react";
 import { useState, useMemo } from "react";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -126,7 +126,13 @@ export default function ProtocolsList() {
                       {protocol.certNumber ? `${protocol.certNumber} · ` : ""}{protocol.companyName}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    {(protocol as { pendingSignatures?: boolean }).pendingSignatures && (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-300 rounded-full px-2.5 py-0.5">
+                        <PenLine className="h-3 w-3" />
+                        Aguardando Assinatura
+                      </span>
+                    )}
                     <Badge variant={STATUS_BADGE_VARIANT[protocol.status] ?? "secondary"}>
                       {STATUS_LABELS[protocol.status] ?? protocol.status}
                     </Badge>

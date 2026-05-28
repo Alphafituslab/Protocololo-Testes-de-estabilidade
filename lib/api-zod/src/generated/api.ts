@@ -183,6 +183,12 @@ export const ListProtocolsResponseItem = zod.object({
     .string()
     .nullish()
     .describe("JSON com lista de parâmetros editáveis (nomes e critérios)"),
+  pendingSignatures: zod
+    .boolean()
+    .nullish()
+    .describe(
+      "true se algum dos assinantes obrigatórios (issuedBy \/ seniorAnalyst) ainda não assinou",
+    ),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -317,6 +323,12 @@ export const GetProtocolStatsResponse = zod.object({
         .string()
         .nullish()
         .describe("JSON com lista de parâmetros editáveis (nomes e critérios)"),
+      pendingSignatures: zod
+        .boolean()
+        .nullish()
+        .describe(
+          "true se algum dos assinantes obrigatórios (issuedBy \/ seniorAnalyst) ainda não assinou",
+        ),
       createdAt: zod.string(),
       updatedAt: zod.string(),
     }),
@@ -409,6 +421,12 @@ export const GetProtocolResponse = zod
       .string()
       .nullish()
       .describe("JSON com lista de parâmetros editáveis (nomes e critérios)"),
+    pendingSignatures: zod
+      .boolean()
+      .nullish()
+      .describe(
+        "true se algum dos assinantes obrigatórios (issuedBy \/ seniorAnalyst) ainda não assinou",
+      ),
     createdAt: zod.string(),
     updatedAt: zod.string(),
   })
@@ -580,6 +598,12 @@ export const UpdateProtocolResponse = zod.object({
     .string()
     .nullish()
     .describe("JSON com lista de parâmetros editáveis (nomes e critérios)"),
+  pendingSignatures: zod
+    .boolean()
+    .nullish()
+    .describe(
+      "true se algum dos assinantes obrigatórios (issuedBy \/ seniorAnalyst) ainda não assinou",
+    ),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });
@@ -1038,6 +1062,12 @@ export const FinalizeProtocolResponse = zod.object({
     .string()
     .nullish()
     .describe("JSON com lista de parâmetros editáveis (nomes e critérios)"),
+  pendingSignatures: zod
+    .boolean()
+    .nullish()
+    .describe(
+      "true se algum dos assinantes obrigatórios (issuedBy \/ seniorAnalyst) ainda não assinou",
+    ),
   createdAt: zod.string(),
   updatedAt: zod.string(),
 });

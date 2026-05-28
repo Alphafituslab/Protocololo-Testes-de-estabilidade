@@ -17,6 +17,48 @@ import { notifyProtocolDeleted } from "../lib/notifications";
 
 const router: IRouter = Router();
 
+/** Normalise a name for fuzzy signature matching (same logic as frontend sigNameMatches). */
+function normSigName(s: string): string {
+  return s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+}
+
+/** Given a set of normalised signer names, check if a required name has signed. */
+function hasSigned(sigSet: Set<string>, name: string | null | undefined): boolean {
+  if (!name?.trim()) return true; // no name configured → not required
+  const nn = normSigName(name);
+  for (const s of sigSet) {
+    if (s === nn || s.includes(nn) || nn.includes(s)) return true;
+  }
+  return false;
+}
+
+/** Attach pendingSignatures flag to an array of protocols given a map of protocol→signer-name-sets. */
+function withPendingSignatures<T extends { id: number; issuedBy: string | null; seniorAnalyst: string | null }>(
+  protocols: T[],
+  sigsByProtocol: Map<number, Set<string>>,
+): (T & { pendingSignatures: boolean })[] {
+  return protocols.map((p) => {
+    const sigSet = sigsByProtocol.get(p.id) ?? new Set<string>();
+    const pending = !hasSigned(sigSet, p.issuedBy) || !hasSigned(sigSet, p.seniorAnalyst);
+    return { ...p, pendingSignatures: pending };
+  });
+}
+
+/** Fetch signatures for a list of protocol IDs and return a map protocolId → Set<normalisedName>. */
+async function fetchSigMap(protocolIds: number[]): Promise<Map<number, Set<string>>> {
+  const map = new Map<number, Set<string>>();
+  if (protocolIds.length === 0) return map;
+  const sigs = await db
+    .select({ protocolId: protocolSignaturesTable.protocolId, userDisplay: protocolSignaturesTable.userDisplay })
+    .from(protocolSignaturesTable)
+    .where(inArray(protocolSignaturesTable.protocolId, protocolIds));
+  for (const sig of sigs) {
+    if (!map.has(sig.protocolId)) map.set(sig.protocolId, new Set());
+    map.get(sig.protocolId)!.add(normSigName(sig.userDisplay));
+  }
+  return map;
+}
+
 router.get("/protocols", async (req, res): Promise<void> => {
   const parsed = ListProtocolsQueryParams.safeParse(req.query);
   const statusFilter = parsed.success ? parsed.data.status : undefined;
@@ -35,7 +77,8 @@ router.get("/protocols", async (req, res): Promise<void> => {
       .from(protocolsTable)
       .where(inArray(protocolsTable.id, ids))
       .orderBy(desc(protocolsTable.updatedAt));
-    res.json(protocols);
+    const sigMap = await fetchSigMap(protocols.map(p => p.id));
+    res.json(withPendingSignatures(protocols, sigMap));
     return;
   }
 
@@ -45,13 +88,15 @@ router.get("/protocols", async (req, res): Promise<void> => {
   } else {
     protocols = await db.select().from(protocolsTable).orderBy(desc(protocolsTable.updatedAt));
   }
-  res.json(protocols);
+  const sigMap = await fetchSigMap(protocols.map(p => p.id));
+  res.json(withPendingSignatures(protocols, sigMap));
 });
 
 router.get("/protocols/stats", async (req, res): Promise<void> => {
   const allProtocols = await db.select().from(protocolsTable);
   const nonConformities = await db.select({ cnt: count() }).from(analysisResultsTable).where(eq(analysisResultsTable.status, "nao_conforme"));
   const recent = allProtocols.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 10);
+  const recentSigMap = await fetchSigMap(recent.map(p => p.id));
   res.json({
     total: allProtocols.length,
     rascunho: allProtocols.filter((p) => p.status === "rascunho").length,
@@ -61,7 +106,7 @@ router.get("/protocols/stats", async (req, res): Promise<void> => {
     aprovadoComRessalva: allProtocols.filter((p) => p.status === "aprovado_com_ressalva").length,
     reprovado: allProtocols.filter((p) => p.status === "reprovado").length,
     totalNonConformities: nonConformities[0]?.cnt ?? 0,
-    recentProtocols: recent,
+    recentProtocols: withPendingSignatures(recent, recentSigMap),
   });
 });
 
