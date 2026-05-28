@@ -44,23 +44,45 @@ const queryClient = new QueryClient({
 
 class AppErrorBoundary extends Component<
   { children: React.ReactNode },
-  { hasError: boolean; errorMessage: string }
+  { hasError: boolean; errorMessage: string; isTransient: boolean }
 > {
   constructor(props: { children: React.ReactNode }) {
     super(props);
-    this.state = { hasError: false, errorMessage: "" };
+    this.state = { hasError: false, errorMessage: "", isTransient: false };
   }
 
   static getDerivedStateFromError(error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    // Always set hasError: true — returning { hasError: false } would cause React
-    // to re-render the throwing children, which if the error persists creates an
-    // infinite cascade that ends with React unmounting the whole tree (blank screen).
-    return { hasError: true, errorMessage: msg };
+    // DOM reconciliation errors (insertBefore / removeChild) are caused by browser
+    // extensions (password managers, translators, Grammarly, etc.) modifying the DOM
+    // outside React. They resolve on a clean page reload — auto-reload instead of
+    // showing a permanent error screen.
+    const isTransient =
+      msg.includes("insertBefore") ||
+      msg.includes("removeChild") ||
+      msg.includes("NotFoundError") ||
+      msg.includes("não é filho") ||
+      msg.includes("not a child");
+    return { hasError: true, errorMessage: msg, isTransient };
+  }
+
+  componentDidUpdate() {
+    // Trigger the reload AFTER the render cycle completes.
+    if (this.state.hasError && this.state.isTransient) {
+      window.location.reload();
+    }
   }
 
   render() {
     if (this.state.hasError) {
+      if (this.state.isTransient) {
+        // Show a spinner while the page reloads (componentDidUpdate fires next).
+        return (
+          <div className="min-h-screen flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        );
+      }
       return (
         <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8 text-center">
           <AlertTriangle className="h-10 w-10 text-destructive" />
@@ -70,7 +92,7 @@ class AppErrorBoundary extends Component<
           </div>
           <Button
             variant="outline"
-            onClick={() => { this.setState({ hasError: false, errorMessage: "" }); window.location.replace("/"); }}
+            onClick={() => { this.setState({ hasError: false, errorMessage: "", isTransient: false }); window.location.replace("/"); }}
           >
             <RefreshCcw className="h-4 w-4 mr-2" /> Recarregar
           </Button>
