@@ -1481,7 +1481,7 @@ export default function CertificatePage() {
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               )}
-              <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "2rem", lineHeight: 1.2, color: "#111827", fontWeight: 700 }}>
+              <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "1.35rem", lineHeight: 1.3, color: "#111827", fontWeight: 600, letterSpacing: "0.01em" }}>
                 {displayName}
               </p>
               <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5 mb-3">
@@ -1571,7 +1571,7 @@ export default function CertificatePage() {
                       ) : (
                         <>
                           <div className="min-h-[68px] flex flex-col justify-end pb-2">
-                            <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "2rem", lineHeight: 1.2, color: "#d1d5db", fontWeight: 700 }} className="mb-1">
+                            <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "1.35rem", lineHeight: 1.3, color: "#d1d5db", fontWeight: 600, letterSpacing: "0.01em" }} className="mb-1">
                               {ef("issuedBy", cert.issuedBy)}
                             </p>
                             {userInLeft && !currentUserAlreadySigned ? (
@@ -1603,7 +1603,7 @@ export default function CertificatePage() {
                       ) : (
                         <>
                           <div className="min-h-[68px] flex flex-col justify-end pb-2">
-                            <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "2rem", lineHeight: 1.2, color: "#d1d5db", fontWeight: 700 }} className="mb-1">
+                            <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "1.35rem", lineHeight: 1.3, color: "#d1d5db", fontWeight: 600, letterSpacing: "0.01em" }} className="mb-1">
                               {ef("seniorAnalyst", cert.seniorAnalyst)}
                             </p>
                             {userInRight && !currentUserAlreadySigned ? (
