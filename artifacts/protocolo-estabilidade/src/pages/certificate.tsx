@@ -1481,17 +1481,14 @@ export default function CertificatePage() {
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               )}
-              <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "1.35rem", lineHeight: 1.3, color: "#111827", fontWeight: 600, letterSpacing: "0.01em" }}>
+              <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "1.1rem", lineHeight: 1.3, color: "#111827", fontWeight: 600, letterSpacing: "0.01em" }}>
                 {displayName}
               </p>
-              <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5 mb-3">
+              <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5 mb-2">
                 <ShieldCheck className="h-3 w-3 text-gray-400 flex-shrink-0" />
                 {new Date(sig.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
               </p>
-              <div className="border-t border-gray-300 mb-3" />
-              <p className="font-semibold text-sm text-gray-800">{displayName}</p>
-              <p className="text-xs text-gray-500">{roleLine}</p>
-              {emailLine && <p className="text-xs text-gray-400">{emailLine}</p>}
+              <div className="border-t border-gray-300 mb-2" />
             </div>
           );
 
@@ -1571,19 +1568,16 @@ export default function CertificatePage() {
                       ) : (
                         <>
                           <div className="min-h-[68px] flex flex-col justify-end pb-2">
-                            <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "1.35rem", lineHeight: 1.3, color: "#d1d5db", fontWeight: 600, letterSpacing: "0.01em" }} className="mb-1">
+                            <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "1.1rem", lineHeight: 1.3, color: "#d1d5db", fontWeight: 600, letterSpacing: "0.01em" }} className="mb-1">
                               {ef("issuedBy", cert.issuedBy)}
                             </p>
                             {userInLeft && !currentUserAlreadySigned ? (
                               <SignBtn preRole="Responsável Técnico" />
                             ) : (
-                              <p className="text-xs text-gray-300 italic mb-3">Aguardando assinatura...</p>
+                              <p className="text-[10px] text-gray-300 italic mb-2">Aguardando assinatura...</p>
                             )}
                           </div>
-                          <div className="border-t border-gray-400 mb-3" />
-                          <p className="font-semibold text-sm text-gray-800">{ef("issuedBy", cert.issuedBy)}</p>
-                          <p className="text-xs text-gray-500">{ef("lbl_cargoEsquerdo", "Responsável Técnico")}</p>
-                          <p className="text-xs text-gray-400">{ef("issuedByEmail", cert.issuedByEmail)}</p>
+                          <div className="border-t border-gray-400 mb-2" />
                         </>
                       )}
                     </div>
@@ -1603,19 +1597,16 @@ export default function CertificatePage() {
                       ) : (
                         <>
                           <div className="min-h-[68px] flex flex-col justify-end pb-2">
-                            <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "1.35rem", lineHeight: 1.3, color: "#d1d5db", fontWeight: 600, letterSpacing: "0.01em" }} className="mb-1">
+                            <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "1.1rem", lineHeight: 1.3, color: "#d1d5db", fontWeight: 600, letterSpacing: "0.01em" }} className="mb-1">
                               {ef("seniorAnalyst", cert.seniorAnalyst)}
                             </p>
                             {userInRight && !currentUserAlreadySigned ? (
                               <SignBtn preRole="Analista Sênior" />
                             ) : (
-                              <p className="text-xs text-gray-300 italic mb-3">Aguardando assinatura...</p>
+                              <p className="text-[10px] text-gray-300 italic mb-2">Aguardando assinatura...</p>
                             )}
                           </div>
-                          <div className="border-t border-gray-400 mb-3" />
-                          <p className="font-semibold text-sm text-gray-800">{ef("seniorAnalyst", cert.seniorAnalyst)}</p>
-                          <p className="text-xs text-gray-500">{ef("lbl_cargoDireito", "Analista Sênior / Representante Legal")}</p>
-                          <p className="text-xs text-gray-400">{ef("seniorAnalystEmail", cert.seniorAnalystEmail)}</p>
+                          <div className="border-t border-gray-400 mb-2" />
                         </>
                       )}
                     </div>
