@@ -6,10 +6,17 @@ import { requireAuth, requireAdmin } from "../lib/session";
 
 const router: IRouter = Router();
 
+const VALID_ROLES = ["admin", "analyst", "tecnico_lab", "controle_qualidade", "responsavel_tecnico"] as const;
+type ValidRole = typeof VALID_ROLES[number];
+
 const PUBLIC_FIELDS = {
   id: usersTable.id, username: usersTable.username, displayName: usersTable.displayName,
   role: usersTable.role, active: usersTable.active, hplcAccess: usersTable.hplcAccess, createdAt: usersTable.createdAt,
 };
+
+function sanitizeRole(role: string | undefined): string {
+  return VALID_ROLES.includes(role as ValidRole) ? (role as string) : "analyst";
+}
 
 // List users (admin only)
 router.get("/users", requireAuth, requireAdmin, async (_req, res): Promise<void> => {
@@ -27,7 +34,7 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
   try {
     const [user] = await db.insert(usersTable).values({
       username: username.trim().toLowerCase(), displayName: displayName.trim(), passwordHash,
-      role: role === "admin" ? "admin" : "analyst", active: true,
+      role: sanitizeRole(role), active: true,
     }).returning(PUBLIC_FIELDS);
     res.status(201).json(user);
   } catch { res.status(409).json({ error: "Nome de usuário já existe." }); }
@@ -40,7 +47,7 @@ router.put("/users/:userId", requireAuth, requireAdmin, async (req, res): Promis
   const { displayName, password, role, active, hplcAccess } = req.body as { displayName?: string; password?: string; role?: string; active?: boolean; hplcAccess?: boolean };
   const updates: Partial<typeof usersTable.$inferInsert> = {};
   if (displayName) updates.displayName = displayName.trim();
-  if (role === "admin" || role === "analyst") updates.role = role;
+  if (role && VALID_ROLES.includes(role as ValidRole)) updates.role = role;
   if (typeof active === "boolean") {
     if (!active && req.authUser?.id === userId) { res.status(400).json({ error: "Não é possível desativar o próprio usuário." }); return; }
     updates.active = active;

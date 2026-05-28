@@ -10,7 +10,7 @@ import ProtocolDetail from "./pages/protocol-detail";
 import CertificatePage from "./pages/certificate";
 import ProtocolReportPage from "./pages/protocol-report";
 import LoginPage from "./pages/login";
-import UsersPage from "./pages/users";
+import UsersPage, { ROLE_LABELS } from "./pages/users";
 import CatalogPage from "./pages/catalog";
 import { AuthProvider } from "@/contexts/auth-context";
 import { useAuth } from "@/contexts/use-auth";
@@ -125,7 +125,7 @@ function UserMenu() {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium">{user.displayName}</p>
-            <p className="text-xs text-muted-foreground">@{user.username} · {user.role === "admin" ? "Admin" : "Analista"}</p>
+            <p className="text-xs text-muted-foreground">@{user.username} · {ROLE_LABELS[user.role] ?? "Analista"}</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -159,7 +159,7 @@ function SidebarFooter() {
         </Avatar>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium truncate">{user.displayName}</p>
-          <p className="text-[10px] text-muted-foreground truncate">@{user.username} · {isAdmin ? "Admin" : "Analista"}</p>
+          <p className="text-[10px] text-muted-foreground truncate">@{user.username} · {ROLE_LABELS[user.role] ?? "Analista"}</p>
         </div>
       </div>
       {isAdmin && (

@@ -12,7 +12,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Pencil, Users, ArrowLeft, Eye, EyeOff } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 type User = {
   id: number;
@@ -41,34 +40,33 @@ async function apiFetch<T>(url: string, token: string | null, options?: RequestI
 
 type UserFormData = { username: string; displayName: string; password: string; role: string };
 
-function RoleToggle({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+export const ROLE_LABELS: Record<string, string> = {
+  admin: "Administrador",
+  analyst: "Analista",
+  tecnico_lab: "Técnico de Laboratório",
+  controle_qualidade: "Controle de Qualidade",
+  responsavel_tecnico: "Responsável Técnico",
+};
+
+const ROLE_OPTIONS = [
+  { value: "tecnico_lab", label: "Técnico de Laboratório" },
+  { value: "controle_qualidade", label: "Controle de Qualidade" },
+  { value: "responsavel_tecnico", label: "Responsável Técnico" },
+  { value: "analyst", label: "Analista" },
+  { value: "admin", label: "Administrador" },
+];
+
+function RoleSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <div className="flex rounded-md border overflow-hidden">
-      <button
-        type="button"
-        onClick={() => onChange("analyst")}
-        className={cn(
-          "flex-1 px-3 py-2 text-sm font-medium transition-colors",
-          value === "analyst"
-            ? "bg-primary text-primary-foreground"
-            : "bg-background text-muted-foreground hover:bg-muted"
-        )}
-      >
-        Analista
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange("admin")}
-        className={cn(
-          "flex-1 px-3 py-2 text-sm font-medium transition-colors border-l",
-          value === "admin"
-            ? "bg-primary text-primary-foreground"
-            : "bg-background text-muted-foreground hover:bg-muted"
-        )}
-      >
-        Administrador
-      </button>
-    </div>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+    >
+      {ROLE_OPTIONS.map((opt) => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
   );
 }
 
@@ -124,7 +122,7 @@ function UserForm({ initial, onSave, isEdit }: { initial?: Partial<UserFormData>
       </div>
       <div className="space-y-2">
         <Label>Perfil</Label>
-        <RoleToggle value={form.role} onChange={(v) => setForm((f) => ({ ...f, role: v }))} />
+        <RoleSelect value={form.role} onChange={(v) => setForm((f) => ({ ...f, role: v }))} />
       </div>
       <div className="space-y-2">
         <Label>{isEdit ? "Nova senha (deixe em branco para manter)" : "Senha"}</Label>
@@ -248,7 +246,7 @@ export default function UsersPage() {
                     <TableCell className="text-muted-foreground font-mono text-sm">{u.username}</TableCell>
                     <TableCell>
                       <Badge variant={u.role === "admin" ? "default" : "secondary"}>
-                        {u.role === "admin" ? "Admin" : "Analista"}
+                        {ROLE_LABELS[u.role] ?? u.role}
                       </Badge>
                     </TableCell>
                     <TableCell>
