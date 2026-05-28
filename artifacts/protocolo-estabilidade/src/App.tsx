@@ -53,18 +53,10 @@ class AppErrorBoundary extends Component<
 
   static getDerivedStateFromError(error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    // DOM portal reconciliation errors are transient — never show the error screen.
-    const isTransient =
-      msg.includes("insertBefore") ||
-      msg.includes("removeChild") ||
-      msg.includes("NotFoundError") ||
-      msg.includes("não é filho");
-    if (isTransient) return { hasError: false, errorMessage: "" };
+    // Always set hasError: true — returning { hasError: false } would cause React
+    // to re-render the throwing children, which if the error persists creates an
+    // infinite cascade that ends with React unmounting the whole tree (blank screen).
     return { hasError: true, errorMessage: msg };
-  }
-
-  componentDidCatch() {
-    // No-op: transient errors are already suppressed in getDerivedStateFromError.
   }
 
   render() {
@@ -276,10 +268,16 @@ const ProtocolReportRoute = () => <ProtectedDetailRoute component={ProtocolRepor
 const ProtocolDetailRoute = () => <ProtectedRoute component={ProtocolDetail} />;
 const UsersRoute = () => <ProtectedRoute component={UsersPage} />;
 
+const LoginRoute = () => (
+  <AppErrorBoundary>
+    <LoginPage />
+  </AppErrorBoundary>
+);
+
 function Router() {
   return (
     <Switch>
-      <Route path="/login" component={LoginPage} />
+      <Route path="/login" component={LoginRoute} />
       <Route path="/" component={DashboardRoute} />
       <Route path="/protocols" component={ProtocolsListRoute} />
       <Route path="/protocols/new" component={ProtocolFormRoute} />

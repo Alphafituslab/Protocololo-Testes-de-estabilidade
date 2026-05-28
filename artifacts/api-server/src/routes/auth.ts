@@ -52,6 +52,29 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   res.json({ token, user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, hplcAccess: user.hplcAccess } });
 });
 
+// Reset password using MASTER_PASSWORD as authorization
+router.post("/auth/reset-password", async (req, res): Promise<void> => {
+  const { masterPassword, username, newPassword } = req.body as {
+    masterPassword?: string;
+    username?: string;
+    newPassword?: string;
+  };
+  const masterPwd = process.env["MASTER_PASSWORD"];
+  if (!masterPwd) { res.status(503).json({ error: "Senha mestra não configurada no servidor." }); return; }
+  if (!masterPassword || masterPassword !== masterPwd) {
+    res.status(401).json({ error: "Senha mestra incorreta." }); return;
+  }
+  if (!username || !newPassword || newPassword.length < 6) {
+    res.status(400).json({ error: "Usuário e nova senha (mín. 6 caracteres) são obrigatórios." }); return;
+  }
+  const [user] = await db.select({ id: usersTable.id }).from(usersTable)
+    .where(eq(usersTable.username, username.trim().toLowerCase())).limit(1);
+  if (!user) { res.status(404).json({ error: "Usuário não encontrado." }); return; }
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, user.id));
+  res.json({ ok: true });
+});
+
 // Logout
 router.post("/auth/logout", requireAuth, async (req, res): Promise<void> => {
   const token = req.headers["authorization"]?.slice(7);

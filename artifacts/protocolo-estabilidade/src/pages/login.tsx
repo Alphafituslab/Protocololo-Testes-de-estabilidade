@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/use-auth";
-import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
 const REDIRECT_KEY = "alphafitus_redirect";
@@ -31,6 +32,13 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetUsername, setResetUsername] = useState("");
+  const [resetMasterPwd, setResetMasterPwd] = useState("");
+  const [resetNewPwd, setResetNewPwd] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   // Redirect only on mount if session was restored from sessionStorage.
   useEffect(() => {
@@ -63,6 +71,31 @@ export default function LoginPage() {
       setLoginError(msg);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setResetError(null);
+    setResetLoading(true);
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ masterPassword: resetMasterPwd, username: resetUsername, newPassword: resetNewPwd }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((d as { error?: string }).error ?? "Erro ao redefinir senha.");
+      toast({ title: "Senha redefinida", description: "Agora você pode fazer login com a nova senha." });
+      setResetOpen(false);
+      setResetUsername("");
+      setResetMasterPwd("");
+      setResetNewPwd("");
+      setUsername(resetUsername);
+    } catch (err) {
+      setResetError((err as Error).message);
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -183,10 +216,81 @@ export default function LoginPage() {
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Entrar
               </Button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => { setResetOpen(true); setResetUsername(username); setResetError(null); }}
+                  className="text-xs text-muted-foreground hover:text-primary underline-offset-2 hover:underline transition-colors"
+                >
+                  Esqueci minha senha
+                </button>
+              </div>
             </form>
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5" /> Redefinir senha
+            </DialogTitle>
+            <DialogDescription>
+              Use a senha mestra do sistema para criar uma nova senha para qualquer usuário.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleResetPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome de usuário</Label>
+              <Input
+                placeholder="nome.usuario"
+                value={resetUsername}
+                onChange={(e) => setResetUsername(e.target.value)}
+                required
+                autoCapitalize="none"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Senha mestra do sistema</Label>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={resetMasterPwd}
+                onChange={(e) => setResetMasterPwd(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Nova senha (mín. 6 caracteres)</Label>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={resetNewPwd}
+                onChange={(e) => setResetNewPwd(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
+            {resetError && (
+              <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{resetError}</span>
+              </div>
+            )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setResetOpen(false)} disabled={resetLoading}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={resetLoading}>
+                {resetLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Redefinir senha
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
