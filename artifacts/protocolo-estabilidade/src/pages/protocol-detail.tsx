@@ -2927,7 +2927,9 @@ function DocumentosTab({ protocolId }: { protocolId: number }) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [description, setDescription] = useState("");
+  const [printing, setPrinting] = useState(false);
 
+  const { data: protocol } = useGetProtocol(protocolId);
   const { data: attachments = [], isLoading } = useListAttachments(protocolId);
 
   const createAttachment = useCreateAttachment({
@@ -3031,6 +3033,161 @@ function DocumentosTab({ protocolId }: { protocolId: number }) {
 
   const token = localStorage.getItem("alphafitus_token");
 
+  async function handlePrintDossier() {
+    if (attachments.length === 0) {
+      toast({ title: "Nenhum documento para imprimir", variant: "destructive" });
+      return;
+    }
+    setPrinting(true);
+    try {
+      type DocItem = {
+        att: typeof attachments[number];
+        blobUrl: string | null;
+        isPdf: boolean;
+        isImage: boolean;
+        isWord: boolean;
+      };
+      const docItems: DocItem[] = await Promise.all(
+        attachments.map(async (att) => {
+          const isPdf = att.fileType === "application/pdf";
+          const isImage = att.fileType.startsWith("image/");
+          const isWord = att.fileType.includes("word") || att.fileType.includes("officedocument.wordprocessingml");
+          try {
+            const r = await fetch(`/api/storage${att.objectPath}`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            if (!r.ok) return { att, blobUrl: null, isPdf, isImage, isWord };
+            const blob = await r.blob();
+            return { att, blobUrl: URL.createObjectURL(blob), isPdf, isImage, isWord };
+          } catch {
+            return { att, blobUrl: null, isPdf, isImage, isWord };
+          }
+        })
+      );
+
+      const protocolName = protocol?.productName ?? `Protocolo #${protocolId}`;
+      const companyName = protocol?.companyName ?? "";
+      const certNumber = protocol?.certNumber ?? "";
+      const today = new Date().toLocaleDateString("pt-BR");
+
+      const indexRows = attachments.map((att, i) => `
+        <tr>
+          <td style="padding:6px 10px; border:1px solid #ddd; text-align:center; color:#555;">${i + 1}</td>
+          <td style="padding:6px 10px; border:1px solid #ddd; font-weight:600;">${att.fileName}</td>
+          <td style="padding:6px 10px; border:1px solid #ddd; color:#555;">${att.description || "—"}</td>
+          <td style="padding:6px 10px; border:1px solid #ddd; color:#555;">${att.fileType.includes("pdf") ? "PDF" : att.fileType.includes("word") || att.fileType.includes("officedocument") ? "Word" : att.fileType.startsWith("image/") ? "Imagem" : att.fileType}</td>
+          <td style="padding:6px 10px; border:1px solid #ddd; color:#555;">${att.uploadedByName}</td>
+          <td style="padding:6px 10px; border:1px solid #ddd; color:#555;">${new Date(att.createdAt).toLocaleDateString("pt-BR")}</td>
+        </tr>`).join("");
+
+      const docSections = docItems.map((item, i) => {
+        const { att, blobUrl, isPdf, isImage } = item;
+        const typeLabel = isPdf ? "PDF" : item.isWord ? "Word" : isImage ? "Imagem" : att.fileType;
+        const content = blobUrl && isPdf
+          ? `<embed src="${blobUrl}" type="application/pdf" width="100%" style="height:calc(100vh - 120px); min-height:900px; border:none;" />`
+          : blobUrl && isImage
+          ? `<img src="${blobUrl}" style="max-width:100%; max-height:calc(100vh - 120px); display:block; margin:0 auto; border:1px solid #eee;" alt="${att.fileName}" />`
+          : `<div style="border:2px dashed #ccc; border-radius:8px; padding:40px; text-align:center; color:#888; margin-top:20px;">
+               <p style="font-size:18px; margin:0 0 8px;">Arquivo ${typeLabel}</p>
+               <p style="font-size:14px; margin:0;">${att.fileName}</p>
+               <p style="font-size:12px; margin:12px 0 0; color:#aaa;">Este formato não pode ser visualizado inline.<br>Imprima o arquivo separadamente.</p>
+             </div>`;
+        return `
+          <div style="page-break-before:always; padding:24px 40px;">
+            <div style="border-bottom:2px solid #1e3a5f; padding-bottom:12px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:flex-end;">
+              <div>
+                <div style="font-size:10px; color:#888; text-transform:uppercase; letter-spacing:1px; margin-bottom:2px;">Documento ${i + 1} de ${attachments.length}</div>
+                <div style="font-size:16px; font-weight:700; color:#1e3a5f;">${att.fileName}</div>
+                ${att.description ? `<div style="font-size:12px; color:#555; margin-top:2px;">${att.description}</div>` : ""}
+              </div>
+              <div style="text-align:right; font-size:11px; color:#888;">
+                <div>${typeLabel} &bull; ${att.uploadedByName}</div>
+                <div>${new Date(att.createdAt).toLocaleDateString("pt-BR")}</div>
+              </div>
+            </div>
+            ${content}
+          </div>`;
+      }).join("");
+
+      const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Dossiê de Documentos — ${protocolName}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #222; background: #fff; }
+    @media print {
+      .no-print { display: none !important; }
+      @page { margin: 15mm; }
+    }
+  </style>
+</head>
+<body>
+  <!-- CAPA -->
+  <div style="padding:40px; min-height:100vh; display:flex; flex-direction:column;">
+    <div style="border-bottom:3px solid #1e3a5f; padding-bottom:16px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:flex-end;">
+      <div>
+        <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:1px;">Alphafitus Laboratório Nutracêutico</div>
+        <div style="font-size:22px; font-weight:800; color:#1e3a5f; margin-top:4px;">Dossiê de Documentos Anexos</div>
+      </div>
+      <div style="text-align:right; font-size:12px; color:#555;">
+        <div>Emitido em ${today}</div>
+      </div>
+    </div>
+    <div style="background:#f5f7fa; border:1px solid #dce3ed; border-radius:8px; padding:20px 24px; margin-bottom:28px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px 24px;">
+        <div><span style="font-size:10px; color:#888; text-transform:uppercase; display:block;">Produto</span><span style="font-weight:700; font-size:14px;">${protocolName}</span></div>
+        ${companyName ? `<div><span style="font-size:10px; color:#888; text-transform:uppercase; display:block;">Empresa</span><span style="font-size:14px;">${companyName}</span></div>` : ""}
+        ${certNumber ? `<div><span style="font-size:10px; color:#888; text-transform:uppercase; display:block;">Nº Protocolo</span><span style="font-size:14px;">${certNumber}</span></div>` : ""}
+        <div><span style="font-size:10px; color:#888; text-transform:uppercase; display:block;">Total de documentos</span><span style="font-size:14px;">${attachments.length} arquivo(s)</span></div>
+      </div>
+    </div>
+    <div style="font-size:13px; font-weight:700; color:#1e3a5f; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">Índice de Documentos</div>
+    <table style="width:100%; border-collapse:collapse; font-size:12px;">
+      <thead>
+        <tr style="background:#1e3a5f; color:#fff;">
+          <th style="padding:8px 10px; border:1px solid #1e3a5f; text-align:center; width:40px;">#</th>
+          <th style="padding:8px 10px; border:1px solid #1e3a5f; text-align:left;">Arquivo</th>
+          <th style="padding:8px 10px; border:1px solid #1e3a5f; text-align:left;">Descrição</th>
+          <th style="padding:8px 10px; border:1px solid #1e3a5f; text-align:left; width:60px;">Tipo</th>
+          <th style="padding:8px 10px; border:1px solid #1e3a5f; text-align:left; width:110px;">Responsável</th>
+          <th style="padding:8px 10px; border:1px solid #1e3a5f; text-align:left; width:90px;">Data</th>
+        </tr>
+      </thead>
+      <tbody>${indexRows}</tbody>
+    </table>
+    <div style="margin-top:auto; padding-top:40px; border-top:1px solid #eee; font-size:10px; color:#aaa; text-align:center;">
+      Documento gerado pelo sistema Alphafitus Protocolo de Estabilidade &bull; ${today}
+    </div>
+  </div>
+  ${docSections}
+  <script>
+    window.addEventListener('load', function() {
+      var embeds = document.querySelectorAll('embed');
+      if (embeds.length > 0) {
+        setTimeout(function() { window.print(); }, 1200);
+      } else {
+        window.print();
+      }
+    });
+  <\/script>
+</body>
+</html>`;
+
+      const win = window.open("", "_blank");
+      if (!win) {
+        toast({ title: "Pop-up bloqueado", description: "Permita pop-ups para este site e tente novamente.", variant: "destructive" });
+        return;
+      }
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+    } finally {
+      setPrinting(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -3038,6 +3195,12 @@ function DocumentosTab({ protocolId }: { protocolId: number }) {
           <Paperclip className="h-4 w-4" /> Documentos do Protocolo
         </CardTitle>
         <div className="flex items-center gap-2">
+          {attachments.length > 0 && (
+            <Button variant="outline" size="sm" onClick={handlePrintDossier} disabled={printing || uploading}>
+              {printing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileText className="h-3.5 w-3.5 mr-1" />}
+              {printing ? "Preparando..." : "Imprimir Dossiê"}
+            </Button>
+          )}
           <Input
             placeholder="Descrição (opcional)"
             value={description}
