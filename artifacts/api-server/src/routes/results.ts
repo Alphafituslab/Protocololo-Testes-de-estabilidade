@@ -1,11 +1,67 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
-import { db, analysisResultsTable, lotsTable } from "@workspace/db";
+import { eq, and, count } from "drizzle-orm";
+import { db, analysisResultsTable, lotsTable, protocolsTable } from "@workspace/db";
 import { UpsertResultBody, UpsertResultParams, ListResultsParams, DeleteResultParams } from "@workspace/api-zod";
 import { logAudit } from "../lib/audit";
 import { requireAuth } from "../lib/session";
 
 const router: IRouter = Router();
+
+const STANDARD_PARAMS = 21;
+
+/** Recalculate and persist progressPercent for a protocol after any result change. */
+async function recalcProgress(protocolId: number): Promise<void> {
+  const [protocol] = await db
+    .select({ testIntervals: protocolsTable.testIntervals, customParamsJson: protocolsTable.customParamsJson, status: protocolsTable.status })
+    .from(protocolsTable)
+    .where(eq(protocolsTable.id, protocolId));
+
+  if (!protocol || protocol.status !== "em_andamento") return;
+
+  // Count periods from testIntervals (e.g. "0, 3, 6, 12" → 4)
+  const periods = (protocol.testIntervals ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0).length;
+
+  if (periods === 0) return;
+
+  // Count custom params
+  let customCount = 0;
+  if (protocol.customParamsJson) {
+    try {
+      const parsed = JSON.parse(protocol.customParamsJson);
+      customCount = Array.isArray(parsed) ? parsed.length : 0;
+    } catch { /* ignore */ }
+  }
+
+  const totalParams = STANDARD_PARAMS + customCount;
+
+  // Count lots
+  const [{ lotCount }] = await db
+    .select({ lotCount: count() })
+    .from(lotsTable)
+    .where(eq(lotsTable.protocolId, protocolId));
+
+  const nLots = Number(lotCount);
+  if (nLots === 0) return;
+
+  const totalSlots = totalParams * periods * nLots;
+
+  // Count saved results
+  const [{ resultCount }] = await db
+    .select({ resultCount: count() })
+    .from(analysisResultsTable)
+    .where(eq(analysisResultsTable.protocolId, protocolId));
+
+  const filled = Number(resultCount);
+  const progress = Math.min(100, Math.round((filled / totalSlots) * 100));
+
+  await db
+    .update(protocolsTable)
+    .set({ progressPercent: progress })
+    .where(eq(protocolsTable.id, protocolId));
+}
 
 router.get("/protocols/:id/results", async (req, res): Promise<void> => {
   const params = ListResultsParams.safeParse(req.params);
@@ -57,6 +113,9 @@ router.post("/protocols/:id/results", requireAuth, async (req, res): Promise<voi
   const statusText = statusLabel[result!.status] ?? result!.status;
   const desc = `${result!.parameter} — T${result!.period}m — Lote ${lot?.lotNumber ?? result!.lotId}: valor="${result!.result}" [${statusText}]${result!.observation ? ` · Justificativa: ${result!.observation}` : ""}`;
   await logAudit(req, action, "resultado", desc, { entityId: result!.id, protocolId: params.data.id });
+
+  await recalcProgress(params.data.id);
+
   res.json({ ...result, lotNumber: lot?.lotNumber ?? "" });
 });
 
@@ -68,6 +127,9 @@ router.delete("/protocols/:id/results/:resultId", requireAuth, async (req, res):
     .returning();
   if (!deleted) { res.status(404).json({ error: "Result not found" }); return; }
   await logAudit(req, "EXCLUIR_RESULTADO", "resultado", `Resultado excluído: ${deleted.parameter} — Período ${deleted.period} meses`, { entityId: deleted.id, protocolId: params.data.id });
+
+  await recalcProgress(params.data.id);
+
   res.sendStatus(204);
 });
 
