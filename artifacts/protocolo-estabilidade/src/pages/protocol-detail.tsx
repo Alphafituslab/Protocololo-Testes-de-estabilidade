@@ -2614,8 +2614,7 @@ function FinalizeSection({
                 type="submit"
                 disabled={
                   finalize.isPending ||
-                  (!!blockingError && (finalStatusWatch === "aprovado" || finalStatusWatch === "aprovado_com_ressalva")) ||
-                  (!!missingSigners && missingSigners.length > 0 && finalStatusWatch !== "em_andamento")
+                  (!!blockingError && (finalStatusWatch === "aprovado" || finalStatusWatch === "aprovado_com_ressalva"))
                 }
               >
                 {finalize.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
