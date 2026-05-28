@@ -60,12 +60,12 @@ export default function LoginPage() {
     const dest = popRedirect();
     try {
       await login(username, password);
-      // Use client-side navigation — avoids a full page reload that can cause
-      // a blank screen if the JS bundle fails to re-execute or sessionStorage
-      // is not re-read in time. The token getter is already wired up inside
-      // login() via setAuthTokenGetter() before flushSync, so React Query
-      // requests that fire on the destination page already carry the auth header.
-      navigate(dest || "/", { replace: true });
+      // Full-page navigation after login. This avoids DOM reconciliation errors
+      // triggered by browser extensions (Google Translate, password managers)
+      // during the React route transition. sessionStorage already has the token
+      // (set synchronously inside login()), so the new page load reads it and
+      // renders the protected route without any auth flash.
+      window.location.replace(dest || "/");
     } catch (err) {
       const msg = (err as Error).message ?? "Erro ao fazer login.";
       setLoginError(msg);
