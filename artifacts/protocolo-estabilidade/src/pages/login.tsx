@@ -117,7 +117,7 @@ export default function LoginPage() {
         throw new Error((d as { error?: string }).error ?? "Erro ao configurar.");
       }
       await login(username, password);
-      navigate("/", { replace: true });
+      window.location.replace("/");
     } catch (err) {
       toast({ variant: "destructive", title: "Erro", description: (err as Error).message });
     } finally {

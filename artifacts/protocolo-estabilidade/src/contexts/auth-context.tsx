@@ -23,16 +23,16 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 const TOKEN_KEY = "alphafitus_token";
 const USER_KEY = "alphafitus_user";
 
-// Use sessionStorage so the session expires when the browser/tab closes.
-// Each new browser session requires login.
+// Use localStorage so the session persists across tabs and browser restarts.
+// The server enforces a 30-day expiry on the token, so security is maintained.
 const store = {
-  get: (key: string) => sessionStorage.getItem(key),
-  set: (key: string, value: string) => sessionStorage.setItem(key, value),
-  remove: (key: string) => sessionStorage.removeItem(key),
+  get: (key: string) => localStorage.getItem(key),
+  set: (key: string, value: string) => localStorage.setItem(key, value),
+  remove: (key: string) => localStorage.removeItem(key),
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Read sessionStorage synchronously so the protected routes never see a
+  // Read localStorage synchronously so the protected routes never see a
   // "not authenticated" flash after login + window.location.replace().
   const [user, setUser] = useState<AuthUser | null>(() => {
     try {
@@ -71,14 +71,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error((data as { error?: string }).error ?? "Erro ao fazer login.");
     }
     const data = await res.json() as { token: string; user: AuthUser };
+    // Write to sessionStorage only. The caller always uses window.location.replace()
+    // for a full-page reload, so no React state update is needed here — the new
+    // page load will read these values synchronously from sessionStorage in the
+    // useState lazy initialisers, avoiding any re-render on the login page that
+    // could be intercepted by browser extensions (Google Translate, etc.).
     store.set(TOKEN_KEY, data.token);
     store.set(USER_KEY, JSON.stringify(data.user));
     setAuthTokenGetter(() => data.token);
-    // Normal (batched) state update — no flushSync. The caller uses
-    // window.location.replace() for a full-page reload, so the new page
-    // reads sessionStorage directly and doesn't need synchronous React state.
-    setToken(data.token);
-    setUser(data.user);
   }, []);
 
   const logout = useCallback(async () => {
@@ -90,9 +90,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     store.remove(TOKEN_KEY);
     store.remove(USER_KEY);
-    // Also clear any old localStorage leftovers from previous version
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
     setToken(null);
     setUser(null);
     setAuthTokenGetter(null);
