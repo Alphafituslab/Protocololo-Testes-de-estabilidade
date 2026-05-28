@@ -2,12 +2,13 @@ import { Router, type IRouter } from "express";
 import { db, protocolSignaturesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
+import { PERM, requirePermission, isProtocolSigned } from "../lib/permissions";
 import { logAudit } from "../lib/audit";
 
 const router: IRouter = Router();
 
-router.get("/protocols/:id/signatures", async (req, res): Promise<void> => {
-  const protocolId = parseInt(req.params["id"]);
+router.get("/protocols/:id/signatures", requireAuth, async (req, res): Promise<void> => {
+  const protocolId = parseInt(String(req.params["id"]));
   if (isNaN(protocolId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const sigs = await db
@@ -19,7 +20,7 @@ router.get("/protocols/:id/signatures", async (req, res): Promise<void> => {
   res.json(sigs);
 });
 
-router.post("/protocols/:id/signatures", requireAuth, async (req, res): Promise<void> => {
+router.post("/protocols/:id/signatures", requireAuth, requirePermission(PERM.SIGNATURES_SIGN), async (req, res): Promise<void> => {
   const protocolId = parseInt(String(req.params["id"]));
   if (isNaN(protocolId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
@@ -61,9 +62,15 @@ router.delete("/protocols/:id/signatures/:sigId", requireAuth, async (req, res):
 
   if (!existing) { res.status(404).json({ error: "Signature not found" }); return; }
 
-  if (user.role !== "admin" && existing.userId !== user.id) {
-    res.status(403).json({ error: "Você só pode remover sua própria assinatura" });
-    return;
+  // Post-signature lock: once ANY signature exists, only admin can remove signatures
+  const signed = await isProtocolSigned(protocolId);
+  if (signed && user.role !== "admin") {
+    res.status(403).json({ error: "Protocolo assinado. Apenas o administrador pode remover assinaturas." }); return;
+  }
+
+  // Pre-signature: only admin or the owner of the signature
+  if (!signed && user.role !== "admin" && existing.userId !== user.id) {
+    res.status(403).json({ error: "Você só pode remover sua própria assinatura." }); return;
   }
 
   await db.delete(protocolSignaturesTable).where(eq(protocolSignaturesTable.id, sigId));

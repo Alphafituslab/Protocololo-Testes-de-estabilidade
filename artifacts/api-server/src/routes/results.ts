@@ -4,6 +4,7 @@ import { db, analysisResultsTable, lotsTable, protocolsTable } from "@workspace/
 import { UpsertResultBody, UpsertResultParams, ListResultsParams, DeleteResultParams } from "@workspace/api-zod";
 import { logAudit } from "../lib/audit";
 import { requireAuth } from "../lib/session";
+import { PERM, requirePermission, isProtocolSigned } from "../lib/permissions";
 
 const router: IRouter = Router();
 
@@ -18,7 +19,6 @@ async function recalcProgress(protocolId: number): Promise<void> {
 
   if (!protocol || protocol.status !== "em_andamento") return;
 
-  // Count periods from testIntervals (e.g. "0, 3, 6, 12" → 4)
   const periods = (protocol.testIntervals ?? "")
     .split(",")
     .map((s) => s.trim())
@@ -26,7 +26,6 @@ async function recalcProgress(protocolId: number): Promise<void> {
 
   if (periods === 0) return;
 
-  // Count custom params
   let customCount = 0;
   if (protocol.customParamsJson) {
     try {
@@ -37,7 +36,6 @@ async function recalcProgress(protocolId: number): Promise<void> {
 
   const totalParams = STANDARD_PARAMS + customCount;
 
-  // Count lots
   const [{ lotCount }] = await db
     .select({ lotCount: count() })
     .from(lotsTable)
@@ -48,7 +46,6 @@ async function recalcProgress(protocolId: number): Promise<void> {
 
   const totalSlots = totalParams * periods * nLots;
 
-  // Count saved results
   const [{ resultCount }] = await db
     .select({ resultCount: count() })
     .from(analysisResultsTable)
@@ -63,7 +60,7 @@ async function recalcProgress(protocolId: number): Promise<void> {
     .where(eq(protocolsTable.id, protocolId));
 }
 
-router.get("/protocols/:id/results", async (req, res): Promise<void> => {
+router.get("/protocols/:id/results", requireAuth, async (req, res): Promise<void> => {
   const params = ListResultsParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const results = await db.select().from(analysisResultsTable).where(eq(analysisResultsTable.protocolId, params.data.id)).orderBy(analysisResultsTable.period);
@@ -73,11 +70,17 @@ router.get("/protocols/:id/results", async (req, res): Promise<void> => {
   res.json(enriched);
 });
 
-router.post("/protocols/:id/results", requireAuth, async (req, res): Promise<void> => {
+router.post("/protocols/:id/results", requireAuth, requirePermission(PERM.RESULTS_ENTER), async (req, res): Promise<void> => {
   const params = UpsertResultParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = UpsertResultBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  // Post-signature lock: only admin can enter/edit results after protocol is signed
+  const signed = await isProtocolSigned(params.data.id);
+  if (signed && req.authUser?.role !== "admin") {
+    res.status(403).json({ error: "Protocolo assinado. Apenas o administrador pode alterar resultados." }); return;
+  }
 
   const existing = await db.select().from(analysisResultsTable).where(
     and(
@@ -103,33 +106,32 @@ router.post("/protocols/:id/results", requireAuth, async (req, res): Promise<voi
   const [lot] = await db.select().from(lotsTable).where(eq(lotsTable.id, result!.lotId));
   const action = isUpdate ? "ATUALIZAR_RESULTADO" : "REGISTRAR_RESULTADO";
   const statusLabel: Record<string, string> = {
-    conforme: "Conforme",
-    nao_conforme: "Não Conforme",
-    na: "Não se Aplica",
-    aprovado_com_ressalva: "Aprovado c/ Ressalva",
-    nd: "Não Detectado",
-    lq: "Limite de Quantificação",
+    conforme: "Conforme", nao_conforme: "Não Conforme", na: "Não se Aplica",
+    aprovado_com_ressalva: "Aprovado c/ Ressalva", nd: "Não Detectado", lq: "Limite de Quantificação",
   };
   const statusText = statusLabel[result!.status] ?? result!.status;
   const desc = `${result!.parameter} — T${result!.period}m — Lote ${lot?.lotNumber ?? result!.lotId}: valor="${result!.result}" [${statusText}]${result!.observation ? ` · Justificativa: ${result!.observation}` : ""}`;
   await logAudit(req, action, "resultado", desc, { entityId: result!.id, protocolId: params.data.id });
-
   await recalcProgress(params.data.id);
-
   res.json({ ...result, lotNumber: lot?.lotNumber ?? "" });
 });
 
-router.delete("/protocols/:id/results/:resultId", requireAuth, async (req, res): Promise<void> => {
+router.delete("/protocols/:id/results/:resultId", requireAuth, requirePermission(PERM.RESULTS_DELETE), async (req, res): Promise<void> => {
   const params = DeleteResultParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+
+  // Post-signature lock: only admin can delete results after protocol is signed
+  const signed = await isProtocolSigned(params.data.id);
+  if (signed && req.authUser?.role !== "admin") {
+    res.status(403).json({ error: "Protocolo assinado. Apenas o administrador pode excluir resultados." }); return;
+  }
+
   const [deleted] = await db.delete(analysisResultsTable)
     .where(and(eq(analysisResultsTable.id, params.data.resultId), eq(analysisResultsTable.protocolId, params.data.id)))
     .returning();
   if (!deleted) { res.status(404).json({ error: "Result not found" }); return; }
   await logAudit(req, "EXCLUIR_RESULTADO", "resultado", `Resultado excluído: ${deleted.parameter} — Período ${deleted.period} meses`, { entityId: deleted.id, protocolId: params.data.id });
-
   await recalcProgress(params.data.id);
-
   res.sendStatus(204);
 });
 

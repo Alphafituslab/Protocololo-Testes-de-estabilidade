@@ -1471,7 +1471,7 @@ export default function CertificatePage() {
             emailLine?: React.ReactNode;
           }) => (
             <div className="relative mb-1">
-              {auth?.user && (auth.isAdmin || sig.userId === auth.user.id) && (
+              {auth?.user && (auth.isAdmin || auth.hasPermission?.("signatures:delete") || sig.userId === auth.user.id) && (
                 <button
                   type="button"
                   title="Remover assinatura"
@@ -1494,7 +1494,8 @@ export default function CertificatePage() {
             </div>
           );
 
-          const SignBtn = ({ preRole }: { preRole?: string }) => (
+          const canSign = auth?.isAdmin || auth?.hasPermission?.("signatures:sign");
+          const SignBtn = ({ preRole }: { preRole?: string }) => !canSign ? null : (
             <button
               type="button"
               onClick={() => { if (preRole) setSelectedRoleLabel(preRole); setSigDialogOpen(true); }}

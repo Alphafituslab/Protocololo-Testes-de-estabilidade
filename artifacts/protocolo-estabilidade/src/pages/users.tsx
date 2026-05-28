@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/use-auth";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,11 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Pencil, Users, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Loader2, Plus, Pencil, Users, ArrowLeft, Eye, EyeOff, Shield } from "lucide-react";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 type User = {
   id: number;
@@ -19,26 +22,19 @@ type User = {
   displayName: string;
   role: string;
   active: boolean;
+  permissions: string[];
   createdAt: string;
 };
 
-async function apiFetch<T>(url: string, token: string | null, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options?.headers,
-    },
-  });
-  if (!res.ok) {
-    const d = await res.json().catch(() => ({}));
-    throw new Error((d as { error?: string }).error ?? `Erro HTTP ${res.status}`);
-  }
-  return res.json() as Promise<T>;
-}
+type UserFormData = {
+  username: string;
+  displayName: string;
+  password: string;
+  role: string;
+  permissions: string[];
+};
 
-type UserFormData = { username: string; displayName: string; password: string; role: string };
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 export const ROLE_LABELS: Record<string, string> = {
   admin: "Administrador",
@@ -56,6 +52,79 @@ const ROLE_OPTIONS = [
   { value: "admin", label: "Administrador" },
 ];
 
+// Permissions grouped by category for the UI
+const PERMISSION_GROUPS = [
+  {
+    label: "Protocolos",
+    perms: [
+      { key: "protocols:view",     label: "Visualizar" },
+      { key: "protocols:create",   label: "Criar" },
+      { key: "protocols:edit",     label: "Editar" },
+      { key: "protocols:delete",   label: "Excluir" },
+      { key: "protocols:finalize", label: "Finalizar / Aprovar" },
+    ],
+  },
+  {
+    label: "Lotes e Resultados",
+    perms: [
+      { key: "lots:manage",      label: "Gerenciar lotes" },
+      { key: "results:enter",    label: "Lançar resultados" },
+      { key: "results:delete",   label: "Excluir resultados" },
+    ],
+  },
+  {
+    label: "Assinaturas",
+    perms: [
+      { key: "signatures:sign",   label: "Assinar certificados" },
+      { key: "signatures:delete", label: "Excluir assinaturas" },
+    ],
+  },
+  {
+    label: "Sistema",
+    perms: [
+      { key: "catalog:manage",     label: "Catálogo (tipos de produto, cápsula, etc.)" },
+      { key: "attachments:manage", label: "Gerenciar anexos" },
+      { key: "settings:manage",    label: "Configurações do sistema" },
+    ],
+  },
+];
+
+// Default permissions per role — mirrors server-side defaultPermissionsForRole
+const DEFAULT_PERMS: Record<string, string[]> = {
+  admin: PERMISSION_GROUPS.flatMap((g) => g.perms.map((p) => p.key)),
+  responsavel_tecnico: [
+    "protocols:view", "protocols:create", "protocols:edit", "protocols:finalize",
+    "lots:manage", "results:enter", "results:delete",
+    "signatures:sign", "catalog:manage", "attachments:manage",
+  ],
+  controle_qualidade: [
+    "protocols:view", "protocols:create", "protocols:edit",
+    "lots:manage", "results:enter", "signatures:sign", "attachments:manage",
+  ],
+  tecnico_lab: ["protocols:view", "results:enter", "signatures:sign", "attachments:manage"],
+  analyst:     ["protocols:view", "results:enter", "signatures:sign"],
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+async function apiFetch<T>(url: string, token: string | null, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options?.headers,
+    },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error((d as { error?: string }).error ?? `Erro HTTP ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
 function RoleSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <select
@@ -70,16 +139,81 @@ function RoleSelect({ value, onChange }: { value: string; onChange: (v: string) 
   );
 }
 
-function UserForm({ initial, onSave, isEdit }: { initial?: Partial<UserFormData>; onSave: (data: UserFormData & { password?: string }) => Promise<void>; isEdit?: boolean }) {
+function PermissionsEditor({
+  permissions,
+  role,
+  onChange,
+}: {
+  permissions: string[];
+  role: string;
+  onChange: (perms: string[]) => void;
+}) {
+  // Admin implicitly has all permissions — don't show the editor
+  if (role === "admin") {
+    return (
+      <p className="text-xs text-muted-foreground italic">
+        Administradores têm acesso total implicitamente.
+      </p>
+    );
+  }
+
+  const toggle = (key: string) => {
+    onChange(
+      permissions.includes(key)
+        ? permissions.filter((p) => p !== key)
+        : [...permissions, key],
+    );
+  };
+
+  return (
+    <div className="space-y-3">
+      {PERMISSION_GROUPS.map((group) => (
+        <div key={group.label}>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+            {group.label}
+          </p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+            {group.perms.map(({ key, label }) => (
+              <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
+                <Checkbox
+                  checked={permissions.includes(key)}
+                  onCheckedChange={() => toggle(key)}
+                  id={`perm-${key}`}
+                />
+                <span className="text-sm">{label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function UserForm({
+  initial,
+  onSave,
+  isEdit,
+}: {
+  initial?: Partial<UserFormData> & { permissions?: string[] };
+  onSave: (data: UserFormData) => Promise<void>;
+  isEdit?: boolean;
+}) {
   const [form, setForm] = useState<UserFormData>({
     username: initial?.username ?? "",
     displayName: initial?.displayName ?? "",
     password: "",
     role: initial?.role ?? "analyst",
+    permissions: initial?.permissions ?? DEFAULT_PERMS["analyst"] ?? [],
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
+
+  // When the role changes, auto-apply the template (but user can override)
+  const handleRoleChange = useCallback((role: string) => {
+    setForm((f) => ({ ...f, role, permissions: DEFAULT_PERMS[role] ?? [] }));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -122,7 +256,10 @@ function UserForm({ initial, onSave, isEdit }: { initial?: Partial<UserFormData>
       </div>
       <div className="space-y-2">
         <Label>Perfil</Label>
-        <RoleSelect value={form.role} onChange={(v) => setForm((f) => ({ ...f, role: v }))} />
+        <RoleSelect value={form.role} onChange={handleRoleChange} />
+        <p className="text-xs text-muted-foreground">
+          Ao trocar o perfil, as permissões são redefinidas para o padrão do novo perfil.
+        </p>
       </div>
       <div className="space-y-2">
         <Label>{isEdit ? "Nova senha (deixe em branco para manter)" : "Senha"}</Label>
@@ -142,6 +279,19 @@ function UserForm({ initial, onSave, isEdit }: { initial?: Partial<UserFormData>
           </button>
         </div>
       </div>
+
+      {/* Permission editor */}
+      <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
+        <Label className="flex items-center gap-1.5 text-sm font-semibold">
+          <Shield className="h-3.5 w-3.5" /> Permissões
+        </Label>
+        <PermissionsEditor
+          permissions={form.permissions}
+          role={form.role}
+          onChange={(perms) => setForm((f) => ({ ...f, permissions: perms }))}
+        />
+      </div>
+
       <Button type="submit" disabled={loading} className="w-full">
         {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
         {isEdit ? "Salvar alterações" : "Criar usuário"}
@@ -149,6 +299,8 @@ function UserForm({ initial, onSave, isEdit }: { initial?: Partial<UserFormData>
     </form>
   );
 }
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
   const { token, isAdmin, user: currentUser } = useAuth();
@@ -202,16 +354,18 @@ export default function UsersPage() {
         <Button variant="ghost" size="icon" onClick={() => navigate("/")}><ArrowLeft className="h-4 w-4" /></Button>
         <div>
           <h2 className="text-xl font-semibold flex items-center gap-2"><Users className="h-5 w-5" /> Gerenciamento de Usuários</h2>
-          <p className="text-sm text-muted-foreground">Gerencie os usuários com acesso ao sistema.</p>
+          <p className="text-sm text-muted-foreground">Gerencie usuários e permissões de acesso ao sistema.</p>
         </div>
         <div className="ml-auto">
           <Dialog open={newOpen} onOpenChange={setNewOpen}>
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" /> Novo usuário</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>Criar novo usuário</DialogTitle></DialogHeader>
-              <UserForm onSave={async (d) => { await createUser.mutateAsync(d as UserFormData); }} />
+              <UserForm
+                onSave={async (d) => { await createUser.mutateAsync(d); }}
+              />
             </DialogContent>
           </Dialog>
         </div>
@@ -232,6 +386,7 @@ export default function UsersPage() {
                   <TableHead>Nome</TableHead>
                   <TableHead>Usuário</TableHead>
                   <TableHead>Perfil</TableHead>
+                  <TableHead>Permissões</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -248,6 +403,15 @@ export default function UsersPage() {
                       <Badge variant={u.role === "admin" ? "default" : "secondary"}>
                         {ROLE_LABELS[u.role] ?? u.role}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {u.role === "admin" ? (
+                        <span className="text-xs text-muted-foreground italic">Total (admin)</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {(u.permissions ?? []).length} permissão(ões)
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -269,13 +433,21 @@ export default function UsersPage() {
                             <Pencil className="h-4 w-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                           <DialogHeader><DialogTitle>Editar: {u.displayName}</DialogTitle></DialogHeader>
                           <UserForm
                             isEdit
-                            initial={{ displayName: u.displayName, role: u.role }}
+                            initial={{
+                              displayName: u.displayName,
+                              role: u.role,
+                              permissions: u.permissions ?? [],
+                            }}
                             onSave={async (d) => {
-                              const payload: Partial<UserFormData> = { displayName: d.displayName, role: d.role };
+                              const payload: Partial<UserFormData> & { active?: boolean } = {
+                                displayName: d.displayName,
+                                role: d.role,
+                                permissions: d.permissions,
+                              };
                               if (d.password) payload.password = d.password;
                               await updateUser.mutateAsync({ id: u.id, data: payload });
                             }}

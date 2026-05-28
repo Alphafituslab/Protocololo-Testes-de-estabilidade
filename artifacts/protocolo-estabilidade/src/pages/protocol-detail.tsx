@@ -56,6 +56,7 @@ import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loade
 import { AuditTrail } from "@/components/audit-trail";
 import { useToast } from "@/hooks/use-toast";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
+import { useAuth } from "@/contexts/use-auth";
 
 
 const STATUS_LABELS: Record<string, string> = {
@@ -189,6 +190,7 @@ function InfoFieldEL({ labelKey, def, value, lbl, setLabel }: {
 }
 
 function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
+  const { hasPermission } = useAuth();
   const { lbl, setLabel } = useLabelOverrides();
   const queryClient = useQueryClient();
   const updateProtocol = useUpdateProtocol();
@@ -246,13 +248,15 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <Link href={`/protocols/${protocol.id}/edit`}>
-          <Button variant="outline" size="sm">
-            <Pencil className="h-3.5 w-3.5 mr-1.5" /> Editar Informações
-          </Button>
-        </Link>
-      </div>
+      {hasPermission("protocols:edit") && (
+        <div className="flex justify-end">
+          <Link href={`/protocols/${protocol.id}/edit`}>
+            <Button variant="outline" size="sm">
+              <Pencil className="h-3.5 w-3.5 mr-1.5" /> Editar Informações
+            </Button>
+          </Link>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-x-8 gap-y-3">
         {fieldsTop.map(f => <InfoFieldEL key={f.labelKey} {...f} lbl={lbl} setLabel={setLabel} />)}
@@ -300,6 +304,8 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
 }
 
 function LotsTab({ protocolId }: { protocolId: number }) {
+  const { hasPermission } = useAuth();
+  const canManageLots = hasPermission("lots:manage");
   const { data: lots = [], isLoading } = useListLots(protocolId, {
     query: { queryKey: getListLotsQueryKey(protocolId) },
   });
@@ -381,9 +387,11 @@ function LotsTab({ protocolId }: { protocolId: number }) {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">Lotes piloto incluídos neste estudo</p>
-        <Button size="sm" onClick={openNew} data-testid="button-add-lot">
-          <Plus className="h-4 w-4 mr-1" /> Adicionar Lote
-        </Button>
+        {canManageLots && (
+          <Button size="sm" onClick={openNew} data-testid="button-add-lot">
+            <Plus className="h-4 w-4 mr-1" /> Adicionar Lote
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -411,28 +419,30 @@ function LotsTab({ protocolId }: { protocolId: number }) {
                 <TableCell>{lot.quantity} unidades</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{lot.notes ?? "—"}</TableCell>
                 <TableCell>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(lot)} data-testid={`button-edit-lot-${lot.id}`}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" data-testid={`button-delete-lot-${lot.id}`}>
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Remover lote?</AlertDialogTitle>
-                          <AlertDialogDescription>Isso também removerá todos os resultados associados a este lote.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteLot.mutate({ id: protocolId, lotId: lot.id })}>Remover</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+                  {canManageLots && (
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(lot)} data-testid={`button-edit-lot-${lot.id}`}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" data-testid={`button-delete-lot-${lot.id}`}>
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remover lote?</AlertDialogTitle>
+                            <AlertDialogDescription>Isso também removerá todos os resultados associados a este lote.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteLot.mutate({ id: protocolId, lotId: lot.id })}>Remover</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -2634,6 +2644,7 @@ export default function ProtocolDetail() {
   const numId = Number(id);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { hasPermission } = useAuth();
   const { unlocked, unlock, lock } = useUnlock();
   const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
@@ -2765,24 +2776,26 @@ export default function ProtocolDetail() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
-          <FinalizeSection
-            protocolId={numId}
-            status={protocol.status}
-            currentFinalStatus={protocol.finalStatus}
-            currentConclusion={protocol.conclusion}
-            currentValidityMonths={protocol.validityMonths}
-            currentIssueDate={protocol.issueDate}
-            currentRessalva={protocol.ressalva}
-            currentProgressPercent={protocol.progressPercent}
-            hasNonConformes={protocol.results?.some(r => r.status === "nao_conforme") ?? false}
-            missingSigners={missingSigners}
-            externalOpen={finalizeDialogOpen}
-            onExternalOpenChange={setFinalizeDialogOpen}
-            onNeedsUnlock={needsPassword ? () => {
-              setPendingAction(() => () => setFinalizeDialogOpen(true));
-              setUnlockDialogOpen(true);
-            } : undefined}
-          />
+          {hasPermission("protocols:finalize") && (
+            <FinalizeSection
+              protocolId={numId}
+              status={protocol.status}
+              currentFinalStatus={protocol.finalStatus}
+              currentConclusion={protocol.conclusion}
+              currentValidityMonths={protocol.validityMonths}
+              currentIssueDate={protocol.issueDate}
+              currentRessalva={protocol.ressalva}
+              currentProgressPercent={protocol.progressPercent}
+              hasNonConformes={protocol.results?.some(r => r.status === "nao_conforme") ?? false}
+              missingSigners={missingSigners}
+              externalOpen={finalizeDialogOpen}
+              onExternalOpenChange={setFinalizeDialogOpen}
+              onNeedsUnlock={needsPassword ? () => {
+                setPendingAction(() => () => setFinalizeDialogOpen(true));
+                setUnlockDialogOpen(true);
+              } : undefined}
+            />
+          )}
           {(() => {
             const hasNC = protocol.results?.some(r => r.status === "nao_conforme") ?? false;
             const isApproved = protocol.status === "aprovado" || protocol.status === "aprovado_com_ressalva" || protocol.status === "reprovado";
@@ -2815,25 +2828,27 @@ export default function ProtocolDetail() {
               </>
             );
           })()}
-          {/* Edit — always accessible */}
-          <Button
-            variant="outline"
-            size="sm"
-            data-testid="button-edit-protocol"
-            onClick={() => setLocation(`/protocols/${id}/edit`)}
-          >
-            <Pencil className="h-4 w-4 mr-1" />
-            Editar
-          </Button>
-          {/* Delete — always requires password */}
-          <Button
-            variant="outline"
-            size="sm"
-            data-testid="button-delete-protocol"
-            onClick={() => setDeletePasswordOpen(true)}
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
+          {hasPermission("protocols:edit") && (
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="button-edit-protocol"
+              onClick={() => setLocation(`/protocols/${id}/edit`)}
+            >
+              <Pencil className="h-4 w-4 mr-1" />
+              Editar
+            </Button>
+          )}
+          {hasPermission("protocols:delete") && (
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="button-delete-protocol"
+              onClick={() => setDeletePasswordOpen(true)}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          )}
           {/* Delete: password verification = confirmation. Single dialog avoids portal conflict. */}
           <UnlockDialog
             open={deletePasswordOpen}

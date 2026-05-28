@@ -13,6 +13,7 @@ import {
 } from "@workspace/api-zod";
 import { logAudit } from "../lib/audit";
 import { requireAuth } from "../lib/session";
+import { PERM, requirePermission, isProtocolSigned } from "../lib/permissions";
 import { notifyProtocolDeleted } from "../lib/notifications";
 
 const router: IRouter = Router();
@@ -24,7 +25,7 @@ function normSigName(s: string): string {
 
 /** Given a set of normalised signer names, check if a required name has signed. */
 function hasSigned(sigSet: Set<string>, name: string | null | undefined): boolean {
-  if (!name?.trim()) return true; // no name configured → not required
+  if (!name?.trim()) return true;
   const nn = normSigName(name);
   for (const s of sigSet) {
     if (s === nn || s.includes(nn) || nn.includes(s)) return true;
@@ -59,13 +60,14 @@ async function fetchSigMap(protocolIds: number[]): Promise<Map<number, Set<strin
   return map;
 }
 
-router.get("/protocols", async (req, res): Promise<void> => {
+// ── Routes ────────────────────────────────────────────────────────────────────
+
+router.get("/protocols", requireAuth, async (req, res): Promise<void> => {
   const parsed = ListProtocolsQueryParams.safeParse(req.query);
   const statusFilter = parsed.success ? parsed.data.status : undefined;
   const nonConformesFilter = parsed.success ? parsed.data.nonConformes : undefined;
 
   if (nonConformesFilter === true) {
-    // Retorna apenas protocolos que têm ao menos um resultado "nao_conforme"
     const rows = await db
       .select({ protocolId: analysisResultsTable.protocolId })
       .from(analysisResultsTable)
@@ -92,7 +94,7 @@ router.get("/protocols", async (req, res): Promise<void> => {
   res.json(withPendingSignatures(protocols, sigMap));
 });
 
-router.get("/protocols/stats", async (req, res): Promise<void> => {
+router.get("/protocols/stats", requireAuth, async (req, res): Promise<void> => {
   const allProtocols = await db.select().from(protocolsTable);
   const nonConformities = await db.select({ cnt: count() }).from(analysisResultsTable).where(eq(analysisResultsTable.status, "nao_conforme"));
   const recent = allProtocols.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 10);
@@ -110,10 +112,9 @@ router.get("/protocols/stats", async (req, res): Promise<void> => {
   });
 });
 
-router.post("/protocols", requireAuth, async (req, res): Promise<void> => {
+router.post("/protocols", requireAuth, requirePermission(PERM.PROTOCOLS_CREATE), async (req, res): Promise<void> => {
   const parsed = CreateProtocolBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-  // Prevent duplicate certificate numbers
   const cn = parsed.data.certNumber?.trim();
   if (cn) {
     const [dup] = await db.select({ id: protocolsTable.id }).from(protocolsTable).where(eq(protocolsTable.certNumber, cn)).limit(1);
@@ -127,7 +128,7 @@ router.post("/protocols", requireAuth, async (req, res): Promise<void> => {
   res.status(201).json(protocol);
 });
 
-router.get("/protocols/:id", async (req, res): Promise<void> => {
+router.get("/protocols/:id", requireAuth, async (req, res): Promise<void> => {
   const params = GetProtocolParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const [protocol] = await db.select().from(protocolsTable).where(eq(protocolsTable.id, params.data.id));
@@ -139,12 +140,11 @@ router.get("/protocols/:id", async (req, res): Promise<void> => {
   res.json({ ...protocol, lots, results: resultsWithLotNumber });
 });
 
-router.put("/protocols/:id", requireAuth, async (req, res): Promise<void> => {
+router.put("/protocols/:id", requireAuth, requirePermission(PERM.PROTOCOLS_EDIT), async (req, res): Promise<void> => {
   const params = UpdateProtocolParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = UpdateProtocolBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-  // Prevent duplicate certificate numbers (excluding the current protocol itself)
   const cn = (parsed.data as Record<string, unknown>).certNumber as string | undefined;
   if (cn && cn.trim()) {
     const [dup] = await db.select({ id: protocolsTable.id }).from(protocolsTable)
@@ -161,13 +161,19 @@ router.put("/protocols/:id", requireAuth, async (req, res): Promise<void> => {
   res.json(protocol);
 });
 
-router.delete("/protocols/:id", requireAuth, async (req, res): Promise<void> => {
+router.delete("/protocols/:id", requireAuth, requirePermission(PERM.PROTOCOLS_DELETE), async (req, res): Promise<void> => {
   const params = DeleteProtocolParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+
+  // Post-signature lock: only admin can delete a signed protocol
+  const signed = await isProtocolSigned(params.data.id);
+  if (signed && req.authUser?.role !== "admin") {
+    res.status(403).json({ error: "Protocolo possui assinaturas. Apenas o administrador pode excluí-lo." }); return;
+  }
+
   const [deleted] = await db.delete(protocolsTable).where(eq(protocolsTable.id, params.data.id)).returning();
   if (!deleted) { res.status(404).json({ error: "Protocol not found" }); return; }
   await logAudit(req, "EXCLUIR_PROTOCOLO", "protocolo", `Protocolo "${deleted.productName}" excluído`, { entityId: deleted.id, protocolId: deleted.id });
-  // Notificação WhatsApp — não bloqueia a resposta; falhas são silenciosas para o cliente
   notifyProtocolDeleted({
     id: deleted.id,
     productName: deleted.productName,
@@ -182,19 +188,17 @@ router.delete("/protocols/:id", requireAuth, async (req, res): Promise<void> => 
     deletedByName: req.authUser?.displayName ?? "Desconhecido",
     deletedByUsername: req.authUser?.username ?? "desconhecido",
     deletedAt: new Date(),
-  }).catch(() => { /* já logado internamente */ });
+  }).catch(() => {});
   res.sendStatus(204);
 });
 
-router.post("/protocols/:id/finalize", requireAuth, async (req, res): Promise<void> => {
+router.post("/protocols/:id/finalize", requireAuth, requirePermission(PERM.PROTOCOLS_FINALIZE), async (req, res): Promise<void> => {
   const params = FinalizeProtocolParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = FinalizeProtocolBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const fs = parsed.data.finalStatus;
 
-  // Medida de segurança: se tentativa de aprovação contém não conformes, força reprovado.
-  // Usa select direto (não count) para evitar ambiguidade de tipo BigInt/string do driver pg.
   let forcedReprovado = false;
   if (fs === "aprovado" || fs === "aprovado_com_ressalva") {
     const nonConformes = await db
@@ -206,32 +210,23 @@ router.post("/protocols/:id/finalize", requireAuth, async (req, res): Promise<vo
       ))
       .limit(1);
     req.log.info({ protocolId: params.data.id, requestedStatus: fs, ncCount: nonConformes.length }, "finalize: verificacao de nao_conforme");
-    if (nonConformes.length > 0) {
-      forcedReprovado = true;
-    }
+    if (nonConformes.length > 0) forcedReprovado = true;
   }
 
   let updateData: Record<string, unknown>;
   let statusLabel: string;
   if (fs === "em_andamento") {
-    // Busca o protocolo atual para preservar progressPercent caso não seja enviado
     const [existing] = await db.select({ progressPercent: protocolsTable.progressPercent })
       .from(protocolsTable).where(eq(protocolsTable.id, params.data.id));
     const newProgress = parsed.data.progressPercent;
     updateData = {
-      status: "em_andamento",
-      finalStatus: null,
-      // Só sobrescreve se o operador enviou um valor; caso contrário mantém o existente
-      progressPercent: newProgress !== undefined && newProgress !== null
-        ? newProgress
-        : (existing?.progressPercent ?? null),
+      status: "em_andamento", finalStatus: null,
+      progressPercent: newProgress !== undefined && newProgress !== null ? newProgress : (existing?.progressPercent ?? null),
     };
     statusLabel = "EM ANDAMENTO";
   } else if (forcedReprovado) {
-    // Segurança: aprovação ignorada pois há não conformes — salva como reprovado
     updateData = {
-      status: "reprovado",
-      finalStatus: "reprovado",
+      status: "reprovado", finalStatus: "reprovado",
       conclusion: "REPROVADO AUTOMATICAMENTE: protocolo contém parâmetros não conformes nas análises. " + (parsed.data.conclusion ?? ""),
       validityMonths: null,
       issueDate: parsed.data.issueDate ?? new Date().toISOString().split("T")[0],
@@ -241,8 +236,7 @@ router.post("/protocols/:id/finalize", requireAuth, async (req, res): Promise<vo
   } else {
     const workflowStatus = fs === "aprovado" ? "aprovado" : fs === "aprovado_com_ressalva" ? "aprovado_com_ressalva" : "reprovado";
     updateData = {
-      status: workflowStatus,
-      finalStatus: fs,
+      status: workflowStatus, finalStatus: fs,
       conclusion: parsed.data.conclusion ?? null,
       validityMonths: parsed.data.validityMonths ?? null,
       issueDate: parsed.data.issueDate ?? new Date().toISOString().split("T")[0],
@@ -250,9 +244,7 @@ router.post("/protocols/:id/finalize", requireAuth, async (req, res): Promise<vo
     };
     statusLabel = fs === "aprovado" ? "APROVADO" : fs === "aprovado_com_ressalva" ? "APROVADO COM RESSALVA" : "REPROVADO";
   }
-  const [protocol] = await db.update(protocolsTable)
-    .set(updateData)
-    .where(eq(protocolsTable.id, params.data.id)).returning();
+  const [protocol] = await db.update(protocolsTable).set(updateData).where(eq(protocolsTable.id, params.data.id)).returning();
   if (!protocol) { res.status(404).json({ error: "Protocol not found" }); return; }
   await logAudit(req, "FINALIZAR_PROTOCOLO", "protocolo", `Protocolo "${protocol.productName}" marcado como ${statusLabel}`, { entityId: protocol.id, protocolId: protocol.id });
   res.json({ ...protocol, _autoReprovado: forcedReprovado });

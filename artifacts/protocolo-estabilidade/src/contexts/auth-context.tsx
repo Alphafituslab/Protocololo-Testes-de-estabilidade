@@ -7,6 +7,8 @@ export type AuthUser = {
   username: string;
   displayName: string;
   role: string;
+  hplcAccess?: boolean;
+  permissions: string[];
 };
 
 export type AuthContextValue = {
@@ -16,6 +18,7 @@ export type AuthContextValue = {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isAdmin: boolean;
+  hasPermission: (perm: string) => boolean;
 };
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -65,7 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json() as { token: string; user: AuthUser };
     store.set(TOKEN_KEY, data.token);
     store.set(USER_KEY, JSON.stringify(data.user));
-    // Also update React state so the current render cycle sees the user immediately.
     setToken(data.token);
     setUser(data.user);
     setAuthTokenGetter(() => data.token);
@@ -85,8 +87,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthTokenGetter(null);
   }, [token]);
 
+  /** Admin bypasses all permission checks. Non-admin must have the perm in their list. */
+  const hasPermission = useCallback((perm: string): boolean => {
+    if (!user) return false;
+    if (user.role === "admin") return true;
+    return (user.permissions ?? []).includes(perm);
+  }, [user]);
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout, isAdmin: user?.role === "admin" }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, logout, isAdmin: user?.role === "admin", hasPermission }}>
       {children}
     </AuthContext.Provider>
   );
