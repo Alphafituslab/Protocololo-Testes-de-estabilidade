@@ -55,13 +55,23 @@ export default function LoginPage() {
       .catch(() => setSetupNeeded(false));
   }, []);
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoginError(null);
     setLoading(true);
     const dest = popRedirect();
+    // Read directly from the DOM to capture browser autofill values that
+    // may not have triggered React's onChange (common with Chrome autofill)
+    const form = e.currentTarget;
+    const actualUsername =
+      (form.elements.namedItem("username") as HTMLInputElement | null)?.value ?? username;
+    const actualPassword =
+      (form.elements.namedItem("password") as HTMLInputElement | null)?.value ?? password;
+    // Sync state so error messages display correctly
+    setUsername(actualUsername);
+    setPassword(actualPassword);
     try {
-      await login(username, password);
+      await login(actualUsername, actualPassword);
       window.location.replace(dest || "/");
     } catch (err) {
       const msg = (err as Error).message ?? "Erro ao fazer login.";

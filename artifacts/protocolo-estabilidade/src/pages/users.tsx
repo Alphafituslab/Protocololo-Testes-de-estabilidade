@@ -273,6 +273,7 @@ function UserForm({
             minLength={isEdit ? 0 : 6}
             required={!isEdit}
             className="pr-10"
+            autoComplete={isEdit ? "new-password" : "current-password"}
           />
           <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
             onClick={() => setShowPassword((s) => !s)}>
