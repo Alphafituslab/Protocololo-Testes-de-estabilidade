@@ -1482,7 +1482,7 @@ export default function CertificatePage() {
                 </button>
               )}
               <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "2rem", lineHeight: 1.2, color: "#111827", fontWeight: 700 }}>
-                {sig.userDisplay}
+                {displayName}
               </p>
               <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5 mb-3">
                 <ShieldCheck className="h-3 w-3 text-gray-400 flex-shrink-0" />
@@ -1571,6 +1571,9 @@ export default function CertificatePage() {
                       ) : (
                         <>
                           <div className="min-h-[68px] flex flex-col justify-end pb-2">
+                            <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "2rem", lineHeight: 1.2, color: "#d1d5db", fontWeight: 700 }} className="mb-1">
+                              {ef("issuedBy", cert.issuedBy)}
+                            </p>
                             {userInLeft && !currentUserAlreadySigned ? (
                               <SignBtn preRole="Responsável Técnico" />
                             ) : (
@@ -1600,6 +1603,9 @@ export default function CertificatePage() {
                       ) : (
                         <>
                           <div className="min-h-[68px] flex flex-col justify-end pb-2">
+                            <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "2rem", lineHeight: 1.2, color: "#d1d5db", fontWeight: 700 }} className="mb-1">
+                              {ef("seniorAnalyst", cert.seniorAnalyst)}
+                            </p>
                             {userInRight && !currentUserAlreadySigned ? (
                               <SignBtn preRole="Analista Sênior" />
                             ) : (
