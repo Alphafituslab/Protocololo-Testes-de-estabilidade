@@ -701,7 +701,7 @@ function InlineCell({
         parameter: param.parameter,
         criterion: param.criterion,
         result: value,
-        numericResult: parseFloat(value.replace(",", ".")) || undefined,
+        numericResult: (() => { const n = parseFloat(value.replace(",", ".")); return isNaN(n) ? undefined : n; })(),
         status,
         observation: observation.trim() || undefined,
       },
@@ -854,7 +854,7 @@ function InlineCell({
                       parameter: param.parameter,
                       criterion: param.criterion,
                       result: value,
-                      numericResult: parseFloat(value.replace(",", ".")) || undefined,
+                      numericResult: (() => { const n = parseFloat(value.replace(",", ".")); return isNaN(n) ? undefined : n; })(),
                       status,
                     },
                   })
@@ -1629,6 +1629,24 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     </div>
   );
 
+  const missingPeriods = kinetics.parameters.filter((p) => p.t3 == null || p.t6 == null);
+  const missingMsg = missingPeriods.length > 0 ? (
+    <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 space-y-1">
+      <p className="font-semibold">⚠ Dados insuficientes para calcular a cinética completa</p>
+      <p>Os parâmetros abaixo precisam de resultados numéricos em <strong>T3m</strong> e/ou <strong>T6m</strong> na aba <strong>Resultados</strong>:</p>
+      <ul className="list-disc ml-5 space-y-0.5">
+        {missingPeriods.map((p) => (
+          <li key={p.parameter}>
+            <strong>{(p as { parameter: string }).parameter}</strong>
+            {" — "}
+            {p.t3 == null && p.t6 == null ? "faltam T3 e T6" : p.t3 == null ? "falta T3" : "falta T6"}
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs text-amber-700">Os valores podem ser inseridos manualmente na tabela abaixo apenas para simulação. Para persistir os resultados, use a aba Resultados.</p>
+    </div>
+  ) : null;
+
   const shelfLives = Object.values(overrides)
     .map((o) => parseFloat(o.shelfLife))
     .filter((v) => !isNaN(v) && v > 0);
@@ -1651,6 +1669,8 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
         </Button>
       </div>
       <p className="text-xs text-muted-foreground -mt-2">Todos os valores são editáveis diretamente nas células — os cálculos são atualizados automaticamente.</p>
+
+      {missingMsg}
 
       {/* Summary card */}
       <Card className="border-green-200 bg-green-50">
@@ -3083,21 +3103,25 @@ function DocumentosTab({ protocolId }: { protocolId: number }) {
                   </a>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
-                        <X className="h-3.5 w-3.5" />
+                      <Button variant="outline" size="sm" className="h-7 px-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive gap-1">
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span className="text-xs">Excluir</span>
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Remover documento?</AlertDialogTitle>
+                        <AlertDialogTitle>Excluir documento?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          O arquivo <strong>{att.fileName}</strong> será removido permanentemente.
+                          O arquivo <strong>{att.fileName}</strong> será removido permanentemente do protocolo.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteAttachment.mutate({ id: protocolId, attachmentId: att.id })}>
-                          Remover
+                        <AlertDialogAction
+                          className="bg-destructive text-white hover:bg-destructive/90"
+                          onClick={() => deleteAttachment.mutate({ id: protocolId, attachmentId: att.id })}
+                        >
+                          Excluir
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
