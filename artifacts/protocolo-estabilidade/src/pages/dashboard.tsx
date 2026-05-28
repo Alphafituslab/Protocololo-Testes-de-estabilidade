@@ -1,10 +1,16 @@
-import { useGetProtocolStats, useListProtocols } from "@workspace/api-client-react";
+import {
+  useGetProtocolStats, useListProtocols, useDeleteProtocol,
+  getGetProtocolStatsQueryKey, getListProtocolsQueryKey,
+} from "@workspace/api-client-react";
 import { Link, useLocation } from "wouter";
 import { useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   FileText, Plus, CheckCircle2, Clock, XCircle, ShieldCheck,
-  TrendingUp, ArrowRight, Activity, Beaker, Search, X,
+  TrendingUp, ArrowRight, Activity, Beaker, Search, X, Trash2,
 } from "lucide-react";
+import { useUnlock } from "@/hooks/use-unlock";
+import { UnlockDialog } from "@/components/unlock-dialog";
 
 function normalize(str: string) {
   return str
@@ -46,6 +52,27 @@ export default function Dashboard() {
   const { data: stats, isLoading } = useGetProtocolStats();
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<{ id: number; name: string } | null>(null);
+  const [unlockOpen, setUnlockOpen] = useState(false);
+  const { unlock } = useUnlock();
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useDeleteProtocol({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetProtocolStatsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListProtocolsQueryKey() });
+        setPendingDelete(null);
+      },
+    },
+  });
+
+  function handleDeleteClick(e: React.MouseEvent, id: number, name: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    setPendingDelete({ id, name });
+    setUnlockOpen(true);
+  }
 
   const q = normalize(search);
   const { data: allProtocols = [] } = useListProtocols(undefined, {
@@ -71,6 +98,7 @@ export default function Dashboard() {
   const conformRate = total > 0 ? Math.round(((aprovado + aprovadoComRessalva) / total) * 100) : 0;
 
   return (
+    <>
     <div className="space-y-8">
 
       {/* ── Hero banner ── */}
@@ -265,6 +293,13 @@ export default function Dashboard() {
                               <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                               {STATUS_LABELS[protocol.status] ?? protocol.status}
                             </span>
+                            <button
+                              onClick={(e) => handleDeleteClick(e, protocol.id, protocol.productName ?? "Protocolo")}
+                              className="p-1.5 rounded-md text-muted-foreground/40 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                              title="Excluir protocolo"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
                             <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                           </div>
                         </div>
@@ -298,5 +333,27 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+
+    <UnlockDialog
+      open={unlockOpen}
+      onOpenChange={(open) => {
+        setUnlockOpen(open);
+        if (!open) setPendingDelete(null);
+      }}
+      onUnlock={unlock}
+      onSuccess={() => {
+        if (pendingDelete) {
+          deleteMutation.mutate({ id: pendingDelete.id });
+        }
+      }}
+      title="Confirmar exclusão"
+      description={
+        pendingDelete
+          ? `Digite a senha mestra para excluir permanentemente o protocolo "${pendingDelete.name}". Esta ação não pode ser desfeita.`
+          : "Digite a senha mestra para confirmar a exclusão."
+      }
+      submitLabel="Excluir"
+    />
+    </>
   );
 }
