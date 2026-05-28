@@ -9,10 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Pencil, Users, ArrowLeft, Eye, EyeOff, Shield } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Users, ArrowLeft, Eye, EyeOff, Shield } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -339,6 +340,16 @@ export default function UsersPage() {
     onError: (err) => toast({ variant: "destructive", title: "Erro ao atualizar usuário", description: (err as Error).message }),
   });
 
+  const deleteUser = useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<{ ok: boolean }>(`/api/users/${id}`, token, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      toast({ title: "Usuário excluído." });
+    },
+    onError: (err) => toast({ variant: "destructive", title: "Erro ao excluir usuário", description: (err as Error).message }),
+  });
+
   if (!isAdmin) {
     return (
       <div className="p-8 text-center text-muted-foreground">
@@ -424,36 +435,78 @@ export default function UsersPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Dialog
-                        open={editOpen && editUser?.id === u.id}
-                        onOpenChange={(o) => { setEditOpen(o); if (o) setEditUser(u); }}
-                      >
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => { setEditUser(u); setEditOpen(true); }}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-                          <DialogHeader><DialogTitle>Editar: {u.displayName}</DialogTitle></DialogHeader>
-                          <UserForm
-                            isEdit
-                            initial={{
-                              displayName: u.displayName,
-                              role: u.role,
-                              permissions: u.permissions ?? [],
-                            }}
-                            onSave={async (d) => {
-                              const payload: Partial<UserFormData> & { active?: boolean } = {
-                                displayName: d.displayName,
-                                role: d.role,
-                                permissions: d.permissions,
-                              };
-                              if (d.password) payload.password = d.password;
-                              await updateUser.mutateAsync({ id: u.id, data: payload });
-                            }}
-                          />
-                        </DialogContent>
-                      </Dialog>
+                      <div className="flex items-center justify-end gap-1">
+                        {/* Edit */}
+                        <Dialog
+                          open={editOpen && editUser?.id === u.id}
+                          onOpenChange={(o) => { setEditOpen(o); if (o) setEditUser(u); }}
+                        >
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => { setEditUser(u); setEditOpen(true); }}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                            <DialogHeader><DialogTitle>Editar: {u.displayName}</DialogTitle></DialogHeader>
+                            <UserForm
+                              isEdit
+                              initial={{
+                                displayName: u.displayName,
+                                role: u.role,
+                                permissions: u.permissions ?? [],
+                              }}
+                              onSave={async (d) => {
+                                const payload: Partial<UserFormData> & { active?: boolean } = {
+                                  displayName: d.displayName,
+                                  role: d.role,
+                                  permissions: d.permissions,
+                                };
+                                if (d.password) payload.password = d.password;
+                                await updateUser.mutateAsync({ id: u.id, data: payload });
+                              }}
+                            />
+                          </DialogContent>
+                        </Dialog>
+
+                        {/* Delete — hidden for own account */}
+                        {u.id !== currentUser?.id && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                disabled={deleteUser.isPending}
+                              >
+                                {deleteUser.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  O usuário <strong>{u.displayName}</strong> ({u.username}) será removido permanentemente.
+                                  Assinaturas históricas feitas por ele serão preservadas.
+                                  Esta ação não pode ser desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  onClick={() => deleteUser.mutate(u.id)}
+                                >
+                                  Excluir permanentemente
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

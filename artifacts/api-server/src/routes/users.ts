@@ -47,6 +47,16 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
   } catch { res.status(409).json({ error: "Nome de usuário já existe." }); }
 });
 
+// Delete user (admin only — cannot delete yourself)
+router.delete("/users/:userId", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const userId = parseInt(String(req.params["userId"] ?? ""));
+  if (isNaN(userId)) { res.status(400).json({ error: "ID inválido." }); return; }
+  if (req.authUser?.id === userId) { res.status(400).json({ error: "Não é possível excluir o próprio usuário." }); return; }
+  const [deleted] = await db.delete(usersTable).where(eq(usersTable.id, userId)).returning({ id: usersTable.id });
+  if (!deleted) { res.status(404).json({ error: "Usuário não encontrado." }); return; }
+  res.json({ ok: true });
+});
+
 // Update user (admin only)
 router.put("/users/:userId", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const userId = parseInt(String(req.params["userId"] ?? ""));
