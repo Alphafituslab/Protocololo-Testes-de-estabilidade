@@ -1464,32 +1464,34 @@ export default function CertificatePage() {
           const userInRight  = !!auth?.user && sigNameMatches(auth.user.displayName, rightName);
           const userInOther  = !!auth?.user && !userInLeft && !userInRight;
 
-          const SigCard = ({ sig }: { sig: typeof signatures[0] }) => (
-            <div className="flex items-start gap-2.5 rounded border border-green-200 bg-green-50 p-2.5 mb-3 relative">
+          const SigCard = ({ sig, displayName, roleLine, emailLine }: {
+            sig: typeof signatures[0];
+            displayName: React.ReactNode;
+            roleLine: React.ReactNode;
+            emailLine?: React.ReactNode;
+          }) => (
+            <div className="relative mb-1">
               {auth?.user && (auth.isAdmin || sig.userId === auth.user.id) && (
                 <button
                   type="button"
                   title="Remover assinatura"
                   onClick={() => deleteSig.mutate({ id: Number(id), sigId: sig.id })}
-                  className="print:hidden absolute top-1.5 right-1.5 text-gray-300 hover:text-red-500 transition-colors"
+                  className="print:hidden absolute top-0 right-0 text-gray-300 hover:text-red-500 transition-colors z-10"
                 >
-                  <Trash2 className="h-3 w-3" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
               )}
-              <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-primary font-bold text-xs uppercase">
-                {sig.userDisplay.charAt(0)}
-              </div>
-              <div className="min-w-0">
-                <p className="font-semibold text-[11px] text-gray-800 leading-tight">{sig.userDisplay}</p>
-                <p className="text-[10px] text-primary/80 font-medium">{sig.roleLabel}</p>
-                <p className="text-[9px] text-gray-400 mt-0.5">
-                  {new Date(sig.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                </p>
-                <div className="flex items-center gap-0.5 mt-0.5">
-                  <ShieldCheck className="h-2.5 w-2.5 text-green-600" />
-                  <span className="text-[9px] text-green-600 font-medium">Assinatura verificada</span>
-                </div>
-              </div>
+              <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "2rem", lineHeight: 1.2, color: "#111827", fontWeight: 700 }}>
+                {sig.userDisplay}
+              </p>
+              <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5 mb-3">
+                <ShieldCheck className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                {new Date(sig.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              </p>
+              <div className="border-t border-gray-300 mb-3" />
+              <p className="font-semibold text-sm text-gray-800">{displayName}</p>
+              <p className="text-xs text-gray-500">{roleLine}</p>
+              {emailLine && <p className="text-xs text-gray-400">{emailLine}</p>}
             </div>
           );
 
@@ -1556,30 +1558,60 @@ export default function CertificatePage() {
                   <div className="grid grid-cols-2 gap-8">
                     {/* LEFT — Responsável Técnico */}
                     <div>
-                      <div className="border-t border-gray-400 w-64 mb-4">
-                        <p className="text-xs text-gray-400 mt-1">Assinatura</p>
-                      </div>
-                      {leftSigs.map(s => <SigCard key={s.id} sig={s} />)}
-                      {leftSigs.length === 0 && userInLeft && !currentUserAlreadySigned && (
-                        <SignBtn preRole="Responsável Técnico" />
+                      {leftSigs.length > 0 ? (
+                        leftSigs.map(s => (
+                          <SigCard
+                            key={s.id}
+                            sig={s}
+                            displayName={ef("issuedBy", cert.issuedBy)}
+                            roleLine={ef("lbl_cargoEsquerdo", "Responsável Técnico")}
+                            emailLine={ef("issuedByEmail", cert.issuedByEmail)}
+                          />
+                        ))
+                      ) : (
+                        <>
+                          <div className="min-h-[68px] flex flex-col justify-end pb-2">
+                            {userInLeft && !currentUserAlreadySigned ? (
+                              <SignBtn preRole="Responsável Técnico" />
+                            ) : (
+                              <p className="text-xs text-gray-300 italic mb-3">Aguardando assinatura...</p>
+                            )}
+                          </div>
+                          <div className="border-t border-gray-400 mb-3" />
+                          <p className="font-semibold text-sm text-gray-800">{ef("issuedBy", cert.issuedBy)}</p>
+                          <p className="text-xs text-gray-500">{ef("lbl_cargoEsquerdo", "Responsável Técnico")}</p>
+                          <p className="text-xs text-gray-400">{ef("issuedByEmail", cert.issuedByEmail)}</p>
+                        </>
                       )}
-                      <p className="font-semibold text-sm">{ef("issuedBy", cert.issuedBy)}</p>
-                      <p className="text-xs text-gray-500">{ef("lbl_cargoEsquerdo", "Responsável Técnico")}</p>
-                      <p className="text-xs text-gray-500">{ef("issuedByEmail", cert.issuedByEmail)}</p>
                     </div>
 
                     {/* RIGHT — Analista Sênior / Representante Legal */}
                     <div>
-                      <div className="border-t border-gray-400 w-64 mb-4">
-                        <p className="text-xs text-gray-400 mt-1">Assinatura</p>
-                      </div>
-                      {rightSigs.map(s => <SigCard key={s.id} sig={s} />)}
-                      {rightSigs.length === 0 && userInRight && !currentUserAlreadySigned && (
-                        <SignBtn preRole="Analista Sênior" />
+                      {rightSigs.length > 0 ? (
+                        rightSigs.map(s => (
+                          <SigCard
+                            key={s.id}
+                            sig={s}
+                            displayName={ef("seniorAnalyst", cert.seniorAnalyst)}
+                            roleLine={ef("lbl_cargoDireito", "Analista Sênior / Representante Legal")}
+                            emailLine={ef("seniorAnalystEmail", cert.seniorAnalystEmail)}
+                          />
+                        ))
+                      ) : (
+                        <>
+                          <div className="min-h-[68px] flex flex-col justify-end pb-2">
+                            {userInRight && !currentUserAlreadySigned ? (
+                              <SignBtn preRole="Analista Sênior" />
+                            ) : (
+                              <p className="text-xs text-gray-300 italic mb-3">Aguardando assinatura...</p>
+                            )}
+                          </div>
+                          <div className="border-t border-gray-400 mb-3" />
+                          <p className="font-semibold text-sm text-gray-800">{ef("seniorAnalyst", cert.seniorAnalyst)}</p>
+                          <p className="text-xs text-gray-500">{ef("lbl_cargoDireito", "Analista Sênior / Representante Legal")}</p>
+                          <p className="text-xs text-gray-400">{ef("seniorAnalystEmail", cert.seniorAnalystEmail)}</p>
+                        </>
                       )}
-                      <p className="font-semibold text-sm">{ef("seniorAnalyst", cert.seniorAnalyst)}</p>
-                      <p className="text-xs text-gray-500">{ef("lbl_cargoDireito", "Analista Sênior / Representante Legal")}</p>
-                      <p className="text-xs text-gray-500">{ef("seniorAnalystEmail", cert.seniorAnalystEmail)}</p>
                     </div>
                   </div>
 
@@ -1600,8 +1632,15 @@ export default function CertificatePage() {
                           </button>
                         )}
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        {otherSigs.map(s => <SigCard key={s.id} sig={s} />)}
+                      <div className="grid grid-cols-2 gap-6">
+                        {otherSigs.map(s => (
+                          <SigCard
+                            key={s.id}
+                            sig={s}
+                            displayName={s.userDisplay}
+                            roleLine={s.roleLabel}
+                          />
+                        ))}
                       </div>
                     </div>
                   )}

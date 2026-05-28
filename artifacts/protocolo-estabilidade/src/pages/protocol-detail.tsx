@@ -35,6 +35,8 @@ import {
   useCreateAttachment,
   useDeleteAttachment,
   getListAttachmentsQueryKey,
+  useListSignatures,
+  getListSignaturesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -2288,6 +2290,7 @@ function FinalizeSection({
   currentRessalva,
   currentProgressPercent,
   hasNonConformes,
+  missingSigners,
   onNeedsUnlock,
   externalOpen,
   onExternalOpenChange,
@@ -2301,6 +2304,7 @@ function FinalizeSection({
   currentRessalva?: string | null;
   currentProgressPercent?: number | null;
   hasNonConformes?: boolean;
+  missingSigners?: string[];
   onNeedsUnlock?: () => void;
   externalOpen?: boolean;
   onExternalOpenChange?: (v: boolean) => void;
@@ -2580,6 +2584,19 @@ function FinalizeSection({
                 )} />
               </div>
             )}
+            {missingSigners && missingSigners.length > 0 && finalStatusWatch !== "em_andamento" && (
+              <div className="flex items-start gap-2.5 rounded-md border-2 border-amber-500 bg-amber-50 px-4 py-3">
+                <svg className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-bold text-amber-700 uppercase tracking-wide">Assinaturas Pendentes</p>
+                  <p className="text-sm text-amber-700 mt-0.5">
+                    Para finalizar o protocolo, todos os membros listados devem assinar o certificado. Pendente(s): <strong>{missingSigners.join(", ")}</strong>.
+                  </p>
+                </div>
+              </div>
+            )}
             {blockingError && (
               <div className="flex items-start gap-2.5 rounded-md border-2 border-red-600 bg-red-50 px-4 py-3">
                 <svg className="mt-0.5 h-5 w-5 shrink-0 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -2595,7 +2612,11 @@ function FinalizeSection({
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
               <Button
                 type="submit"
-                disabled={finalize.isPending || (!!blockingError && (finalStatusWatch === "aprovado" || finalStatusWatch === "aprovado_com_ressalva"))}
+                disabled={
+                  finalize.isPending ||
+                  (!!blockingError && (finalStatusWatch === "aprovado" || finalStatusWatch === "aprovado_com_ressalva")) ||
+                  (!!missingSigners && missingSigners.length > 0 && finalStatusWatch !== "em_andamento")
+                }
               >
                 {finalize.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {isAlreadyFinalized ? "Salvar Correção" : "Confirmar Avaliacao"}
@@ -2624,6 +2645,28 @@ export default function ProtocolDetail() {
   const { data: protocol, isLoading } = useGetProtocol(numId, {
     query: { enabled: !!id, queryKey: getGetProtocolQueryKey(numId) },
   });
+
+  const { data: signatures = [] } = useListSignatures(numId, {
+    query: { enabled: !!id, queryKey: getListSignaturesQueryKey(numId) },
+  });
+
+  const missingSigners = (() => {
+    if (!protocol) return [];
+    const normName = (s: string) =>
+      s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+    const hasSigned = (name: string | null | undefined) => {
+      if (!name?.trim()) return true;
+      const nn = normName(name);
+      return signatures.some(s => {
+        const ns = normName(s.userDisplay);
+        return ns === nn || ns.includes(nn) || nn.includes(ns);
+      });
+    };
+    const missing: string[] = [];
+    if (!hasSigned(protocol.issuedBy)) missing.push(protocol.issuedBy ?? "Responsável Técnico");
+    if (!hasSigned(protocol.seniorAnalyst)) missing.push(protocol.seniorAnalyst ?? "Analista Sênior");
+    return missing;
+  })();
 
   // "aprovado_com_ressalva" is intentionally excluded — it remains freely editable without password
   const isFinalized = !!(protocol?.finalStatus === "aprovado" || protocol?.finalStatus === "reprovado");
@@ -2733,6 +2776,7 @@ export default function ProtocolDetail() {
             currentRessalva={protocol.ressalva}
             currentProgressPercent={protocol.progressPercent}
             hasNonConformes={protocol.results?.some(r => r.status === "nao_conforme") ?? false}
+            missingSigners={missingSigners}
             externalOpen={finalizeDialogOpen}
             onExternalOpenChange={setFinalizeDialogOpen}
             onNeedsUnlock={needsPassword ? () => {

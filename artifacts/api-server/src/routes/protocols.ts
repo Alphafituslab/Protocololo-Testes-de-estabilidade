@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, count, and, inArray, ne } from "drizzle-orm";
-import { db, protocolsTable, lotsTable, analysisResultsTable } from "@workspace/db";
+import { db, protocolsTable, lotsTable, analysisResultsTable, protocolSignaturesTable } from "@workspace/db";
 import {
   CreateProtocolBody,
   UpdateProtocolBody,
@@ -147,6 +147,44 @@ router.post("/protocols/:id/finalize", requireAuth, async (req, res): Promise<vo
   const parsed = FinalizeProtocolBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const fs = parsed.data.finalStatus;
+
+  // Bloqueio de assinaturas: todos os membros listados (issuedBy + seniorAnalyst) devem assinar.
+  if (parsed.data.finalStatus !== "em_andamento") {
+    const [currentProto] = await db
+      .select({ issuedBy: protocolsTable.issuedBy, seniorAnalyst: protocolsTable.seniorAnalyst })
+      .from(protocolsTable)
+      .where(eq(protocolsTable.id, params.data.id));
+
+    if (currentProto) {
+      const sigs = await db
+        .select({ userDisplay: protocolSignaturesTable.userDisplay })
+        .from(protocolSignaturesTable)
+        .where(eq(protocolSignaturesTable.protocolId, params.data.id));
+
+      const normName = (s: string) =>
+        s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+
+      const hasSigned = (name: string | null | undefined) => {
+        if (!name?.trim()) return true;
+        const nn = normName(name);
+        return sigs.some(s => {
+          const ns = normName(s.userDisplay);
+          return ns === nn || ns.includes(nn) || nn.includes(ns);
+        });
+      };
+
+      const missing: string[] = [];
+      if (!hasSigned(currentProto.issuedBy)) missing.push(currentProto.issuedBy ?? "Responsável Técnico");
+      if (!hasSigned(currentProto.seniorAnalyst)) missing.push(currentProto.seniorAnalyst ?? "Analista Sênior");
+
+      if (missing.length > 0) {
+        res.status(400).json({
+          error: `Para finalizar, todos os membros listados devem assinar o certificado. Assinatura(s) pendente(s): ${missing.join(", ")}.`,
+        });
+        return;
+      }
+    }
+  }
 
   // Medida de segurança: se tentativa de aprovação contém não conformes, força reprovado.
   // Usa select direto (não count) para evitar ambiguidade de tipo BigInt/string do driver pg.
