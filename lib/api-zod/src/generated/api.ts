@@ -15,6 +15,83 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
+ * @summary Request a presigned URL for file upload
+ */
+
+export const RequestUploadUrlBody = zod.object({
+  name: zod.string().min(1),
+  size: zod.number().min(1),
+  contentType: zod.string().min(1),
+});
+
+export const RequestUploadUrlResponse = zod.object({
+  uploadURL: zod.string().url(),
+  objectPath: zod.string(),
+  metadata: zod
+    .object({
+      name: zod.string().min(1),
+      size: zod.number().min(1),
+      contentType: zod.string().min(1),
+    })
+    .optional(),
+});
+
+/**
+ * @summary Serve an uploaded object
+ */
+export const GetStorageObjectParams = zod.object({
+  objectPath: zod.coerce.string(),
+});
+
+/**
+ * @summary List protocol attachments
+ */
+export const ListAttachmentsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListAttachmentsResponseItem = zod.object({
+  id: zod.number(),
+  protocolId: zod.number(),
+  fileName: zod.string(),
+  fileType: zod.string(),
+  fileSizeBytes: zod.number().nullish(),
+  objectPath: zod.string(),
+  uploadedBy: zod.number().nullish(),
+  uploadedByName: zod.string(),
+  description: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const ListAttachmentsResponse = zod.array(ListAttachmentsResponseItem);
+
+/**
+ * @summary Register a new attachment after upload
+ */
+export const CreateAttachmentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CreateAttachmentBody = zod.object({
+  fileName: zod.string(),
+  fileType: zod.string(),
+  fileSizeBytes: zod.number().nullish(),
+  objectPath: zod.string(),
+  description: zod.string().nullish(),
+});
+
+/**
+ * @summary Delete a protocol attachment
+ */
+export const DeleteAttachmentParams = zod.object({
+  id: zod.coerce.number(),
+  attachmentId: zod.coerce.number(),
+});
+
+export const DeleteAttachmentResponse = zod.object({
+  ok: zod.boolean().optional(),
+});
+
+/**
  * @summary List all protocols
  */
 export const ListProtocolsQueryParams = zod.object({

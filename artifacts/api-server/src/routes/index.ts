@@ -12,6 +12,8 @@ import usersRouter from "./users";
 import auditLogsRouter from "./audit-logs";
 import settingsRouter from "./settings";
 import signaturesRouter from "./signatures";
+import attachmentsRouter from "./attachments";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -29,5 +31,7 @@ router.use(usersRouter);
 router.use(auditLogsRouter);
 router.use(settingsRouter);
 router.use(signaturesRouter);
+router.use(attachmentsRouter);
+router.use(storageRouter);
 
 export default router;

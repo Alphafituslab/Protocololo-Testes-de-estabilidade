@@ -428,6 +428,46 @@ export interface FinalizeProtocolBody {
   progressPercent?: number | null;
 }
 
+export interface ProtocolAttachment {
+  id: number;
+  protocolId: number;
+  fileName: string;
+  fileType: string;
+  fileSizeBytes?: number | null;
+  objectPath: string;
+  uploadedBy?: number | null;
+  uploadedByName: string;
+  description?: string | null;
+  createdAt: string;
+}
+
+export interface CreateAttachmentBody {
+  fileName: string;
+  fileType: string;
+  fileSizeBytes?: number | null;
+  objectPath: string;
+  description?: string | null;
+}
+
+export interface UploadUrlRequest {
+  /** @minLength 1 */
+  name: string;
+  /** @minimum 1 */
+  size: number;
+  /** @minLength 1 */
+  contentType: string;
+}
+
+export interface UploadUrlResponse {
+  uploadURL: string;
+  objectPath: string;
+  metadata?: UploadUrlRequest;
+}
+
+export type DeleteAttachment200 = {
+  ok?: boolean;
+};
+
 export type ListProtocolsParams = {
   status?: ListProtocolsStatus;
   nonConformes?: boolean;

@@ -19,6 +19,10 @@ tags:
     description: Certificate of analysis
   - name: methodologies
     description: Methodology reference library
+  - name: attachments
+    description: Protocol document attachments
+  - name: storage
+    description: Object storage upload and serving endpoints
 paths:
   /healthz:
     get:
@@ -32,6 +36,116 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /storage/uploads/request-url:
+    post:
+      tags: [storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadUrlRequest'
+      responses:
+        '200':
+          description: Presigned upload URL generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadUrlResponse'
+
+  /storage/objects/{objectPath}:
+    get:
+      tags: [storage]
+      operationId: getStorageObject
+      summary: Serve an uploaded object
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Object content
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+
+  /protocols/{id}/attachments:
+    get:
+      operationId: listAttachments
+      tags: [attachments]
+      summary: List protocol attachments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of attachments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProtocolAttachment'
+    post:
+      operationId: createAttachment
+      tags: [attachments]
+      summary: Register a new attachment after upload
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAttachmentBody'
+      responses:
+        '201':
+          description: Attachment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProtocolAttachment'
+
+  /protocols/{id}/attachments/{attachmentId}:
+    delete:
+      operationId: deleteAttachment
+      tags: [attachments]
+      summary: Delete a protocol attachment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: attachmentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
 
   /protocols:
     get:
@@ -1303,3 +1417,75 @@ components:
           description: Progresso em % quando em_andamento (0-100)
       required:
         - finalStatus
+
+    ProtocolAttachment:
+      type: object
+      required: [id, protocolId, fileName, fileType, objectPath, uploadedByName, createdAt]
+      properties:
+        id:
+          type: integer
+        protocolId:
+          type: integer
+        fileName:
+          type: string
+        fileType:
+          type: string
+        fileSizeBytes:
+          type: integer
+          nullable: true
+        objectPath:
+          type: string
+        uploadedBy:
+          type: integer
+          nullable: true
+        uploadedByName:
+          type: string
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateAttachmentBody:
+      type: object
+      required: [fileName, fileType, objectPath]
+      properties:
+        fileName:
+          type: string
+        fileType:
+          type: string
+        fileSizeBytes:
+          type: integer
+          nullable: true
+        objectPath:
+          type: string
+        description:
+          type: string
+          nullable: true
+
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/UploadUrlRequest'

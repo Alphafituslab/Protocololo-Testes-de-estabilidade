@@ -31,6 +31,10 @@ import {
   useUpdateMethodology,
   useDeleteMethodology,
   getListMethodologiesQueryKey,
+  useListAttachments,
+  useCreateAttachment,
+  useDeleteAttachment,
+  getListAttachmentsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -46,7 +50,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink, Upload, Download, X, File } from "lucide-react";
 import { AuditTrail } from "@/components/audit-trail";
 import { useToast } from "@/hooks/use-toast";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
@@ -2834,6 +2838,7 @@ export default function ProtocolDetail() {
           <TabsTrigger value="kinetics" data-testid="tab-kinetics">Cinética</TabsTrigger>
           <TabsTrigger value="metodologia" data-testid="tab-metodologia">Metodologia</TabsTrigger>
           <TabsTrigger value="historico" data-testid="tab-historico"><History className="h-3.5 w-3.5 mr-1" />Histórico</TabsTrigger>
+          <TabsTrigger value="documentos" data-testid="tab-documentos"><Paperclip className="h-3.5 w-3.5 mr-1" />Documentos</TabsTrigger>
         </TabsList>
         <TabsContent value="info">
           <Card>
@@ -2887,7 +2892,222 @@ export default function ProtocolDetail() {
             </CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="documentos">
+          <DocumentosTab protocolId={numId} />
+        </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function DocumentosTab({ protocolId }: { protocolId: number }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [description, setDescription] = useState("");
+
+  const { data: attachments = [], isLoading } = useListAttachments(protocolId);
+
+  const createAttachment = useCreateAttachment({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListAttachmentsQueryKey(protocolId) });
+        setDescription("");
+        toast({ title: "Documento anexado com sucesso" });
+      },
+      onError: () => toast({ title: "Erro ao registrar documento", variant: "destructive" }),
+    },
+  });
+
+  const deleteAttachment = useDeleteAttachment({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListAttachmentsQueryKey(protocolId) });
+        toast({ title: "Documento removido" });
+      },
+      onError: () => toast({ title: "Erro ao remover documento", variant: "destructive" }),
+    },
+  });
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    const allowed = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "image/png", "image/jpeg", "image/webp",
+    ];
+    if (!allowed.includes(file.type)) {
+      toast({ title: "Tipo de arquivo não suportado", description: "Aceito: PDF, Word, imagens", variant: "destructive" });
+      return;
+    }
+    const MAX_MB = 20;
+    if (file.size > MAX_MB * 1024 * 1024) {
+      toast({ title: `Arquivo muito grande (máx ${MAX_MB} MB)`, variant: "destructive" });
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(10);
+    try {
+      const token = localStorage.getItem("alphafitus_token");
+      const urlRes = await fetch("/api/storage/uploads/request-url", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      if (!urlRes.ok) throw new Error("Erro ao obter URL de upload");
+      const { uploadURL, objectPath } = await urlRes.json() as { uploadURL: string; objectPath: string };
+
+      setUploadProgress(40);
+      const putRes = await fetch(uploadURL, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      if (!putRes.ok) throw new Error("Erro ao enviar arquivo");
+
+      setUploadProgress(80);
+      await createAttachment.mutateAsync({
+        id: protocolId,
+        data: {
+          fileName: file.name,
+          fileType: file.type,
+          fileSizeBytes: file.size,
+          objectPath,
+          description: description || undefined,
+        },
+      });
+      setUploadProgress(100);
+    } catch (err) {
+      toast({ title: "Falha no upload", description: err instanceof Error ? err.message : "Erro desconhecido", variant: "destructive" });
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  }
+
+  function formatSize(bytes: number | null | undefined) {
+    if (!bytes) return "";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  }
+
+  function fileIcon(fileType: string) {
+    if (fileType === "application/pdf") return <FileText className="h-5 w-5 text-red-500" />;
+    if (fileType.includes("word")) return <FileText className="h-5 w-5 text-blue-600" />;
+    if (fileType.startsWith("image/")) return <File className="h-5 w-5 text-green-600" />;
+    return <File className="h-5 w-5 text-slate-500" />;
+  }
+
+  const token = localStorage.getItem("alphafitus_token");
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Paperclip className="h-4 w-4" /> Documentos do Protocolo
+        </CardTitle>
+        <div className="flex items-center gap-2">
+          <Input
+            placeholder="Descrição (opcional)"
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            className="h-8 text-sm w-48"
+            disabled={uploading}
+          />
+          <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            {uploading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+            {uploading ? `${uploadProgress}%` : "Anexar arquivo"}
+          </Button>
+          <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileChange} />
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+        ) : attachments.length === 0 ? (
+          <div className="text-center py-10 text-muted-foreground text-sm">
+            <Paperclip className="h-8 w-8 mx-auto mb-2 opacity-30" />
+            <p>Nenhum documento anexado.</p>
+            <p className="text-xs mt-1">Anexe PDFs, arquivos Word ou imagens para apresentar em auditorias.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {attachments.map(att => (
+              <div key={att.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors">
+                <div className="flex-shrink-0">{fileIcon(att.fileType)}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{att.fileName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {att.description && <span className="mr-2">{att.description} ·</span>}
+                    {formatSize(att.fileSizeBytes)}
+                    {att.fileSizeBytes ? " · " : ""}
+                    <span>{att.uploadedByName}</span>
+                    {" · "}
+                    {new Date(att.createdAt).toLocaleDateString("pt-BR")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <a
+                    href={`/api/storage${att.objectPath}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={att.fileName}
+                    className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-muted transition-colors"
+                    title="Baixar"
+                    onClick={e => {
+                      if (token) {
+                        e.preventDefault();
+                        fetch(`/api/storage${att.objectPath}`, { headers: { Authorization: `Bearer ${token}` } })
+                          .then(r => r.blob())
+                          .then(blob => {
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url; a.download = att.fileName; a.click();
+                            URL.revokeObjectURL(url);
+                          });
+                      }
+                    }}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </a>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remover documento?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          O arquivo <strong>{att.fileName}</strong> será removido permanentemente.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => deleteAttachment.mutate({ id: protocolId, attachmentId: att.id })}>
+                          Remover
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
