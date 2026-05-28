@@ -23,17 +23,16 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 const TOKEN_KEY = "alphafitus_token";
 const USER_KEY = "alphafitus_user";
 
-// Use sessionStorage so the session expires when the browser tab is closed,
-// ensuring the user is prompted for credentials on every new session.
+// localStorage persists across page reloads, new tabs, and browser restarts.
+// The session is invalidated server-side (30-day token expiry + active check).
 const store = {
-  get: (key: string) => sessionStorage.getItem(key),
-  set: (key: string, value: string) => sessionStorage.setItem(key, value),
-  remove: (key: string) => sessionStorage.removeItem(key),
+  get: (key: string) => { try { return localStorage.getItem(key); } catch { return null; } },
+  set: (key: string, value: string) => { try { localStorage.setItem(key, value); } catch { /* ignore */ } },
+  remove: (key: string) => { try { localStorage.removeItem(key); } catch { /* ignore */ } },
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Read localStorage synchronously so the protected routes never see a
-  // "not authenticated" flash after login + window.location.replace().
+  // Read synchronously so protected routes never see a "not authenticated" flash.
   const [user, setUser] = useState<AuthUser | null>(() => {
     try {
       const stored = store.get(USER_KEY);
@@ -43,19 +42,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => {
     try {
       const t = store.get(TOKEN_KEY);
-      // Set the token getter synchronously during state initialisation so that
-      // React Query requests fired on the very first render already carry the
-      // Authorization header. Without this, the getter would only be wired up
-      // after the first useEffect flush, causing a 401 flash on page reload.
       if (t) setAuthTokenGetter(() => t);
       return t;
     } catch { return null; }
   });
-  // isLoading is always false: we initialise synchronously, no async step needed.
   const isLoading = false;
 
-  // Keep the token getter in sync whenever the token changes after mount
-  // (login / logout flows that do NOT trigger a full page reload).
   useEffect(() => {
     setAuthTokenGetter(token ? () => token : null);
   }, [token]);
@@ -73,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json() as { token: string; user: AuthUser };
     store.set(TOKEN_KEY, data.token);
     store.set(USER_KEY, JSON.stringify(data.user));
+    // Also update React state so the current render cycle sees the user immediately.
     setToken(data.token);
     setUser(data.user);
     setAuthTokenGetter(() => data.token);

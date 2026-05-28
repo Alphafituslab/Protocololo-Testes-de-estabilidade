@@ -13,8 +13,8 @@ const REDIRECT_KEY = "alphafitus_redirect";
 
 function popRedirect(): string {
   try {
-    const saved = sessionStorage.getItem(REDIRECT_KEY);
-    if (saved) { sessionStorage.removeItem(REDIRECT_KEY); return saved; }
+    const saved = localStorage.getItem(REDIRECT_KEY);
+    if (saved) { localStorage.removeItem(REDIRECT_KEY); return saved; }
   } catch { /* ignore */ }
   return "/";
 }

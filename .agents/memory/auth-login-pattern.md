@@ -5,15 +5,13 @@ description: Regras do fluxo de login — o que NÃO fazer e o padrão que funci
 
 ## Regra
 
-`login()` em auth-context.tsx deve APENAS escrever no localStorage e chamar `setAuthTokenGetter`. Não chamar `setToken`/`setUser` nem `flushSync`.
+`login()` em auth-context.tsx deve escrever no localStorage, chamar `setToken`/`setUser` e `setAuthTokenGetter`.
 
 `handleLogin` em login.tsx deve usar `window.location.replace(dest || "/")` — nunca `navigate()`.
 
-`LoginPage` deve usar `window.location.replace("/")` no useEffect de redirecionamento inicial (não `navigate`).
+Armazenamento: **localStorage** (não sessionStorage). sessionStorage é por aba e pode ser bloqueado por configurações de privacidade do browser — causa redirecionamento de volta ao /login após login bem-sucedido.
 
-Armazenamento: **localStorage** (não sessionStorage). sessionStorage é por aba — abre nova aba e precisa logar de novo, confunde o usuário.
-
-**Why:** flushSync forçava re-render síncrono na LoginPage que extensões de browser (Google Translate, etc.) interceptavam com erro de DOM (insertBefore). Isso disparava o AppErrorBoundary que chamava window.location.reload() enquanto a URL ainda era "/login", devolvendo o usuário à tela de login. sessionStorage causava sessão perdida ao trocar de aba ou ao HMR do Vite invalidar auth-context.
+**Why:** sessionStorage em certos contextos de browser (configurações de privacidade, algumas extensões, redirecionamentos entre origens) não persiste após `window.location.replace`. Isso faz com que após o reload, o AuthProvider leia storage vazio, veja `user === null` e redirecione para /login, dando a impressão que o login não funcionou mesmo com a API retornando 200.
 
 ## Banco de produção separado
 
@@ -26,14 +24,18 @@ curl -s -X POST "https://protocol-analysis--claytombs1.replit.app/api/auth/reset
   -d "{\"masterPassword\": \"$MASTER_PASSWORD\", \"username\": \"admin\", \"newPassword\": \"NovaSenha\"}"
 
 # Criar usuário em produção (precisa de token de admin)
-TOKEN=$(curl -s -X POST ".../api/auth/login" -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"..."}' | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
-curl -s -X POST ".../api/users" -H "Authorization: Bearer $TOKEN" \
+TOKEN=$(curl -s -X POST "https://protocol-analysis--claytombs1.replit.app/api/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"...","displayName":"...","password":"...","role":"admin"}'
+  -d '{"username":"clayton","password":"240682cla@"}' | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+curl -s -X POST "https://protocol-analysis--claytombs1.replit.app/api/users" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"...","displayName":"...","password":"...","role":"analyst"}'
 ```
 
-## Usuários cadastrados
+## Usuários cadastrados (produção)
 
-- `admin` / `Alphafitus2025` (dev e prod)
-- `clayton` / `Clayton2025` (dev e prod, role admin)
+- `admin` — role admin (senha: ver MASTER_PASSWORD reset se necessário)
+- `clayton` / `240682cla@` — role admin
+- `carol` / `123456` — role analyst
+- `teste.usuario` — displayName "carol", role responsavel_tecnico

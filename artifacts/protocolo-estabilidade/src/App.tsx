@@ -227,7 +227,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     if (!user) {
       try {
         if (location && location !== "/" && location !== "/login") {
-          sessionStorage.setItem(REDIRECT_KEY, location);
+          localStorage.setItem(REDIRECT_KEY, location);
         }
       } catch { /* ignore */ }
       navigate("/login", { replace: true });
@@ -262,7 +262,7 @@ function ProtectedDetailRoute({ component: Component }: { component: React.Compo
     if (!user) {
       try {
         if (location && location !== "/" && location !== "/login") {
-          sessionStorage.setItem(REDIRECT_KEY, location);
+          localStorage.setItem(REDIRECT_KEY, location);
         }
       } catch { /* ignore */ }
       navigate("/login", { replace: true });
