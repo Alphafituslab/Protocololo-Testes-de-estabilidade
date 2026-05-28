@@ -8,3 +8,5 @@ export * from "./audit_logs";
 export * from "./settings";
 export * from "./protocol_signatures";
 export * from "./protocol_attachments";
+export * from "./container_types";
+export * from "./capsule_types";

@@ -14,6 +14,7 @@ import settingsRouter from "./settings";
 import signaturesRouter from "./signatures";
 import attachmentsRouter from "./attachments";
 import storageRouter from "./storage";
+import catalogRouter from "./catalog";
 
 const router: IRouter = Router();
 
@@ -33,5 +34,6 @@ router.use(settingsRouter);
 router.use(signaturesRouter);
 router.use(attachmentsRouter);
 router.use(storageRouter);
+router.use(catalogRouter);
 
 export default router;

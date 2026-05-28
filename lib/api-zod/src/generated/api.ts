@@ -1098,3 +1098,101 @@ export const UpdateMethodologyResponse = zod.object({
 export const DeleteMethodologyParams = zod.object({
   id: zod.coerce.number(),
 });
+
+/**
+ * @summary List container types
+ */
+export const ListContainerTypesResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListContainerTypesResponse = zod.array(
+  ListContainerTypesResponseItem,
+);
+
+/**
+ * @summary Create a container type
+ */
+
+export const CreateContainerTypeBody = zod.object({
+  name: zod.string().min(1),
+  description: zod.string().optional(),
+});
+
+/**
+ * @summary Update a container type
+ */
+export const UpdateContainerTypeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateContainerTypeBody = zod.object({
+  name: zod.string().min(1),
+  description: zod.string().optional(),
+});
+
+export const UpdateContainerTypeResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a container type
+ */
+export const DeleteContainerTypeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List capsule types
+ */
+export const ListCapsuleTypesResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListCapsuleTypesResponse = zod.array(ListCapsuleTypesResponseItem);
+
+/**
+ * @summary Create a capsule type
+ */
+
+export const CreateCapsuleTypeBody = zod.object({
+  name: zod.string().min(1),
+  description: zod.string().optional(),
+});
+
+/**
+ * @summary Update a capsule type
+ */
+export const UpdateCapsuleTypeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateCapsuleTypeBody = zod.object({
+  name: zod.string().min(1),
+  description: zod.string().optional(),
+});
+
+export const UpdateCapsuleTypeResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a capsule type
+ */
+export const DeleteCapsuleTypeParams = zod.object({
+  id: zod.coerce.number(),
+});

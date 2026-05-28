@@ -11,9 +11,10 @@ import CertificatePage from "./pages/certificate";
 import ProtocolReportPage from "./pages/protocol-report";
 import LoginPage from "./pages/login";
 import UsersPage from "./pages/users";
+import CatalogPage from "./pages/catalog";
 import { AuthProvider } from "@/contexts/auth-context";
 import { useAuth } from "@/contexts/use-auth";
-import { FileText, Home, Users, LogOut, Loader2, AlertTriangle, RefreshCcw } from "lucide-react";
+import { FileText, Home, Users, LogOut, Loader2, AlertTriangle, RefreshCcw, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -194,6 +195,9 @@ function Layout({ children }: { children: React.ReactNode }) {
           <Link href="/protocols/new" className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${location === "/protocols/new" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
             <FileText className="h-4 w-4" /> Novo Protocolo
           </Link>
+          <Link href="/catalog" className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${location === "/catalog" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
+            <BookOpen className="h-4 w-4" /> Cadastros
+          </Link>
         </nav>
         <SidebarFooter />
       </aside>
@@ -289,6 +293,7 @@ const CertificateRoute = () => <ProtectedDetailRoute component={CertificatePage}
 const ProtocolReportRoute = () => <ProtectedDetailRoute component={ProtocolReportPage} />;
 const ProtocolDetailRoute = () => <ProtectedRoute component={ProtocolDetail} />;
 const UsersRoute = () => <ProtectedRoute component={UsersPage} />;
+const CatalogRoute = () => <ProtectedRoute component={CatalogPage} />;
 
 const LoginRoute = () => (
   <AppErrorBoundary>
@@ -308,6 +313,7 @@ function Router() {
       <Route path="/protocols/:id/report" component={ProtocolReportRoute} />
       <Route path="/protocols/:id" component={ProtocolDetailRoute} />
       <Route path="/users" component={UsersRoute} />
+      <Route path="/catalog" component={CatalogRoute} />
       <Route component={NotFound} />
     </Switch>
   );

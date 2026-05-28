@@ -19,6 +19,8 @@ import type {
 import type {
   AddSignatureBody,
   AnalysisResult,
+  CatalogItem,
+  CatalogItemInput,
   Certificate,
   CreateAttachmentBody,
   CreateLotBody,
@@ -2533,4 +2535,668 @@ export const useDeleteMethodology = <
   TContext
 > => {
   return useMutation(getDeleteMethodologyMutationOptions(options));
+};
+
+/**
+ * @summary List container types
+ */
+export const getListContainerTypesUrl = () => {
+  return `/api/catalog/container-types`;
+};
+
+export const listContainerTypes = async (
+  options?: RequestInit,
+): Promise<CatalogItem[]> => {
+  return customFetch<CatalogItem[]>(getListContainerTypesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListContainerTypesQueryKey = () => {
+  return [`/api/catalog/container-types`] as const;
+};
+
+export const getListContainerTypesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listContainerTypes>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listContainerTypes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListContainerTypesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listContainerTypes>>
+  > = ({ signal }) => listContainerTypes({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listContainerTypes>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListContainerTypesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listContainerTypes>>
+>;
+export type ListContainerTypesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List container types
+ */
+
+export function useListContainerTypes<
+  TData = Awaited<ReturnType<typeof listContainerTypes>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listContainerTypes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListContainerTypesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a container type
+ */
+export const getCreateContainerTypeUrl = () => {
+  return `/api/catalog/container-types`;
+};
+
+export const createContainerType = async (
+  catalogItemInput: CatalogItemInput,
+  options?: RequestInit,
+): Promise<CatalogItem> => {
+  return customFetch<CatalogItem>(getCreateContainerTypeUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(catalogItemInput),
+  });
+};
+
+export const getCreateContainerTypeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createContainerType>>,
+    TError,
+    { data: BodyType<CatalogItemInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createContainerType>>,
+  TError,
+  { data: BodyType<CatalogItemInput> },
+  TContext
+> => {
+  const mutationKey = ["createContainerType"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createContainerType>>,
+    { data: BodyType<CatalogItemInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createContainerType(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateContainerTypeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createContainerType>>
+>;
+export type CreateContainerTypeMutationBody = BodyType<CatalogItemInput>;
+export type CreateContainerTypeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a container type
+ */
+export const useCreateContainerType = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createContainerType>>,
+    TError,
+    { data: BodyType<CatalogItemInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createContainerType>>,
+  TError,
+  { data: BodyType<CatalogItemInput> },
+  TContext
+> => {
+  return useMutation(getCreateContainerTypeMutationOptions(options));
+};
+
+/**
+ * @summary Update a container type
+ */
+export const getUpdateContainerTypeUrl = (id: number) => {
+  return `/api/catalog/container-types/${id}`;
+};
+
+export const updateContainerType = async (
+  id: number,
+  catalogItemInput: CatalogItemInput,
+  options?: RequestInit,
+): Promise<CatalogItem> => {
+  return customFetch<CatalogItem>(getUpdateContainerTypeUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(catalogItemInput),
+  });
+};
+
+export const getUpdateContainerTypeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateContainerType>>,
+    TError,
+    { id: number; data: BodyType<CatalogItemInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateContainerType>>,
+  TError,
+  { id: number; data: BodyType<CatalogItemInput> },
+  TContext
+> => {
+  const mutationKey = ["updateContainerType"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateContainerType>>,
+    { id: number; data: BodyType<CatalogItemInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateContainerType(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateContainerTypeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateContainerType>>
+>;
+export type UpdateContainerTypeMutationBody = BodyType<CatalogItemInput>;
+export type UpdateContainerTypeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a container type
+ */
+export const useUpdateContainerType = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateContainerType>>,
+    TError,
+    { id: number; data: BodyType<CatalogItemInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateContainerType>>,
+  TError,
+  { id: number; data: BodyType<CatalogItemInput> },
+  TContext
+> => {
+  return useMutation(getUpdateContainerTypeMutationOptions(options));
+};
+
+/**
+ * @summary Delete a container type
+ */
+export const getDeleteContainerTypeUrl = (id: number) => {
+  return `/api/catalog/container-types/${id}`;
+};
+
+export const deleteContainerType = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteContainerTypeUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteContainerTypeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteContainerType>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteContainerType>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteContainerType"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteContainerType>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteContainerType(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteContainerTypeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteContainerType>>
+>;
+
+export type DeleteContainerTypeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a container type
+ */
+export const useDeleteContainerType = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteContainerType>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteContainerType>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteContainerTypeMutationOptions(options));
+};
+
+/**
+ * @summary List capsule types
+ */
+export const getListCapsuleTypesUrl = () => {
+  return `/api/catalog/capsule-types`;
+};
+
+export const listCapsuleTypes = async (
+  options?: RequestInit,
+): Promise<CatalogItem[]> => {
+  return customFetch<CatalogItem[]>(getListCapsuleTypesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListCapsuleTypesQueryKey = () => {
+  return [`/api/catalog/capsule-types`] as const;
+};
+
+export const getListCapsuleTypesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCapsuleTypes>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCapsuleTypes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCapsuleTypesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listCapsuleTypes>>
+  > = ({ signal }) => listCapsuleTypes({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCapsuleTypes>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListCapsuleTypesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCapsuleTypes>>
+>;
+export type ListCapsuleTypesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List capsule types
+ */
+
+export function useListCapsuleTypes<
+  TData = Awaited<ReturnType<typeof listCapsuleTypes>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCapsuleTypes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListCapsuleTypesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a capsule type
+ */
+export const getCreateCapsuleTypeUrl = () => {
+  return `/api/catalog/capsule-types`;
+};
+
+export const createCapsuleType = async (
+  catalogItemInput: CatalogItemInput,
+  options?: RequestInit,
+): Promise<CatalogItem> => {
+  return customFetch<CatalogItem>(getCreateCapsuleTypeUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(catalogItemInput),
+  });
+};
+
+export const getCreateCapsuleTypeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCapsuleType>>,
+    TError,
+    { data: BodyType<CatalogItemInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createCapsuleType>>,
+  TError,
+  { data: BodyType<CatalogItemInput> },
+  TContext
+> => {
+  const mutationKey = ["createCapsuleType"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createCapsuleType>>,
+    { data: BodyType<CatalogItemInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createCapsuleType(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateCapsuleTypeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createCapsuleType>>
+>;
+export type CreateCapsuleTypeMutationBody = BodyType<CatalogItemInput>;
+export type CreateCapsuleTypeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a capsule type
+ */
+export const useCreateCapsuleType = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCapsuleType>>,
+    TError,
+    { data: BodyType<CatalogItemInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createCapsuleType>>,
+  TError,
+  { data: BodyType<CatalogItemInput> },
+  TContext
+> => {
+  return useMutation(getCreateCapsuleTypeMutationOptions(options));
+};
+
+/**
+ * @summary Update a capsule type
+ */
+export const getUpdateCapsuleTypeUrl = (id: number) => {
+  return `/api/catalog/capsule-types/${id}`;
+};
+
+export const updateCapsuleType = async (
+  id: number,
+  catalogItemInput: CatalogItemInput,
+  options?: RequestInit,
+): Promise<CatalogItem> => {
+  return customFetch<CatalogItem>(getUpdateCapsuleTypeUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(catalogItemInput),
+  });
+};
+
+export const getUpdateCapsuleTypeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCapsuleType>>,
+    TError,
+    { id: number; data: BodyType<CatalogItemInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateCapsuleType>>,
+  TError,
+  { id: number; data: BodyType<CatalogItemInput> },
+  TContext
+> => {
+  const mutationKey = ["updateCapsuleType"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateCapsuleType>>,
+    { id: number; data: BodyType<CatalogItemInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateCapsuleType(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateCapsuleTypeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateCapsuleType>>
+>;
+export type UpdateCapsuleTypeMutationBody = BodyType<CatalogItemInput>;
+export type UpdateCapsuleTypeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a capsule type
+ */
+export const useUpdateCapsuleType = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCapsuleType>>,
+    TError,
+    { id: number; data: BodyType<CatalogItemInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateCapsuleType>>,
+  TError,
+  { id: number; data: BodyType<CatalogItemInput> },
+  TContext
+> => {
+  return useMutation(getUpdateCapsuleTypeMutationOptions(options));
+};
+
+/**
+ * @summary Delete a capsule type
+ */
+export const getDeleteCapsuleTypeUrl = (id: number) => {
+  return `/api/catalog/capsule-types/${id}`;
+};
+
+export const deleteCapsuleType = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteCapsuleTypeUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteCapsuleTypeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCapsuleType>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteCapsuleType>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteCapsuleType"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteCapsuleType>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteCapsuleType(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteCapsuleTypeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteCapsuleType>>
+>;
+
+export type DeleteCapsuleTypeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a capsule type
+ */
+export const useDeleteCapsuleType = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCapsuleType>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteCapsuleType>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteCapsuleTypeMutationOptions(options));
 };

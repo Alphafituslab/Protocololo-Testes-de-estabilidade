@@ -10,6 +10,8 @@ export * from "./addSignatureBody";
 export * from "./analysisResult";
 export * from "./analysisResultCategory";
 export * from "./analysisResultStatus";
+export * from "./catalogItem";
+export * from "./catalogItemInput";
 export * from "./certificate";
 export * from "./certificateAnalysis";
 export * from "./certificateAnalysisCategory";

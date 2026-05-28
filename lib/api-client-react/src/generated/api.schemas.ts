@@ -464,6 +464,20 @@ export interface UploadUrlResponse {
   metadata?: UploadUrlRequest;
 }
 
+export interface CatalogItem {
+  id: number;
+  name: string;
+  description?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CatalogItemInput {
+  /** @minLength 1 */
+  name: string;
+  description?: string;
+}
+
 export type DeleteAttachment200 = {
   ok?: boolean;
 };

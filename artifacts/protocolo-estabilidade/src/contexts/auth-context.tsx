@@ -23,12 +23,12 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 const TOKEN_KEY = "alphafitus_token";
 const USER_KEY = "alphafitus_user";
 
-// Use localStorage so the session persists across tabs and browser restarts.
-// The server enforces a 30-day expiry on the token, so security is maintained.
+// Use sessionStorage so the session expires when the browser tab is closed,
+// ensuring the user is prompted for credentials on every new session.
 const store = {
-  get: (key: string) => localStorage.getItem(key),
-  set: (key: string, value: string) => localStorage.setItem(key, value),
-  remove: (key: string) => localStorage.removeItem(key),
+  get: (key: string) => sessionStorage.getItem(key),
+  set: (key: string, value: string) => sessionStorage.setItem(key, value),
+  remove: (key: string) => sessionStorage.removeItem(key),
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {

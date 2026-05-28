@@ -18,10 +18,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
+import { useListContainerTypes, useListCapsuleTypes } from "@workspace/api-client-react";
 
 const formSchema = z.object({
   certNumber: z.string().min(1, "Número do certificado obrigatório"),
@@ -32,10 +34,10 @@ const formSchema = z.object({
   cep: z.string().optional(),
   productName: z.string().min(1, "Nome do produto obrigatório"),
   productType: z.string().min(1, "Tipo de produto obrigatório"),
-  packagingType: z.string().min(1, "Tipo de embalagem obrigatório"),
-  activeIngredients: z.string().min(1, "Ingredientes ativos obrigatórios"),
-  excipients: z.string().min(1, "Excipientes obrigatórios"),
-  capsuleComposition: z.string().min(1, "Composição da cápsula obrigatória"),
+  packagingType: z.string().optional(),
+  activeIngredients: z.string().optional(),
+  excipients: z.string().optional(),
+  capsuleComposition: z.string().optional(),
   studyStartDate: z.string().min(1, "Data de início obrigatória"),
   studyEndDate: z.string().min(1, "Data de fim obrigatória"),
   studyObjective: z.string().optional(),
@@ -87,6 +89,8 @@ export default function ProtocolForm() {
   const isEdit = !!id;
 
   const { lbl, setLabel } = useLabelOverrides();
+  const { data: containerTypes = [] } = useListContainerTypes();
+  const { data: capsuleTypes = [] } = useListCapsuleTypes();
 
   const { data: existing } = useGetProtocol(Number(id), {
     query: { enabled: isEdit, queryKey: getGetProtocolQueryKey(Number(id)) },
@@ -318,40 +322,60 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="packagingType" render={({ field }) => (
                 <FormItem>
-                  <div className="flex items-center gap-1">
-                    <AlwaysEL labelKey="packagingType" def="Tipo de Embalagem" lbl={lbl} setLabel={setLabel} />
-                    <span className="text-red-500 text-xs font-bold">*</span>
-                  </div>
-                  <FormControl><Input data-testid="input-packagingType" placeholder="ex: Pote HDPE 60 cápsulas" {...field} /></FormControl>
+                  <AlwaysEL labelKey="packagingType" def="Tipo de Pote/Embalagem" lbl={lbl} setLabel={setLabel} />
+                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                    <FormControl>
+                      <SelectTrigger data-testid="input-packagingType">
+                        <SelectValue placeholder="Selecionar tipo de pote..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {containerTypes.map((ct) => (
+                        <SelectItem key={ct.id} value={ct.name}>{ct.name}</SelectItem>
+                      ))}
+                      {containerTypes.length === 0 && (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                          Nenhum tipo cadastrado. Acesse Cadastros &gt; Tipos de Pote.
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="capsuleComposition" render={({ field }) => (
                 <FormItem>
-                  <div className="flex items-center gap-1">
-                    <AlwaysEL labelKey="capsuleComposition" def="Composição da Cápsula" lbl={lbl} setLabel={setLabel} />
-                    <span className="text-red-500 text-xs font-bold">*</span>
-                  </div>
-                  <FormControl><Input data-testid="input-capsuleComposition" placeholder="ex: Gelatina bovina, tamanho 0" {...field} /></FormControl>
+                  <AlwaysEL labelKey="capsuleComposition" def="Tipo de Cápsula" lbl={lbl} setLabel={setLabel} />
+                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                    <FormControl>
+                      <SelectTrigger data-testid="input-capsuleComposition">
+                        <SelectValue placeholder="Selecionar tipo de cápsula..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {capsuleTypes.map((ct) => (
+                        <SelectItem key={ct.id} value={ct.name}>{ct.name}</SelectItem>
+                      ))}
+                      {capsuleTypes.length === 0 && (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                          Nenhum tipo cadastrado. Acesse Cadastros &gt; Tipos de Cápsula.
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="activeIngredients" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <div className="flex items-center gap-1">
-                    <AlwaysEL labelKey="activeIngredients" def="Ingredientes Ativos" lbl={lbl} setLabel={setLabel} />
-                    <span className="text-red-500 text-xs font-bold">*</span>
-                  </div>
+                  <AlwaysEL labelKey="activeIngredients" def="Ingredientes Ativos" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Textarea data-testid="input-activeIngredients" rows={2} placeholder="ex: Carbonato de Cálcio 1250 mg, Colecalciferol 400 UI..." {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="excipients" render={({ field }) => (
                 <FormItem className="col-span-2">
-                  <div className="flex items-center gap-1">
-                    <AlwaysEL labelKey="excipients" def="Excipientes" lbl={lbl} setLabel={setLabel} />
-                    <span className="text-red-500 text-xs font-bold">*</span>
-                  </div>
+                  <AlwaysEL labelKey="excipients" def="Excipientes" lbl={lbl} setLabel={setLabel} />
                   <FormControl><Textarea data-testid="input-excipients" rows={2} placeholder="ex: Dióxido de Silício, Estearato de Magnésio..." {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
