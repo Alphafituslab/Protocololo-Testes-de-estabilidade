@@ -1489,6 +1489,9 @@ export default function CertificatePage() {
                 {new Date(sig.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
               </p>
               <div className="border-t border-gray-300 mb-2" />
+              <p className="font-semibold text-sm text-gray-800">{displayName}</p>
+              <p className="text-xs text-gray-500">{roleLine}</p>
+              {emailLine && <p className="text-xs text-gray-400">{emailLine}</p>}
             </div>
           );
 
@@ -1578,6 +1581,9 @@ export default function CertificatePage() {
                             )}
                           </div>
                           <div className="border-t border-gray-400 mb-2" />
+                          <p className="font-semibold text-sm text-gray-800">{ef("issuedBy", cert.issuedBy)}</p>
+                          <p className="text-xs text-gray-500">{ef("lbl_cargoEsquerdo", "Responsável Técnico")}</p>
+                          <p className="text-xs text-gray-400">{ef("issuedByEmail", cert.issuedByEmail)}</p>
                         </>
                       )}
                     </div>
@@ -1607,6 +1613,9 @@ export default function CertificatePage() {
                             )}
                           </div>
                           <div className="border-t border-gray-400 mb-2" />
+                          <p className="font-semibold text-sm text-gray-800">{ef("seniorAnalyst", cert.seniorAnalyst)}</p>
+                          <p className="text-xs text-gray-500">{ef("lbl_cargoDireito", "Analista Sênior / Representante Legal")}</p>
+                          <p className="text-xs text-gray-400">{ef("seniorAnalystEmail", cert.seniorAnalystEmail)}</p>
                         </>
                       )}
                     </div>
