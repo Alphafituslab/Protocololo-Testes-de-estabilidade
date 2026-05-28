@@ -1,9 +1,18 @@
-import { useGetProtocolStats } from "@workspace/api-client-react";
+import { useGetProtocolStats, useListProtocols } from "@workspace/api-client-react";
 import { Link, useLocation } from "wouter";
+import { useState, useMemo } from "react";
 import {
   FileText, Plus, CheckCircle2, Clock, XCircle, ShieldCheck,
-  TrendingUp, ArrowRight, Activity, Beaker,
+  TrendingUp, ArrowRight, Activity, Beaker, Search, X,
 } from "lucide-react";
+
+function normalize(str: string) {
+  return str
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
 
 const STATUS_LABELS: Record<string, string> = {
   rascunho: "Rascunho",
@@ -36,6 +45,21 @@ function SkeletonDash() {
 export default function Dashboard() {
   const { data: stats, isLoading } = useGetProtocolStats();
   const [, navigate] = useLocation();
+  const [search, setSearch] = useState("");
+
+  const q = normalize(search);
+  const { data: allProtocols = [] } = useListProtocols(undefined, {
+    query: { queryKey: ["protocols-search"], enabled: q.length > 0 },
+  });
+
+  const filteredSearch = useMemo(() => {
+    if (!q) return [];
+    return allProtocols.filter((p) =>
+      normalize(p.productName ?? "").includes(q) ||
+      normalize(p.certNumber ?? "").includes(q) ||
+      normalize(p.companyName ?? "").includes(q)
+    );
+  }, [allProtocols, q]);
 
   if (isLoading) return <SkeletonDash />;
 
@@ -159,7 +183,9 @@ export default function Dashboard() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
-            <h3 className="font-semibold text-foreground">Protocolos Recentes</h3>
+            <h3 className="font-semibold text-foreground">
+              {q ? "Resultado da Pesquisa" : "Protocolos Recentes"}
+            </h3>
           </div>
           <Link href="/protocols">
             <span className="text-xs text-primary hover:underline font-medium flex items-center gap-1">
@@ -168,64 +194,107 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-          {stats?.recentProtocols && stats.recentProtocols.length > 0 ? (
-            <div className="divide-y divide-border">
-              {stats.recentProtocols.map((protocol, idx) => {
-                const cfg = STATUS_CONFIG[protocol.status] ?? STATUS_CONFIG["rascunho"];
-                return (
-                  <Link key={protocol.id} href={`/protocols/${protocol.id}`}>
-                    <div className={`group flex items-center justify-between px-5 py-4 hover:bg-muted/40 transition-colors cursor-pointer ${idx === 0 ? "" : ""}`}>
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-8 h-8 rounded-lg ${cfg.bg} border ${cfg.border} flex items-center justify-center shrink-0`}>
-                          <Beaker className={`h-4 w-4 ${cfg.text}`} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors truncate">
-                            {protocol.productName}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">
-                            {protocol.certNumber ? `${protocol.certNumber} · ` : ""}{protocol.companyName}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 shrink-0 ml-4">
-                        {protocol.status === "em_andamento" && protocol.progressPercent != null && (
-                          <div className="flex items-center gap-2">
-                            <div className="w-20 h-1.5 rounded-full bg-blue-100 overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-blue-500 transition-all"
-                                style={{ width: `${protocol.progressPercent}%` }}
-                              />
-                            </div>
-                            <span className="text-xs font-semibold text-blue-700 tabular-nums w-8 text-right">
-                              {protocol.progressPercent}%
-                            </span>
-                          </div>
-                        )}
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                          {STATUS_LABELS[protocol.status] ?? protocol.status}
-                        </span>
-                        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="py-16 text-center">
-              <Beaker className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">Nenhum protocolo cadastrado ainda.</p>
-              <Link href="/protocols/new">
-                <button className="mt-4 inline-flex items-center gap-2 bg-primary text-primary-foreground text-xs font-semibold px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
-                  <Plus className="h-3.5 w-3.5" /> Criar primeiro protocolo
-                </button>
-              </Link>
-            </div>
+        {/* Search bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Pesquisar por nome do produto ou nº do certificado..."
+            className="w-full pl-9 pr-9 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors placeholder:text-muted-foreground/50"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
           )}
+        </div>
+
+        {/* Result count when searching */}
+        {q && (
+          <p className="text-xs text-muted-foreground">
+            {filteredSearch.length === 0
+              ? `Nenhum resultado para "${search}"`
+              : `${filteredSearch.length} protocolo${filteredSearch.length !== 1 ? "s" : ""} encontrado${filteredSearch.length !== 1 ? "s" : ""}`}
+          </p>
+        )}
+
+        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+          {(() => {
+            const list = q ? filteredSearch : (stats?.recentProtocols ?? []);
+            if (list.length > 0) {
+              return (
+                <div className="divide-y divide-border">
+                  {list.map((protocol) => {
+                    const cfg = STATUS_CONFIG[protocol.status] ?? STATUS_CONFIG["rascunho"];
+                    return (
+                      <Link key={protocol.id} href={`/protocols/${protocol.id}`}>
+                        <div className="group flex items-center justify-between px-5 py-4 hover:bg-muted/40 transition-colors cursor-pointer">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-8 h-8 rounded-lg ${cfg.bg} border ${cfg.border} flex items-center justify-center shrink-0`}>
+                              <Beaker className={`h-4 w-4 ${cfg.text}`} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors truncate">
+                                {protocol.productName}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                {protocol.certNumber ? `${protocol.certNumber} · ` : ""}{protocol.companyName}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0 ml-4">
+                            {protocol.status === "em_andamento" && (protocol as { progressPercent?: number | null }).progressPercent != null && (
+                              <div className="flex items-center gap-2">
+                                <div className="w-20 h-1.5 rounded-full bg-blue-100 overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full bg-blue-500 transition-all"
+                                    style={{ width: `${(protocol as { progressPercent?: number | null }).progressPercent}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs font-semibold text-blue-700 tabular-nums w-8 text-right">
+                                  {(protocol as { progressPercent?: number | null }).progressPercent}%
+                                </span>
+                              </div>
+                            )}
+                            <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                              {STATUS_LABELS[protocol.status] ?? protocol.status}
+                            </span>
+                            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            }
+            if (q) {
+              return (
+                <div className="py-12 text-center">
+                  <Search className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">Nenhum protocolo encontrado para <strong>"{search}"</strong>.</p>
+                  <button onClick={() => setSearch("")} className="mt-3 text-xs text-primary hover:underline">Limpar pesquisa</button>
+                </div>
+              );
+            }
+            return (
+              <div className="py-16 text-center">
+                <Beaker className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">Nenhum protocolo cadastrado ainda.</p>
+                <Link href="/protocols/new">
+                  <button className="mt-4 inline-flex items-center gap-2 bg-primary text-primary-foreground text-xs font-semibold px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
+                    <Plus className="h-3.5 w-3.5" /> Criar primeiro protocolo
+                  </button>
+                </Link>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
