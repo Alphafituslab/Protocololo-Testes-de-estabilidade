@@ -40,9 +40,9 @@ export default function LoginPage() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
 
-  // Redirect only on mount if session was restored from sessionStorage.
+  // If already authenticated (token in localStorage), go straight to dashboard.
   useEffect(() => {
-    if (user) navigate("/", { replace: true });
+    if (user) window.location.replace("/");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
