@@ -260,7 +260,43 @@ interface PadraoConfig {
   selectedLotIds: string[];  // operator-selected lots to show in report (empty = show all)
 }
 
-// ─── Math ─────────────────────────────────────────────────────────────────────
+// ─── Padrao protection + audit types ────────────────────────────────────────────
+
+  interface PadraoChangeLog {
+    id: string;
+    field: string;
+    oldValue: string;
+    newValue: string;
+    changedAt: string;
+    changedBy: string;
+  }
+
+  // ─── Calc-trace types (rastreabilidade) ──────────────────────────────────────────
+
+  type CalcMethod = "external_standard" | "calibration_curve" | "response_factor" | "unknown";
+
+  interface CalcTrace {
+    resultLabel: string;
+    resultValue: string;
+    method: CalcMethod;
+    formulaText: string;
+    inputs: { label: string; value: string; source: string }[];
+    sourceTab: string;
+    peakName?: string;
+    compoundName?: string;
+    standardRef?: string;
+    warningText?: string;
+  }
+
+  // ─── Validation types ─────────────────────────────────────────────────────────────
+
+  interface ValidationAlert {
+    severity: "error" | "warning" | "info";
+    message: string;
+    field?: string;
+  }
+
+  // ─── Math ─────────────────────────────────────────────────────────────────────
 
 function gaussian(t: number, rt: number, sigma: number, h: number, asym: number): number {
   const d = t - rt;
@@ -1583,7 +1619,38 @@ function savePadraoConfig(c: PadraoConfig) {
   try { localStorage.setItem(PADRAO_KEY, JSON.stringify(c)); } catch { /* ignore */ }
 }
 
-// Generates a full Agilent ChemStation-style report PNG for the session
+const PADRAO_LOG_KEY = "hplc_padrao_changelog_v1";
+  const PADRAO_LOCKED_KEY = "hplc_padrao_locked_v1";
+  function loadPadraoChangelog(): PadraoChangeLog[] {
+    try { return JSON.parse(localStorage.getItem(PADRAO_LOG_KEY) ?? "[]") as PadraoChangeLog[]; } catch { return []; }
+  }
+  function savePadraoChangelog(log: PadraoChangeLog[]) {
+    try { localStorage.setItem(PADRAO_LOG_KEY, JSON.stringify(log)); } catch { /* noop */ }
+  }
+  function loadPadraoLocked(): boolean {
+    try { return localStorage.getItem(PADRAO_LOCKED_KEY) === "true"; } catch { return false; }
+  }
+  function savePadraoLocked(v: boolean) {
+    try { localStorage.setItem(PADRAO_LOCKED_KEY, v ? "true" : "false"); } catch { /* noop */ }
+  }
+  function validatePadrao(cfg: PadraoConfig): ValidationAlert[] {
+    const alerts: ValidationAlert[] = [];
+    if (!cfg.compoundName) alerts.push({ severity: "warning", message: "Compound name not set", field: "compoundName" });
+    if (cfg.stdArea <= 0) alerts.push({ severity: "error", message: "Standard area is zero — results cannot be calculated", field: "stdArea" });
+    if (cfg.stdAmountUg <= 0) alerts.push({ severity: "error", message: "Standard amount is zero — results cannot be calculated", field: "stdAmountUg" });
+    if (cfg.stdPurity <= 0 || cfg.stdPurity > 100) alerts.push({ severity: "warning", message: "Standard purity should be between 0 and 100%", field: "stdPurity" });
+    if (cfg.smpArea <= 0) alerts.push({ severity: "error", message: "Sample area is zero — results cannot be calculated", field: "smpArea" });
+    if (cfg.stdArea > 0 && cfg.smpArea > 0 && cfg.smpArea / cfg.stdArea > 2)
+      alerts.push({ severity: "warning", message: "Sample area is more than 2× the standard area — verify concentrations" });
+    return alerts;
+  }
+  function buildCalcTrace(
+    resultLabel: string, resultValue: string, method: CalcMethod,
+    formulaText: string, inputs: { label: string; value: string; source: string }[],
+    sourceTab: string,
+    opts?: { peakName?: string; compoundName?: string; standardRef?: string; warningText?: string }
+  ): CalcTrace { return { resultLabel, resultValue, method, formulaText, inputs, sourceTab, ...opts }; }
+  // Generates a full Agilent ChemStation-style report PNG for the session
 function buildChromatogramPng(
   session: AnalysisSession,
   formula: Formula,
@@ -2368,8 +2435,32 @@ export default function HplcSimulator() {
     const cfg = loadPadraoConfig();
     return { ...DEFAULT_PADRAO_CONFIG, ...cfg, selectedLotIds: cfg.selectedLotIds ?? [] };
   });
-  const updatePadrao = useCallback((patch: Partial<PadraoConfig>) => {
-    setPadraoConfig(prev => { const next = { ...prev, ...patch }; savePadraoConfig(next); return next; });
+  const [padraoLocked, setPadraoLocked] = useState<boolean>(() => loadPadraoLocked());
+  const [padraoChangelog, setPadraoChangelog] = useState<PadraoChangeLog[]>(() => loadPadraoChangelog());
+  const [padraoHistoryOpen, setPadraoHistoryOpen] = useState(false);
+  const [calcTraceDialog, setCalcTraceDialog] = useState<CalcTrace | null>(null);
+  const PROTECTED_FIELDS: (keyof PadraoConfig)[] = ["stdArea", "stdAmountUg", "stdPurity", "compoundName"];
+  const updatePadrao = useCallback((patch: Partial<PadraoConfig>, opts?: { changedBy?: string }) => {
+    setPadraoConfig(prev => {
+      const next = { ...prev, ...patch };
+      savePadraoConfig(next);
+      const actor = opts?.changedBy ?? "operator";
+      const changedProtected = (Object.keys(patch) as (keyof PadraoConfig)[])
+        .filter(k => PROTECTED_FIELDS.includes(k) && String(prev[k]) !== String((patch as Record<string, unknown>)[k]));
+      if (changedProtected.length > 0) {
+        setPadraoChangelog(log => {
+          const entries: PadraoChangeLog[] = changedProtected.map(k => ({
+            id: uid(), field: k, oldValue: String(prev[k]),
+            newValue: String((patch as Record<string, unknown>)[k]),
+            changedAt: new Date().toISOString(), changedBy: actor,
+          }));
+          const newLog = [...entries, ...log].slice(0, 100);
+          savePadraoChangelog(newLog);
+          return newLog;
+        });
+      }
+      return next;
+    });
   }, []);
 
   // Load heavy image data after first paint so it doesn't block initial render
@@ -2854,6 +2945,39 @@ export default function HplcSimulator() {
     markDirty();
   };
 
+  const lockPadrao = () => {
+    setMasterAuthInput("");
+    setMasterAuthError(null);
+    setMasterAuthDialog({
+      description: "Enter the manager password to LOCK the Reference Standard. Once locked, editing Area, Amount and Purity requires the password.",
+      buttonLabel: "🔒 Lock Standard",
+      onSuccess: () => { setPadraoLocked(true); savePadraoLocked(true); },
+    });
+  };
+  const unlockPadrao = () => {
+    setMasterAuthInput("");
+    setMasterAuthError(null);
+    setMasterAuthDialog({
+      description: "Enter the manager password to UNLOCK the Reference Standard for editing.",
+      buttonLabel: "🔓 Unlock Standard",
+      onSuccess: () => { setPadraoLocked(false); savePadraoLocked(false); },
+    });
+  };
+  const updatePadraoProtected = (patchData: Partial<PadraoConfig>, changedBy?: string) => {
+    const protectedKeys: (keyof PadraoConfig)[] = ["stdArea", "stdAmountUg", "stdPurity", "compoundName"];
+    const hasProtected = (Object.keys(patchData) as (keyof PadraoConfig)[]).some(k => protectedKeys.includes(k));
+    if (padraoLocked && hasProtected) {
+      setMasterAuthInput("");
+      setMasterAuthError(null);
+      setMasterAuthDialog({
+        description: "Reference Standard is locked. Enter the manager password to edit this field.",
+        buttonLabel: "✏️ Edit Standard",
+        onSuccess: () => { updatePadrao(patchData, { changedBy: changedBy ?? "manager" }); },
+      });
+    } else {
+      updatePadrao(patchData, { changedBy });
+    }
+  };
   const lockCompoundCalib = (compoundId: string) => {
     const name = activeCompounds.find(c => c.id === compoundId)?.name ?? compoundId;
     setMasterAuthInput("");
@@ -3493,9 +3617,15 @@ export default function HplcSimulator() {
               background: page === mode ? "#1d4ed8" : "#fff",
               color: page === mode ? "#fff" : "#333",
               border: "none", borderLeft: "1px solid #bbb",
-              display: "flex", alignItems: "center", gap: 4,
+              display: "flex", alignItems: "center", gap: 4, position: "relative",
             }}>
               <Icon style={{ width: 13, height: 13 }} /> {label}
+              {mode === "padrao" && validatePadrao(padraoConfig).some(a => a.severity === "error") && page !== "padrao" && (
+                <span style={{ position: "absolute", top: 2, right: 3, width: 7, height: 7, borderRadius: "50%", background: "#dc2626", display: "block" }} />
+              )}
+              {mode === "padrao" && padraoLocked && (
+                <Lock style={{ width: 9, height: 9, color: page === mode ? "#fbbf24" : "#f59e0b", marginLeft: 1 }} />
+              )}
             </button>
           ))}
         </div>
@@ -6057,7 +6187,39 @@ export default function HplcSimulator() {
                                         </td>
                                         <td style={{ padding: "4px 10px", textAlign: "right" }}>{cr?.area !== null && cr?.area !== undefined ? cr.area.toFixed(3) : "—"}</td>
                                         <td style={{ padding: "4px 10px", textAlign: "right" }}>{cr?.calcConc ? `${cr.calcConc.toFixed(4)} ${compound.units}` : "—"}</td>
-                                        <td style={{ padding: "4px 10px", textAlign: "right", fontWeight: "bold", color: teorOk === null ? "#888" : teorOk ? "#166534" : "#dc2626" }}>
+                                        <td
+                                          style={{ padding: "4px 10px", textAlign: "right", fontWeight: "bold", color: teorOk === null ? "#888" : teorOk ? "#166534" : "#dc2626", cursor: cr?.teorPct !== null && cr?.teorPct !== undefined ? "context-menu" : "default" }}
+                                          onContextMenu={cr?.teorPct !== null && cr?.teorPct !== undefined ? (evtCtx) => {
+                                            evtCtx.preventDefault();
+                                            const stdEntryCtx = std ? std.entries.find(en => en.compoundId === compound.id) ?? null : null;
+                                            const areaCtx = cr?.area ?? 0;
+                                            const traceInputsCtx: { label: string; value: string; source: string }[] = [
+                                              { label: "Peak Area", value: `${areaCtx.toFixed(5)} mAU·s`, source: "Chromatogram run" },
+                                            ];
+                                            let mCtx: CalcMethod = "response_factor";
+                                            let fCtx = "Assay (%) = (Conc / Nominal) × 100";
+                                            if (stdEntryCtx && stdEntryCtx.stdArea > 0) {
+                                              mCtx = "external_standard";
+                                              fCtx = "Conc = (PeakArea / StdArea) × StdConc; Assay (%) = (Conc / Nominal) × 100";
+                                              traceInputsCtx.push(
+                                                { label: "Std Area", value: `${stdEntryCtx.stdArea.toFixed(5)} mAU·s`, source: "Formula standard" },
+                                                { label: "Std Conc", value: `${stdEntryCtx.stdConc.toFixed(4)} ${compound.units}`, source: "Formula standard" },
+                                                { label: "Nominal", value: `${stdEntryCtx.nominalConc.toFixed(4)} ${compound.units}`, source: "Formula standard" },
+                                              );
+                                            } else {
+                                              traceInputsCtx.push({ label: "Amt/Area factor", value: String(compound.amtPerArea), source: "Compound config" });
+                                            }
+                                            traceInputsCtx.push({ label: "Calc. Conc", value: `${(cr?.calcConc ?? 0).toFixed(4)} ${compound.units}`, source: "Calculated" });
+                                            setCalcTraceDialog(buildCalcTrace(
+                                              `Assay — ${compound.name}`, `${cr!.teorPct!.toFixed(2)} %`,
+                                              mCtx, fCtx, traceInputsCtx, "Analysis",
+                                              { compoundName: compound.name,
+                                                standardRef: stdEntryCtx ? `${stdEntryCtx.compoundName} std` : "response factor",
+                                                warningText: teorOk === false ? "⚠ Result outside 80–120% specification" : undefined }
+                                            ));
+                                          } : undefined}
+                                          title={cr?.teorPct !== null && cr?.teorPct !== undefined ? "Right-click: Ver origem do cálculo" : undefined}
+                                        >
                                           {cr?.teorPct !== null && cr?.teorPct !== undefined ? `${cr.teorPct.toFixed(2)} %` : "—"}
                                         </td>
                                         <td style={{ padding: "4px 10px", textAlign: "center" }}>
@@ -6685,13 +6847,18 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
           )
         );
 
-        const ResultCell = ({ value, label, color, big }: { value: string; label: string; color?: string; big?: boolean }) => (
-          <div style={{
-            background: color ?? "#f8fafc", borderRadius: 6, padding: "10px 14px",
-            border: `1.5px solid ${color ? color + "80" : "#e2e8f0"}`, minWidth: 140,
-          }}>
+        const ResultCell = ({ value, label, color, big, trace }: { value: string; label: string; color?: string; big?: boolean; trace?: CalcTrace }) => (
+          <div
+            style={{
+              background: color ?? "#f8fafc", borderRadius: 6, padding: "10px 14px",
+              border: `1.5px solid ${color ? color + "80" : "#e2e8f0"}`, minWidth: 140,
+              cursor: trace ? "context-menu" : "default",
+            }}
+            onContextMenu={trace ? (e) => { e.preventDefault(); setCalcTraceDialog(trace); } : undefined}
+            title={trace ? "Right-click: Ver origem do cálculo" : undefined}
+          >
             <div style={{ fontFamily: "Courier New, monospace", fontSize: big ? 22 : 18, fontWeight: "bold", color: color ?? "#1e293b" }}>
-              {value}
+              {value}{trace && <span style={{ fontSize: 9, color: "#94a3b8", marginLeft: 5, fontWeight: "normal" }}>⎇</span>}
             </div>
             <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b", marginTop: 2 }}>
               {label}
@@ -6713,10 +6880,21 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
               <div style={{ flex: 1 }} />
               <button
                 onClick={handlePrintPadrao}
-                style={{ fontFamily: "Courier New, monospace", fontSize: 10, padding: "3px 10px", border: "1px solid #3b82f6", borderRadius: 4, background: "#eff6ff", cursor: "pointer", color: "#1d4ed8", fontWeight: "bold" }}
+                disabled={validatePadrao(padraoConfig).some(a => a.severity === "error")}
+                style={{ fontFamily: "Courier New, monospace", fontSize: 10, padding: "3px 10px", border: "1px solid #3b82f6", borderRadius: 4, background: "#eff6ff", cursor: validatePadrao(padraoConfig).some(a => a.severity === "error") ? "not-allowed" : "pointer", color: "#1d4ed8", fontWeight: "bold", opacity: validatePadrao(padraoConfig).some(a => a.severity === "error") ? 0.5 : 1 }}
+                title={validatePadrao(padraoConfig).some(a => a.severity === "error") ? "Fix errors before exporting" : "Export PDF"}
               >
                 📄 Exportar PDF
               </button>
+              {padraoChangelog.length > 0 && (
+                <button
+                  onClick={() => setPadraoHistoryOpen(v => !v)}
+                  style={{ fontFamily: "Courier New, monospace", fontSize: 10, padding: "3px 10px", border: "1px solid #f59e0b", borderRadius: 4, background: padraoHistoryOpen ? "#fef3c7" : "#fffbeb", cursor: "pointer", color: "#92400e", fontWeight: "bold" }}
+                  title="Ver histórico de alterações do Padrão"
+                >
+                  📋 Histórico ({padraoChangelog.length})
+                </button>
+              )}
               <button
                 onClick={() => updatePadrao({ ...DEFAULT_PADRAO_CONFIG })}
                 style={{ fontFamily: "Courier New, monospace", fontSize: 10, padding: "3px 10px", border: "1px solid #e2e8f0", borderRadius: 4, background: "#f8fafc", cursor: "pointer", color: "#64748b" }}
@@ -6725,14 +6903,57 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
               </button>
             </div>
 
+            {/* Changelog panel */}
+            {padraoHistoryOpen && padraoChangelog.length > 0 && (
+              <div style={{ ...CARD, marginBottom: 16, background: "#fffbeb", border: "1px solid #fde68a" }}>
+                <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#92400e", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                  📋 Change History — Reference Standard
+                  <div style={{ flex: 1 }} />
+                  <button onClick={() => { setPadraoChangelog([]); savePadraoChangelog([]); }} style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "1px 8px", border: "1px solid #fde68a", borderRadius: 3, background: "#fef3c7", cursor: "pointer", color: "#92400e" }}>Clear history</button>
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 10 }}>
+                    <thead><tr style={{ background: "#fef3c7", borderBottom: "1px solid #fde68a" }}>
+                      <th style={{ padding: "4px 8px", textAlign: "left", color: "#92400e" }}>Field</th>
+                      <th style={{ padding: "4px 8px", textAlign: "left", color: "#92400e" }}>Previous</th>
+                      <th style={{ padding: "4px 8px", textAlign: "left", color: "#92400e" }}>New</th>
+                      <th style={{ padding: "4px 8px", textAlign: "left", color: "#92400e" }}>By</th>
+                      <th style={{ padding: "4px 8px", textAlign: "left", color: "#92400e" }}>When</th>
+                    </tr></thead>
+                    <tbody>{padraoChangelog.map((e, i) => (
+                      <tr key={e.id} style={{ borderBottom: "1px solid #fef3c7", background: i % 2 === 0 ? "#fffbeb" : "#fefce8" }}>
+                        <td style={{ padding: "3px 8px", fontWeight: "bold", color: "#78350f" }}>{e.field}</td>
+                        <td style={{ padding: "3px 8px", color: "#dc2626", textDecoration: "line-through" }}>{e.oldValue}</td>
+                        <td style={{ padding: "3px 8px", color: "#166534", fontWeight: "bold" }}>{e.newValue}</td>
+                        <td style={{ padding: "3px 8px", color: "#64748b" }}>{e.changedBy}</td>
+                        <td style={{ padding: "3px 8px", color: "#64748b" }}>{new Date(e.changedAt).toLocaleString("pt-BR")}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             {/* Two-column input cards */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
 
               {/* ─ Standard card ─ */}
-              <div style={CARD}>
+              <div style={{ ...CARD, border: padraoLocked ? "2px solid #f59e0b" : "1px solid #d1d5db" }}>
                 <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#1560bd", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
                   <div style={{ width: 10, height: 10, background: "#1560bd", borderRadius: 2 }} />
                   Reference Standard
+                  {padraoLocked && (
+                    <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, background: "#fef3c7", color: "#92400e", padding: "1px 7px", borderRadius: 10, border: "1px solid #f59e0b", marginLeft: 4, fontWeight: "bold" }}>
+                      🔒 LOCKED
+                    </span>
+                  )}
+                  <div style={{ flex: 1 }} />
+                  <button
+                    onClick={padraoLocked ? unlockPadrao : lockPadrao}
+                    title={padraoLocked ? "Unlock standard (manager password required)" : "Lock standard to prevent unauthorized changes"}
+                    style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 8px", border: `1px solid ${padraoLocked ? "#f59e0b" : "#cbd5e1"}`, borderRadius: 4, background: padraoLocked ? "#fef3c7" : "#f8fafc", cursor: "pointer", color: padraoLocked ? "#92400e" : "#64748b", display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    {padraoLocked ? <><LockOpen style={{ width: 10, height: 10 }} /> Unlock</> : <><Lock style={{ width: 10, height: 10 }} /> Lock</>}
+                  </button>
                 </div>
 
                 <div style={ROW}>
@@ -6747,15 +6968,17 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                 </div>
                 <div style={ROW}>
                   <span style={LBL}>Standard Area (mAU·s)</span>
-                  {numInput(padraoConfig.stdArea, v => updatePadrao({ stdArea: v }), { step: "0.001", placeholder: "0.000" })}
+                  {numInput(padraoConfig.stdArea, v => updatePadraoProtected({ stdArea: v }), { step: "0.001", placeholder: "0.000" })}
+                  {padraoConfig.stdArea <= 0 && <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#dc2626", marginTop: 2 }}>⚠ Required — enter a value &gt; 0</div>}
                 </div>
                 <div style={ROW}>
                   <span style={LBL}>Injected amount (µg)</span>
-                  {numInput(padraoConfig.stdAmountUg, v => updatePadrao({ stdAmountUg: v }), { step: "0.001", placeholder: "µg" })}
+                  {numInput(padraoConfig.stdAmountUg, v => updatePadraoProtected({ stdAmountUg: v }), { step: "0.001", placeholder: "µg" })}
+                  {padraoConfig.stdAmountUg <= 0 && <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#dc2626", marginTop: 2 }}>⚠ Required — enter a value &gt; 0</div>}
                 </div>
                 <div style={ROW}>
                   <span style={LBL}>Certified purity (%)</span>
-                  {numInput(padraoConfig.stdPurity, v => updatePadrao({ stdPurity: v }), { step: "0.01", placeholder: "100.00" })}
+                  {numInput(padraoConfig.stdPurity, v => updatePadraoProtected({ stdPurity: v }), { step: "0.01", placeholder: "100.00" })}
                 </div>
 
                 <PeakCapture
@@ -6791,7 +7014,13 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
 
                 <div style={ROW}>
                   <span style={LBL}>Sample Area (mAU·s)</span>
-                  {numInput(padraoConfig.smpArea, v => updatePadrao({ smpArea: v }), { step: "0.001", placeholder: "0.000" })}
+                  <div>
+                    {numInput(padraoConfig.smpArea, v => updatePadrao({ smpArea: v }), { step: "0.001", placeholder: "0.000" })}
+                    {padraoConfig.smpArea <= 0 && <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#dc2626", marginTop: 2 }}>⚠ Required — enter a value &gt; 0</div>}
+                    {padraoConfig.stdArea > 0 && padraoConfig.smpArea > 0 && padraoConfig.smpArea / padraoConfig.stdArea > 2 && (
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#d97706", marginTop: 2 }}>⚠ Sample area &gt;2× standard — verify concentrations</div>
+                    )}
+                  </div>
                 </div>
                 <div style={ROW}>
                   <span style={{ ...LBL, fontSize: 10 }}>Declared/theoretical amount (µg)</span>
@@ -6828,6 +7057,31 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                 Result — External Standard Quantification
               </div>
 
+              {(() => {
+                const padraoAlerts = validatePadrao(padraoConfig);
+                const padraoErrors = padraoAlerts.filter(a => a.severity === "error");
+                const padraoWarnings = padraoAlerts.filter(a => a.severity === "warning");
+                return (
+                  <>
+                    {padraoAlerts.length > 0 && (
+                      <div style={{ marginBottom: 14 }}>
+                        {padraoErrors.map((a, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontFamily: "Courier New, monospace", fontSize: 10, background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 5, padding: "6px 10px", marginBottom: 4, color: "#991b1b" }}>
+                            <XCircle style={{ width: 13, height: 13, flexShrink: 0, marginTop: 1 }} />
+                            <span>{a.message}</span>
+                          </div>
+                        ))}
+                        {padraoWarnings.map((a, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontFamily: "Courier New, monospace", fontSize: 10, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 5, padding: "6px 10px", marginBottom: 4, color: "#92400e" }}>
+                            <Activity style={{ width: 13, height: 13, flexShrink: 0, marginTop: 1 }} />
+                            <span>{a.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
               {!hasData ? (
                 <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#94a3b8", padding: "24px 0", textAlign: "center" }}>
                   Fill in the Standard Area, Injected Amount and Sample Area to calculate.
@@ -6841,6 +7095,19 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                       label="Purity vs. Standard (area)"
                       color={purityVsStd >= 98 ? "#16a34a" : purityVsStd >= 90 ? "#d97706" : "#dc2626"}
                       big
+                      trace={buildCalcTrace(
+                        "Purity vs. Standard (area)", `${purityVsStd.toFixed(2)} %`, "external_standard",
+                        "Purity (%) = (SampleArea / StandardArea) × StandardPurity",
+                        [
+                          { label: "Sample Area", value: `${smpArea.toFixed(5)} mAU·s`, source: "Standard tab" },
+                          { label: "Standard Area", value: `${stdArea.toFixed(5)} mAU·s`, source: "Standard tab" },
+                          { label: "Standard Purity", value: `${padraoConfig.stdPurity.toFixed(2)} %`, source: "Standard tab" },
+                          { label: "Ratio (Smp/Std)", value: ratio.toFixed(6), source: "Calculated" },
+                        ],
+                        "Standard",
+                        { compoundName: padraoConfig.compoundName, standardRef: padraoConfig.stdPeakName,
+                          warningText: purityVsStd < 90 ? "Result below 90% — verify standard and sample peaks" : undefined }
+                      )}
                     />
                     {purityVsDecl !== null && (
                       <ResultCell
@@ -6849,8 +7116,28 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                         color={purityVsDecl >= 98 ? "#16a34a" : purityVsDecl >= 90 ? "#d97706" : "#dc2626"}
                       />
                     )}
-                    <ResultCell value={`${foundAmountUg.toFixed(4)} µg`} label="Found amount (µg)" />
-                    <ResultCell value={`${foundAmountMg.toFixed(6)} mg`} label="Found amount (mg)" />
+                    <ResultCell value={`${foundAmountUg.toFixed(4)} µg`} label="Found amount (µg)"
+                      trace={buildCalcTrace(
+                        "Found Amount", `${foundAmountUg.toFixed(4)} µg`, "external_standard",
+                        "Amount (µg) = (SampleArea / StandardArea) × StandardAmount × (Purity / 100)",
+                        [
+                          { label: "Sample Area", value: `${smpArea.toFixed(5)} mAU·s`, source: "Standard tab" },
+                          { label: "Standard Area", value: `${stdArea.toFixed(5)} mAU·s`, source: "Standard tab" },
+                          { label: "Standard Amount", value: `${padraoConfig.stdAmountUg.toFixed(4)} µg`, source: "Standard tab" },
+                          { label: "Standard Purity", value: `${padraoConfig.stdPurity.toFixed(2)} %`, source: "Standard tab" },
+                        ],
+                        "Standard",
+                        { compoundName: padraoConfig.compoundName }
+                      )}
+                    />
+                    <ResultCell value={`${foundAmountMg.toFixed(6)} mg`} label="Found amount (mg)"
+                      trace={buildCalcTrace(
+                        "Found Amount (mg)", `${foundAmountMg.toFixed(6)} mg`, "external_standard",
+                        "Amount (mg) = FoundAmount (µg) / 1000",
+                        [{ label: "Found Amount (µg)", value: `${foundAmountUg.toFixed(4)} µg`, source: "Calculated" }],
+                        "Standard"
+                      )}
+                    />
                     {padraoConfig.stdAmountUg > 0 && (
                       <ResultCell
                         value={`${relativeTeor.toFixed(2)} %`}
@@ -7403,6 +7690,50 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
               </div>
               {/* Menu items */}
               <div style={{ padding: "4px 0" }}>
+                {(() => {
+                  const peakArea = peak.manualArea > 0 ? peak.manualArea : computeArea(peak);
+                  const matchedCompound = activeCompounds.find(c => Math.abs(peak.retentionTime - c.expectedRT) <= c.rtTol);
+                  const formulaStdEntry = formulaStandards.find(fs => fs.formulaId === selectedFormulaId);
+                  if (matchedCompound) {
+                    const stdEntry = formulaStdEntry?.entries.find(e => e.compoundId === matchedCompound.id) ?? null;
+                    const traceInputs: { label: string; value: string; source: string }[] = [
+                      { label: "Peak Area", value: `${peakArea.toFixed(5)} mAU·s`, source: peak.manualArea > 0 ? "Manual (overridden)" : "Computed (Gaussian model)" },
+                      { label: "RT", value: `${peak.retentionTime.toFixed(3)} min`, source: "Chromatogram" },
+                    ];
+                    let peakMethod: CalcMethod = "response_factor";
+                    let peakFormula = "Conc = Area × AmtPerArea";
+                    if (stdEntry && stdEntry.stdArea > 0) {
+                      peakMethod = "external_standard";
+                      peakFormula = "Conc = (PeakArea / StdArea) × StdConc; Assay (%) = (Conc / Nominal) × 100";
+                      traceInputs.push(
+                        { label: "Std Area", value: `${stdEntry.stdArea.toFixed(5)} mAU·s`, source: "Formula standard" },
+                        { label: "Std Conc", value: `${stdEntry.stdConc.toFixed(4)} ${matchedCompound.units}`, source: "Formula standard" },
+                        { label: "Nominal", value: `${stdEntry.nominalConc.toFixed(4)} ${matchedCompound.units}`, source: "Formula standard" },
+                      );
+                    } else {
+                      traceInputs.push({ label: "Amt/Area factor", value: String(matchedCompound.amtPerArea), source: "Compound config" });
+                    }
+                    const calcConc2 = stdEntry && stdEntry.stdArea > 0 ? (peakArea / stdEntry.stdArea) * stdEntry.stdConc : peakArea * matchedCompound.amtPerArea;
+                    const teorPct2 = stdEntry && stdEntry.nominalConc > 0 ? (calcConc2 / stdEntry.nominalConc) * 100 : null;
+                    const peakTrace = buildCalcTrace(
+                      `Assay — ${matchedCompound.name}`,
+                      teorPct2 !== null ? `${teorPct2.toFixed(2)} %` : `${calcConc2.toFixed(4)} ${matchedCompound.units}`,
+                      peakMethod, peakFormula, traceInputs, "Chromatogram",
+                      { peakName: peak.name || `RT ${peak.retentionTime.toFixed(3)}`, compoundName: matchedCompound.name,
+                        warningText: peak.manualArea > 0 ? "⚠ Area was manually overridden — not from Gaussian model" : undefined }
+                    );
+                    return (
+                      <button
+                        onClick={() => { setCalcTraceDialog(peakTrace); setPeakContextMenu(null); }}
+                        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 11, fontFamily: "Courier New, monospace", color: "#7c3aed", textAlign: "left", borderBottom: "1px solid #f1f5f9" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#f5f3ff")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                        <Activity style={{ width: 13, height: 13 }} /> Ver origem do cálculo
+                      </button>
+                    );
+                  }
+                  return null;
+                })()}
                 {!peak.locked && (
                   <button
                     onClick={() => { openEditorDialog(peak.id); setPeakContextMenu(null); }}
@@ -7453,6 +7784,71 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
           controlledOpen={editorDialogOpen}
           onControlledClose={closeEditorDialog}
         />
+      )}
+
+      {/* ── CalcTraceDialog: Ver Origem do Cálculo ─────────────────────────────── */}
+      {calcTraceDialog && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setCalcTraceDialog(null)}>
+          <div style={{ background: "#fff", borderRadius: 10, padding: "24px 28px", minWidth: 440, maxWidth: 600, boxShadow: "0 8px 40px rgba(0,0,0,0.22)", fontFamily: "Courier New, monospace", maxHeight: "85vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              <Activity style={{ width: 18, height: 18, color: "#7c3aed" }} />
+              <div>
+                <div style={{ fontSize: 14, fontWeight: "bold", color: "#1e293b" }}>Ver Origem do Cálculo</div>
+                <div style={{ fontSize: 10, color: "#64748b", marginTop: 1 }}>{calcTraceDialog.sourceTab} tab{calcTraceDialog.compoundName && ` — ${calcTraceDialog.compoundName}`}</div>
+              </div>
+              <div style={{ flex: 1 }} />
+              <button onClick={() => setCalcTraceDialog(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "#94a3b8", lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 7, padding: "12px 16px", marginBottom: 16 }}>
+              <div style={{ fontSize: 10, color: "#166534", marginBottom: 4 }}>Result</div>
+              <div style={{ fontSize: 20, fontWeight: "bold", color: "#15803d" }}>{calcTraceDialog.resultValue}</div>
+              <div style={{ fontSize: 11, color: "#166534", marginTop: 2 }}>{calcTraceDialog.resultLabel}</div>
+            </div>
+            {calcTraceDialog.warningText && (
+              <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 5, padding: "8px 12px", marginBottom: 14, fontSize: 10, color: "#92400e", display: "flex", alignItems: "flex-start", gap: 6 }}>
+                <Activity style={{ width: 12, height: 12, flexShrink: 0, marginTop: 1 }} />{calcTraceDialog.warningText}
+              </div>
+            )}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4, fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.05em" }}>Method</div>
+              <div style={{ fontSize: 10, background: "#f1f5f9", borderRadius: 4, padding: "6px 10px", color: "#334155" }}>
+                {calcTraceDialog.method === "external_standard" ? "External Standard (single-point)" : calcTraceDialog.method === "calibration_curve" ? "Calibration Curve (linear regression)" : calcTraceDialog.method === "response_factor" ? "Response Factor (Amt/Area)" : "Unknown"}
+              </div>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4, fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.05em" }}>Applied Formula</div>
+              <div style={{ fontSize: 11, background: "#0f172a", color: "#7dd3fc", borderRadius: 5, padding: "8px 12px", fontFamily: "Courier New, monospace", lineHeight: 1.6 }}>{calcTraceDialog.formulaText}</div>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 6, fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.05em" }}>Input Values</div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
+                <thead><tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                  <th style={{ padding: "5px 8px", textAlign: "left", color: "#475569" }}>Parameter</th>
+                  <th style={{ padding: "5px 8px", textAlign: "right", color: "#475569" }}>Value</th>
+                  <th style={{ padding: "5px 8px", textAlign: "left", color: "#475569" }}>Source</th>
+                </tr></thead>
+                <tbody>{calcTraceDialog.inputs.map((inp, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                    <td style={{ padding: "4px 8px", color: "#334155", fontWeight: "bold" }}>{inp.label}</td>
+                    <td style={{ padding: "4px 8px", textAlign: "right", color: "#1d4ed8", fontFamily: "Courier New, monospace" }}>{inp.value}</td>
+                    <td style={{ padding: "4px 8px", color: "#64748b", fontStyle: "italic", fontSize: 9 }}>
+                      {inp.source.toLowerCase().includes("manual") ? <span style={{ color: "#d97706" }}>✏ {inp.source}</span> : inp.source.toLowerCase().includes("calculat") ? <span style={{ color: "#7c3aed" }}>⚙️ {inp.source}</span> : <span>📂 {inp.source}</span>}
+                    </td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+            {(calcTraceDialog.peakName || calcTraceDialog.standardRef) && (
+              <div style={{ fontSize: 9, color: "#94a3b8", borderTop: "1px solid #f1f5f9", paddingTop: 8 }}>
+                {calcTraceDialog.peakName && <span>Peak: <strong>{calcTraceDialog.peakName}</strong> · </span>}
+                {calcTraceDialog.standardRef && <span>Std ref: <strong>{calcTraceDialog.standardRef}</strong></span>}
+              </div>
+            )}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+              <button onClick={() => setCalcTraceDialog(null)} style={{ fontSize: 11, padding: "7px 20px", border: "1px solid #e2e8f0", borderRadius: 6, background: "#f8fafc", cursor: "pointer", color: "#475569", fontFamily: "Courier New, monospace" }}>Fechar</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {deleteSessionDialog && (
