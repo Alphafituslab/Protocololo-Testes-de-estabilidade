@@ -1,0 +1,70 @@
+Preciso que você atue como desenvolvedor sênior de software laboratorial, com conhecimento avançado em HPLC, métodos analíticos, cálculos de teor, comparação com padrão de referência, rastreabilidade de dados, integridade de dados e validação de sistemas.
+
+Estou desenvolvendo um simulador/sistema com várias abas, incluindo uma aba chamada “Padrão”, onde existem diversas informações técnicas e valores utilizados como base para os cálculos do sistema.
+
+Nesta aba existem informações como:
+
+Comparação com o padrão de referência, valores dos padrões cadastrados, parâmetros analíticos, critérios de aceitação, resultados calculados e demais dados que servem de base para os cálculos do simulador.
+
+Preciso que você analise e desenvolva uma lógica completa para que, ao clicar com o botão direito do mouse sobre qualquer resultado apresentado no sistema, seja aberta uma opção como:
+
+“Ver origem do cálculo”
+ou
+“Rastrear informação utilizada”
+
+Ao selecionar essa opção, o sistema deve direcionar o usuário exatamente para o local de onde aquela informação foi retirada, mostrando:
+
+Qual aba forneceu a informação;
+Qual campo foi utilizado;
+Qual valor original foi usado;
+Qual fórmula ou regra de cálculo foi aplicada;
+Quais padrões de referência foram considerados;
+Qual foi a sequência lógica até chegar ao resultado final;
+Se o resultado depende de algum dado cadastrado, fórmula, banco de dados, metodologia ou critério de aceitação.
+
+Essa funcionalidade deve existir não apenas na aba Padrão, mas em todas as abas e funcionalidades que exibam algum tipo de resultado calculado ou interpretado, pois preciso entender claramente a origem de cada informação para corrigir, validar e deixar todos os cálculos 100% funcionais.
+
+Além disso, os dados cadastrados como padrões de referência salvos devem ser protegidos. Esses dados são a base dos cálculos do simulador e, por isso, não podem ser alterados livremente.
+
+Crie uma lógica onde:
+
+Os padrões salvos só possam ser alterados mediante senha;
+Toda alteração em padrão de referência exija confirmação;
+O sistema registre histórico de alteração;
+O histórico mostre quem alterou, quando alterou, qual era o valor anterior e qual é o novo valor;
+O sistema impeça alteração acidental de padrões já utilizados em cálculos anteriores;
+Caso um padrão seja alterado, os cálculos vinculados devem indicar que foram impactados por alteração de padrão;
+O sistema deve permitir rastreabilidade total entre padrão cadastrado, cálculo executado e resultado apresentado.
+
+Quero que você pense como se estivesse desenvolvendo um software profissional de HPLC, onde os cálculos precisam ser confiáveis, rastreáveis e auditáveis.
+
+O objetivo é criar um sistema onde qualquer resultado possa ser explicado tecnicamente, mostrando sua origem, fórmula, dependências e referência utilizada.
+
+Também preciso que você avalie todas as abas e funcionalidades do sistema e proponha melhorias para:
+
+Evitar erro de cálculo;
+Evitar edição indevida de dados críticos;
+Melhorar a rastreabilidade dos resultados;
+Melhorar a organização das fórmulas;
+Separar dados inseridos manualmente de dados calculados automaticamente;
+Criar alertas quando faltar informação obrigatória;
+Destacar resultados fora do critério de aceitação;
+Impedir que o usuário use dados incompletos para gerar resultado final;
+Criar lógica de bloqueio, revisão e aprovação dos cálculos;
+Garantir que o sistema fique robusto, seguro e profissional.
+
+Quero que você entregue a solução pensando em:
+
+Estrutura de abas;
+Campos necessários;
+Fórmulas;
+Fluxo de cálculo;
+Proteção por senha;
+Rastreabilidade por botão direito do mouse;
+Histórico de alterações;
+Controle de versão dos padrões;
+Auditoria dos resultados;
+Validação dos dados;
+Interface simples para o usuário entender de onde veio cada resultado.
+
+A resposta deve ser extremamente técnica, organizada e pensada para um sistema real de laboratório, especialmente voltado para cálculos analíticos de HPLC, comparação com padrão de referência e controle de resultados de métodos analíticos.
