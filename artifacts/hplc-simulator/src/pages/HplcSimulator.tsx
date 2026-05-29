@@ -1329,6 +1329,9 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
   const widthVal  = parseFloat(draft.width      as string) || 0.10;
   const asymVal   = parseFloat(draft.asymmetry  as string) || 1.0;
   const inclVal   = parseFloat(draft.inclination as string) || 0;
+    const emgTauVal  = parseFloat(draft.emgTau   as string) || 0;
+    const overloadVal = parseFloat(draft.overload as string) || 0;
+    const flatTopVal  = parseFloat(draft.flatTop  as string) || 0;
 
   const openDialog = () => { setDraft(peakToStrings(peak)); setInternalOpen(true); };
   const trigger = children ? React.cloneElement(
@@ -1497,12 +1500,12 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
             <div style={{ marginBottom: 8 }}>
               <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                 <span>Cauda EMG — τ (min)</span>
-                <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{((editPeak?.emgTau ?? 0)).toFixed(3)}</span>
+                <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{emgTauVal.toFixed(3)}</span>
               </div>
               <input
                 type="range" min="0" max="2" step="0.005"
-                value={editPeak?.emgTau ?? 0}
-                onChange={e => setEditPeak(p => p ? { ...p, emgTau: parseFloat(e.target.value) } : p)}
+                value={emgTauVal}
+                onChange={e => setDraft(d => ({ ...d, emgTau: e.target.value }))}
                 className="w-full h-2 accent-blue-600"
               />
               <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
@@ -1514,12 +1517,12 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
             <div style={{ marginBottom: 8 }}>
               <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                 <span>Sobrecarga de coluna</span>
-                <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{((editPeak?.overload ?? 0) * 100).toFixed(0)}%</span>
+                <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(overloadVal * 100).toFixed(0)}%</span>
               </div>
               <input
                 type="range" min="0" max="1" step="0.01"
-                value={editPeak?.overload ?? 0}
-                onChange={e => setEditPeak(p => p ? { ...p, overload: parseFloat(e.target.value) } : p)}
+                value={overloadVal}
+                onChange={e => setDraft(d => ({ ...d, overload: e.target.value }))}
                 className="w-full h-2 accent-blue-600"
               />
               <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
@@ -1531,12 +1534,12 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
             <div style={{ marginBottom: 8 }}>
               <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                 <span>Saturação do detector</span>
-                <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{((editPeak?.flatTop ?? 0) * 100).toFixed(0)}%</span>
+                <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(flatTopVal * 100).toFixed(0)}%</span>
               </div>
               <input
                 type="range" min="0" max="1" step="0.01"
-                value={editPeak?.flatTop ?? 0}
-                onChange={e => setEditPeak(p => p ? { ...p, flatTop: parseFloat(e.target.value) } : p)}
+                value={flatTopVal}
+                onChange={e => setDraft(d => ({ ...d, flatTop: e.target.value }))}
                 className="w-full h-2 accent-blue-600"
               />
               <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
