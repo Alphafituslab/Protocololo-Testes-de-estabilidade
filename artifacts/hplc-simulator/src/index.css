@@ -202,10 +202,25 @@
 }
 
 @media print {
-  .no-print { display: none !important; }
-  body { background: white !important; }
-  .print-break { page-break-before: always; }
-}
+    .no-print { display: none !important; }
+    body { background: white !important; }
+    .print-break { page-break-before: always; }
+
+    /* ── Ocultar barras de rolagem no PDF ── */
+    html, body {
+      overflow: visible !important;
+      height: auto !important;
+    }
+    * {
+      overflow: visible !important;
+      scrollbar-width: none !important;
+    }
+    *::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+  }
 
 @layer utilities {
   input[type="search"]::-webkit-search-cancel-button { @apply hidden; }

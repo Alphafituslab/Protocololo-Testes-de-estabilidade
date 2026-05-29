@@ -1196,11 +1196,13 @@ function stringsToPeak(base: Peak, s: Record<keyof Peak, string>): Peak {
   return result;
 }
 
-function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, onControlledClose }: {
+function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, onControlledClose, calibData }: {
   peak: Peak; onSave: (p: Peak) => void; onPreview?: (p: Peak) => void; children?: React.ReactNode;
   controlledOpen?: boolean; onControlledClose?: () => void;
+  calibData?: { compoundName: string; standards: CalibStandard[]; onUpdate: (s: CalibStandard[]) => void };
 }) {
   const [draft, setDraft] = useState<Record<keyof Peak, string>>(() => peakToStrings(peak));
+  const [localCalibStds, setLocalCalibStds] = useState<CalibStandard[]>([]);
   const [internalOpen, setInternalOpen] = useState(false);
   // Draggable position — null means use default Radix centering
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -1215,6 +1217,7 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
   useEffect(() => {
     if (isControlled && controlledOpen) {
       setDraft(peakToStrings(peak));
+      if (calibData) setLocalCalibStds([...calibData.standards]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [controlledOpen]);
@@ -1297,7 +1300,7 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
           </p>
         </DialogHeader>
 
-        <form onSubmit={e => { e.preventDefault(); onSave(stringsToPeak(peak, draft)); setOpen(false); }} className="space-y-2 pt-1">
+        <form onSubmit={e => { e.preventDefault(); onSave(stringsToPeak(peak, draft)); if (calibData) calibData.onUpdate(localCalibStds); setOpen(false); }} className="space-y-2 pt-1">
           {([
             ["name", "Name (ex: B6)", "text"],
             ["retentionTime", "Ret. Time [min]", "number"],
@@ -1315,6 +1318,26 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
                 onChange={field(k)}
                 className="h-7 text-xs font-mono"
               />
+              {k === "manualArea" && (() => {
+                const livePeak = stringsToPeak(peak, draft);
+                const computed = computeArea(livePeak);
+                const manVal = parseFloat(draft.manualArea as string) || 0;
+                return (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                    <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#6b7280" }}>Computed:</span>
+                    <span style={{ fontFamily: "Courier New, monospace", fontSize: 9.5, fontWeight: 700, color: manVal > 0 ? "#9ca3af" : "#1d4ed8" }}>
+                      {computed.toFixed(5)} mAU·s
+                    </span>
+                    {manVal === 0 && (
+                      <button type="button"
+                        style={{ fontSize: 8, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 5px", cursor: "pointer", color: "#3b82f6", fontFamily: "Courier New, monospace" }}
+                        onClick={() => setDraft(d => ({ ...d, manualArea: computed.toFixed(5) }))}>
+                        ← Use
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           ))}
 
@@ -1408,6 +1431,89 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
             Area = 0 → computed automatically.<br />
             Area &gt; 0 → exact value used in report.
           </p>
+
+          {/* ── Calibration Curve Data — editable, matches the report chart ── */}
+          {calibData && (
+            <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: 8, marginTop: 4 }}>
+              <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, fontWeight: "bold", marginBottom: 5, color: "#1e3a5f" }}>
+                📈 Calibration — {calibData.compoundName}
+              </div>
+              {(() => {
+                const reg = localCalibStds.length >= 2
+                  ? linearRegression(localCalibStds.map(s => ({ x: s.amount, y: s.area })))
+                  : null;
+                return (
+                  <>
+                    {reg && (
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#374151", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 3, padding: "4px 7px", marginBottom: 6 }}>
+                        <div>f(x) = <b>{reg.slope.toFixed(5)}</b> × x + <b>{reg.intercept.toFixed(3)}</b></div>
+                        <div>R² = <b>{(reg.r * reg.r).toFixed(7)}</b> | R = {reg.r.toFixed(7)}</div>
+                        <div style={{ color: "#6b7280", fontSize: 8, marginTop: 2 }}>RSS = {(localCalibStds.reduce((acc, s) => acc + Math.pow(s.area - (reg.slope * s.amount + reg.intercept), 2), 0)).toFixed(3)}</div>
+                      </div>
+                    )}
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "18px 1fr 1fr 18px", gap: 3, color: "#6b7280", marginBottom: 3, fontWeight: "bold" }}>
+                        <div>#</div><div>Conc. [µg/ml]</div><div>Area [mAU·s]</div><div></div>
+                      </div>
+                      {localCalibStds.map((std, idx) => {
+                        const predicted = reg ? reg.slope * std.amount + reg.intercept : null;
+                        return (
+                          <div key={std.id} style={{ marginBottom: 4 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "18px 1fr 1fr 18px", gap: 3, alignItems: "center" }}>
+                              <div style={{ color: "#6b7280", fontSize: 8 }}>{idx + 1}</div>
+                              <input type="number" step="any" value={std.amount}
+                                onChange={e => setLocalCalibStds(prev => prev.map((s, i) => i === idx ? { ...s, amount: parseFloat(e.target.value) || 0 } : s))}
+                                style={{ fontFamily: "Courier New, monospace", fontSize: 9, border: "1px solid #d1d5db", borderRadius: 3, padding: "2px 4px", width: "100%" }} />
+                              <input type="number" step="any" value={std.area}
+                                onChange={e => setLocalCalibStds(prev => prev.map((s, i) => i === idx ? { ...s, area: parseFloat(e.target.value) || 0 } : s))}
+                                style={{ fontFamily: "Courier New, monospace", fontSize: 9, border: "1px solid #d1d5db", borderRadius: 3, padding: "2px 4px", width: "100%" }} />
+                              <button type="button"
+                                style={{ fontSize: 10, color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1 }}
+                                onClick={() => setLocalCalibStds(prev => prev.filter((_, i) => i !== idx))}>×</button>
+                            </div>
+                            {predicted !== null && (
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 7.5, color: "#9ca3af", paddingLeft: 22, marginTop: 1 }}>
+                                pred: {predicted.toFixed(3)}  Δ: {(std.area - predicted).toFixed(3)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      <button type="button"
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#3b82f6", background: "none", border: "1px dashed #93c5fd", borderRadius: 3, padding: "2px 8px", cursor: "pointer", marginTop: 2, width: "100%" }}
+                        onClick={() => setLocalCalibStds(prev => [...prev, { id: String(Date.now()), level: prev.length + 1, amount: 0, area: 0 }])}>
+                        + Add Level
+                      </button>
+                    </div>
+                    {localCalibStds.length >= 2 && reg && (() => {
+                      const w = 230, h = 110, mL = 34, mR = 6, mT = 6, mB = 22;
+                      const xMax = Math.max(...localCalibStds.map(s => s.amount)) * 1.12 || 1;
+                      const yMax = Math.max(...localCalibStds.map(s => s.area)) * 1.18 || 1;
+                      const xs2 = (v: number) => mL + (v / xMax) * (w - mL - mR);
+                      const ys2 = (v: number) => mT + (h - mT - mB) - (Math.min(Math.max(v, 0), yMax) / yMax) * (h - mT - mB);
+                      const fY = (v: number) => v >= 1000 ? (v / 1000).toFixed(1) + "k" : v.toFixed(0);
+                      const yT = [0, 0.33, 0.67, 1].map(f => yMax * f);
+                      const xT = [0, 0.33, 0.67, 1].map(f => xMax * f);
+                      return (
+                        <svg width={w} height={h} style={{ display: "block", marginTop: 8, fontFamily: "Courier New, monospace", overflow: "visible" }}>
+                          <line x1={mL} y1={mT} x2={mL} y2={h - mB} stroke="#888" strokeWidth={1} />
+                          <line x1={mL} y1={h - mB} x2={w - mR} y2={h - mB} stroke="#888" strokeWidth={1} />
+                          {yT.map((t, i) => (<g key={i}><line x1={mL - 3} y1={ys2(t)} x2={mL} y2={ys2(t)} stroke="#e0e0e0" strokeWidth={0.8} /><text x={mL - 5} y={ys2(t) + 3} textAnchor="end" fontSize={6.5} fill="#666">{fY(t)}</text></g>))}
+                          {xT.map((t, i) => (<g key={i}><line x1={xs2(t)} y1={h - mB} x2={xs2(t)} y2={h - mB + 3} stroke="#e0e0e0" strokeWidth={0.8} /><text x={xs2(t)} y={h - mB + 10} textAnchor="middle" fontSize={6.5} fill="#666">{Math.round(t)}</text></g>))}
+                          <line x1={xs2(0)} y1={ys2(Math.max(0, reg.intercept))} x2={xs2(xMax)} y2={ys2(reg.slope * xMax + reg.intercept)} stroke="#1d4ed8" strokeWidth={1.4} />
+                          {localCalibStds.map((s, i) => { const yP = ys2(reg.slope * s.amount + reg.intercept); const yA = ys2(s.area); return Math.abs(yP - yA) > 1 ? <line key={i} x1={xs2(s.amount)} y1={yA} x2={xs2(s.amount)} y2={yP} stroke="#94a3b8" strokeDasharray="2 1" strokeWidth={0.8} /> : null; })}
+                          {localCalibStds.map((s, i) => (<g key={i}><circle cx={xs2(s.amount)} cy={ys2(s.area)} r={3.5} fill="#1d4ed8" stroke="white" strokeWidth={1} /><text x={xs2(s.amount)} y={ys2(s.area) - 5} textAnchor="middle" fontSize={6.5} fill="#1d4ed8">{i + 1}</text></g>))}
+                          <text x={mL + (w - mL - mR) / 2} y={h - 3} textAnchor="middle" fontSize={6.5} fill="#555">Amount [µg/ml]</text>
+                          <text x={7} y={(h - mT - mB) / 2 + mT} textAnchor="middle" fontSize={6.5} fill="#555" transform={`rotate(-90,7,${(h - mT - mB) / 2 + mT})`}>Area</text>
+                        </svg>
+                      );
+                    })()}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
           <div className="flex gap-2 pt-1">
             <Button type="button" variant="outline" className="flex-1" size="sm"
               onClick={() => setOpen(false)}>Cancel</Button>
@@ -7833,6 +7939,31 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
           onPreview={setPreviewPeak}
           controlledOpen={editorDialogOpen}
           onControlledClose={closeEditorDialog}
+          calibData={(() => {
+            const p = dialogPeakRef.current;
+            if (!p) return undefined;
+            const matched = activeCompounds.find(c =>
+              Math.abs(p.retentionTime - c.expectedRT) <= c.rtTol * 2 ||
+              (p.name && p.name.toLowerCase().includes(c.name.toLowerCase())) ||
+              (p.name && c.name.toLowerCase().includes(p.name.toLowerCase()))
+            );
+            if (!matched) return undefined;
+            const cc = getCC(matched.id);
+            return {
+              compoundName: matched.name,
+              standards: cc.standards,
+              onUpdate: (s: CalibStandard[]) => {
+                pushUndo();
+                setCompoundCalibrations(prev => {
+                  const existing = prev[matched.id] ?? getCC(matched.id);
+                  const updated = { ...prev, [matched.id]: { ...existing, standards: s } };
+                  saveCompoundCalibrations(updated);
+                  return updated;
+                });
+                markDirty();
+              },
+            };
+          })()}
         />
       )}
 
