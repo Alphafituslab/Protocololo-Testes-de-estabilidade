@@ -33,6 +33,10 @@ interface Peak {
   printSelected?: boolean;  // include in printed report (default = true)
   locked?: boolean;         // if true: peak cannot be moved, edited or deleted
   isGhost?: boolean;        // ghost/phantom peak — overlapping, imperfect shape, no label
+  // Advanced peak shape
+  emgTau?: number;          // 0 = Gaussian; >0 = EMG exponential tail time constant (min)
+  overload?: number;        // 0–1 — column overload: compresses front, extends tail
+  flatTop?: number;         // 0–1 — detector saturation: clips peak apex
 }
 
 interface SampleInfo {
@@ -73,6 +77,13 @@ interface DetectorInfo {
   baselinePulseFreq: number;   // cycles/min — pump pulsation frequency (default ~1.6)
   baselineStartOffset: number; // mAU — initial displacement at t=0 that decays exponentially
   baselineStartDecay: number;  // min — time constant for initial baseline to settle
+  // Advanced baseline artifacts
+  baselineStep?: number;       // mAU — sudden step offset (valve/switching artifact)
+  baselineStepRT?: number;     // min — RT at which step occurs (0 = disabled)
+  gradientRamp?: number;       // mAU — smooth sigmoid baseline rise (gradient UV absorption)
+  spikeRate?: number;          // spikes/min — random electronic transients
+  baselineDecay?: number;      // mAU — exponential bleed-out from t=0
+  wanderFreq?: number;         // multiplier — wander oscillation frequency (default 1.0)
   lineWidth: number;           // px — thickness of the chromatogram trace
   // Y-axis (mAU) scale
   yAxisAuto: boolean;     // true = auto-scale; false = use yAxisMin/yAxisMax
@@ -304,6 +315,35 @@ function gaussian(t: number, rt: number, sigma: number, h: number, asym: number)
   return h * Math.exp(-(d * d) / (2 * s * s));
 }
 
+/** Advanced peak shape: split-Gaussian + optional EMG tailing, column overload and flat-top. */
+function peakShapeAt(t: number, p: Peak, effWidth: number): number {
+  const emgTau = p.emgTau ?? 0;
+  const overload = p.overload ?? 0;
+  const flatTop = p.flatTop ?? 0;
+  const d = t - p.retentionTime;
+  const sigmaL = overload > 0 ? effWidth * Math.max(0.2, 1 - overload * 0.7) : effWidth;
+  const sigmaR = effWidth * p.asymmetry;
+  let y: number;
+  if (d < 0) {
+    y = p.height * Math.exp(-(d * d) / (2 * sigmaL * sigmaL));
+  } else if (emgTau > 0) {
+    const gY = p.height * Math.exp(-(d * d) / (2 * sigmaR * sigmaR));
+    const eY = p.height * Math.exp(-d / emgTau);
+    const blend = Math.min(0.95, emgTau / (sigmaR + emgTau));
+    y = gY * (1 - blend) + eY * blend;
+  } else {
+    y = p.height * Math.exp(-(d * d) / (2 * sigmaR * sigmaR));
+  }
+  if (overload > 0 && d > 0) {
+    y += p.height * overload * 0.4 * Math.exp(-d / (effWidth * 2.5));
+  }
+  if (flatTop > 0) {
+    const sat = p.height * (1 - flatTop * 0.78);
+    if (y > sat) y = sat + (y - sat) * 0.07;
+  }
+  return Math.max(0, y);
+}
+
 // Deterministic pseudo-noise — same result every render, looks random
 function pseudoNoise(i: number): number {
   const a = Math.sin(i * 127.1 + 1.0) * 43758.5453;
@@ -371,6 +411,12 @@ function buildChromatogram(
   pulseFreqHz = 1.6,      // cycles/min — pump pulsation frequency
   startOffset = 0,        // mAU — initial baseline displacement at t=0 (exponential decay)
   startDecay = 1.0,       // min — time constant for initial baseline to settle
+  gradientRamp = 0,       // mAU — smooth sigmoid UV absorption ramp (gradient)
+  stepAmp = 0,            // mAU — sudden baseline step offset
+  stepRT = 0,             // min — RT of step (0 = disabled)
+  spikeRateParam = 0,     // spikes/min — random electronic transients
+  decayParam = 0,         // mAU — exponential bleed-out amplitude from t=0
+  wanderFreqMult = 1.0,   // multiplier — wander oscillation frequency
 ) {
   const dt = runTime / pts;
   const pulseFreq = pulseFreqHz;
@@ -393,7 +439,7 @@ function buildChromatogram(
       const effWidth = broadeningFactor > 0
         ? p.width * (1 + broadeningFactor * (p.retentionTime / runTime))
         : p.width;
-      const localAmp = gaussian(t, p.retentionTime, effWidth, p.height, p.asymmetry);
+      const localAmp = peakShapeAt(t, p, effWidth);
       signal += localAmp + peakNoiseAt(i, peakSeeds[pi], localAmp, p.peakNoise ?? 0);
       // Peak inclination — tilts the peak by adding a linear ramp under the Gaussian envelope
       if ((p.inclination ?? 0) !== 0) {
@@ -419,11 +465,11 @@ function buildChromatogram(
     const n4 = pseudoNoise(i * 37 + 1234);
     const noise = noiseAmp * (n1 * 0.50 + n2 * 0.28 + n3 * 0.14 + n4 * 0.08);
 
-    // Slow baseline wander: two sinusoids at different periods (visible in gradient LC)
+    // Slow baseline wander: two sinusoids at different periods (wanderFreqMult controls speed)
     const wander = wanderAmp > 0
       ? wanderAmp * (
-          Math.sin(2 * Math.PI * 2.3 * t / runTime + 0.8) * 0.60 +
-          Math.sin(2 * Math.PI * 4.7 * t / runTime + 2.1) * 0.40
+          Math.sin(2 * Math.PI * 2.3 * wanderFreqMult * t / runTime + 0.8) * 0.60 +
+          Math.sin(2 * Math.PI * 4.7 * wanderFreqMult * t / runTime + 2.1) * 0.40
         )
       : 0;
 
@@ -443,7 +489,21 @@ function buildChromatogram(
       ? startOffset * Math.exp(-t / Math.max(startDecay, 0.01))
       : 0;
 
-    const total = signal + shot + noise + wander + drift + pulse + hump + baselineOffset + startEffect;
+    // Gradient ramp — smooth sigmoid UV absorption rise (e.g. reversed-phase gradient)
+      const gradRamp = gradientRamp > 0
+        ? gradientRamp * (1 / (1 + Math.exp(-8 * (t / runTime - 0.45))))
+        : 0;
+      // Step artifact at stepRT (valve switch, column switch)
+      const stepEffect = (stepAmp !== 0 && stepRT > 0 && t >= stepRT) ? stepAmp : 0;
+      // Random electronic spikes
+      const spikeProb = spikeRateParam > 0 ? spikeRateParam * dt : 0;
+      const spike = spikeProb > 0 && (pseudoNoise(i * 91237 + 4441) + 0.5) < spikeProb
+        ? pseudoNoise(i * 33331 + 2222) * spikeRateParam * 80
+        : 0;
+      // Exponential decay from t=0 (column bleed-out / solvent front tail)
+      const decay = decayParam > 0 ? decayParam * Math.exp(-t / (runTime * 0.12)) : 0;
+      // Wander with variable frequency
+      const total = signal + shot + noise + wander + drift + pulse + hump + baselineOffset + startEffect + gradRamp + stepEffect + spike + decay;
     return { time: parseFloat(t.toFixed(4)), signal: parseFloat(Math.max(0, total).toFixed(3)) };
   });
 }
@@ -787,6 +847,12 @@ const DEFAULT_DETECTOR: DetectorInfo = {
   baselinePulseFreq: 1.6,
   baselineStartOffset: 0,
   baselineStartDecay: 1.0,
+  baselineStep: 0,
+  baselineStepRT: 0,
+  gradientRamp: 0,
+  spikeRate: 0,
+  baselineDecay: 0,
+  wanderFreq: 1.0,
   lineWidth: 1.0,
   yAxisAuto: true,
   yAxisMin: 0,
@@ -1426,6 +1492,57 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
               <span>0 = Gaussiano perfeito</span><span>1 = extremamente rugoso</span>
             </div>
           </div>
+
+            {/* EMG Tau */}
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                <span>Cauda EMG — τ (min)</span>
+                <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{((editPeak?.emgTau ?? 0)).toFixed(3)}</span>
+              </div>
+              <input
+                type="range" min="0" max="2" step="0.005"
+                value={editPeak?.emgTau ?? 0}
+                onChange={e => setEditPeak(p => p ? { ...p, emgTau: parseFloat(e.target.value) } : p)}
+                className="w-full h-2 accent-blue-600"
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                <span>0 = Gaussiano puro</span><span>2 = cauda exponencial severa</span>
+              </div>
+            </div>
+
+            {/* Column Overload */}
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                <span>Sobrecarga de coluna</span>
+                <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{((editPeak?.overload ?? 0) * 100).toFixed(0)}%</span>
+              </div>
+              <input
+                type="range" min="0" max="1" step="0.01"
+                value={editPeak?.overload ?? 0}
+                onChange={e => setEditPeak(p => p ? { ...p, overload: parseFloat(e.target.value) } : p)}
+                className="w-full h-2 accent-blue-600"
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                <span>0% = coluna ideal</span><span>100% = saturaç. da fase estac.</span>
+              </div>
+            </div>
+
+            {/* Flat Top / Detector Saturation */}
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                <span>Saturação do detector</span>
+                <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{((editPeak?.flatTop ?? 0) * 100).toFixed(0)}%</span>
+              </div>
+              <input
+                type="range" min="0" max="1" step="0.01"
+                value={editPeak?.flatTop ?? 0}
+                onChange={e => setEditPeak(p => p ? { ...p, flatTop: parseFloat(e.target.value) } : p)}
+                className="w-full h-2 accent-blue-600"
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                <span>0% = linear</span><span>100% = pico totalmente chato</span>
+              </div>
+            </div>
 
           <p className="text-xs text-muted-foreground pt-1">
             Area = 0 → computed automatically.<br />
@@ -2818,7 +2935,7 @@ export default function HplcSimulator() {
   );
 
   const chromatogram = useMemo(
-    () => buildChromatogram(peaksForDisplay, detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander ?? 0, detector.shotNoise ?? 0, detector.baselineHump ?? 0, detector.broadeningFactor ?? 0, detector.baselineOffset ?? 0, detector.baselinePulseFreq ?? 1.6, detector.baselineStartOffset ?? 0, detector.baselineStartDecay ?? 1.0),
+    () => buildChromatogram(peaksForDisplay, detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander ?? 0, detector.shotNoise ?? 0, detector.baselineHump ?? 0, detector.broadeningFactor ?? 0, detector.baselineOffset ?? 0, detector.baselinePulseFreq ?? 1.6, detector.baselineStartOffset ?? 0, detector.baselineStartDecay ?? 1.0, detector.gradientRamp ?? 0, detector.baselineStep ?? 0, detector.baselineStepRT ?? 0, detector.spikeRate ?? 0, detector.baselineDecay ?? 0, detector.wanderFreq ?? 1.0),
     [peaksForDisplay, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander, detector.shotNoise, detector.baselineHump, detector.broadeningFactor, detector.baselineOffset, detector.baselinePulseFreq, detector.baselineStartOffset, detector.baselineStartDecay],
   );
 
@@ -3229,6 +3346,17 @@ export default function HplcSimulator() {
       }
       if (k === "analysisMethod") {
         return { ...s, analysisMethod: val, acqMethod: syncMethodPeer("analysisMethod", val, s.acqMethod) };
+      }
+      if (k === "sampleName") {
+        const safe = val.toUpperCase().replace(/[^A-Z0-9 ]/g, "").trim().slice(0, 24) || "SAMPLE";
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, "0");
+        const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+        const timeStr = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+        const ts = `${pad(now.getMonth() + 1)}/${pad(now.getDate())}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${now.getHours() >= 12 ? "PM" : "AM"} by ${s.acqOperator || "LAB"}`;
+        const newAcqMethod = `C:\\CHEM32\\1\\DATA\\${safe} ${dateStr} ${timeStr}\\${safe}.M`;
+        const newAnalysisMethod = `C:\\CHEM32\\1\\METHODS\\${safe}.M`;
+        return { ...s, sampleName: val, acqMethod: newAcqMethod, analysisMethod: newAnalysisMethod, lastChanged1: ts, lastChanged2: ts };
       }
       return { ...s, [k]: val };
     });
@@ -4162,6 +4290,89 @@ export default function HplcSimulator() {
                         className="w-full h-2 accent-blue-600" />
                       <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
                         <span>0.1 min (rápido)</span><span>5.0 min (lento)</span>
+                      </div>
+                    </div>
+                    {/* Gradient Ramp slider */}
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                        <span>Rampa de gradiente (mAU)</span>
+                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.gradientRamp ?? 0).toFixed(0)}</span>
+                      </div>
+                      <input type="range" min="0" max="500" step="5"
+                        value={detector.gradientRamp ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, gradientRamp: parseFloat(e.target.value) })); markDirty(); }}
+                        className="w-full h-2 accent-blue-600" />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                        <span>0 = isocrático</span><span>500 = gradiente UV extremo</span>
+                      </div>
+                    </div>
+                    {/* Baseline Step sliders */}
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                        <span>Degrau (válvula/troca) (mAU)</span>
+                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineStep ?? 0).toFixed(0)}</span>
+                      </div>
+                      <input type="range" min="-200" max="200" step="5"
+                        value={detector.baselineStep ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, baselineStep: parseFloat(e.target.value) })); markDirty(); }}
+                        className="w-full h-2 accent-blue-600" />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                        <span>−200 mAU</span><span>0 = sem degrau</span><span>+200 mAU</span>
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                        <span>TR do degrau (min)</span>
+                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineStepRT ?? 0).toFixed(1)}</span>
+                      </div>
+                      <input type="range" min="0" max={detector.runTime} step="0.1"
+                        value={detector.baselineStepRT ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, baselineStepRT: parseFloat(e.target.value) })); markDirty(); }}
+                        className="w-full h-2 accent-blue-600" />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                        <span>0 = desativado</span><span>{detector.runTime.toFixed(0)} min</span>
+                      </div>
+                    </div>
+                    {/* Wander Frequency slider */}
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                        <span>Freq. de ondulação (×)</span>
+                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.wanderFreq ?? 1.0).toFixed(1)}×</span>
+                      </div>
+                      <input type="range" min="0.2" max="8" step="0.1"
+                        value={detector.wanderFreq ?? 1.0}
+                        onChange={e => { setDetector(d => ({ ...d, wanderFreq: parseFloat(e.target.value) })); markDirty(); }}
+                        className="w-full h-2 accent-blue-600" />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                        <span>0.2× = muito lenta</span><span>8× = muito rápida</span>
+                      </div>
+                    </div>
+                    {/* Spike Rate slider */}
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                        <span>Spikes elétricos (por min)</span>
+                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.spikeRate ?? 0).toFixed(1)}</span>
+                      </div>
+                      <input type="range" min="0" max="10" step="0.5"
+                        value={detector.spikeRate ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, spikeRate: parseFloat(e.target.value) })); markDirty(); }}
+                        className="w-full h-2 accent-blue-600" />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                        <span>0 = sem spikes</span><span>10 = interferência severa</span>
+                      </div>
+                    </div>
+                    {/* Baseline Decay slider */}
+                    <div style={{ marginBottom: 4 }}>
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                        <span>Sangria exp. inicial (mAU)</span>
+                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineDecay ?? 0).toFixed(0)}</span>
+                      </div>
+                      <input type="range" min="0" max="800" step="10"
+                        value={detector.baselineDecay ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, baselineDecay: parseFloat(e.target.value) })); markDirty(); }}
+                        className="w-full h-2 accent-blue-600" />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 8, color: "#aaa" }}>
+                        <span>0 = sem sangria</span><span>800 = column bleed extremo</span>
                       </div>
                     </div>
                   </div>
@@ -7620,7 +7831,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                   ["em_andamento", "In Progress", "#1d4ed8", "#dbeafe"],
                   ["aprovado",     "Approved",    "#16a34a", "#dcfce7"],
                   ["reprovado",    "Rejected",    "#dc2626", "#fee2e2"],
-                ] as const).map(([val, label, color, bg]) => (
+                , "emgTau", "overload", "flatTop"] as const).map(([val, label, color, bg]) => (
                   <button
                     key={val}
                     onClick={() => setFinalizeStatus(val)}
