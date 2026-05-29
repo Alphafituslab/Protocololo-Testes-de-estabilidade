@@ -4365,8 +4365,57 @@ export default function HplcSimulator() {
                           ⟳ Sync
                         </Button>
                         <Button size="sm" variant="outline" className="h-6 gap-0.5 text-xs px-2" onClick={() => addCompoundStandard(calibCompound.id)}>
-                          <Plus className="h-3 w-3" /> Add Std
-                        </Button>
+                            <Plus className="h-3 w-3" /> Add Std
+                          </Button>
+                          <button
+                            type="button"
+                            title="Load 5-point B6 calibration template from Agilent ChemStation data (10/25/50/70/100 µg/ml)"
+                            onClick={() => {
+                              if (cc.standards.length > 0 && !window.confirm("Replace existing standards with the B6 5-point template?")) return;
+                              pushUndo();
+                              const b6Points = [
+                                { amount: 10.00000, area: 296.16348 },
+                                { amount: 25.00000, area: 620.81195 },
+                                { amount: 50.00000, area: 1286.75647 },
+                                { amount: 70.00000, area: 1737.21973 },
+                                { amount: 100.00000, area: 2530.36230 },
+                              ];
+                              setCompoundCalibrations(prev => {
+                                const existing = prev[calibCompound.id] ?? getCC(calibCompound.id);
+                                const newStds = b6Points.map(pt => ({ id: uid(), amount: pt.amount, area: pt.area }));
+                                const updated = {
+                                  ...prev,
+                                  [calibCompound.id]: {
+                                    ...existing,
+                                    standards: newStds,
+                                    calib: {
+                                      ...existing.calib,
+                                      calibDataModified: "Thursday, April 24, 2025 6:00:25 PM",
+                                      curveType: "Linear",
+                                      origin: "Included",
+                                      weight: "Equal",
+                                      expRT: 2.438,
+                                      relRefWindow: "5.000 %",
+                                      absRefWindow: "0.000 min",
+                                      relNonRefWindow: "5.000 %",
+                                      absNonRefWindow: "0.000 min",
+                                      uncalibratedPeaks: "not reported",
+                                      partialCalibration: "Yes, identified peaks are recalibrated",
+                                      correctAllRetTimes: "No, only for identified peaks",
+                                      avgResponse: "Average all calibrations",
+                                      avgRetentionTime: "Floating Average New 75%",
+                                    },
+                                  },
+                                };
+                                saveCompoundCalibrations(updated);
+                                return updated;
+                              });
+                              markDirty();
+                            }}
+                            style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "1px 7px", border: "1px solid #7c3aed", borderRadius: 3, background: "#f5f3ff", cursor: "pointer", color: "#6d28d9", fontWeight: "bold", whiteSpace: "nowrap" }}
+                          >
+                            📅 B6 Template
+                          </button>
                         {cc.locked ? (
                           <button
                             type="button"
@@ -5599,13 +5648,8 @@ export default function HplcSimulator() {
                   // Filter 2: must have calibration standards defined
                   const cc = getCC(compound.id);
                   if (cc.standards.length === 0) return false;
-                  // Filter 3: must have a matching peak in the current chromatogram
-                  return peaks.some(p =>
-                    (p.name && (
-                      p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
-                      compound.name.toLowerCase().includes(p.name.toLowerCase())
-                    )) || Math.abs(p.retentionTime - compound.expectedRT) < compound.rtTol * 2
-                  );
+                  // Chart shows whenever ≥1 standard is defined (no peak required)
+                  return true;
                 })
                 .map(compound => {
                 const cc = getCC(compound.id);
@@ -5705,6 +5749,12 @@ export default function HplcSimulator() {
                     {/* Calibration Curves — full-width SVG chart matching original   */}
                     {/* ══════════════════════════════════════════════════════════════ */}
                     <div style={{ marginTop: 28 }}>
+                    {/* Note if no peak in chromatogram */}
+                    {!peaks.some(p => (p.name && (p.name.toLowerCase().includes(compound.name.toLowerCase()) || compound.name.toLowerCase().includes(p.name.toLowerCase()))) || Math.abs(p.retentionTime - (cc.calib.expRT > 0 ? cc.calib.expRT : compound.expectedRT)) < compound.rtTol * 2) && (
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 4, padding: "5px 10px", marginBottom: 10 }}>
+                        ⚠ No chromatogram peak matched — showing calibration curve from entered standards only
+                      </div>
+                    )}
                       <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
                       <div style={{ whiteSpace: "pre" }}>{"    " + " ".repeat(26) + "Calibration Curves"}</div>
                       <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
