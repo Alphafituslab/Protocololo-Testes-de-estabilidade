@@ -1414,9 +1414,10 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
           <div className="pt-1">
             <div className="flex justify-between items-center mb-1">
               <Label className="text-xs text-muted-foreground">Peak Height (mAU)</Label>
-              <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
-                {heightVal.toFixed(0)}
-              </span>
+              <input type="number" step="1" min="1" max="10000" value={heightVal}
+                onChange={e => setDraft(d => ({ ...d, height: e.target.value }))}
+                style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 70, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+              />
             </div>
             <input type="range" min="1" max="10000" step="1"
               value={heightVal}
@@ -1431,9 +1432,10 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
           <div className="pt-1">
             <div className="flex justify-between items-center mb-1">
               <Label className="text-xs text-muted-foreground">Width σ (min)</Label>
-              <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
-                {widthVal.toFixed(3)}
-              </span>
+              <input type="number" step="0.005" min="0.005" max="5.0" value={widthVal}
+                onChange={e => setDraft(d => ({ ...d, width: e.target.value }))}
+                style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 70, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+              />
             </div>
             <input type="range" min="0.005" max="5.0" step="0.005"
               value={widthVal}
@@ -1448,9 +1450,15 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
           <div className="pt-1">
             <div className="flex justify-between items-center mb-1">
               <Label className="text-xs text-muted-foreground">Asymmetry (tailing/fronting)</Label>
-              <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
-                {asymVal < 0.99 ? `${asymVal.toFixed(2)} ← fronting` : asymVal > 1.01 ? `${asymVal.toFixed(2)} → tailing` : "1.00 symmetric"}
-              </span>
+              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#1d4ed8" }}>
+                    {asymVal < 0.99 ? "← front." : asymVal > 1.01 ? "→ tail." : "symm."}
+                  </span>
+                  <input type="number" step="0.05" min="0.1" max="10.0" value={asymVal}
+                onChange={e => setDraft(d => ({ ...d, asymmetry: e.target.value }))}
+                style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 70, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+              />
+                </div>
             </div>
             <input type="range" min="0.1" max="10.0" step="0.05"
               value={asymVal}
@@ -1465,9 +1473,15 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
           <div className="pt-1">
             <div className="flex justify-between items-center mb-1">
               <Label className="text-xs text-muted-foreground">Peak Tilt</Label>
-              <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
-                {inclVal === 0 ? "neutral" : inclVal > 0 ? `+${inclVal.toFixed(1)} →` : `${inclVal.toFixed(1)} ←`}
-              </span>
+              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#1d4ed8" }}>
+                    {inclVal === 0 ? "—" : inclVal > 0 ? "→" : "←"}
+                  </span>
+                  <input type="number" step="0.1" min="-5" max="5" value={inclVal}
+                onChange={e => setDraft(d => ({ ...d, inclination: e.target.value }))}
+                style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 70, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+              />
+                </div>
             </div>
             <input type="range" min="-5" max="5" step="0.1"
               value={inclVal}
@@ -1482,10 +1496,15 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
           <div className="pt-1">
             <div className="flex justify-between items-center mb-1">
               <Label className="text-xs text-muted-foreground">Peak Roughness</Label>
-              <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>
-                {noiseVal === 0 ? "perfect" : noiseVal < 0.3 ? "light" : noiseVal < 0.65 ? "moderate" : "heavy"}
-                {" "}({noiseVal.toFixed(2)})
-              </span>
+              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#1d4ed8" }}>
+                    {noiseVal === 0 ? "perfect" : noiseVal < 0.3 ? "light" : noiseVal < 0.65 ? "mod." : "heavy"}
+                  </span>
+                  <input type="number" step="0.01" min="0" max="1" value={noiseVal}
+                onChange={e => setDraft(d => ({ ...d, peakNoise: e.target.value }))}
+                style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 70, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+              />
+                </div>
             </div>
             <input type="range" min="0" max="1" step="0.01"
               value={noiseVal}
@@ -1500,7 +1519,10 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
             <div style={{ marginBottom: 8 }}>
               <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                 <span>Cauda EMG — τ (min)</span>
-                <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{emgTauVal.toFixed(3)}</span>
+                <input type="number" step="0.005" min="0" max="2" value={emgTauVal}
+                  onChange={e => setDraft(d => ({ ...d, emgTau: e.target.value }))}
+                  style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 70, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                />
               </div>
               <input
                 type="range" min="0" max="2" step="0.005"
@@ -1517,7 +1539,10 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
             <div style={{ marginBottom: 8 }}>
               <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                 <span>Sobrecarga de coluna</span>
-                <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(overloadVal * 100).toFixed(0)}%</span>
+                <input type="number" step="1" min="0" max="100" value={(overloadVal * 100).toFixed(0)}
+                  onChange={e => setDraft(d => ({ ...d, overload: String(parseFloat(e.target.value) / 100 || 0) }))}
+                  style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 70, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                />
               </div>
               <input
                 type="range" min="0" max="1" step="0.01"
@@ -1534,7 +1559,10 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
             <div style={{ marginBottom: 8 }}>
               <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                 <span>Saturação do detector</span>
-                <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(flatTopVal * 100).toFixed(0)}%</span>
+                <input type="number" step="1" min="0" max="100" value={(flatTopVal * 100).toFixed(0)}
+                  onChange={e => setDraft(d => ({ ...d, flatTop: String(parseFloat(e.target.value) / 100 || 0) }))}
+                  style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 70, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                />
               </div>
               <input
                 type="range" min="0" max="1" step="0.01"
@@ -2588,10 +2616,11 @@ export default function HplcSimulator() {
   const fileTargetPeakIdRef = useRef<string | null>(null);
 
   // ── Undo stack ───────────────────────────────────────────────────────────
-  const undoStackRef = useRef<Array<{ peaks: Peak[]; compoundCalibrations: Record<string, CompoundCalibration> }>>([]);
+  const undoStackRef = useRef<Array<{ peaks: Peak[]; compoundCalibrations: Record<string, CompoundCalibration>; detector: DetectorInfo }>>([]);
   const [canUndo, setCanUndo] = useState(false);
   const peaksUndoRef = useRef<Peak[]>([]);
   const calibUndoRef = useRef<Record<string, CompoundCalibration>>({});
+    const detectorUndoRef = useRef<DetectorInfo>(DEFAULT_DETECTOR);
 
   const [userList, setUserList] = useState<UserRecord[]>([]);
   const [userListLoading, setUserListLoading] = useState(false);
@@ -2722,10 +2751,11 @@ export default function HplcSimulator() {
   // Keep refs in sync so pushUndo can always capture the latest state
   useEffect(() => { peaksUndoRef.current = peaks; }, [peaks]);
   useEffect(() => { calibUndoRef.current = compoundCalibrations; }, [compoundCalibrations]);
+    useEffect(() => { detectorUndoRef.current = detector; }, [detector]);
 
   const pushUndo = useCallback(() => {
     undoStackRef.current = [
-      { peaks: [...peaksUndoRef.current], compoundCalibrations: { ...calibUndoRef.current } },
+      { peaks: [...peaksUndoRef.current], compoundCalibrations: { ...calibUndoRef.current }, detector: { ...detectorUndoRef.current } },
       ...undoStackRef.current.slice(0, 19),
     ];
     setCanUndo(true);
@@ -2746,7 +2776,8 @@ export default function HplcSimulator() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+        if (target.tagName === 'TEXTAREA') return;
+        if (target.tagName === 'INPUT' && (target as HTMLInputElement).type !== 'number') return;
         e.preventDefault();
         handleUndo();
       }
@@ -4120,7 +4151,10 @@ export default function HplcSimulator() {
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                       <span>Espessura do traçado</span>
-                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{detector.lineWidth.toFixed(1)} px</span>
+                      <input type="number" step="0.1" min="0.3" max="8" value={detector.lineWidth}
+                        onChange={e => { setDetector(d => ({ ...d, lineWidth: parseFloat(e.target.value) || 0.3 })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                     </div>
                     <input
                       type="range" min="0.3" max="8" step="0.1"
@@ -4136,7 +4170,10 @@ export default function HplcSimulator() {
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                       <span>Ruído de fundo (mAU)</span>
-                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{detector.baselineNoise.toFixed(2)}</span>
+                      <input type="number" step="0.5" min="0" max="200" value={detector.baselineNoise}
+                        onChange={e => { setDetector(d => ({ ...d, baselineNoise: parseFloat(e.target.value) })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                     </div>
                     <input
                       type="range" min="0" max="200" step="0.5"
@@ -4152,7 +4189,10 @@ export default function HplcSimulator() {
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                       <span>Deriva linear (mAU)</span>
-                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{detector.baselineDrift.toFixed(2)}</span>
+                      <input type="number" step="1" min="0" max="500" value={detector.baselineDrift}
+                        onChange={e => { setDetector(d => ({ ...d, baselineDrift: parseFloat(e.target.value) })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                     </div>
                     <input
                       type="range" min="0" max="500" step="1"
@@ -4168,7 +4208,10 @@ export default function HplcSimulator() {
                   <div style={{ marginBottom: 4 }}>
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                       <span>Pulsação da bomba (mAU)</span>
-                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{detector.baselinePulse.toFixed(2)}</span>
+                      <input type="number" step="0.5" min="0" max="100" value={detector.baselinePulse}
+                        onChange={e => { setDetector(d => ({ ...d, baselinePulse: parseFloat(e.target.value) })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                     </div>
                     <input
                       type="range" min="0" max="100" step="0.5"
@@ -4184,7 +4227,10 @@ export default function HplcSimulator() {
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                       <span>Ondulação lenta (mAU)</span>
-                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineWander ?? 0).toFixed(2)}</span>
+                      <input type="number" step="1" min="0" max="200" value={detector.baselineWander ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, baselineWander: parseFloat(e.target.value) })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                     </div>
                     <input type="range" min="0" max="200" step="1"
                       value={detector.baselineWander ?? 0}
@@ -4198,7 +4244,10 @@ export default function HplcSimulator() {
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                       <span>Ruído proporcional / shot (LC-MS)</span>
-                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.shotNoise ?? 0).toFixed(2)}</span>
+                      <input type="number" step="0.05" min="0" max="5" value={detector.shotNoise ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, shotNoise: parseFloat(e.target.value) })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                     </div>
                     <input type="range" min="0" max="5" step="0.05"
                       value={detector.shotNoise ?? 0}
@@ -4212,7 +4261,10 @@ export default function HplcSimulator() {
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                       <span>Hump coluna / matriz (mAU)</span>
-                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineHump ?? 0).toFixed(0)}</span>
+                      <input type="number" step="10" min="0" max="3000" value={detector.baselineHump ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, baselineHump: parseFloat(e.target.value) })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                     </div>
                     <input type="range" min="0" max="3000" step="10"
                       value={detector.baselineHump ?? 0}
@@ -4226,7 +4278,10 @@ export default function HplcSimulator() {
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                       <span>Alargamento c/ RT — van Deemter</span>
-                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.broadeningFactor ?? 0).toFixed(2)}</span>
+                      <input type="number" step="0.01" min="0" max="3" value={detector.broadeningFactor ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, broadeningFactor: parseFloat(e.target.value) })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                     </div>
                     <input type="range" min="0" max="3" step="0.01"
                       value={detector.broadeningFactor ?? 0}
@@ -4240,7 +4295,10 @@ export default function HplcSimulator() {
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                       <span>Deslocamento vertical (mAU)</span>
-                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineOffset ?? 0).toFixed(0)}</span>
+                      <input type="number" step="1" min="-200" max="200" value={detector.baselineOffset ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, baselineOffset: parseFloat(e.target.value) })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                     </div>
                     <input type="range" min="-200" max="200" step="1"
                       value={detector.baselineOffset ?? 0}
@@ -4254,7 +4312,10 @@ export default function HplcSimulator() {
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                       <span>Frequência da bomba (ciclos/min)</span>
-                      <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselinePulseFreq ?? 1.6).toFixed(1)}</span>
+                      <input type="number" step="0.1" min="0.2" max="8" value={detector.baselinePulseFreq ?? 1.6}
+                        onChange={e => { setDetector(d => ({ ...d, baselinePulseFreq: parseFloat(e.target.value) || 1.6 })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                     </div>
                     <input type="range" min="0.2" max="8.0" step="0.1"
                       value={detector.baselinePulseFreq ?? 1.6}
@@ -4272,7 +4333,10 @@ export default function HplcSimulator() {
                     <div style={{ marginBottom: 8 }}>
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                         <span>Start Offset (mAU)</span>
-                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineStartOffset ?? 0).toFixed(0)}</span>
+                        <input type="number" step="5" min="-300" max="300" value={detector.baselineStartOffset ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, baselineStartOffset: parseFloat(e.target.value) })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                       </div>
                       <input type="range" min="-300" max="300" step="5"
                         value={detector.baselineStartOffset ?? 0}
@@ -4285,7 +4349,10 @@ export default function HplcSimulator() {
                     <div style={{ marginBottom: 4 }}>
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                         <span>Stabilization Time (min)</span>
-                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineStartDecay ?? 1.0).toFixed(1)}</span>
+                        <input type="number" step="0.1" min="0.1" max="5" value={detector.baselineStartDecay ?? 1.0}
+                        onChange={e => { setDetector(d => ({ ...d, baselineStartDecay: parseFloat(e.target.value) || 1.0 })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                       </div>
                       <input type="range" min="0.1" max="5.0" step="0.1"
                         value={detector.baselineStartDecay ?? 1.0}
@@ -4299,7 +4366,10 @@ export default function HplcSimulator() {
                     <div style={{ marginBottom: 8 }}>
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                         <span>Rampa de gradiente (mAU)</span>
-                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.gradientRamp ?? 0).toFixed(0)}</span>
+                        <input type="number" step="5" min="0" max="500" value={detector.gradientRamp ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, gradientRamp: parseFloat(e.target.value) })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                       </div>
                       <input type="range" min="0" max="500" step="5"
                         value={detector.gradientRamp ?? 0}
@@ -4313,7 +4383,10 @@ export default function HplcSimulator() {
                     <div style={{ marginBottom: 8 }}>
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                         <span>Degrau (válvula/troca) (mAU)</span>
-                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineStep ?? 0).toFixed(0)}</span>
+                        <input type="number" step="5" min="-200" max="200" value={detector.baselineStep ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, baselineStep: parseFloat(e.target.value) })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                       </div>
                       <input type="range" min="-200" max="200" step="5"
                         value={detector.baselineStep ?? 0}
@@ -4326,7 +4399,10 @@ export default function HplcSimulator() {
                     <div style={{ marginBottom: 8 }}>
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                         <span>TR do degrau (min)</span>
-                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineStepRT ?? 0).toFixed(1)}</span>
+                        <input type="number" step="0.1" min="0" max="{detector.runTime}" value={detector.baselineStepRT ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, baselineStepRT: parseFloat(e.target.value) })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                       </div>
                       <input type="range" min="0" max={detector.runTime} step="0.1"
                         value={detector.baselineStepRT ?? 0}
@@ -4340,7 +4416,10 @@ export default function HplcSimulator() {
                     <div style={{ marginBottom: 8 }}>
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                         <span>Freq. de ondulação (×)</span>
-                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.wanderFreq ?? 1.0).toFixed(1)}×</span>
+                        <input type="number" step="0.1" min="0.2" max="8" value={detector.wanderFreq ?? 1.0}
+                        onChange={e => { setDetector(d => ({ ...d, wanderFreq: parseFloat(e.target.value) || 1.0 })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                       </div>
                       <input type="range" min="0.2" max="8" step="0.1"
                         value={detector.wanderFreq ?? 1.0}
@@ -4354,7 +4433,10 @@ export default function HplcSimulator() {
                     <div style={{ marginBottom: 8 }}>
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                         <span>Spikes elétricos (por min)</span>
-                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.spikeRate ?? 0).toFixed(1)}</span>
+                        <input type="number" step="0.5" min="0" max="10" value={detector.spikeRate ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, spikeRate: parseFloat(e.target.value) })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                       </div>
                       <input type="range" min="0" max="10" step="0.5"
                         value={detector.spikeRate ?? 0}
@@ -4368,7 +4450,10 @@ export default function HplcSimulator() {
                     <div style={{ marginBottom: 4 }}>
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
                         <span>Sangria exp. inicial (mAU)</span>
-                        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{(detector.baselineDecay ?? 0).toFixed(0)}</span>
+                        <input type="number" step="10" min="0" max="800" value={detector.baselineDecay ?? 0}
+                        onChange={e => { setDetector(d => ({ ...d, baselineDecay: parseFloat(e.target.value) })); markDirty(); }}
+                        style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 62, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
+                      />
                       </div>
                       <input type="range" min="0" max="800" step="10"
                         value={detector.baselineDecay ?? 0}
@@ -7349,6 +7434,9 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                 <div style={ROW}>
                   <span style={LBL}>Certified purity (%)</span>
                   {numInput(padraoConfig.stdPurity, v => updatePadraoProtected({ stdPurity: v }), { step: "0.01", placeholder: "100.00" })}
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#059669", marginTop: 2, background: "#ecfdf5", border: "1px solid #6ee7b7", borderRadius: 3, padding: "2px 5px" }}>
+                      ✓ Altera Found Amount, Purity vs Standard e todos os cálculos abaixo automaticamente
+                    </div>
                 </div>
 
                 <PeakCapture
