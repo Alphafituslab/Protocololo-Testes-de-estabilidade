@@ -1,0 +1,71 @@
+╔══════════════════════════════════════════════════════════════╗
+  ║           ALPHAFITUS - SISTEMA LABORATORIAL                  ║
+  ║           Guia de Instalação Windows + Docker                ║
+  ╚══════════════════════════════════════════════════════════════╝
+
+  ════════════════════════════════════════════════════════════════
+  PASSO 1 — INSTALAR O DOCKER DESKTOP (apenas 1 vez)
+  ════════════════════════════════════════════════════════════════
+  1. Acesse: https://www.docker.com/products/docker-desktop/
+  2. Clique em "Download for Windows"
+  3. Execute o instalador baixado
+  4. Reinicie o computador quando solicitado
+  5. Abra o Docker Desktop e aceite os termos
+
+  ════════════════════════════════════════════════════════════════
+  PASSO 2 — INSTALAR O ALPHAFITUS (apenas 1 vez)
+  ════════════════════════════════════════════════════════════════
+  1. Extraia esta pasta em C:\Alphafitus\ (recomendado)
+  2. Coloque os arquivos do sistema na subpasta "app\"
+  3. Clique 2x em: instalar.bat
+  4. Aguarde 3-5 minutos na primeira vez
+  5. O navegador vai abrir automaticamente
+
+  ════════════════════════════════════════════════════════════════
+  PASSO 3 — USO DIÁRIO
+  ════════════════════════════════════════════════════════════════
+  • Iniciar sistema: clique 2x em iniciar.bat
+  • Parar sistema:   clique 2x em parar.bat
+  • O sistema inicia automaticamente com o Windows
+
+  ════════════════════════════════════════════════════════════════
+  ACESSO PELA REDE (outros computadores)
+  ════════════════════════════════════════════════════════════════
+  1. Execute "ver-meu-ip.bat" para ver o endereço IP desta máquina
+  2. Em outros computadores, abra o navegador e acesse:
+     http://IP-DA-MAQUINA-SERVIDOR
+  3. Todos fazem login com seus usuários e senhas normalmente
+  4. Os dados ficam salvos NESTA máquina (ela é o servidor)
+
+  IMPORTANTE: Esta máquina precisa estar LIGADA para os outros
+  acessarem. Recomendamos deixar ela sempre ligada.
+
+  ════════════════════════════════════════════════════════════════
+  BACKUP AUTOMÁTICO NO GOOGLE DRIVE
+  ════════════════════════════════════════════════════════════════
+  O backup é feito automaticamente todo dia às 02:00.
+
+  CONFIGURAÇÃO:
+  1. Instale o Google Drive para Desktop:
+     https://www.google.com/drive/download/
+  2. Faça login com sua conta Google
+  3. O backup será salvo automaticamente em:
+     Meu Drive > Alphafitus-Backup
+
+  BACKUP MANUAL:
+  • Execute backup-googledrive.bat a qualquer momento
+
+  RESTAURAR BACKUP:
+  • Execute restaurar-backup.bat e siga as instruções
+
+  VER LOG DE BACKUPS:
+  • Abra o arquivo backup.log nesta pasta
+
+  ════════════════════════════════════════════════════════════════
+  SUPORTE
+  ════════════════════════════════════════════════════════════════
+  Em caso de problemas:
+  • Verifique se o Docker Desktop está aberto (ícone na bandeja)
+  • Execute "iniciar.bat" para reiniciar o sistema
+  • Verifique o arquivo backup.log para histórico de backups
+  

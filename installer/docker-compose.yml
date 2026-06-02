@@ -1,0 +1,55 @@
+version: "3.9"
+
+  services:
+    db:
+      image: postgres:16-alpine
+      container_name: alphafitus_db
+      restart: always
+      environment:
+        POSTGRES_USER: alphafitus
+        POSTGRES_PASSWORD: alphafitus2024
+        POSTGRES_DB: alphafitus
+      volumes:
+        - db_data:/var/lib/postgresql/data
+      ports:
+        - "5432:5432"
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U alphafitus"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
+    api:
+      image: node:20-alpine
+      container_name: alphafitus_api
+      restart: always
+      working_dir: /app
+      depends_on:
+        db:
+          condition: service_healthy
+      environment:
+        NODE_ENV: production
+        DATABASE_URL: postgresql://alphafitus:alphafitus2024@db:5432/alphafitus
+        PORT: 8080
+        SESSION_SECRET: troque_esta_chave_por_algo_seguro_2024
+        MASTER_PASSWORD: admin123
+      volumes:
+        - ./app:/app
+      command: sh -c "npm install --production --silent && node dist/index.mjs"
+
+    nginx:
+      image: nginx:alpine
+      container_name: alphafitus_nginx
+      restart: always
+      depends_on:
+        - api
+      ports:
+        - "80:80"
+      volumes:
+        - ./app/frontend:/usr/share/nginx/html
+        - ./nginx.conf:/etc/nginx/conf.d/default.conf
+
+  volumes:
+    db_data:
+      name: alphafitus_db_data
+  

@@ -1,0 +1,65 @@
+╔══════════════════════════════════════════════════════════════════╗
+  ║    ALPHAFITUS — PROTOCOLO DE ESTABILIDADE                        ║
+  ║    Guia de Instalação Local — Windows + Docker                   ║
+  ╚══════════════════════════════════════════════════════════════════╝
+
+  PASSO 1 — Baixar o código-fonte
+  ────────────────────────────────
+    Opção A (GitHub): clone o repositório com git clone ...
+    Opção B (Replit): clique nos ··· > "Download as zip" e extraia
+
+  PASSO 2 — Instalar Docker Desktop (apenas 1 vez)
+  ──────────────────────────────────────────────────
+    https://www.docker.com/products/docker-desktop/
+    → Baixe, instale e reinicie o computador.
+    → Abra o Docker Desktop e aceite os termos.
+
+  PASSO 3 — Instalar o Alphafitus
+  ─────────────────────────────────
+    1. Abra a pasta onde extraiu o projeto
+    2. Entre em installer/protocolo/
+    3. Clique 2x em instalar.bat
+    4. Na primeira abertura, o .env será criado — EDITE as senhas!
+    5. Aguarde 5-15 min na primeira vez (compila tudo automaticamente)
+    6. O navegador abrirá sozinho em http://localhost
+
+  USO DIÁRIO
+  ───────────
+    • Iniciar:  iniciar.bat
+    • Parar:    parar.bat
+    • O sistema inicia sozinho com o Windows
+
+  ACESSO PELA REDE
+  ────────────────
+    Execute ver-meu-ip.bat → informe o endereço para os outros usuários.
+    Todos acessam pelo navegador: http://IP-DESTA-MAQUINA
+    Cada um faz login com seu usuário e senha.
+    ATENÇÃO: Esta máquina deve estar ligada para o acesso funcionar.
+
+  BACKUP NO GOOGLE DRIVE
+  ──────────────────────
+    1. Instale Google Drive para Desktop: https://www.google.com/drive/download/
+    2. Faça login com sua conta Google
+    3. No arquivo .env, ajuste GOOGLE_DRIVE_PATH para a pasta correta:
+         Ex: C:/Users/SeuNome/Google Drive/My Drive/Alphafitus-Backup
+    4. O backup automático roda todo dia às 02:00
+    5. Para backup manual: clique em backup-googledrive.bat
+       OU acesse o sistema no navegador > menu lateral > Backup
+
+  CONFIGURAR BACKUP PELO SISTEMA (recomendado)
+  ─────────────────────────────────────────────
+    Após instalar, faça login como administrador.
+    No menu lateral, clique em "Backup".
+    Ali você pode:
+      • Fazer backup manual com 1 clique
+      • Configurar frequência e horário
+      • Baixar arquivos de backup direto pelo navegador
+      • Ver histórico de backups realizados
+
+  ATUALIZAÇÃO
+  ───────────
+    Para atualizar o sistema:
+    1. Baixe o código mais recente (git pull ou novo ZIP do Replit)
+    2. Execute instalar.bat novamente
+    3. Os dados do banco NÃO são perdidos na atualização
+  

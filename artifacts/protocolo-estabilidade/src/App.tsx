@@ -12,9 +12,10 @@ import ProtocolReportPage from "./pages/protocol-report";
 import LoginPage from "./pages/login";
 import UsersPage, { ROLE_LABELS } from "./pages/users";
 import CatalogPage from "./pages/catalog";
+import BackupPage from "./pages/backup";
 import { AuthProvider } from "@/contexts/auth-context";
 import { useAuth } from "@/contexts/use-auth";
-import { FileText, Home, Users, LogOut, Loader2, AlertTriangle, RefreshCcw, BookOpen } from "lucide-react";
+import { FileText, Home, Users, LogOut, Loader2, AlertTriangle, RefreshCcw, BookOpen, DatabaseBackup } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -182,6 +183,7 @@ function SidebarFooter() {
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const { isAdmin } = useAuth();
   return (
     <div className="min-h-screen w-full flex bg-background">
       <aside className="w-64 border-r border-border bg-card flex flex-col">
@@ -294,6 +296,7 @@ const ProtocolReportRoute = () => <ProtectedDetailRoute component={ProtocolRepor
 const ProtocolDetailRoute = () => <ProtectedRoute component={ProtocolDetail} />;
 const UsersRoute = () => <ProtectedRoute component={UsersPage} />;
 const CatalogRoute = () => <ProtectedRoute component={CatalogPage} />;
+  const BackupRoute   = () => <ProtectedRoute component={BackupPage} />;
 
 const LoginRoute = () => (
   <AppErrorBoundary>
@@ -314,6 +317,7 @@ function Router() {
       <Route path="/protocols/:id" component={ProtocolDetailRoute} />
       <Route path="/users" component={UsersRoute} />
       <Route path="/catalog" component={CatalogRoute} />
+        <Route path="/backup"  component={BackupRoute} />
       <Route component={NotFound} />
     </Switch>
   );
