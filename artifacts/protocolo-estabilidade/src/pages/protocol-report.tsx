@@ -144,6 +144,17 @@ export default function ProtocolReportPage() {
   const emissionDate = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
   const lots = [...lotsRaw].sort((a, b) => a.lotNumber.localeCompare(b.lotNumber));
 
+  // Datas das análises por período — lê localStorage da aba de resultados (fonte primária)
+  // e cai para os dados do banco (cert.analysisDates) como fallback
+  const periodDatesLS: Record<string, string> = (() => {
+    try {
+      const raw = localStorage.getItem(`period_analysis_dates_${id}`);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  })();
+  const getAnalysisDate = (period: number, apiDate: string | null | undefined): string =>
+    periodDatesLS[String(period)] || apiDate || "";
+
   type ResultRow = {
     lotNumber: string; period: number; parameter: string;
     category: string; result?: string | null; status?: string | null;
@@ -271,7 +282,7 @@ export default function ProtocolReportPage() {
 
           {/* 3. Plano de Estabilidade */}
           <Section num="3" title="Plano de Estabilidade Acelerada (ICH Q1A(R2))">
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-4 gap-3 mb-3">
               {[
                 { label: "Temperatura", value: cert.storageTemp ?? "40°C ± 2°C" },
                 { label: "Umidade Relativa", value: cert.storageHumidity ?? "75% UR ± 5% UR" },
@@ -283,6 +294,18 @@ export default function ProtocolReportPage() {
                   <p className="text-[10px] font-semibold text-gray-800">{value}</p>
                 </div>
               ))}
+            </div>
+            {/* Datas das análises por período */}
+            <div className="grid grid-cols-3 gap-3">
+              {([0, 3, 6] as const).map(period => {
+                const date = getAnalysisDate(period, (cert.analysisDates as Record<string, string | null> | undefined)?.[period === 0 ? "t0" : period === 3 ? "t3" : "t6"]);
+                return (
+                  <div key={period} className="rounded border border-gray-200 px-3 py-2 bg-gray-50 print:bg-gray-50">
+                    <p className="text-[8px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Data da Análise — T{period}</p>
+                    <p className="text-[10px] font-semibold text-gray-800">{date || "—"}</p>
+                  </div>
+                );
+              })}
             </div>
           </Section>
 
