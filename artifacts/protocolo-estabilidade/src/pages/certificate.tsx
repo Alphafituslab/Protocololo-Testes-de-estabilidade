@@ -1282,7 +1282,7 @@ export default function CertificatePage() {
                 </div>
                 <span className={`font-medium ${effectiveIsRepproved ? "text-red-700" : ""}`}>REPROVADO</span>
               </div>
-              {cert.issueDate && <span className="ml-auto text-gray-500 text-xs">DATA: {cert.issueDate}</span>}
+              {(getEdit("issueDate", cert.issueDate)) && <span className="ml-auto text-gray-500 text-xs">DATA: {getEdit("issueDate", cert.issueDate)}</span>}
             </div>
           </div>
         </div>
@@ -1670,7 +1670,7 @@ export default function CertificatePage() {
                 <div className="text-right text-xs text-gray-500">
                   <p>{cert.productName}</p>
                   <p className="font-semibold">{cert.certNumber}</p>
-                  <p>{cert.issueDate}</p>
+                  <p>{getEdit("issueDate", cert.issueDate)}</p>
                 </div>
               </div>
               <p className="text-xs text-gray-500 border-b border-gray-300 pb-3 mb-4">
@@ -1701,7 +1701,7 @@ export default function CertificatePage() {
                 <div className="text-right text-xs text-gray-500">
                   <p>{cert.productName}</p>
                   <p className="font-semibold">{cert.certNumber}</p>
-                  <p>{cert.issueDate}</p>
+                  <p>{getEdit("issueDate", cert.issueDate)}</p>
                 </div>
               </div>
               <p className="text-xs text-gray-500 border-b border-gray-300 pb-3 mb-4">
@@ -1790,7 +1790,7 @@ export default function CertificatePage() {
             {/* Appendix footer */}
             <div className="pt-4 border-t border-gray-300 mt-6">
               <p className="text-[9px] text-gray-400 text-center">
-                Fim do Anexo Fotográfico — {totalSelectedImages} imagem(ns) referentes a {visiblePhotoEntries.length} ensaio(s) — {cert.certNumber} — {cert.issueDate}
+                Fim do Anexo Fotográfico — {totalSelectedImages} imagem(ns) referentes a {visiblePhotoEntries.length} ensaio(s) — {cert.certNumber} — {getEdit("issueDate", cert.issueDate)}
               </p>
             </div>
           </div>
