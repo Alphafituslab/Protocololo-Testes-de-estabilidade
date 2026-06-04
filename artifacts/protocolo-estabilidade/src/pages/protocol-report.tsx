@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   useGetCertificate, getGetCertificateQueryKey,
   useGetProtocol, getGetProtocolQueryKey,
@@ -32,6 +32,29 @@ function StatusBadge({ status }: { status: string }) {
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold ${cls}`}>
       <Icon className="h-3 w-3" />
       {STATUS_LABEL[status] ?? status}
+    </span>
+  );
+}
+
+function ReportField({
+  value,
+  onChange,
+  className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  return (
+    <span
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      onBlur={e => onChange(e.currentTarget.textContent ?? "")}
+      className={`outline-none border-b border-dashed border-gray-400 min-w-[4rem] inline-block cursor-text print:border-none ${className ?? ""}`}
+    >
+      {value}
     </span>
   );
 }
@@ -150,6 +173,23 @@ export default function ProtocolReportPage() {
     if (cert.issueDate) return cert.issueDate;
     return new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
   })();
+  // Edições locais do relatório (override por protocolo)
+  const [reportEdits, setReportEditsState] = useState<Record<string, string>>(() => {
+    try {
+      const raw = localStorage.getItem(`report_overrides_${id}`);
+      return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    } catch { return {}; }
+  });
+  const setReportEdit = (key: string, val: string) => {
+    setReportEditsState(prev => {
+      const next = { ...prev, [key]: val };
+      try { localStorage.setItem(`report_overrides_${id}`, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+  const getReportEdit = (key: string, fallback: string): string =>
+    reportEdits[key] !== undefined && reportEdits[key] !== "" ? reportEdits[key] : fallback;
+
   const lots = [...lotsRaw].sort((a, b) => a.lotNumber.localeCompare(b.lotNumber));
 
   // Datas das análises por período — lê localStorage da aba de resultados (fonte primária)
@@ -587,6 +627,22 @@ export default function ProtocolReportPage() {
 
           {/* 10. Histórico */}
           <Section num="10" title="Histórico de Rastreabilidade">
+            {/* Cabeçalho com datas replicadas do certificado (editáveis) */}
+            <div className="flex items-start justify-between mb-3 pb-3 border-b border-gray-200">
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Produto / Certificado</p>
+                <p className="text-[10px] font-semibold text-gray-800">{cert.productName}</p>
+                <p className="text-[10px] text-gray-500">{cert.certNumber}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5 print:hidden">Data de Emissão</p>
+                <ReportField
+                  value={getReportEdit("issueDate", emissionDate)}
+                  onChange={v => setReportEdit("issueDate", v)}
+                  className="text-[10px] font-semibold text-gray-800"
+                />
+              </div>
+            </div>
             <AuditTrail protocolId={numId} printMode />
           </Section>
 

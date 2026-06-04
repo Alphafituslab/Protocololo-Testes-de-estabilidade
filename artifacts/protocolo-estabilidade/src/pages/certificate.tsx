@@ -1713,7 +1713,7 @@ export default function CertificatePage() {
                 <div className="text-right text-xs text-gray-500">
                   <p>{cert.productName}</p>
                   <p className="font-semibold">{cert.certNumber}</p>
-                  <p>{getEdit("issueDate", cert.issueDate)}</p>
+                  <p>{ef("issueDate", cert.issueDate)}</p>
                 </div>
               </div>
               <p className="text-xs text-gray-500 border-b border-gray-300 pb-3 mb-4">
