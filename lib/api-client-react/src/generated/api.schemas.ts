@@ -225,6 +225,7 @@ export interface UpdateProtocolBody {
   validityMonths?: number | null;
   kineticsNotes?: string | null;
   customParamsJson?: string | null;
+  issueDate?: string | null;
 }
 
 export interface ProtocolStats {
@@ -308,6 +309,12 @@ export interface KineticsResult {
   recommendedValidityMonths?: number | null;
 }
 
+export type CertificateAnalysisDates = {
+  t0?: string | null;
+  t3?: string | null;
+  t6?: string | null;
+} | null;
+
 export type CertificateAnalysisCategory =
   (typeof CertificateAnalysisCategory)[keyof typeof CertificateAnalysisCategory];
 
@@ -369,8 +376,7 @@ export interface Certificate {
   receptionTemp?: string | null;
   /** Condições de coleta/recebimento — umidade */
   receptionHumidity?: string | null;
-  /** Datas das análises por período (T0, T3, T6) */
-  analysisDates?: { t0?: string | null; t3?: string | null; t6?: string | null } | null;
+  analysisDates?: CertificateAnalysisDates;
 }
 
 export interface Methodology {

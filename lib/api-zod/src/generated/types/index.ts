@@ -15,6 +15,7 @@ export * from "./catalogItemInput";
 export * from "./certificate";
 export * from "./certificateAnalysis";
 export * from "./certificateAnalysisCategory";
+export * from "./certificateAnalysisDates";
 export * from "./createAttachmentBody";
 export * from "./createLotBody";
 export * from "./createMethodologyBody";

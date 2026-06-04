@@ -1157,6 +1157,9 @@ components:
         customParamsJson:
           type: string
           nullable: true
+        issueDate:
+          type: string
+          nullable: true
 
     ProtocolStats:
       type: object
@@ -1496,6 +1499,19 @@ components:
           type: string
           nullable: true
           description: Condições de coleta/recebimento — umidade
+        analysisDates:
+          type: object
+          nullable: true
+          properties:
+            t0:
+              type: string
+              nullable: true
+            t3:
+              type: string
+              nullable: true
+            t6:
+              type: string
+              nullable: true
       required:
         - certNumber
         - issueDate

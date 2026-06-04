@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CertificateAnalysis } from "./certificateAnalysis";
+import type { CertificateAnalysisDates } from "./certificateAnalysisDates";
 
 export interface Certificate {
   certNumber: string;
@@ -49,6 +50,5 @@ export interface Certificate {
   receptionTemp?: string | null;
   /** Condições de coleta/recebimento — umidade */
   receptionHumidity?: string | null;
-  /** Datas das análises por período (T0, T3, T6) */
-  analysisDates?: { t0?: string | null; t3?: string | null; t6?: string | null } | null;
+  analysisDates?: CertificateAnalysisDates;
 }

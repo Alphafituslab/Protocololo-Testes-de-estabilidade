@@ -42,4 +42,5 @@ export interface UpdateProtocolBody {
   validityMonths?: number | null;
   kineticsNotes?: string | null;
   customParamsJson?: string | null;
+  issueDate?: string | null;
 }

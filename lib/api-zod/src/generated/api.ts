@@ -521,6 +521,7 @@ export const UpdateProtocolBody = zod.object({
   validityMonths: zod.number().nullish(),
   kineticsNotes: zod.string().nullish(),
   customParamsJson: zod.string().nullish(),
+  issueDate: zod.string().nullish(),
 });
 
 export const UpdateProtocolResponse = zod.object({
@@ -911,6 +912,13 @@ export const GetCertificateResponse = zod.object({
     .string()
     .nullish()
     .describe("Condições de coleta\/recebimento — umidade"),
+  analysisDates: zod
+    .object({
+      t0: zod.string().nullish(),
+      t3: zod.string().nullish(),
+      t6: zod.string().nullish(),
+    })
+    .nullish(),
 });
 
 /**

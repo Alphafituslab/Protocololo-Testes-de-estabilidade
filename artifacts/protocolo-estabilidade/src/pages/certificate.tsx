@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey, useListSignatures, useAddSignature, useDeleteSignature, getListSignaturesQueryKey } from "@workspace/api-client-react";
+import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey, useListSignatures, useAddSignature, useDeleteSignature, getListSignaturesQueryKey, useUpdateProtocol } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, History, Lock, Unlock, Save, ShieldCheck, PenLine, Trash2, UserCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -260,6 +260,7 @@ export default function CertificatePage() {
   const { data: cert, isLoading } = useGetCertificate(Number(id), {
     query: { enabled: !!id, queryKey: getGetCertificateQueryKey(Number(id)), staleTime: 0 },
   });
+  const updateProtocol = useUpdateProtocol();
 
   // certTitle and lbl_capsuleComposition are cleaned synchronously in the
   // useState initializer above (ALWAYS_CLEAR_KEYS). No useEffect needed.
@@ -452,6 +453,11 @@ export default function CertificatePage() {
         localStorage.setItem(CERT_LOCKED_KEY, "1");
         localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(current));
       } catch { /* ignore */ }
+      // Persist issueDate to the database so it survives localStorage clears
+      // and is reflected immediately in the report without depending on localStorage.
+      if (current["issueDate"] && id) {
+        updateProtocol.mutate({ id: Number(id), data: { issueDate: current["issueDate"] } });
+      }
       return current;
     });
     setCertLockedState(true);
