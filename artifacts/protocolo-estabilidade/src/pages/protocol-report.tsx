@@ -61,13 +61,13 @@ function ReportField({
 
 function Section({ num, title, children }: { num: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="report-section mb-5">
-      <div className="flex items-center gap-2.5 mb-2">
+    <div className="report-section mb-5 print:mb-2">
+      <div className="report-section-header flex items-center gap-2.5 mb-2">
         <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-[9px] font-bold flex-shrink-0 print:bg-gray-800">{num}</span>
         <h2 className="text-[11px] font-bold uppercase tracking-widest text-gray-700">{title}</h2>
         <div className="flex-1 border-b border-gray-200" />
       </div>
-      <div className="pl-7">{children}</div>
+      <div className="pl-7 print:pl-5">{children}</div>
     </div>
   );
 }
@@ -264,7 +264,7 @@ export default function ProtocolReportPage() {
         className="max-w-4xl mx-auto bg-white my-6 shadow-lg rounded-lg print:my-0 print:shadow-none print:rounded-none print:max-w-none"
       >
         {/* ══ CABEÇALHO ══════════════════════════════════════════════ */}
-        <div className="px-8 pt-7 pb-5 border-b-2 border-gray-800">
+        <div className="px-8 pt-7 pb-5 print:px-0 print:pt-2 print:pb-3 border-b-2 border-gray-800">
           <div className="flex items-start gap-6">
             {/* Logo + Título */}
             <img src="/logo-alphafitus.png" alt="Alphafitus"
@@ -302,7 +302,7 @@ export default function ProtocolReportPage() {
         </div>
 
         {/* ══ CORPO DO RELATÓRIO ══════════════════════════════════════ */}
-        <div className="px-8 py-6 space-y-0">
+        <div className="px-8 py-6 print:px-0 print:py-3 space-y-0">
 
           {/* 1. Empresa */}
           <Section num="1" title="Identificação da Empresa">
@@ -668,13 +668,14 @@ export default function ProtocolReportPage() {
 
       {/* ── CSS de Impressão ─────────────────────────────────────────── */}
       <style>{`
-        /* Margens aplicadas a TODAS as páginas, inclusive a 2ª, 3ª… */
+        /* Margens A4 — mesmas em todas as páginas */
         @page {
           size: A4 portrait;
-          margin: 15mm 18mm;
+          margin: 12mm 14mm 10mm 14mm;
         }
 
         @media print {
+          /* ── Reset global ── */
           html, body, #root, #root > *, #root > * > * {
             overflow: visible !important;
             height: auto !important;
@@ -683,12 +684,14 @@ export default function ProtocolReportPage() {
             background: white !important;
           }
 
+          /* Esconde tudo exceto o documento */
           body > * { display: none !important; }
           #root { display: block !important; }
           body * { visibility: hidden !important; }
           #report-document,
           #report-document * { visibility: visible !important; }
 
+          /* ── Documento ── */
           #report-document {
             position: static !important;
             display: block !important;
@@ -699,10 +702,35 @@ export default function ProtocolReportPage() {
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
-            font-size: 8.5pt !important;
+            font-size: 8pt !important;
+            line-height: 1.35 !important;
             overflow: visible !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+          }
+
+          /* ── Seções: permitir quebra interna (evita gaps enormes) ── */
+          .report-section {
+            break-inside: auto !important;
+            page-break-inside: auto !important;
+            overflow: visible !important;
+          }
+
+          /* Cabeçalho da seção nunca fica sozinho no fim de página */
+          .report-section-header {
+            break-after: avoid !important;
+            page-break-after: avoid !important;
+          }
+
+          /* Linhas de tabela não partem ao meio */
+          tr {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+
+          /* Cabeçalho de tabela repete em cada página */
+          thead {
+            display: table-header-group !important;
           }
 
           td, th {
@@ -711,36 +739,22 @@ export default function ProtocolReportPage() {
             print-color-adjust: exact !important;
           }
 
-          /* Cabeçalho da tabela repete em todas as páginas */
-          thead {
-            display: table-header-group;
-          }
-
-          /* Linhas nunca partem ao meio */
-          tr {
-            break-inside: avoid;
-            page-break-inside: avoid;
-          }
-
-          /* Seções pequenas ficam juntas */
-          .report-section {
-            break-inside: avoid;
-            page-break-inside: avoid;
+          table {
+            width: 100% !important;
             overflow: visible !important;
+            table-layout: auto !important;
+            border-collapse: collapse !important;
           }
 
-          /* Garante que overflow-hidden não corte o conteúdo na impressão */
+          /* Remove overflow que corta conteúdo */
           .overflow-x-auto,
           .overflow-hidden,
           .overflow-auto {
             overflow: visible !important;
           }
 
-          table {
-            width: 100% !important;
-            overflow: visible !important;
-            table-layout: auto !important;
-          }
+          /* Esconde botão de impressão e toolbar */
+          .print\\:hidden { display: none !important; }
         }
       `}</style>
     </div>
