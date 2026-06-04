@@ -933,14 +933,17 @@ function ParamMethodSelector({
   paramName,
   selected,
   methodologies,
+  catalogEntries = [],
   onSelect,
 }: {
   paramName: string;
   selected: string | null;
   methodologies: { id: number; shortName: string; citation: string; category?: string | null }[];
+  catalogEntries?: { shortName: string; citation: string }[];
   onSelect: (shortName: string | null, citation: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const hasCatalog = catalogEntries.length > 0;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -955,35 +958,66 @@ function ParamMethodSelector({
           onClick={(e) => e.stopPropagation()}
         >
           <BookOpen className="h-2.5 w-2.5 flex-shrink-0" />
-          <span className="truncate max-w-[80px]">{selected ?? "método..."}</span>
+          <span className="truncate max-w-[120px]">{selected ?? "método..."}</span>
+          {hasCatalog && !selected && (
+            <span className="ml-0.5 text-[8px] bg-primary/15 text-primary rounded px-0.5 font-semibold leading-tight">
+              {catalogEntries.length}
+            </span>
+          )}
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-2 z-50" side="right" align="start">
         <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">
-          Metodologia — <span className="font-normal italic">{paramName}</span>
+          Metodologia — <span className="font-normal italic">{paramName || "parâmetro"}</span>
         </p>
+
+        {/* Entradas do catálogo para este parâmetro */}
+        {hasCatalog && (
+          <>
+            <p className="text-[9px] uppercase tracking-widest text-primary/60 font-bold px-1 mb-1">
+              Cadastradas para este parâmetro
+            </p>
+            <div className="space-y-0.5 mb-2">
+              {catalogEntries.map((m, i) => (
+                <button
+                  type="button"
+                  key={i}
+                  onClick={() => { onSelect(m.shortName, m.citation); setOpen(false); }}
+                  className={`w-full text-left text-xs px-2 py-1.5 rounded border transition-colors hover:bg-primary/10 ${
+                    selected === m.shortName
+                      ? "border-primary/40 bg-primary/10 text-primary font-semibold"
+                      : "border-primary/15 bg-primary/5"
+                  }`}
+                >
+                  <div className="flex items-center gap-1">
+                    <BookOpen className="h-2.5 w-2.5 text-primary/50 flex-shrink-0" />
+                    <span className="font-medium text-[11px]">{m.shortName}</span>
+                  </div>
+                  <div className="text-[9px] text-muted-foreground truncate leading-tight pl-3.5">{m.citation}</div>
+                </button>
+              ))}
+            </div>
+            <div className="border-t my-1.5" />
+            <p className="text-[9px] uppercase tracking-widest text-muted-foreground/50 font-bold px-1 mb-1">
+              Biblioteca geral
+            </p>
+          </>
+        )}
+
+        {/* Todas as metodologias cadastradas */}
         {methodologies.length === 0 ? (
           <p className="text-xs text-muted-foreground italic px-1">
             Nenhuma metodologia cadastrada. Acesse a aba "Metodologia".
           </p>
         ) : (
-          <div className="space-y-0.5 max-h-60 overflow-y-auto">
-            {selected && (
-              <button
-                type="button"
-                onClick={() => { onSelect(null, null); setOpen(false); }}
-                className="w-full text-left text-[10px] px-2 py-1 rounded hover:bg-destructive/10 text-destructive"
-              >
-                × Remover seleção
-              </button>
-            )}
+          <div className="space-y-0.5 max-h-48 overflow-y-auto">
             {methodologies.map((m) => (
               <button
                 type="button"
                 key={m.id}
                 onClick={() => { onSelect(m.shortName, m.citation); setOpen(false); }}
                 className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted transition-colors ${
-                  selected === m.shortName ? "bg-primary/10 text-primary font-semibold" : ""
+                  selected === m.shortName && !hasCatalog ? "bg-primary/10 text-primary font-semibold" : ""
                 }`}
               >
                 <div className="font-medium text-[11px]">{m.shortName}</div>
@@ -992,28 +1026,50 @@ function ParamMethodSelector({
             ))}
           </div>
         )}
+
+        {selected && (
+          <div className="border-t mt-1.5 pt-1">
+            <button
+              type="button"
+              onClick={() => { onSelect(null, null); setOpen(false); }}
+              className="w-full text-left text-[10px] px-2 py-1 rounded hover:bg-destructive/10 text-destructive"
+            >
+              × Remover seleção
+            </button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );
 }
 
 // ── Catálogo global de metodologias por parâmetro ─────────────────────────
-// Persiste em localStorage; auto-preenche quando o mesmo parâmetro é reutilizado
-const PARAM_CATALOG_KEY = "param_catalog_v1";
-function getCatalogEntry(paramName: string): { shortName: string; citation: string } | null {
+// Suporta múltiplas metodologias por parâmetro; auto-preenche ao reutilizar
+const PARAM_CATALOG_KEY = "param_catalog_v2";
+type CatalogEntry = { shortName: string; citation: string };
+
+function getCatalogEntries(paramName: string): CatalogEntry[] {
+  if (!paramName.trim()) return [];
   try {
     const raw = localStorage.getItem(PARAM_CATALOG_KEY);
-    if (!raw) return null;
-    const catalog = JSON.parse(raw) as Record<string, { shortName: string; citation: string }>;
-    return catalog[paramName.trim().toLowerCase()] ?? null;
-  } catch { return null; }
+    if (!raw) return [];
+    const catalog = JSON.parse(raw) as Record<string, CatalogEntry[]>;
+    return catalog[paramName.trim().toLowerCase()] ?? [];
+  } catch { return []; }
 }
-function saveToCatalog(paramName: string, shortName: string, citation: string) {
+
+function addToCatalog(paramName: string, shortName: string, citation: string) {
+  if (!paramName.trim() || !shortName) return;
   try {
     const raw = localStorage.getItem(PARAM_CATALOG_KEY);
-    const catalog: Record<string, { shortName: string; citation: string }> = raw ? JSON.parse(raw) : {};
-    catalog[paramName.trim().toLowerCase()] = { shortName, citation };
-    localStorage.setItem(PARAM_CATALOG_KEY, JSON.stringify(catalog));
+    const catalog: Record<string, CatalogEntry[]> = raw ? JSON.parse(raw) : {};
+    const key = paramName.trim().toLowerCase();
+    const existing = catalog[key] ?? [];
+    // Deduplicar por shortName
+    if (!existing.some(e => e.shortName === shortName)) {
+      catalog[key] = [...existing, { shortName, citation }];
+      localStorage.setItem(PARAM_CATALOG_KEY, JSON.stringify(catalog));
+    }
   } catch { /* ignore */ }
 }
 
@@ -1119,8 +1175,8 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
           delete citMap[paramName];
         } else {
           citMap[paramName] = citation;
-          // Salva no catálogo global para auto-fill em outros protocolos
-          if (paramName.trim()) saveToCatalog(paramName, shortName!, citation);
+          // Salva no catálogo global (array) para auto-fill em outros protocolos
+          if (paramName.trim()) addToCatalog(paramName, shortName!, citation);
         }
         localStorage.setItem(`param_methods_citations_${protocolId}`, JSON.stringify(citMap));
       } catch { /* ignore */ }
@@ -1195,16 +1251,17 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
 
   const addParam = (category: string, parameter = "", criterion = "") => {
     const uid = `${category}_${Date.now()}`;
-    const catalogEntry = parameter.trim() ? getCatalogEntry(parameter) : null;
+    const entries = parameter.trim() ? getCatalogEntries(parameter) : [];
+    // Auto-fill se houver exatamente uma entrada no catálogo
+    const autoEntry = entries.length === 1 ? entries[0] : undefined;
     setEditableParams((prev) => [...prev, {
       uid, parameter, criterion, category,
-      methodologyShort: catalogEntry?.shortName,
-      methodologyCitation: catalogEntry?.citation,
+      methodologyShort: autoEntry?.shortName,
+      methodologyCitation: autoEntry?.citation,
     }]);
-    // Auto-fill paramMethods state se tinha no catálogo
-    if (catalogEntry && parameter.trim()) {
+    if (autoEntry && parameter.trim()) {
       setParamMethods(prev => {
-        const next = { ...prev, [parameter]: catalogEntry.shortName };
+        const next = { ...prev, [parameter]: autoEntry.shortName };
         try { localStorage.setItem(`param_methods_${protocolId}`, JSON.stringify(next)); } catch { /* ignore */ }
         return next;
       });
@@ -1360,6 +1417,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                                 paramName={param.parameter}
                                 selected={paramMethods[param.parameter] ?? null}
                                 methodologies={methodologies}
+                                catalogEntries={getCatalogEntries(param.parameter)}
                                 onSelect={(s, c) => setParamMethod(param.parameter, s, c)}
                               />
                             </TableCell>
@@ -1995,13 +2053,14 @@ function MethodologiaTab({
         : p
     ));
     if (shortName && citation && paramName.trim()) {
-      saveToCatalog(paramName, shortName, citation);
+      addToCatalog(paramName, shortName, citation);
     }
   };
 
   const applyParamCatalog = (uid: string, paramName: string) => {
-    const entry = paramName.trim() ? getCatalogEntry(paramName) : null;
-    if (!entry) return;
+    const entries = getCatalogEntries(paramName);
+    if (entries.length !== 1) return; // auto-fill apenas quando há exatamente 1 entrada
+    const entry = entries[0];
     setEditableParams(prev => prev.map(p =>
       p.uid === uid && !p.methodologyShort
         ? { ...p, methodologyShort: entry.shortName, methodologyCitation: entry.citation }
@@ -2175,6 +2234,7 @@ function MethodologiaTab({
                               paramName={p.parameter}
                               selected={p.methodologyShort ?? null}
                               methodologies={methodologies}
+                              catalogEntries={getCatalogEntries(p.parameter)}
                               onSelect={(s, c) => setParamMethodInTab(p.uid, p.parameter, s, c)}
                             />
                             {p.methodologyCitation && (
