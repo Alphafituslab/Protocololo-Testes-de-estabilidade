@@ -1022,39 +1022,39 @@ export default function CertificatePage() {
               </colgroup>
               <tbody>
                 <tr>
-                  <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_productName", "Produto:", { className: "text-gray-500 font-medium text-sm" })}</td>
-                  <td className="font-medium align-top pb-1 text-justify">{ef("productName", cert.productName, { multiline: true, className: "w-full font-medium text-sm text-justify bg-transparent resize-none" })}</td>
+                  <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_productName", "Produto:", { className: "text-gray-500 font-medium text-xs" })}</td>
+                  <td className="font-medium align-top pb-1 text-justify">{ef("productName", cert.productName, { multiline: true, className: "w-full font-medium text-xs text-justify bg-transparent resize-none" })}</td>
                 </tr>
                 <tr>
-                  <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_presentation", "Tipo do Produto:", { className: "text-gray-500 font-medium text-sm" })}</td>
+                  <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_presentation", "Tipo do Produto:", { className: "text-gray-500 font-medium text-xs" })}</td>
                   <td className="align-top pb-1 text-justify">{ef("presentation", cert.presentation)}</td>
                 </tr>
                 {!!getEdit("packagingType", cert.packagingType) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_packagingType", "Tipo de Pote:", { className: "text-gray-500 font-medium text-sm" })}</td>
+                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_packagingType", "Tipo de Pote:", { className: "text-gray-500 font-medium text-xs" })}</td>
                     <td className="align-top pb-1 text-justify">{ef("packagingType", cert.packagingType)}</td>
                   </tr>
                 )}
                 {!!getEdit("activeIngredients", cert.activeIngredients) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_activeIngredients", "Ingredientes Ativos:", { className: "text-gray-500 font-medium text-sm" })}</td>
+                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_activeIngredients", "Ingredientes Ativos:", { className: "text-gray-500 font-medium text-xs" })}</td>
                     <td className="align-top pb-1 text-justify">{ef("activeIngredients", cert.activeIngredients, { multiline: true })}</td>
                   </tr>
                 )}
                 {!!getEdit("excipients", cert.excipients) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_excipients", "Excipientes:", { className: "text-gray-500 font-medium text-sm" })}</td>
+                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_excipients", "Excipientes:", { className: "text-gray-500 font-medium text-xs" })}</td>
                     <td className="align-top pb-1 text-justify">{ef("excipients", cert.excipients, { multiline: true })}</td>
                   </tr>
                 )}
                 {!!getEdit("capsuleComposition", cert.capsuleComposition) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_capsuleComposition", "Composição da Cápsula:", { className: "text-gray-500 font-medium text-sm" })}</td>
+                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_capsuleComposition", "Composição da Cápsula:", { className: "text-gray-500 font-medium text-xs" })}</td>
                     <td className="align-top pb-1 text-justify">{ef("capsuleComposition", cert.capsuleComposition, { multiline: true })}</td>
                   </tr>
                 )}
                 <tr>
-                  <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_validityMonths", "Validade:", { className: "text-gray-500 font-medium text-sm" })}</td>
+                  <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_validityMonths", "Validade:", { className: "text-gray-500 font-medium text-xs" })}</td>
                   <td className="font-semibold align-top pb-1">{ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}</td>
                 </tr>
                 <tr>
