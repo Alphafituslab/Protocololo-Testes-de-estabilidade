@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   useGetCertificate, getGetCertificateQueryKey,
   useGetProtocol, getGetProtocolQueryKey,
@@ -165,14 +165,25 @@ export default function ProtocolReportPage() {
   }
 
   // Data de emissão: prioridade = cert edit do certificado > cert.issueDate do banco > hoje
-  const emissionDate = (() => {
+  // Reactive: atualiza quando localStorage muda (outra aba ou volta do certificado)
+  const computeEmissionDate = (certIssueDate: string | null | undefined) => {
     try {
-      const certEdits = JSON.parse(localStorage.getItem(`cert_edits_v4_${id}`) ?? "{}") as Record<string, string>;
-      if (certEdits["issueDate"]) return certEdits["issueDate"];
+      const edits = JSON.parse(localStorage.getItem(`cert_edits_v4_${id}`) ?? "{}") as Record<string, string>;
+      if (edits["issueDate"]) return edits["issueDate"];
     } catch { /* ignore */ }
-    if (cert.issueDate) return cert.issueDate;
+    if (certIssueDate) return certIssueDate;
     return new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
-  })();
+  };
+  const [emissionDate, setEmissionDate] = useState<string>(() => computeEmissionDate(cert.issueDate));
+  useEffect(() => {
+    setEmissionDate(computeEmissionDate(cert.issueDate));
+    const handler = (e: StorageEvent) => {
+      if (e.key === `cert_edits_v4_${id}`) setEmissionDate(computeEmissionDate(cert.issueDate));
+    };
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, cert.issueDate]);
   // Edições locais do relatório (override por protocolo)
   const [reportEdits, setReportEditsState] = useState<Record<string, string>>(() => {
     try {
