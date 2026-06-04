@@ -418,6 +418,22 @@ export default function CertificatePage() {
   const getEdit = (key: string, fallback: string | null | undefined): string =>
     certEdits[key] !== undefined ? certEdits[key] : (fallback ?? "");
 
+  // Datas por período vindas da aba de resultados (localStorage da aba de resultados)
+  const periodDatesLS: Record<number, string> = (() => {
+    try {
+      const raw = localStorage.getItem(`period_analysis_dates_${id}`);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  })();
+
+  // Helper para datas de análise: prioridade cert edit não-vazio > API > aba de resultados
+  const getAnalysisDate = (key: string, apiDate: string | null | undefined, period: number): string => {
+    const edit = certEdits[key];
+    if (edit) return edit;                          // usuário digitou no certificado
+    if (apiDate) return apiDate;                    // veio do banco via resultado salvo
+    return periodDatesLS[period] ?? "";             // definido na aba de resultados
+  };
+
   const saveCert = () => {
     // Final safety net: purge corrupted title before locking
     if (isBadCertTitle(certCustomTitle)) {
@@ -1100,19 +1116,19 @@ export default function CertificatePage() {
             <div className="p-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Data da Análise — T0</p>
               <p className="font-semibold text-gray-800">
-                <CertEditField value={getEdit("analysisDateT0", cert.analysisDates?.t0 ?? "")} onChange={v => setCertEdit("analysisDateT0", v)} className="w-full" />
+                <CertEditField value={getAnalysisDate("analysisDateT0", cert.analysisDates?.t0, 0)} onChange={v => setCertEdit("analysisDateT0", v)} className="w-full" />
               </p>
             </div>
             <div className="p-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Data da Análise — T3</p>
               <p className="font-semibold text-gray-800">
-                <CertEditField value={getEdit("analysisDateT3", cert.analysisDates?.t3 ?? "")} onChange={v => setCertEdit("analysisDateT3", v)} className="w-full" />
+                <CertEditField value={getAnalysisDate("analysisDateT3", cert.analysisDates?.t3, 3)} onChange={v => setCertEdit("analysisDateT3", v)} className="w-full" />
               </p>
             </div>
             <div className="p-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Data da Análise — T6</p>
               <p className="font-semibold text-gray-800">
-                <CertEditField value={getEdit("analysisDateT6", cert.analysisDates?.t6 ?? "")} onChange={v => setCertEdit("analysisDateT6", v)} className="w-full" />
+                <CertEditField value={getAnalysisDate("analysisDateT6", cert.analysisDates?.t6, 6)} onChange={v => setCertEdit("analysisDateT6", v)} className="w-full" />
               </p>
             </div>
           </div>
