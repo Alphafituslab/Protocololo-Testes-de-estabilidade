@@ -141,7 +141,15 @@ export default function ProtocolReportPage() {
     );
   }
 
-  const emissionDate = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  // Data de emissão: prioridade = cert edit do certificado > cert.issueDate do banco > hoje
+  const emissionDate = (() => {
+    try {
+      const certEdits = JSON.parse(localStorage.getItem(`cert_edits_v4_${id}`) ?? "{}") as Record<string, string>;
+      if (certEdits["issueDate"]) return certEdits["issueDate"];
+    } catch { /* ignore */ }
+    if (cert.issueDate) return cert.issueDate;
+    return new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  })();
   const lots = [...lotsRaw].sort((a, b) => a.lotNumber.localeCompare(b.lotNumber));
 
   // Datas das análises por período — lê localStorage da aba de resultados (fonte primária)
