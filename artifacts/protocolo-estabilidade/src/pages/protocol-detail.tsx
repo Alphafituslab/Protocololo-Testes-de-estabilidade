@@ -927,7 +927,7 @@ function InlineCell({
   );
 }
 
-type EditableParam = { uid: string; parameter: string; category: string; criterion: string };
+type EditableParam = { uid: string; parameter: string; category: string; criterion: string; methodologyShort?: string; methodologyCitation?: string };
 
 function ParamMethodSelector({
   paramName,
@@ -995,6 +995,26 @@ function ParamMethodSelector({
       </PopoverContent>
     </Popover>
   );
+}
+
+// ── Catálogo global de metodologias por parâmetro ─────────────────────────
+// Persiste em localStorage; auto-preenche quando o mesmo parâmetro é reutilizado
+const PARAM_CATALOG_KEY = "param_catalog_v1";
+function getCatalogEntry(paramName: string): { shortName: string; citation: string } | null {
+  try {
+    const raw = localStorage.getItem(PARAM_CATALOG_KEY);
+    if (!raw) return null;
+    const catalog = JSON.parse(raw) as Record<string, { shortName: string; citation: string }>;
+    return catalog[paramName.trim().toLowerCase()] ?? null;
+  } catch { return null; }
+}
+function saveToCatalog(paramName: string, shortName: string, citation: string) {
+  try {
+    const raw = localStorage.getItem(PARAM_CATALOG_KEY);
+    const catalog: Record<string, { shortName: string; citation: string }> = raw ? JSON.parse(raw) : {};
+    catalog[paramName.trim().toLowerCase()] = { shortName, citation };
+    localStorage.setItem(PARAM_CATALOG_KEY, JSON.stringify(catalog));
+  } catch { /* ignore */ }
 }
 
 /** Banco de parâmetros pré-definidos por categoria. */
@@ -1099,6 +1119,8 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
           delete citMap[paramName];
         } else {
           citMap[paramName] = citation;
+          // Salva no catálogo global para auto-fill em outros protocolos
+          if (paramName.trim()) saveToCatalog(paramName, shortName!, citation);
         }
         localStorage.setItem(`param_methods_citations_${protocolId}`, JSON.stringify(citMap));
       } catch { /* ignore */ }
@@ -1173,7 +1195,20 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
 
   const addParam = (category: string, parameter = "", criterion = "") => {
     const uid = `${category}_${Date.now()}`;
-    setEditableParams((prev) => [...prev, { uid, parameter, criterion, category }]);
+    const catalogEntry = parameter.trim() ? getCatalogEntry(parameter) : null;
+    setEditableParams((prev) => [...prev, {
+      uid, parameter, criterion, category,
+      methodologyShort: catalogEntry?.shortName,
+      methodologyCitation: catalogEntry?.citation,
+    }]);
+    // Auto-fill paramMethods state se tinha no catálogo
+    if (catalogEntry && parameter.trim()) {
+      setParamMethods(prev => {
+        const next = { ...prev, [parameter]: catalogEntry.shortName };
+        try { localStorage.setItem(`param_methods_${protocolId}`, JSON.stringify(next)); } catch { /* ignore */ }
+        return next;
+      });
+    }
   };
 
   const removeParam = (uid: string) => {
@@ -1953,6 +1988,27 @@ function MethodologiaTab({
     setEditableParams(prev => prev.map(p => p.uid === uid ? { ...p, [field]: val } : p));
   };
 
+  const setParamMethodInTab = (uid: string, paramName: string, shortName: string | null, citation: string | null) => {
+    setEditableParams(prev => prev.map(p =>
+      p.uid === uid
+        ? { ...p, methodologyShort: shortName ?? undefined, methodologyCitation: citation ?? undefined }
+        : p
+    ));
+    if (shortName && citation && paramName.trim()) {
+      saveToCatalog(paramName, shortName, citation);
+    }
+  };
+
+  const applyParamCatalog = (uid: string, paramName: string) => {
+    const entry = paramName.trim() ? getCatalogEntry(paramName) : null;
+    if (!entry) return;
+    setEditableParams(prev => prev.map(p =>
+      p.uid === uid && !p.methodologyShort
+        ? { ...p, methodologyShort: entry.shortName, methodologyCitation: entry.citation }
+        : p
+    ));
+  };
+
   const removeParam = (uid: string) => {
     setEditableParams(prev => {
       const next = prev.filter(p => p.uid !== uid);
@@ -2088,8 +2144,9 @@ function MethodologiaTab({
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b bg-muted/20">
-                        <th className="px-3 py-1.5 text-left font-semibold w-2/5">Parâmetro</th>
-                        <th className="px-3 py-1.5 text-left font-semibold">Critério / Especificação</th>
+                        <th className="px-3 py-1.5 text-left font-semibold w-[28%]">Parâmetro</th>
+                        <th className="px-3 py-1.5 text-left font-semibold w-[32%]">Critério / Especificação</th>
+                        <th className="px-3 py-1.5 text-left font-semibold w-[36%]">Metodologia</th>
                         <th className="w-8"></th>
                       </tr>
                     </thead>
@@ -2100,6 +2157,7 @@ function MethodologiaTab({
                             <input
                               value={p.parameter}
                               onChange={e => updateParam(p.uid, "parameter", e.target.value)}
+                              onBlur={e => applyParamCatalog(p.uid, e.target.value)}
                               className="w-full bg-transparent focus:outline-none border-b border-transparent focus:border-primary text-xs font-medium transition-colors placeholder:text-muted-foreground/40"
                               placeholder="Nome do parâmetro"
                             />
@@ -2111,6 +2169,19 @@ function MethodologiaTab({
                               className="w-full bg-transparent focus:outline-none border-b border-transparent focus:border-primary text-xs text-muted-foreground font-mono transition-colors placeholder:text-muted-foreground/40"
                               placeholder="Critério de aceitação"
                             />
+                          </td>
+                          <td className="px-3 py-1.5">
+                            <ParamMethodSelector
+                              paramName={p.parameter}
+                              selected={p.methodologyShort ?? null}
+                              methodologies={methodologies}
+                              onSelect={(s, c) => setParamMethodInTab(p.uid, p.parameter, s, c)}
+                            />
+                            {p.methodologyCitation && (
+                              <p className="text-[9px] text-muted-foreground/70 leading-tight mt-0.5 truncate max-w-[180px]" title={p.methodologyCitation}>
+                                {p.methodologyCitation}
+                              </p>
+                            )}
                           </td>
                           <td className="px-2 py-1.5 text-center">
                             <button
