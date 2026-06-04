@@ -564,7 +564,10 @@ export default function CertificatePage() {
         // Priority: manual cert edit > full citation from Results tab > shortName fallback > API default
         method: saved[a.parameter]?.method ?? paramCitations[a.parameter] ?? paramMethods[a.parameter] ?? a.method,
         specification: saved[a.parameter]?.specification ?? a.specification,
-        result: saved[a.parameter]?.result ?? a.result,
+        // result and status always come from the DB (API) so changes in the
+        // Results tab propagate to the certificate automatically, even after
+        // the certificate has been created.
+        result: a.result,
         visible: visMap[a.parameter] ?? true,
       }));
     });
