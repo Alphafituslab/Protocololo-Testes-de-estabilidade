@@ -291,9 +291,6 @@ export default function ProtocolReportPage() {
               <p className="text-[11px] font-semibold text-primary mt-1 leading-snug">
                 {cert.productName}
               </p>
-              <p className="text-[9px] text-gray-400 mt-1">
-                Referência regulatória: RDC ANVISA n° 318/2019 · Protocolo ICH Q1A(R2)
-              </p>
             </div>
             {/* Meta info */}
             <div className="flex-shrink-0 text-right space-y-2">
