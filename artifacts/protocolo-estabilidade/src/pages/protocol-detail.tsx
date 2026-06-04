@@ -654,7 +654,7 @@ function CellImages({ storageKey }: { storageKey: string }) {
 }
 
 function InlineCell({
-  lotId, period, param, result, protocolId, lots,
+  lotId, period, param, result, protocolId, lots, periodDate,
 }: {
   lotId: number;
   period: number;
@@ -662,6 +662,7 @@ function InlineCell({
   result: { result: string; status: string; observation?: string | null } | undefined;
   protocolId: number;
   lots: { id: number; lotNumber: string }[];
+  periodDate?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(result?.result ?? "");
@@ -708,7 +709,7 @@ function InlineCell({
       data: {
         lotId,
         period,
-        analysisDate: new Date().toISOString().split("T")[0],
+        analysisDate: periodDate ?? new Date().toISOString().split("T")[0],
         category: param.category as "fisico_quimica" | "microbiologica" | "teor_ativo" | "embalagem",
         parameter: param.parameter,
         criterion: param.criterion,
@@ -855,13 +856,13 @@ function InlineCell({
                 ([0, 3, 6] as const).map((p) => ({ lotId: lot.id, period: p }))
               );
               await Promise.all(
-                tasks.map(({ lotId, period }) =>
+                tasks.map(({ lotId, period: p }) =>
                   bulkUpsert.mutateAsync({
                     id: protocolId,
                     data: {
                       lotId,
-                      period,
-                      analysisDate: new Date().toISOString().split("T")[0],
+                      period: p,
+                      analysisDate: periodDate ?? new Date().toISOString().split("T")[0],
                       category: param.category as "fisico_quimica" | "microbiologica" | "teor_ativo" | "embalagem",
                       parameter: param.parameter,
                       criterion: param.criterion,
@@ -1063,6 +1064,24 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
     } catch { return {}; }
   });
 
+  // ── Datas por período (T0, T3, T6) — salvas no localStorage ──────────────
+  const PERIOD_DATES_KEY = `period_analysis_dates_${protocolId}`;
+  const [periodDates, setPeriodDatesState] = useState<Record<number, string>>(() => {
+    try {
+      const raw = localStorage.getItem(`period_analysis_dates_${protocolId}`);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+
+  const setPeriodDate = useCallback((period: number, date: string) => {
+    setPeriodDatesState(prev => {
+      const next = { ...prev, [period]: date };
+      try { localStorage.setItem(PERIOD_DATES_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [PERIOD_DATES_KEY]);
+
   const setParamMethod = (paramName: string, shortName: string | null, citation: string | null = null) => {
     setParamMethods((prev) => {
       const next = { ...prev };
@@ -1199,6 +1218,25 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
 
   return (
     <div className="space-y-6">
+      {/* ── Datas das análises por período ──────────────────────────────────── */}
+      <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
+        <p className="text-xs font-semibold text-blue-700 mb-2 uppercase tracking-wide">Datas das Análises por Período</p>
+        <div className="flex flex-wrap gap-4">
+          {PERIODS.map((period) => (
+            <label key={period} className="flex items-center gap-2 text-xs text-blue-800">
+              <span className="font-bold w-6">T{period}</span>
+              <input
+                type="date"
+                value={periodDates[period] ?? ""}
+                onChange={e => setPeriodDate(period, e.target.value)}
+                className="border border-blue-300 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+            </label>
+          ))}
+        </div>
+        <p className="text-[10px] text-blue-500 mt-2">A data definida aqui é aplicada automaticamente ao salvar resultados de cada período e aparece no certificado.</p>
+      </div>
+
       <div className="flex flex-wrap items-start gap-x-6 gap-y-1">
         <p className="text-xs text-muted-foreground">
           Clique em qualquer célula para digitar o resultado. Use{" "}
@@ -1348,6 +1386,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                                 result={cellResult}
                                 protocolId={protocolId}
                                 lots={lots}
+                                periodDate={periodDates[period] || undefined}
                               />
                             </TableCell>
                           );
