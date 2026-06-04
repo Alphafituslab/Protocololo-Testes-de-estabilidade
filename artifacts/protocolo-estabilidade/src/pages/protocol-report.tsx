@@ -227,9 +227,9 @@ export default function ProtocolReportPage() {
   const validKParams = kParams.filter((p: any) => p?.k != null && p.k > 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 print:min-h-0 print:bg-white">
       {/* ── Toolbar (screen only) ────────────────────────────────────── */}
-      <div className="print:hidden sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm">
+      <div className="report-toolbar print:hidden sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
           <Link href={`/protocols/${id}`}>
             <Button variant="ghost" size="sm">
@@ -668,69 +668,97 @@ export default function ProtocolReportPage() {
 
       {/* ── CSS de Impressão ─────────────────────────────────────────── */}
       <style>{`
-        /* Margens A4 — mesmas em todas as páginas */
         @page {
           size: A4 portrait;
           margin: 12mm 14mm 10mm 14mm;
         }
 
         @media print {
-          /* ── Reset global ── */
-          html, body, #root, #root > *, #root > * > * {
-            overflow: visible !important;
+          /* ── 1. Reset html/body/root ── */
+          html, body {
             height: auto !important;
             min-height: 0 !important;
-            display: block !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
             background: white !important;
           }
 
-          /* Esconde tudo exceto o documento */
-          body > * { display: none !important; }
-          #root { display: block !important; }
-          body * { visibility: hidden !important; }
-          #report-document,
-          #report-document * { visibility: visible !important; }
+          #root {
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+          }
 
-          /* ── Documento ── */
+          /* ── 2. Container da página (min-h-screen bg-gray-50) ── */
+          #root > div {
+            height: auto !important;
+            min-height: 0 !important;
+            background: white !important;
+            padding: 0 !important;
+            overflow: visible !important;
+          }
+
+          /* ── 3. Esconde toolbar de impressão ── */
+          .report-toolbar {
+            display: none !important;
+          }
+
+          /* ── 4. Documento: remove sombra, border-radius, margens de tela ── */
           #report-document {
-            position: static !important;
             display: block !important;
+            position: static !important;
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
             box-shadow: none !important;
-            border: none !important;
             border-radius: 0 !important;
+            border: none !important;
+            background: white !important;
             font-size: 8pt !important;
-            line-height: 1.35 !important;
+            line-height: 1.4 !important;
             overflow: visible !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
 
-          /* ── Seções: permitir quebra interna (evita gaps enormes) ── */
+          /* ── 5. Cabeçalho e corpo do documento: zeramos padding lateral ── */
+          #report-document > div {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            overflow: visible !important;
+          }
+
+          /* ── 6. Seções: fluxo natural de página (sem gaps por break-inside) ── */
           .report-section {
             break-inside: auto !important;
             page-break-inside: auto !important;
             overflow: visible !important;
+            margin-bottom: 7pt !important;
           }
 
-          /* Cabeçalho da seção nunca fica sozinho no fim de página */
+          /* Título de seção: nunca fica sozinho no final da página */
           .report-section-header {
             break-after: avoid !important;
             page-break-after: avoid !important;
           }
 
-          /* Linhas de tabela não partem ao meio */
+          /* ── 7. Tabelas ── */
+          table {
+            width: 100% !important;
+            table-layout: auto !important;
+            border-collapse: collapse !important;
+            overflow: visible !important;
+          }
+
+          thead {
+            display: table-header-group !important;
+          }
+
           tr {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
-          }
-
-          /* Cabeçalho de tabela repete em cada página */
-          thead {
-            display: table-header-group !important;
           }
 
           td, th {
@@ -739,22 +767,12 @@ export default function ProtocolReportPage() {
             print-color-adjust: exact !important;
           }
 
-          table {
-            width: 100% !important;
-            overflow: visible !important;
-            table-layout: auto !important;
-            border-collapse: collapse !important;
-          }
-
-          /* Remove overflow que corta conteúdo */
+          /* ── 8. Remove overflow que corta conteúdo ── */
           .overflow-x-auto,
           .overflow-hidden,
           .overflow-auto {
             overflow: visible !important;
           }
-
-          /* Esconde botão de impressão e toolbar */
-          .print\\:hidden { display: none !important; }
         }
       `}</style>
     </div>
