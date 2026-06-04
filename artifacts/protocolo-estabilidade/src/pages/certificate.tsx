@@ -1010,12 +1010,12 @@ export default function CertificatePage() {
         </div>
 
         {/* ── IDENTIFICAÇÃO DO PRODUTO ──────────────────────────────────────── */}
-        <div className="mb-6 border border-gray-200 rounded-lg overflow-hidden text-sm">
+        <div className="mb-6 border border-gray-200 rounded-lg overflow-hidden text-xs">
           <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
             <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Identificação do Produto</h2>
           </div>
           <div className="px-4 py-3">
-            <table className="w-full text-sm border-collapse">
+            <table className="w-full text-xs border-collapse">
               <colgroup>
                 <col style={{ width: "22%" }} />
                 <col style={{ width: "78%" }} />
@@ -1073,7 +1073,7 @@ export default function CertificatePage() {
         </div>
 
         {/* ── PLANO DE TESTE DE ESTABILIDADE ─────────────────────────────── */}
-        <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden text-sm">
+        <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden text-xs">
           <div className="bg-gray-100 border-b border-gray-200 px-4 py-2">
             <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Plano de Teste de Estabilidade</h2>
           </div>
