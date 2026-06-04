@@ -142,6 +142,13 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       };
     });
 
+  const analysisDates: { t0: string | null; t3: string | null; t6: string | null } = { t0: null, t3: null, t6: null };
+  for (const r of allResults) {
+    if (r.period === 0 && !analysisDates.t0) analysisDates.t0 = r.analysisDate;
+    if (r.period === 3 && !analysisDates.t3) analysisDates.t3 = r.analysisDate;
+    if (r.period === 6 && !analysisDates.t6) analysisDates.t6 = r.analysisDate;
+  }
+
   const cityMatch = protocol.address?.match(/([^,]+)\/([A-Z]{2})/) ?? null;
   const city = cityMatch ? `${cityMatch[1].trim()} - ${cityMatch[2]}` : null;
 
@@ -170,6 +177,7 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     samplingHumidity: protocol.samplingHumidity ?? null,
     receptionTemp: protocol.receptionTemp ?? null,
     receptionHumidity: protocol.receptionHumidity ?? null,
+    analysisDates,
     lotNumbers: lots.map((l) => l.lotNumber),
     analyses,
     conclusion: protocol.conclusion ?? null,

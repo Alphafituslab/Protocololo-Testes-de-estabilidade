@@ -369,6 +369,8 @@ export interface Certificate {
   receptionTemp?: string | null;
   /** Condições de coleta/recebimento — umidade */
   receptionHumidity?: string | null;
+  /** Datas das análises por período (T0, T3, T6) */
+  analysisDates?: { t0?: string | null; t3?: string | null; t6?: string | null } | null;
 }
 
 export interface Methodology {
