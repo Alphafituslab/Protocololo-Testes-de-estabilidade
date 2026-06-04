@@ -1095,19 +1095,25 @@ export default function CertificatePage() {
               <p className="font-semibold text-gray-800">{ef("testIntervals", cert.testIntervals ?? "—")}</p>
             </div>
           </div>
-          {/* ── Datas das análises por período ────────────────────────── */}
+          {/* ── Datas das análises por período — sempre editáveis ────────── */}
           <div className="grid grid-cols-3 divide-x divide-gray-200 border-t border-gray-200">
             <div className="p-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Data da Análise — T0</p>
-              <p className="font-semibold text-gray-800">{ef("analysisDateT0", cert.analysisDates?.t0 ?? "—")}</p>
+              <p className="font-semibold text-gray-800">
+                <CertEditField value={getEdit("analysisDateT0", cert.analysisDates?.t0 ?? "")} onChange={v => setCertEdit("analysisDateT0", v)} className="w-full" />
+              </p>
             </div>
             <div className="p-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Data da Análise — T3</p>
-              <p className="font-semibold text-gray-800">{ef("analysisDateT3", cert.analysisDates?.t3 ?? "—")}</p>
+              <p className="font-semibold text-gray-800">
+                <CertEditField value={getEdit("analysisDateT3", cert.analysisDates?.t3 ?? "")} onChange={v => setCertEdit("analysisDateT3", v)} className="w-full" />
+              </p>
             </div>
             <div className="p-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Data da Análise — T6</p>
-              <p className="font-semibold text-gray-800">{ef("analysisDateT6", cert.analysisDates?.t6 ?? "—")}</p>
+              <p className="font-semibold text-gray-800">
+                <CertEditField value={getEdit("analysisDateT6", cert.analysisDates?.t6 ?? "")} onChange={v => setCertEdit("analysisDateT6", v)} className="w-full" />
+              </p>
             </div>
           </div>
         </div>
