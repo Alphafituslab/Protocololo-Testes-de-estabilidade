@@ -426,12 +426,15 @@ export default function CertificatePage() {
     } catch { return {}; }
   })();
 
-  // Helper para datas de análise: prioridade cert edit não-vazio > API > aba de resultados
+  // Helper para datas de análise:
+  // Prioridade: aba de resultados (fonte primária) > cert edit manual > banco > vazio
   const getAnalysisDate = (key: string, apiDate: string | null | undefined, period: number): string => {
+    const fromResultsTab = (periodDatesLS as Record<string, string>)[String(period)];
+    if (fromResultsTab) return fromResultsTab;      // definido na aba de resultados
     const edit = certEdits[key];
-    if (edit) return edit;                          // usuário digitou no certificado
+    if (edit) return edit;                          // usuário digitou diretamente no certificado
     if (apiDate) return apiDate;                    // veio do banco via resultado salvo
-    return periodDatesLS[period] ?? "";             // definido na aba de resultados
+    return "";
   };
 
   const saveCert = () => {
