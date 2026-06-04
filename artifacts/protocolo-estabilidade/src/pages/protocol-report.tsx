@@ -163,23 +163,10 @@ export default function ProtocolReportPage() {
     query: { enabled: !!id, queryKey: getListSignaturesQueryKey(numId) },
   });
 
-  if (certLoading || protLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-  if (!cert || !protocol) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500">
-        Protocolo não encontrado.
-      </div>
-    );
-  }
+  // ── Todos os hooks ANTES de qualquer early return ────────────────────────
 
-  // Data de emissão: prioridade = cert edit do certificado > cert.issueDate do banco > hoje
-  // Reactive: atualiza quando localStorage muda (outra aba ou volta do certificado)
+  // Data de emissão: prioridade = cert edit > cert.issueDate do banco > hoje
+  // Usa cert?.issueDate pois cert pode ser undefined antes do loading terminar
   const computeEmissionDate = (certIssueDate: string | null | undefined) => {
     try {
       const edits = JSON.parse(localStorage.getItem(`cert_edits_v4_${id}`) ?? "{}") as Record<string, string>;
@@ -188,16 +175,17 @@ export default function ProtocolReportPage() {
     if (certIssueDate) return certIssueDate;
     return new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
   };
-  const [emissionDate, setEmissionDate] = useState<string>(() => computeEmissionDate(cert.issueDate));
+  const [emissionDate, setEmissionDate] = useState<string>(() => computeEmissionDate(cert?.issueDate));
   useEffect(() => {
-    setEmissionDate(computeEmissionDate(cert.issueDate));
+    setEmissionDate(computeEmissionDate(cert?.issueDate));
     const handler = (e: StorageEvent) => {
-      if (e.key === `cert_edits_v4_${id}`) setEmissionDate(computeEmissionDate(cert.issueDate));
+      if (e.key === `cert_edits_v4_${id}`) setEmissionDate(computeEmissionDate(cert?.issueDate));
     };
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, cert.issueDate]);
+  }, [id, cert?.issueDate]);
+
   // Edições locais do relatório (override por protocolo)
   const [reportEdits, setReportEditsState] = useState<Record<string, string>>(() => {
     try {
@@ -235,6 +223,22 @@ export default function ProtocolReportPage() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showPrintSettings]);
+
+  // ── Early returns DEPOIS de todos os hooks ───────────────────────────────
+  if (certLoading || protLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  if (!cert || !protocol) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-500">
+        Protocolo não encontrado.
+      </div>
+    );
+  }
   const isPrint = (key: string) => printSections[key] !== false;
   const toggleSection = (key: string) => {
     setPrintSections(prev => {
