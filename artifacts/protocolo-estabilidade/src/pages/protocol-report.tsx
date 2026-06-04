@@ -9,7 +9,7 @@ import {
 } from "@workspace/api-client-react";
 import { AuditTrail } from "@/components/audit-trail";
 import { Button } from "@/components/ui/button";
-import { Loader2, Printer, ArrowLeft, CheckCircle2, XCircle, AlertCircle, Clock } from "lucide-react";
+import { Loader2, Printer, ArrowLeft, CheckCircle2, XCircle, AlertCircle, Clock, Settings2 } from "lucide-react";
 
 const STATUS_LABEL: Record<string, string> = {
   aprovado: "Aprovado",
@@ -18,6 +18,20 @@ const STATUS_LABEL: Record<string, string> = {
   em_andamento: "Em Andamento",
   rascunho: "Rascunho",
 };
+
+const PRINT_SECTIONS = [
+  { key: "s1",  label: "1. Identificação da Empresa" },
+  { key: "s2",  label: "2. Identificação do Produto" },
+  { key: "s3",  label: "3. Plano de Estabilidade" },
+  { key: "s4",  label: "4. Lotes Piloto do Estudo" },
+  { key: "s5",  label: "5. Resultados — Síntese" },
+  { key: "s5b", label: "5b. Resultados Detalhados" },
+  { key: "s6",  label: "6. Cinética de Estabilidade" },
+  { key: "s7",  label: "7. Metodologias Analíticas" },
+  { key: "s8",  label: "8. Conclusão" },
+  { key: "s9",  label: "9. Assinaturas Eletrônicas" },
+  { key: "s10", label: "10. Histórico de Rastreabilidade" },
+] as const;
 
 function StatusBadge({ status }: { status: string }) {
   const cfg: Record<string, { cls: string; Icon: React.ElementType }> = {
@@ -201,6 +215,43 @@ export default function ProtocolReportPage() {
   const getReportEdit = (key: string, fallback: string): string =>
     reportEdits[key] !== undefined && reportEdits[key] !== "" ? reportEdits[key] : fallback;
 
+  // ── Configurações de impressão ───────────────────────────────────────────
+  const PRINT_PREFS_KEY = `report_print_prefs_${id}`;
+  const [printSections, setPrintSections] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(PRINT_PREFS_KEY);
+      if (raw) return JSON.parse(raw) as Record<string, boolean>;
+    } catch { /* ignore */ }
+    return {};
+  });
+  const [showPrintSettings, setShowPrintSettings] = useState(false);
+  const printSettingsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showPrintSettings) return;
+    const handler = (e: MouseEvent) => {
+      if (printSettingsRef.current && !printSettingsRef.current.contains(e.target as Node))
+        setShowPrintSettings(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showPrintSettings]);
+  const isPrint = (key: string) => printSections[key] !== false;
+  const toggleSection = (key: string) => {
+    setPrintSections(prev => {
+      const next = { ...prev, [key]: !isPrint(key) };
+      try { localStorage.setItem(PRINT_PREFS_KEY, JSON.stringify(next)); } catch { /* */ }
+      return next;
+    });
+  };
+  const setAllSections = (val: boolean) => {
+    const next = Object.fromEntries(PRINT_SECTIONS.map(s => [s.key, val]));
+    try { localStorage.setItem(PRINT_PREFS_KEY, JSON.stringify(next)); } catch { /* */ }
+    setPrintSections(next);
+  };
+  // Wrapper: oculta a seção no CSS de impressão quando desmarcada
+  const ps = (key: string, node: React.ReactNode) =>
+    isPrint(key) ? node : <div key={key} className="print:hidden">{node}</div>;
+
   const lots = [...lotsRaw].sort((a, b) => a.lotNumber.localeCompare(b.lotNumber));
 
   // Datas das análises por período — lê localStorage da aba de resultados (fonte primária)
@@ -263,6 +314,50 @@ export default function ProtocolReportPage() {
               <span className="text-xs font-medium text-amber-800">Nota de Ressalva</span>
             </label>
           )}
+          {/* Configurações de impressão */}
+          <div className="relative" ref={printSettingsRef}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPrintSettings(v => !v)}
+              className="gap-1.5 text-xs"
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+              Seções
+              {PRINT_SECTIONS.some(s => !isPrint(s.key)) && (
+                <span className="ml-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-white text-[9px] font-bold">
+                  {PRINT_SECTIONS.filter(s => !isPrint(s.key)).length}
+                </span>
+              )}
+            </Button>
+            {showPrintSettings && (
+              <div className="absolute right-0 top-full mt-1 w-60 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-3">
+                <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-100">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Seções na impressão</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => setAllSections(true)} className="text-[10px] text-primary hover:underline">Todas</button>
+                    <span className="text-gray-300">|</span>
+                    <button onClick={() => setAllSections(false)} className="text-[10px] text-gray-400 hover:underline">Nenhuma</button>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  {PRINT_SECTIONS.map(s => (
+                    <label key={s.key} className="flex items-center gap-2 cursor-pointer py-0.5 px-1 rounded hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={isPrint(s.key)}
+                        onChange={() => toggleSection(s.key)}
+                        className="w-3.5 h-3.5 accent-primary"
+                      />
+                      <span className={`text-[11px] ${isPrint(s.key) ? "text-gray-800" : "text-gray-400 line-through"}`}>
+                        {s.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <Button onClick={() => window.print()} className="gap-2">
             <Printer className="h-4 w-4" /> Imprimir / Salvar PDF
           </Button>
@@ -313,7 +408,7 @@ export default function ProtocolReportPage() {
         <div className="px-8 py-6 print:px-0 print:py-3 space-y-0">
 
           {/* 1. Empresa */}
-          <Section num="1" title="Identificação da Empresa">
+          {ps("s1", <Section num="1" title="Identificação da Empresa">
             <InfoGrid>
               <InfoRow label="Empresa" value={cert.companyName} wide />
               <InfoRow label="CNPJ" value={cert.cnpj} />
@@ -321,10 +416,10 @@ export default function ProtocolReportPage() {
               <InfoRow label="E-mail" value={cert.email} wide />
               <InfoRow label="Endereço" value={cert.address} wide />
             </InfoGrid>
-          </Section>
+          </Section>)}
 
           {/* 2. Produto */}
-          <Section num="2" title="Identificação do Produto">
+          {ps("s2", <Section num="2" title="Identificação do Produto">
             <InfoGrid>
               <InfoRow label="Produto" value={cert.productName} wide />
               <InfoRow label="Apresentação" value={cert.presentation} />
@@ -334,10 +429,10 @@ export default function ProtocolReportPage() {
               <InfoRow label="Excipientes" value={cert.excipients} wide />
               <InfoRow label="Composição da Cápsula" value={cert.capsuleComposition} wide />
             </InfoGrid>
-          </Section>
+          </Section>)}
 
           {/* 3. Plano de Estabilidade */}
-          <Section num="3" title="Plano de Estabilidade Acelerada (ICH Q1A(R2))">
+          {ps("s3", <Section num="3" title="Plano de Estabilidade Acelerada (ICH Q1A(R2))">
             <div className="grid grid-cols-4 gap-3 mb-3">
               {[
                 { label: "Temperatura", value: cert.storageTemp ?? "40°C ± 2°C" },
@@ -363,10 +458,10 @@ export default function ProtocolReportPage() {
                 );
               })}
             </div>
-          </Section>
+          </Section>)}
 
           {/* 4. Lotes */}
-          {lots.length > 0 && (
+          {lots.length > 0 && ps("s4", (
             <Section num="4" title="Lotes Piloto do Estudo">
               <table className="w-full border-collapse">
                 <thead>
@@ -391,10 +486,10 @@ export default function ProtocolReportPage() {
                 </tbody>
               </table>
             </Section>
-          )}
+          ))}
 
           {/* 5. Resultados — síntese por categoria */}
-          <Section num="5" title="Resultados das Análises — Síntese (Médias dos Lotes)">
+          {ps("s5", <Section num="5" title="Resultados das Análises — Síntese (Médias dos Lotes)">
             {cert.analyses.length > 0 ? (
               <div className="space-y-4">
                 {Object.entries(byCategory).map(([cat, analyses]) => (
@@ -440,10 +535,10 @@ export default function ProtocolReportPage() {
             ) : (
               <p className="text-[10px] text-gray-400 italic">Nenhum resultado registrado.</p>
             )}
-          </Section>
+          </Section>)}
 
           {/* 5b. Resultados por lote×período (se houver) */}
-          {results.length > 0 && lots.length > 0 && periods.length > 0 && (
+          {results.length > 0 && lots.length > 0 && periods.length > 0 && ps("s5b", (
             <Section num="5b" title="Resultados Detalhados por Lote e Período">
               <div className="overflow-x-auto print:overflow-visible">
                 <table className="border-collapse" style={{ tableLayout: "auto", minWidth: "100%" }}>
@@ -481,10 +576,10 @@ export default function ProtocolReportPage() {
                 </table>
               </div>
             </Section>
-          )}
+          ))}
 
           {/* 6. Cinética */}
-          {validKParams.length > 0 && (
+          {validKParams.length > 0 && ps("s6", (
             <Section num="6" title="Cinética de Estabilidade e Estimativa de Validade">
               <p className="text-[9px] text-gray-500 mb-3 leading-relaxed">
                 Modelo cinético de primeira ordem (ICH Q1A(R2)). &nbsp;
@@ -547,10 +642,10 @@ export default function ProtocolReportPage() {
                 <p className="text-[9px] text-gray-600 mt-2 border-l-2 border-gray-200 pl-2">{cert.kineticsNotes}</p>
               )}
             </Section>
-          )}
+          ))}
 
           {/* 7. Metodologias */}
-          {cert.analyses.some(a => a.method) && (
+          {cert.analyses.some(a => a.method) && ps("s7", (
             <Section num="7" title="Metodologias Analíticas Utilizadas">
               <table className="w-full border-collapse">
                 <thead>
@@ -569,10 +664,10 @@ export default function ProtocolReportPage() {
                 </tbody>
               </table>
             </Section>
-          )}
+          ))}
 
           {/* 8. Conclusão */}
-          {cert.conclusion && (
+          {cert.conclusion && ps("s8", (
             <Section num="8" title="Conclusão">
               <div className="border-l-2 border-primary/30 pl-3 bg-gray-50/50 py-2 pr-3 rounded-r print:bg-gray-50">
                 <p className="text-[10px] text-gray-800 leading-relaxed whitespace-pre-wrap">{cert.conclusion}</p>
@@ -592,7 +687,7 @@ export default function ProtocolReportPage() {
                 </div>
               </div>
             </Section>
-          )}
+          ))}
 
           {/* Nota de Ressalva */}
           {protocol.status === "aprovado_com_ressalva" && cert.ressalva && showRessalva && (
@@ -608,7 +703,7 @@ export default function ProtocolReportPage() {
           )}
 
           {/* 9. Assinaturas */}
-          {signatures.length > 0 && (
+          {signatures.length > 0 && ps("s9", (
             <Section num="9" title="Assinaturas Eletrônicas">
               <table className="w-full border-collapse">
                 <thead>
@@ -631,28 +726,30 @@ export default function ProtocolReportPage() {
                 </tbody>
               </table>
             </Section>
-          )}
+          ))}
 
           {/* 10. Histórico */}
-          <Section num="10" title="Histórico de Rastreabilidade">
-            {/* Cabeçalho com datas replicadas do certificado (editáveis) */}
-            <div className="flex items-start justify-between mb-3 pb-3 border-b border-gray-200">
-              <div>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Produto / Certificado</p>
-                <p className="text-[10px] font-semibold text-gray-800">{cert.productName}</p>
-                <p className="text-[10px] text-gray-500">{cert.certNumber}</p>
+          {ps("s10", (
+            <Section num="10" title="Histórico de Rastreabilidade">
+              {/* Cabeçalho com datas replicadas do certificado (editáveis) */}
+              <div className="flex items-start justify-between mb-3 pb-3 border-b border-gray-200">
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Produto / Certificado</p>
+                  <p className="text-[10px] font-semibold text-gray-800">{cert.productName}</p>
+                  <p className="text-[10px] text-gray-500">{cert.certNumber}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5 print:hidden">Data de Emissão</p>
+                  <ReportField
+                    value={getReportEdit("issueDate", emissionDate)}
+                    onChange={v => setReportEdit("issueDate", v)}
+                    className="text-[10px] font-semibold text-gray-800"
+                  />
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5 print:hidden">Data de Emissão</p>
-                <ReportField
-                  value={getReportEdit("issueDate", emissionDate)}
-                  onChange={v => setReportEdit("issueDate", v)}
-                  className="text-[10px] font-semibold text-gray-800"
-                />
-              </div>
-            </div>
-            <AuditTrail protocolId={numId} printMode />
-          </Section>
+              <AuditTrail protocolId={numId} printMode />
+            </Section>
+          ))}
 
           {/* ── Rodapé ────────────────────────────────────────────────── */}
           <div className="mt-6 pt-4 border-t-2 border-gray-800">
