@@ -1125,38 +1125,38 @@ export default function CertificatePage() {
           </div>
           <div className="grid grid-cols-4 divide-x divide-gray-200">
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{ef("lbl_storageTemp", "Temperatura de Armazenamento", { className: "text-[10px] font-bold uppercase tracking-widest text-gray-400" })}</p>
+              <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">{ef("lbl_storageTemp", "Temperatura de Armazenamento", { className: "text-[10px] font-bold tracking-normal text-gray-400" })}</p>
               <p className="font-semibold text-gray-800">{ef("storageTemp", cert.storageTemp ?? "40°C ± 2°C")}</p>
             </div>
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{ef("lbl_storageHumidity", "Umidade Relativa", { className: "text-[10px] font-bold uppercase tracking-widest text-gray-400" })}</p>
+              <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">{ef("lbl_storageHumidity", "Umidade Relativa", { className: "text-[10px] font-bold tracking-normal text-gray-400" })}</p>
               <p className="font-semibold text-gray-800">{ef("storageHumidity", cert.storageHumidity ?? "75% UR ± 5% UR")}</p>
             </div>
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{ef("lbl_studyPeriodMonths", "Período do Estudo", { className: "text-[10px] font-bold uppercase tracking-widest text-gray-400" })}</p>
+              <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">{ef("lbl_studyPeriodMonths", "Período do Estudo", { className: "text-[10px] font-bold tracking-normal text-gray-400" })}</p>
               <p className="font-semibold text-gray-800">{ef("studyPeriodMonths", cert.studyPeriodMonths != null ? String(cert.studyPeriodMonths) + " meses" : "—")}</p>
             </div>
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{ef("lbl_testIntervals", "Intervalos de Teste", { className: "text-[10px] font-bold uppercase tracking-widest text-gray-400" })}</p>
+              <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">{ef("lbl_testIntervals", "Intervalos de Teste", { className: "text-[10px] font-bold tracking-normal text-gray-400" })}</p>
               <p className="font-semibold text-gray-800">{ef("testIntervals", cert.testIntervals ?? "—")}</p>
             </div>
           </div>
           {/* ── Datas das análises por período — sempre editáveis ────────── */}
           <div className="grid grid-cols-3 divide-x divide-gray-200 border-t border-gray-200">
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Data da Análise — T0</p>
+              <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">Data da Análise — T0</p>
               <p className="font-semibold text-gray-800">
                 <CertEditField value={getAnalysisDate("analysisDateT0", cert.analysisDates?.t0, 0)} onChange={v => setCertEdit("analysisDateT0", v)} className="w-full" />
               </p>
             </div>
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Data da Análise — T3</p>
+              <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">Data da Análise — T3</p>
               <p className="font-semibold text-gray-800">
                 <CertEditField value={getAnalysisDate("analysisDateT3", cert.analysisDates?.t3, 3)} onChange={v => setCertEdit("analysisDateT3", v)} className="w-full" />
               </p>
             </div>
             <div className="p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Data da Análise — T6</p>
+              <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">Data da Análise — T6</p>
               <p className="font-semibold text-gray-800">
                 <CertEditField value={getAnalysisDate("analysisDateT6", cert.analysisDates?.t6, 6)} onChange={v => setCertEdit("analysisDateT6", v)} className="w-full" />
               </p>

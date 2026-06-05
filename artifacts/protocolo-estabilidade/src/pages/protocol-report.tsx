@@ -512,7 +512,7 @@ export default function ProtocolReportPage() {
                 { label: "Intervalos", value: cert.testIntervals ?? "—" },
               ].map(({ label, value }) => (
                 <div key={label} className="rounded border border-gray-200 px-3 py-2 bg-gray-50 print:bg-gray-50">
-                  <p className="text-[8px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">{label}</p>
+                  <p className="text-[8px] font-bold tracking-normal text-gray-400 mb-0.5">{label}</p>
                   <p className="text-[10px] font-semibold text-gray-800">{value}</p>
                 </div>
               ))}
@@ -523,7 +523,7 @@ export default function ProtocolReportPage() {
                 const date = getAnalysisDate(period, (cert.analysisDates as Record<string, string | null> | undefined)?.[period === 0 ? "t0" : period === 3 ? "t3" : "t6"]);
                 return (
                   <div key={period} className="rounded border border-gray-200 px-3 py-2 bg-gray-50 print:bg-gray-50">
-                    <p className="text-[8px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Data da Análise — T{period}</p>
+                    <p className="text-[8px] font-bold tracking-normal text-gray-400 mb-0.5">Data da Análise — T{period}</p>
                     <p className="text-[10px] font-semibold text-gray-800">{date || "—"}</p>
                   </div>
                 );
