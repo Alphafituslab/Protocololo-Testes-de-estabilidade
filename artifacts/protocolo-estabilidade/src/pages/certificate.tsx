@@ -259,7 +259,7 @@ function TitleEditor({ value, onChange }: { value: string; onChange: (v: string)
 export default function CertificatePage() {
   const { id } = useParams<{ id: string }>();
   const { data: cert, isLoading } = useGetCertificate(Number(id), {
-    query: { enabled: !!id, queryKey: getGetCertificateQueryKey(Number(id)), staleTime: 0 },
+    query: { enabled: !!id, queryKey: getGetCertificateQueryKey(Number(id)), staleTime: 0, refetchOnWindowFocus: true },
   });
   const updateProtocol = useUpdateProtocol();
 
@@ -292,7 +292,7 @@ export default function CertificatePage() {
   const auth = useContext(AuthContext);
   const queryClient = useQueryClient();
   const { data: signatures = [] } = useListSignatures(Number(id), {
-    query: { queryKey: getListSignaturesQueryKey(Number(id)), enabled: !!id },
+    query: { queryKey: getListSignaturesQueryKey(Number(id)), enabled: !!id, staleTime: 0, refetchOnWindowFocus: true },
   });
   const [sigDialogOpen, setSigDialogOpen] = useState(false);
   const [selectedRoleLabel, setSelectedRoleLabel] = useState("Elaborador");
@@ -525,11 +525,11 @@ export default function CertificatePage() {
   };
 
   const { data: lotsRaw = [] } = useListLots(Number(id), {
-    query: { enabled: !!id, queryKey: getListLotsQueryKey(Number(id)) },
+    query: { enabled: !!id, queryKey: getListLotsQueryKey(Number(id)), staleTime: 0, refetchOnWindowFocus: true },
   });
 
   const { data: kineticsData } = useGetKinetics(Number(id), {
-    query: { enabled: !!id, queryKey: getGetKineticsQueryKey(Number(id)) },
+    query: { enabled: !!id, queryKey: getGetKineticsQueryKey(Number(id)), staleTime: 0, refetchOnWindowFocus: true },
   });
 
   // Sync analyses from API + localStorage every time cert (re)loads.

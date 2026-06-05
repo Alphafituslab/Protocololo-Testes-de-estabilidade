@@ -149,19 +149,19 @@ export default function ProtocolReportPage() {
   const [showRessalva, setShowRessalva] = useState(true);
 
   const { data: cert, isLoading: certLoading } = useGetCertificate(numId, {
-    query: { enabled: !!id, queryKey: getGetCertificateQueryKey(numId), staleTime: 0 },
+    query: { enabled: !!id, queryKey: getGetCertificateQueryKey(numId), staleTime: 0, refetchOnWindowFocus: true },
   });
   const { data: protocol, isLoading: protLoading } = useGetProtocol(numId, {
-    query: { enabled: !!id, queryKey: getGetProtocolQueryKey(numId) },
+    query: { enabled: !!id, queryKey: getGetProtocolQueryKey(numId), staleTime: 0, refetchOnWindowFocus: true },
   });
   const { data: lotsRaw = [] } = useListLots(numId, {
-    query: { enabled: !!id, queryKey: getListLotsQueryKey(numId) },
+    query: { enabled: !!id, queryKey: getListLotsQueryKey(numId), staleTime: 0, refetchOnWindowFocus: true },
   });
   const { data: kineticsData } = useGetKinetics(numId, {
-    query: { enabled: !!id, queryKey: getGetKineticsQueryKey(numId) },
+    query: { enabled: !!id, queryKey: getGetKineticsQueryKey(numId), staleTime: 0, refetchOnWindowFocus: true },
   });
   const { data: signatures = [] } = useListSignatures(numId, {
-    query: { enabled: !!id, queryKey: getListSignaturesQueryKey(numId) },
+    query: { enabled: !!id, queryKey: getListSignaturesQueryKey(numId), staleTime: 0, refetchOnWindowFocus: true },
   });
 
   // ── Todos os hooks ANTES de qualquer early return ────────────────────────
