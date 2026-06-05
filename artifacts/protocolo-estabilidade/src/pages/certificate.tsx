@@ -1,4 +1,5 @@
 import { useParams, Link } from "wouter";
+import { fmtDate } from "@/lib/utils";
 import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey, useListSignatures, useAddSignature, useDeleteSignature, getListSignaturesQueryKey, useUpdateProtocol } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, History, Lock, Unlock, Save, ShieldCheck, PenLine, Trash2, UserCheck } from "lucide-react";
@@ -1018,7 +1019,7 @@ export default function CertificatePage() {
             </div>
             <div className="whitespace-nowrap">
               <span className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider block">Data de Emissão</span>
-              <span className="font-medium text-gray-700 whitespace-nowrap">{ef("issueDate", cert.issueDate)}</span>
+              <span className="font-medium text-gray-700 whitespace-nowrap">{ef("issueDate", fmtDate(cert.issueDate) as string)}</span>
             </div>
           </div>
         </div>
@@ -1331,7 +1332,7 @@ export default function CertificatePage() {
                 </div>
                 <span className={`font-medium ${effectiveIsRepproved ? "text-red-700" : ""}`}>REPROVADO</span>
               </div>
-              {(getEdit("issueDate", cert.issueDate)) && <span className="ml-auto text-gray-500 text-xs">DATA: {getEdit("issueDate", cert.issueDate)}</span>}
+              {(getEdit("issueDate", cert.issueDate)) && <span className="ml-auto text-gray-500 text-xs">DATA: {fmtDate(getEdit("issueDate", cert.issueDate))}</span>}
             </div>
           </div>
         </div>
@@ -1719,7 +1720,7 @@ export default function CertificatePage() {
                 <div className="text-right text-xs text-gray-500">
                   <p>{cert.productName}</p>
                   <p className="font-semibold">{cert.certNumber}</p>
-                  <p>{ef("issueDate", cert.issueDate)}</p>
+                  <p>{ef("issueDate", fmtDate(cert.issueDate) as string)}</p>
                 </div>
               </div>
               <p className="text-xs text-gray-500 border-b border-gray-300 pb-3 mb-4">
@@ -1750,7 +1751,7 @@ export default function CertificatePage() {
                 <div className="text-right text-xs text-gray-500">
                   <p>{cert.productName}</p>
                   <p className="font-semibold">{cert.certNumber}</p>
-                  <p>{getEdit("issueDate", cert.issueDate)}</p>
+                  <p>{fmtDate(getEdit("issueDate", cert.issueDate))}</p>
                 </div>
               </div>
               <p className="text-xs text-gray-500 border-b border-gray-300 pb-3 mb-4">
@@ -1839,7 +1840,7 @@ export default function CertificatePage() {
             {/* Appendix footer */}
             <div className="pt-4 border-t border-gray-300 mt-6">
               <p className="text-[9px] text-gray-400 text-center">
-                Fim do Anexo Fotográfico — {totalSelectedImages} imagem(ns) referentes a {visiblePhotoEntries.length} ensaio(s) — {cert.certNumber} — {getEdit("issueDate", cert.issueDate)}
+                Fim do Anexo Fotográfico — {totalSelectedImages} imagem(ns) referentes a {visiblePhotoEntries.length} ensaio(s) — {cert.certNumber} — {fmtDate(getEdit("issueDate", cert.issueDate))}
               </p>
             </div>
           </div>

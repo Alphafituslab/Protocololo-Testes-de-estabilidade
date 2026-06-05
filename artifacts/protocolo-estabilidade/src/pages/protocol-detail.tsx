@@ -1,4 +1,5 @@
 import { useParams, Link, useLocation } from "wouter";
+import { fmtDate } from "@/lib/utils";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useUnlock } from "@/hooks/use-unlock";
 import { UnlockDialog } from "@/components/unlock-dialog";
@@ -234,8 +235,8 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
   ];
 
   const fieldsBottom: { labelKey: string; def: string; value?: string | null }[] = [
-    { labelKey: "studyStartDate", def: "Data de Início", value: protocol.studyStartDate },
-    { labelKey: "studyEndDate", def: "Data Final", value: protocol.studyEndDate },
+    { labelKey: "studyStartDate", def: "Data de Início", value: fmtDate(protocol.studyStartDate) as string | null | undefined },
+    { labelKey: "studyEndDate", def: "Data Final", value: fmtDate(protocol.studyEndDate) as string | null | undefined },
     { labelKey: "storageTemp", def: "Temperatura de Armazenamento", value: protocol.storageTemp },
     { labelKey: "storageHumidity", def: "Umidade Relativa", value: protocol.storageHumidity },
     { labelKey: "studyPeriodMonths", def: "Período do Estudo (meses)", value: protocol.studyPeriodMonths?.toString() },
@@ -415,7 +416,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
             {lots.map((lot) => (
               <TableRow key={lot.id} data-testid={`row-lot-${lot.id}`}>
                 <TableCell className="font-mono font-medium">{lot.lotNumber}</TableCell>
-                <TableCell>{lot.manufacturingDate}</TableCell>
+                <TableCell>{fmtDate(lot.manufacturingDate)}</TableCell>
                 <TableCell>{lot.quantity} unidades</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{lot.notes ?? "—"}</TableCell>
                 <TableCell>
@@ -507,7 +508,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
                   <span className={`font-mono font-medium ${lot.lotNumber === lastAdded ? "text-green-700" : "text-foreground"}`}>
                     {lot.lotNumber === lastAdded && "✓ "}{lot.lotNumber}
                   </span>
-                  <span className="text-muted-foreground">{lot.manufacturingDate} · {lot.quantity} un.</span>
+                  <span className="text-muted-foreground">{fmtDate(lot.manufacturingDate)} · {lot.quantity} un.</span>
                 </div>
               ))}
             </div>
