@@ -477,6 +477,12 @@ export default function ProtocolReportPage() {
                     </div>
                   ))}
                 </div>
+                <div className="mt-2 flex items-start gap-1.5 rounded border-l-2 border-amber-400 bg-amber-50 px-2 py-1.5 print:bg-amber-50">
+                  <span className="text-amber-500 text-[8.5px] leading-none mt-px shrink-0">★</span>
+                  <p className="text-[8.5px] font-semibold text-amber-800 leading-snug italic">
+                    Alimento está sendo testado em embalagem equivalente e sistema de fechamento nos quais será comercializado.
+                  </p>
+                </div>
               </div>
             )}
           </Section>)}
