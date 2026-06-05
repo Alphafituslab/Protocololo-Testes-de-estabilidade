@@ -597,7 +597,7 @@ export default function ProtocolReportPage() {
           {results.length > 0 && lots.length > 0 && periods.length > 0 && ps("s5b", (
             <Section num="5b" title="Resultados Detalhados por Lote e Período">
               <div className="overflow-x-auto print:overflow-visible">
-                <table className="border-collapse" style={{ tableLayout: "auto", minWidth: "100%" }}>
+                <table className="border-collapse section-5b-table" style={{ tableLayout: "auto", minWidth: "100%" }}>
                   <thead>
                     <tr>
                       <Th>Parâmetro</Th>
@@ -941,6 +941,30 @@ export default function ProtocolReportPage() {
           .overflow-hidden,
           .overflow-auto {
             overflow: visible !important;
+          }
+
+          /* ── 9. Tabela 5b (Resultados por Lote × Período) — cabe na largura A4 ── */
+          .section-5b-table {
+            width: 100% !important;
+            min-width: 0 !important;
+            font-size: 6.5pt !important;
+            table-layout: fixed !important;
+          }
+
+          .section-5b-table th {
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow-wrap: break-word !important;
+            padding: 2px 3px !important;
+            font-size: 6.5pt !important;
+          }
+
+          .section-5b-table td {
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow-wrap: break-word !important;
+            padding: 2px 3px !important;
+            font-size: 6.5pt !important;
           }
         }
       `}</style>
