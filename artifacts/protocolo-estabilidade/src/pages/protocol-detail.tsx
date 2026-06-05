@@ -935,36 +935,50 @@ function ParamMethodSelector({
   methodologies,
   catalogEntries = [],
   onSelect,
+  compact = false,
 }: {
   paramName: string;
   selected: string | null;
   methodologies: { id: number; shortName: string; citation: string; category?: string | null }[];
   catalogEntries?: { shortName: string; citation: string }[];
   onSelect: (shortName: string | null, citation: string | null) => void;
+  /** Quando true, renderiza apenas um ícone de edição (para uso ao lado de texto visível). */
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const hasCatalog = catalogEntries.length > 0;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={`flex items-center gap-0.5 mt-0.5 text-[10px] rounded px-1 py-0 transition-colors ${
-            selected
-              ? "text-primary/80 hover:text-primary"
-              : "text-muted-foreground/40 hover:text-muted-foreground"
-          }`}
-          title={selected ? `Metodologia: ${selected}` : "Selecionar metodologia"}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <BookOpen className="h-2.5 w-2.5 flex-shrink-0" />
-          <span className="truncate max-w-[120px]">{selected ?? "método..."}</span>
-          {hasCatalog && !selected && (
-            <span className="ml-0.5 text-[8px] bg-primary/15 text-primary rounded px-0.5 font-semibold leading-tight">
-              {catalogEntries.length}
-            </span>
-          )}
-        </button>
+        {compact ? (
+          <button
+            type="button"
+            className="flex items-center justify-center h-5 w-5 rounded text-muted-foreground/40 hover:text-primary hover:bg-primary/10 transition-colors flex-shrink-0 mt-0.5"
+            title={selected ? "Alterar metodologia" : "Selecionar metodologia"}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={`flex items-center gap-0.5 mt-0.5 text-[10px] rounded px-1 py-0 transition-colors ${
+              selected
+                ? "text-primary/80 hover:text-primary"
+                : "text-muted-foreground/40 hover:text-muted-foreground"
+            }`}
+            title={selected ? `Metodologia: ${selected}` : "Selecionar metodologia"}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <BookOpen className="h-2.5 w-2.5 flex-shrink-0" />
+            <span className="truncate max-w-[120px]">{selected ?? "método..."}</span>
+            {hasCatalog && !selected && (
+              <span className="ml-0.5 text-[8px] bg-primary/15 text-primary rounded px-0.5 font-semibold leading-tight">
+                {catalogEntries.length}
+              </span>
+            )}
+          </button>
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-80 p-2 z-50" side="right" align="start">
         <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">
@@ -2332,18 +2346,36 @@ function MethodologiaTab({
                               placeholder="Critério de aceitação"
                             />
                           </td>
-                          <td className="px-3 py-1.5">
-                            <ParamMethodSelector
-                              paramName={p.parameter}
-                              selected={p.methodologyShort ?? null}
-                              methodologies={methodologies}
-                              catalogEntries={getCatalogEntries(p.parameter)}
-                              onSelect={(s, c) => setParamMethodInTab(p.uid, p.parameter, s, c)}
-                            />
-                            {p.methodologyCitation && (
-                              <p className="text-[9px] text-muted-foreground/70 leading-tight mt-0.5 truncate max-w-[180px]" title={p.methodologyCitation}>
-                                {p.methodologyCitation}
-                              </p>
+                          <td className="px-3 py-1.5 min-w-[200px]">
+                            {p.methodologyShort ? (
+                              <div className="flex items-start gap-1">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-semibold text-primary/80 leading-tight">
+                                    {p.methodologyShort}
+                                  </p>
+                                  {p.methodologyCitation && (
+                                    <p className="text-[10px] text-muted-foreground/70 leading-snug mt-0.5 break-words">
+                                      {p.methodologyCitation}
+                                    </p>
+                                  )}
+                                </div>
+                                <ParamMethodSelector
+                                  paramName={p.parameter}
+                                  selected={p.methodologyShort ?? null}
+                                  methodologies={methodologies}
+                                  catalogEntries={getCatalogEntries(p.parameter)}
+                                  onSelect={(s, c) => setParamMethodInTab(p.uid, p.parameter, s, c)}
+                                  compact
+                                />
+                              </div>
+                            ) : (
+                              <ParamMethodSelector
+                                paramName={p.parameter}
+                                selected={null}
+                                methodologies={methodologies}
+                                catalogEntries={getCatalogEntries(p.parameter)}
+                                onSelect={(s, c) => setParamMethodInTab(p.uid, p.parameter, s, c)}
+                              />
                             )}
                           </td>
                           <td className="px-2 py-1.5 text-center">
