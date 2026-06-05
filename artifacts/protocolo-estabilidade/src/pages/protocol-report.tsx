@@ -124,15 +124,27 @@ function Td({ children, center, mono, bold, className = "" }: {
 }
 
 const RESULT_STATUS: Record<string, string> = {
-  aprovado: "Conforme",
-  reprovado: "Não Conforme",
-  aprovado_com_ressalva: "AR",
+  "Conforme": "Conforme",
+  "Nao Conforme": "Não Conforme",
+  "Aprovado com Ressalva": "Aprovado com Ressalva",
+  "N/A": "N/A",
+  conforme: "Conforme",
+  nao_conforme: "Não Conforme",
+  aprovado_com_ressalva: "Aprovado com Ressalva",
+  na: "N/A",
+  nd: "Não Detectado",
+  lq: "Limite de Quantificação",
 };
 
 const RESULT_COLOR: Record<string, string> = {
-  aprovado: "text-emerald-700",
-  reprovado: "text-red-600 font-bold",
+  "Conforme": "text-emerald-700",
+  "Nao Conforme": "text-red-600 font-bold",
+  "Aprovado com Ressalva": "text-amber-600",
+  "N/A": "text-gray-400",
+  conforme: "text-emerald-700",
+  nao_conforme: "text-red-600 font-bold",
   aprovado_com_ressalva: "text-amber-600",
+  na: "text-gray-400",
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -533,7 +545,7 @@ export default function ProtocolReportPage() {
                       </thead>
                       <tbody>
                         {analyses.map((a, i) => {
-                          const isNC = a.status === "reprovado";
+                          const isNC = a.status === "Nao Conforme" || a.status === "reprovado" || a.status === "nao_conforme";
                           return (
                             <tr key={a.parameter} className={isNC ? "bg-red-50 print:bg-red-50" : i % 2 !== 0 ? "bg-gray-50/70" : ""}>
                               <Td bold className={isNC ? "text-red-800" : ""}>{a.parameter}</Td>
