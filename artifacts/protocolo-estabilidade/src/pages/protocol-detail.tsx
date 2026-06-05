@@ -1073,6 +1073,35 @@ function addToCatalog(paramName: string, shortName: string, citation: string) {
   } catch { /* ignore */ }
 }
 
+/**
+ * Lookup reverso: dado um shortName de metodologia, retorna os parâmetros
+ * que já usaram essa metodologia (nome de exibição + critério de aceitação).
+ * Usado para auto-preencher nome e critério ao selecionar metodologia em parâmetro em branco.
+ */
+function getParamsForMethodology(shortName: string): { paramName: string; criterion: string }[] {
+  if (!shortName) return [];
+  try {
+    const raw = localStorage.getItem(PARAM_CATALOG_KEY);
+    if (!raw) return [];
+    const catalog = JSON.parse(raw) as Record<string, CatalogEntry[]>;
+    // Todos os presets para reverse-lookup de nome de exibição e critério
+    const allPresets = [
+      ...Object.values(CATEGORY_PRESETS).flat(),
+      ...ANALYSIS_PARAMETERS.map(p => ({ parameter: p.parameter, criterion: p.criterion })),
+    ];
+    const results: { paramName: string; criterion: string }[] = [];
+    for (const [normalizedKey, entries] of Object.entries(catalog)) {
+      if (entries.some(e => e.shortName === shortName)) {
+        const preset = allPresets.find(p => p.parameter.trim().toLowerCase() === normalizedKey);
+        const displayName = preset?.parameter
+          ?? normalizedKey.replace(/\b\w/g, c => c.toUpperCase());
+        results.push({ paramName: displayName, criterion: preset?.criterion ?? "" });
+      }
+    }
+    return results;
+  } catch { return []; }
+}
+
 /** Retorna todos os presets disponíveis para uma categoria, combinando CATEGORY_PRESETS com ANALYSIS_PARAMETERS. */
 function getPresetsForCategory(category: string): { parameter: string; criterion: string }[] {
   const fromPresets = CATEGORY_PRESETS[category] ?? [];
@@ -1428,7 +1457,18 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
                                 selected={paramMethods[param.parameter] ?? null}
                                 methodologies={methodologies}
                                 catalogEntries={getCatalogEntries(param.parameter)}
-                                onSelect={(s, c) => setParamMethod(param.parameter, s, c)}
+                                onSelect={(s, c) => {
+                                  // Lookup reverso: se o parâmetro está em branco e a
+                                  // metodologia aponta para exatamente 1 composto, preenche
+                                  if (!param.parameter.trim() && s) {
+                                    const matches = getParamsForMethodology(s);
+                                    if (matches.length === 1) {
+                                      updateParam(param.uid, "parameter", matches[0].paramName);
+                                      if (!param.criterion?.trim()) updateParam(param.uid, "criterion", matches[0].criterion);
+                                    }
+                                  }
+                                  setParamMethod(param.parameter || (s ? (getParamsForMethodology(s)[0]?.paramName ?? "") : ""), s, c);
+                                }}
                               />
                             </TableCell>
                             <TableCell
@@ -2063,13 +2103,25 @@ function MethodologiaTab({
   };
 
   const setParamMethodInTab = (uid: string, paramName: string, shortName: string | null, citation: string | null) => {
-    setEditableParams(prev => prev.map(p =>
-      p.uid === uid
-        ? { ...p, methodologyShort: shortName ?? undefined, methodologyCitation: citation ?? undefined }
-        : p
-    ));
-    if (shortName && citation && paramName.trim()) {
-      addToCatalog(paramName, shortName, citation);
+    // Lookup reverso: se o parâmetro está em branco e a metodologia já foi usada para
+    // exatamente 1 composto, preenche nome e critério automaticamente
+    const reverseMatches = shortName && !paramName.trim() ? getParamsForMethodology(shortName) : [];
+    const autoFill = reverseMatches.length === 1 ? reverseMatches[0] : null;
+
+    setEditableParams(prev => prev.map(p => {
+      if (p.uid !== uid) return p;
+      return {
+        ...p,
+        parameter: autoFill ? autoFill.paramName : p.parameter,
+        criterion: autoFill && !p.criterion.trim() ? autoFill.criterion : p.criterion,
+        methodologyShort: shortName ?? undefined,
+        methodologyCitation: citation ?? undefined,
+      };
+    }));
+
+    const finalName = autoFill ? autoFill.paramName : paramName;
+    if (shortName && citation && finalName.trim()) {
+      addToCatalog(finalName, shortName, citation);
     }
   };
 
