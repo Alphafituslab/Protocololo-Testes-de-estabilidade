@@ -1094,7 +1094,7 @@ export default function CertificatePage() {
                         ? [...lotsRaw].sort((a, b) => a.lotNumber.localeCompare(b.lotNumber))
                         : cert.lotNumbers.map(n => ({ id: n, lotNumber: n, manufacturingDate: null, quantity: null }))
                       ).map((lot, i) => (
-                        <div key={(lot as { id: string | number }).id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0">
+                        <div key={(lot as { id: string | number }).id} className="flex items-baseline gap-x-3">
                           <span className="font-semibold">{i + 1} — {lot.lotNumber}</span>
                           {(lot as { manufacturingDate?: string | null }).manufacturingDate && (
                             <span className="text-gray-500">{fmtDate((lot as { manufacturingDate?: string | null }).manufacturingDate)}</span>
