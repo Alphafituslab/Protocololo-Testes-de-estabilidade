@@ -279,8 +279,10 @@ export default function ProtocolReportPage() {
       return raw ? JSON.parse(raw) : {};
     } catch { return {}; }
   })();
-  const getAnalysisDate = (period: number, apiDate: string | null | undefined): string =>
-    periodDatesLS[String(period)] || apiDate || "";
+  const getAnalysisDate = (period: number, apiDate: string | null | undefined): string => {
+    const raw = periodDatesLS[String(period)] || apiDate || "";
+    return fmtDate(raw) as string || raw;
+  };
 
   type ResultRow = {
     lotNumber: string; period: number; parameter: string;

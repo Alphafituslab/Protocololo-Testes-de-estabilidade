@@ -432,10 +432,10 @@ export default function CertificatePage() {
   // Prioridade: aba de resultados (fonte primária) > cert edit manual > banco > vazio
   const getAnalysisDate = (key: string, apiDate: string | null | undefined, period: number): string => {
     const fromResultsTab = (periodDatesLS as Record<string, string>)[String(period)];
-    if (fromResultsTab) return fromResultsTab;      // definido na aba de resultados
+    if (fromResultsTab) return fmtDate(fromResultsTab) as string || fromResultsTab;
     const edit = certEdits[key];
-    if (edit) return edit;                          // usuário digitou diretamente no certificado
-    if (apiDate) return apiDate;                    // veio do banco via resultado salvo
+    if (edit) return fmtDate(edit) as string || edit;
+    if (apiDate) return fmtDate(apiDate) as string || apiDate;
     return "";
   };
 
