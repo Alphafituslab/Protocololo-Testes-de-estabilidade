@@ -1073,6 +1073,16 @@ function addToCatalog(paramName: string, shortName: string, citation: string) {
   } catch { /* ignore */ }
 }
 
+/** Retorna todos os presets disponíveis para uma categoria, combinando CATEGORY_PRESETS com ANALYSIS_PARAMETERS. */
+function getPresetsForCategory(category: string): { parameter: string; criterion: string }[] {
+  const fromPresets = CATEGORY_PRESETS[category] ?? [];
+  const fromAnalysis = ANALYSIS_PARAMETERS
+    .filter(p => p.category === category)
+    .map(p => ({ parameter: p.parameter, criterion: p.criterion }));
+  const seen = new Set(fromPresets.map(p => p.parameter));
+  return [...fromPresets, ...fromAnalysis.filter(p => !seen.has(p.parameter))];
+}
+
 /** Banco de parâmetros pré-definidos por categoria. */
 const CATEGORY_PRESETS: Record<string, { parameter: string; criterion: string }[]> = {
   teor_ativo: [
@@ -2037,9 +2047,15 @@ function MethodologiaTab({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editableParams]);
 
-  const addParam = (category: string) => {
+  const addParam = (category: string, parameter = "", criterion = "") => {
     const uid = `${category}_${Date.now()}`;
-    setEditableParams(prev => [...prev, { uid, parameter: "", criterion: "", category }]);
+    const entries = parameter.trim() ? getCatalogEntries(parameter) : [];
+    const autoEntry = entries.length === 1 ? entries[0] : undefined;
+    setEditableParams(prev => [...prev, {
+      uid, parameter, criterion, category,
+      methodologyShort: autoEntry?.shortName,
+      methodologyCitation: autoEntry?.citation,
+    }]);
   };
 
   const updateParam = (uid: string, field: "parameter" | "criterion", val: string) => {
@@ -2188,14 +2204,49 @@ function MethodologiaTab({
                     className="h-6 text-[10px] px-2 text-muted-foreground hover:text-primary"
                     onClick={() => addParam(key)}
                   >
-                    <Plus className="h-3 w-3 mr-0.5" /> Novo parâmetro
+                    <Plus className="h-3 w-3 mr-0.5" /> Novo em branco
                   </Button>
                 </div>
+                {/* ── Banco de presets — chips de adição rápida ── */}
+                {(() => {
+                  const available = getPresetsForCategory(key).filter(
+                    preset => !catParams.some(c => c.parameter === preset.parameter)
+                  );
+                  if (available.length === 0) return null;
+                  return (
+                    <div className="px-3 pt-2 pb-2 bg-muted/10 border-b">
+                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground/55 font-bold mb-1.5">
+                        Clique para adicionar — critério e metodologia preenchidos automaticamente:
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {available.map(preset => {
+                          const nMethods = getCatalogEntries(preset.parameter).length;
+                          return (
+                            <button
+                              key={preset.parameter}
+                              type="button"
+                              onClick={() => addParam(key, preset.parameter, preset.criterion)}
+                              className="inline-flex items-center gap-0.5 text-[10px] px-2 py-0.5 rounded-full border border-primary/25 text-primary/70 hover:bg-primary/8 hover:border-primary/50 hover:text-primary transition-colors"
+                            >
+                              <Plus className="h-2.5 w-2.5" />
+                              {preset.parameter}
+                              {nMethods > 0 && (
+                                <span className="text-[8px] bg-primary/15 text-primary rounded px-0.5 font-semibold ml-0.5">
+                                  {nMethods}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
                 {catParams.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic px-3 py-3">
-                    Nenhum parâmetro nesta categoria.{" "}
+                    Nenhum parâmetro adicionado ainda. Use os chips acima ou{" "}
                     <button type="button" className="underline hover:text-foreground" onClick={() => addParam(key)}>
-                      Adicionar
+                      adicione em branco
                     </button>
                     .
                   </p>
