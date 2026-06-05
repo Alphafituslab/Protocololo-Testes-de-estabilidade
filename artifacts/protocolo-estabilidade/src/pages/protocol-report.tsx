@@ -278,6 +278,21 @@ export default function ProtocolReportPage() {
   };
   const someSigned = signatures.length > 0;
   const allSigned = someSigned && hasSigned(cert?.issuedBy) && hasSigned(cert?.seniorAnalyst);
+
+  // Resolve method com mesma prioridade do certificado:
+  // cert_overrides > param_methods_citations > param_methods > API default
+  const resolvedMethod = (param: string, apiMethod: string | null | undefined): string => {
+    try {
+      const overrides = JSON.parse(localStorage.getItem(`cert_overrides_${id}`) ?? "{}") as Record<string, Record<string, string>>;
+      if (overrides[param]?.method) return overrides[param].method;
+      const citations = JSON.parse(localStorage.getItem(`param_methods_citations_${id}`) ?? "{}") as Record<string, string>;
+      if (citations[param]) return citations[param];
+      const methods = JSON.parse(localStorage.getItem(`param_methods_${id}`) ?? "{}") as Record<string, string>;
+      if (methods[param]) return methods[param];
+    } catch { /* ignore */ }
+    return apiMethod ?? "";
+  };
+
   // Wrapper: oculta a seção no CSS de impressão quando desmarcada
   const ps = (key: string, node: React.ReactNode) =>
     isPrint(key) ? node : <div key={key} className="print:hidden">{node}</div>;
@@ -574,7 +589,7 @@ export default function ProtocolReportPage() {
                               <Td mono bold className={`${RESULT_COLOR[a.status ?? ""] ?? "text-gray-700"} text-[8.5px]`}>
                                 {a.result || "—"}
                               </Td>
-                              <Td className="text-gray-500 text-[8px] leading-snug">{a.method || "—"}</Td>
+                              <Td className="text-gray-500 text-[8px] leading-snug">{resolvedMethod(a.parameter, a.method) || "—"}</Td>
                               <Td center>
                                 <span className={`text-[8.5px] font-semibold ${RESULT_COLOR[a.status ?? ""] ?? "text-gray-400"}`}>
                                   {RESULT_STATUS[a.status ?? ""] ?? "—"}
@@ -701,7 +716,7 @@ export default function ProtocolReportPage() {
           ))}
 
           {/* 7. Metodologias */}
-          {cert.analyses.some(a => a.method) && ps("s7", (
+          {cert.analyses.some(a => resolvedMethod(a.parameter, a.method)) && ps("s7", (
             <Section num="7" title="Metodologias Analíticas Utilizadas">
               <table className="w-full border-collapse">
                 <thead>
@@ -711,10 +726,10 @@ export default function ProtocolReportPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {cert.analyses.filter(a => a.method).map((a, i) => (
+                  {cert.analyses.filter(a => resolvedMethod(a.parameter, a.method)).map((a, i) => (
                     <tr key={a.parameter} className={i % 2 === 0 ? "" : "bg-gray-50/70"}>
                       <Td bold>{a.parameter}</Td>
-                      <Td className="text-gray-600 leading-snug">{a.method}</Td>
+                      <Td className="text-gray-600 leading-snug">{resolvedMethod(a.parameter, a.method)}</Td>
                     </tr>
                   ))}
                 </tbody>
