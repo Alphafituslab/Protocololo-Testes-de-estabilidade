@@ -265,6 +265,19 @@ export default function ProtocolReportPage() {
     try { localStorage.setItem(PRINT_PREFS_KEY, JSON.stringify(next)); } catch { /* */ }
     setPrintSections(next);
   };
+
+  const normSigName = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+  const sigNameMatches = (a: string, b: string) => {
+    const na = normSigName(a), nb = normSigName(b);
+    return na === nb || na.includes(nb) || nb.includes(na);
+  };
+  const hasSigned = (name: string | null | undefined) => {
+    if (!name?.trim()) return true;
+    return signatures.some(s => sigNameMatches(s.userDisplay, name));
+  };
+  const someSigned = signatures.length > 0;
+  const allSigned = someSigned && hasSigned(cert?.issuedBy) && hasSigned(cert?.seniorAnalyst);
   // Wrapper: oculta a seção no CSS de impressão quando desmarcada
   const ps = (key: string, node: React.ReactNode) =>
     isPrint(key) ? node : <div key={key} className="print:hidden">{node}</div>;
@@ -804,6 +817,14 @@ export default function ProtocolReportPage() {
               Relatório Técnico de Estabilidade gerado eletronicamente · RDC ANVISA n° 318/2019 · ICH Q1A(R2)
               · Os resultados referem-se exclusivamente às amostras avaliadas e às condições do estudo descritas.
             </p>
+            {someSigned && (
+              <p className={`text-[7.5px] text-center mt-1 font-semibold ${allSigned ? "text-emerald-600" : "text-red-600"}`}>
+                {allSigned
+                  ? "✓ Documento assinado eletronicamente por todos os responsáveis."
+                  : "⚠ Documento com assinatura eletrônica pendente — nem todos os responsáveis assinaram."
+                }
+              </p>
+            )}
           </div>
         </div>
       </div>
