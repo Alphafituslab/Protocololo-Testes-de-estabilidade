@@ -434,6 +434,24 @@ export default function ProtocolReportPage() {
               <InfoRow label="Excipientes" value={cert.excipients} wide />
               <InfoRow label="Composição da Cápsula" value={cert.capsuleComposition} wide />
             </InfoGrid>
+            {lots.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="text-[8px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Lotes Piloto Incluídos neste Estudo</p>
+                <div className="space-y-0.5">
+                  {lots.map((lot, i) => (
+                    <div key={lot.id} className="flex flex-wrap items-baseline gap-x-3 text-[10px]">
+                      <span className="font-semibold">{i + 1} — {lot.lotNumber}</span>
+                      {(lot as any).manufacturingDate && (
+                        <span className="text-gray-500">{fmtDate((lot as any).manufacturingDate)}</span>
+                      )}
+                      {(lot as any).quantity && (
+                        <span className="text-gray-500">{(lot as any).quantity} unidades</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </Section>)}
 
           {/* 3. Plano de Estabilidade */}

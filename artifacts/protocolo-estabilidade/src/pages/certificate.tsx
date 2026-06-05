@@ -1090,8 +1090,19 @@ export default function CertificatePage() {
                   <td className="text-gray-500 align-top pr-4 whitespace-nowrap font-medium">N° do Lote:</td>
                   <td className="align-top">
                     <div className="space-y-0.5">
-                      {cert.lotNumbers.map((lot, i) => (
-                        <div key={lot}>{i + 1} — {lot}</div>
+                      {(lotsRaw.length > 0
+                        ? [...lotsRaw].sort((a, b) => a.lotNumber.localeCompare(b.lotNumber))
+                        : cert.lotNumbers.map(n => ({ id: n, lotNumber: n, manufacturingDate: null, quantity: null }))
+                      ).map((lot, i) => (
+                        <div key={(lot as { id: string | number }).id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0">
+                          <span className="font-semibold">{i + 1} — {lot.lotNumber}</span>
+                          {(lot as { manufacturingDate?: string | null }).manufacturingDate && (
+                            <span className="text-gray-500">{fmtDate((lot as { manufacturingDate?: string | null }).manufacturingDate)}</span>
+                          )}
+                          {(lot as { quantity?: number | null }).quantity && (
+                            <span className="text-gray-500">{(lot as { quantity?: number | null }).quantity} unidades</span>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </td>
