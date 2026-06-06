@@ -7,6 +7,9 @@ import {
   useListLots, getListLotsQueryKey,
   useGetKinetics, getGetKineticsQueryKey,
   useListSignatures, getListSignaturesQueryKey,
+  useListProtocolBibliographicReferences,
+  getListProtocolBibliographicReferencesQueryKey,
+  type BibliographicReference,
 } from "@workspace/api-client-react";
 import { AuditTrail } from "@/components/audit-trail";
 import { Button } from "@/components/ui/button";
@@ -32,7 +35,21 @@ const PRINT_SECTIONS = [
   { key: "s8",  label: "8. Conclusão" },
   { key: "s9",  label: "9. Assinaturas Eletrônicas" },
   { key: "s10", label: "10. Histórico de Rastreabilidade" },
-] as const;
+  { key: "s11", label: "11. Referências Bibliográficas" },
+];
+
+function formatAbntRef(r: BibliographicReference): string {
+  const parts: string[] = [];
+  if (r.autores) parts.push(r.autores + ".");
+  if (r.titulo) parts.push(r.titulo + ".");
+  if (r.fonte) parts.push(r.fonte + (r.volume || r.numero || r.paginas || r.ano ? "," : "."));
+  if (r.volume) parts.push(`v. ${r.volume}${r.numero || r.paginas || r.ano ? "," : "."}`);
+  if (r.numero) parts.push(`n. ${r.numero}${r.paginas || r.ano ? "," : "."}`);
+  if (r.paginas) parts.push(`p. ${r.paginas}${r.ano ? "," : "."}`);
+  if (r.ano) parts.push(`${r.ano}.`);
+  if (r.doi) parts.push(`Disponível em: ${r.doi}.`);
+  return parts.join(" ");
+}
 
 function StatusBadge({ status }: { status: string }) {
   const cfg: Record<string, { cls: string; Icon: React.ElementType }> = {
@@ -174,6 +191,9 @@ export default function ProtocolReportPage() {
   });
   const { data: signatures = [] } = useListSignatures(numId, {
     query: { enabled: !!id, queryKey: getListSignaturesQueryKey(numId), staleTime: 0, refetchOnWindowFocus: true },
+  });
+  const { data: protocolRefs = [] } = useListProtocolBibliographicReferences(numId, {
+    query: { enabled: !!id, staleTime: 0, queryKey: getListProtocolBibliographicReferencesQueryKey(numId) },
   });
 
   // ── Todos os hooks ANTES de qualquer early return ────────────────────────
@@ -819,6 +839,23 @@ export default function ProtocolReportPage() {
                 </div>
               </div>
               <AuditTrail protocolId={numId} printMode />
+            </Section>
+          ))}
+
+          {/* 11. Referências Bibliográficas */}
+          {protocolRefs.length > 0 && ps("s11", (
+            <Section num="11" title="Referências Bibliográficas">
+              <p className="text-[9px] text-gray-500 mb-3">
+                Referências técnicas e científicas que fundamentam as metodologias analíticas e os critérios de estabilidade adotados neste protocolo, apresentadas conforme ABNT NBR 6023.
+              </p>
+              <ol className="space-y-2 text-[10px] text-gray-700">
+                {protocolRefs.map((ref, i) => (
+                  <li key={ref.id} className="leading-relaxed flex gap-2">
+                    <span className="font-semibold text-gray-900 shrink-0">[{i + 1}]</span>
+                    <span>{formatAbntRef(ref)}</span>
+                  </li>
+                ))}
+              </ol>
             </Section>
           ))}
 

@@ -1,6 +1,6 @@
 import { useParams, Link } from "wouter";
 import { fmtDate } from "@/lib/utils";
-import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey, useListSignatures, useAddSignature, useDeleteSignature, getListSignaturesQueryKey, useUpdateProtocol } from "@workspace/api-client-react";
+import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey, useListSignatures, useAddSignature, useDeleteSignature, getListSignaturesQueryKey, useUpdateProtocol, useListProtocolBibliographicReferences, getListProtocolBibliographicReferencesQueryKey, type BibliographicReference } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, History, Lock, Unlock, Save, ShieldCheck, PenLine, Trash2, UserCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -176,6 +176,7 @@ type ShowSections = {
   cineticaProtocolo: boolean;
   fundamentacaoCinetica: boolean;
   ressalvaNote: boolean;
+  referencias: boolean;
 };
 
 const SECTION_LABELS: { key: keyof ShowSections; label: string; onlyWhenAR?: boolean }[] = [
@@ -186,7 +187,21 @@ const SECTION_LABELS: { key: keyof ShowSections; label: string; onlyWhenAR?: boo
   { key: "cineticaProtocolo", label: "Parâmetros Cinéticos e Validade" },
   { key: "fundamentacaoCinetica", label: "Fundamentação Cinética" },
   { key: "ressalvaNote", label: "Nota de Ressalva", onlyWhenAR: true },
+  { key: "referencias", label: "Referências Bibliográficas" },
 ];
+
+function formatAbntRef(r: BibliographicReference): string {
+  const parts: string[] = [];
+  if (r.autores) parts.push(r.autores + ".");
+  if (r.titulo) parts.push(r.titulo + ".");
+  if (r.fonte) parts.push(r.fonte + (r.volume || r.numero || r.paginas || r.ano ? "," : "."));
+  if (r.volume) parts.push(`v. ${r.volume}${r.numero || r.paginas || r.ano ? "," : "."}`);
+  if (r.numero) parts.push(`n. ${r.numero}${r.paginas || r.ano ? "," : "."}`);
+  if (r.paginas) parts.push(`p. ${r.paginas}${r.ano ? "," : "."}`);
+  if (r.ano) parts.push(`${r.ano}.`);
+  if (r.doi) parts.push(`Disponível em: ${r.doi}.`);
+  return parts.join(" ");
+}
 
 // ── Module-level: certificate title corruption guard ──────────────────────────
 // "BIS DE ANALISE" is a browser autofill corruption. These values must NEVER
@@ -276,6 +291,7 @@ export default function CertificatePage() {
     cineticaProtocolo: true,
     fundamentacaoCinetica: true,
     ressalvaNote: true,
+    referencias: true,
   });
 
   const [includePhotos, setIncludePhotos] = useState(true);
@@ -293,6 +309,9 @@ export default function CertificatePage() {
   const queryClient = useQueryClient();
   const { data: signatures = [] } = useListSignatures(Number(id), {
     query: { queryKey: getListSignaturesQueryKey(Number(id)), enabled: !!id, staleTime: 0, refetchOnWindowFocus: true },
+  });
+  const { data: protocolRefs = [] } = useListProtocolBibliographicReferences(Number(id), {
+    query: { enabled: !!id, staleTime: 0, queryKey: getListProtocolBibliographicReferencesQueryKey(Number(id)) },
   });
   const [sigDialogOpen, setSigDialogOpen] = useState(false);
   const [selectedRoleLabel, setSelectedRoleLabel] = useState("Elaborador");
@@ -1720,6 +1739,39 @@ export default function CertificatePage() {
             </>
           );
         })()}
+
+        {/* ═══════════════════════════════════════════════════════
+            REFERÊNCIAS BIBLIOGRÁFICAS — anexo opcional
+        ═══════════════════════════════════════════════════════ */}
+        {show.referencias && protocolRefs.length > 0 && (
+          <div className={`referencias-appendix-section ${!show.referencias ? "print:hidden" : ""}`}>
+            <div className="pt-8 border-t-2 border-gray-800 mt-8">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Alphafitus Laboratório Nutracêutico</p>
+                  <h2 className="text-lg font-bold uppercase tracking-wide mt-0.5">
+                    Referências Bibliográficas
+                  </h2>
+                </div>
+                <div className="text-right text-xs text-gray-500">
+                  <p>{cert.productName}</p>
+                  <p className="font-semibold">{cert.certNumber}</p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 border-b border-gray-300 pb-3 mb-4">
+                Referências técnicas e científicas que fundamentam as metodologias analíticas e os critérios de estabilidade adotados neste protocolo, apresentadas conforme ABNT NBR 6023.
+              </p>
+              <ol className="space-y-2 text-[10px] text-gray-700 list-decimal list-inside">
+                {protocolRefs.map((ref, i) => (
+                  <li key={ref.id} className="leading-relaxed">
+                    <span className="font-semibold text-gray-900 mr-1">[{i + 1}]</span>
+                    {formatAbntRef(ref)}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        )}
 
         {/* ═══════════════════════════════════════════════════════
             AUDIT TRAIL COMPLEMENT — prints after main certificate
