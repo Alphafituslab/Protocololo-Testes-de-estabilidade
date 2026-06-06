@@ -1975,41 +1975,57 @@ export default function CertificatePage() {
             min-height: 0 !important;
             background: white !important;
           }
+
+          /* ── 2. Ocultar tudo exceto #root do body ────────────────────────────── */
+          body > *:not(#root) { display: none !important; }
+
+          /* ── 3. Colapsar TODOS os wrappers ancestrais do certificado ─────────────
+             Inclui: div.min-h-screen (1), aside+main (2), header+div.flex-1 (3),
+             div.max-w-5xl (4), e irmãos do #certificate-document (5).
+             height:auto + min-height:0 remove o espaço de min-h-screen, h-14, etc. */
           #root,
           #root > *,
           #root > * > *,
-          #root > * > * > * {
+          #root > * > * > *,
+          #root > * > * > * > *,
+          #root > * > * > * > * > * {
+            display: block !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
             margin: 0 !important;
             padding: 0 !important;
             overflow: visible !important;
-            height: auto !important;
-            min-height: 0 !important;
-            display: block !important;
             background: white !important;
+            border: none !important;
+            box-shadow: none !important;
           }
 
-          /* ── 2. Esconder todo o conteúdo da app visualmente ──────────────────── */
-          body > * { display: none !important; }
-          #root { display: block !important; }
+          /* ── 4. Ocultar completamente a sidebar e o header do app ───────────────
+             visibility:hidden preserva espaço no layout — display:none não.
+             Sem isso, a sidebar (~w-64 com nav links) e o header (h-14) ainda
+             contribuem para a altura do fluxo e geram páginas em branco quando
+             o certificado é menor do que essa altura combinada.               */
+          #root aside { display: none !important; }
+          #root header { display: none !important; }
+
+          /* ── 5. Ocultar todo conteúdo da app visualmente (segurança extra) ────── */
           body * { visibility: hidden !important; }
 
-          /* ── 3. Tornar o certificado visível ─────────────────────────────────── */
+          /* ── 6. Tornar o certificado visível ─────────────────────────────────── */
           #certificate-document,
           #certificate-document * { visibility: visible !important; }
 
-          /* ── 4. Posicionar o certificado no topo absoluto da área de conteúdo ──
-             position: absolute com top:0 / left:0 / right:0 ancora o certificado
-             exatamente no início da área de impressão (após as margens do @page),
-             eliminando qualquer espaço proveniente de elementos ocultos acima.
-             Em impressão multi-página o browser pagina conteúdo absoluto
-             normalmente — cada folha mostra a fatia correspondente.            */
+          /* ── 7. Certificado em fluxo normal (position:static) ───────────────────
+             Com aside e header removidos (display:none), o certificado fica em
+             fluxo normal dentro da <main>. O browser pagina o conteúdo
+             naturalmente — exatamente quantas páginas o conteúdo precisar.
+             Não há mais conflito entre "altura do fluxo" vs "extensão do absoluto"
+             que causava as páginas em branco.                                 */
           #certificate-document {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
+            position: static !important;
             display: block !important;
-            width: auto !important;
+            width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
             box-shadow: none !important;
@@ -2022,7 +2038,7 @@ export default function CertificatePage() {
             print-color-adjust: exact !important;
           }
 
-          /* ── 5. Remover overflow:hidden de todos os containers internos ─────────
+          /* ── 8. Remover overflow:hidden de todos os containers internos ─────────
              Classes como "rounded-lg overflow-hidden" cortam o conteúdo quando
              a quebra de página acontece dentro do container.
              Em impressão todos os containers devem ser overflow:visible.        */
