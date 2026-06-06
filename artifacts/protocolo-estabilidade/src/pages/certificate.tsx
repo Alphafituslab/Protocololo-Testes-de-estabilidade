@@ -1997,16 +1997,14 @@ export default function CertificatePage() {
           /* ── 2. Ocultar tudo exceto #root do body ────────────────────────────── */
           body > *:not(#root) { display: none !important; }
 
-          /* ── 3. Colapsar TODOS os wrappers ancestrais do certificado ─────────────
-             Inclui: div.min-h-screen (1), aside+main (2), header+div.flex-1 (3),
-             div.max-w-5xl (4), e irmãos do #certificate-document (5).
-             height:auto + min-height:0 remove o espaço de min-h-screen, h-14, etc. */
+          /* ── 3. Colapsar os wrappers estruturais do certificado (profundidades 1–4) ──
+             display:block é seguro aqui porque esses elementos são sempre visíveis.
+             NÃO incluímos profundidade 5 aqui para não sobrescrever print:hidden.  */
           #root,
           #root > *,
           #root > * > *,
           #root > * > * > *,
-          #root > * > * > * > *,
-          #root > * > * > * > * > * {
+          #root > * > * > * > * {
             display: block !important;
             height: auto !important;
             min-height: 0 !important;
@@ -2018,6 +2016,30 @@ export default function CertificatePage() {
             border: none !important;
             box-shadow: none !important;
           }
+
+          /* ── 3b. Profundidade 5: apenas dimensões, SEM display:block ────────────
+             O nível 5 contém o #certificate-document E os irmãos print:hidden
+             (toolbar, painéis de configuração, painel de fotos, painel de histórico).
+             Forçar display:block aqui sobrescreveria o display:none do print:hidden
+             e os faria aparecer como páginas em branco numeradas no PDF.
+             Solução: resetar apenas dimensões e deixar o display de cada elemento
+             ser definido pelas suas próprias regras (print:hidden → none).           */
+          #root > * > * > * > * > * {
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            background: white !important;
+            border: none !important;
+            box-shadow: none !important;
+          }
+
+          /* ── 3c. Garantir que todos os elementos print:hidden fiquem ocultos ─────
+             Vem APÓS os seletores acima para ter a última palavra, mesmo em caso
+             de conflito de especificidade (ID vs classe).                            */
+          .print\:hidden { display: none !important; }
 
           /* ── 4. Ocultar completamente a sidebar e o header do app ───────────────
              visibility:hidden preserva espaço no layout — display:none não.
