@@ -66,6 +66,36 @@ const CATEGORY_LABELS: Record<string, string> = {
   embalagem: "Embalagem",
 };
 
+/** Default reference methods for each analysis parameter.
+ *  Applied automatically when no manual override exists. */
+const DEFAULT_METHODS: Record<string, string> = {
+  // Físico-Química
+  "pH": "Métodos físico-químicos para análise de alimentos, 4. ed. São Paulo: Instituto Adolfo Lutz, 2008. Método: 017/IV.",
+  "Perda por dessecação": "Métodos físico-químicos para análise de alimentos, 4. ed. São Paulo: Instituto Adolfo Lutz, 2008. Método: 012/IV.",
+  "Cor": "Métodos físico-químicos para análise de alimentos, 4. ed. São Paulo: Instituto Adolfo Lutz, 2008. Método: 060/IV.",
+  "Odor": "Métodos físico-químicos para análise de alimentos, 4. ed. São Paulo: Instituto Adolfo Lutz, 2008. Método: 060/IV.",
+  "Aparência": "Métodos físico-químicos para análise de alimentos, 4. ed. São Paulo: Instituto Adolfo Lutz, 2008. Método: 060/IV.",
+  "Cinzas totais": "Métodos físico-químicos para análise de alimentos, 4. ed. São Paulo: Instituto Adolfo Lutz, 2008. Método: 018/IV.",
+  "Dissolução": "Farmacopeia Brasileira, 7ª edição (2024).",
+  "Massa média": "Farmacopeia Brasileira, 7ª edição (2024).",
+  "Kcal": "Métodos físico-químicos para análise de alimentos, 4. ed. São Paulo: Instituto Adolfo Lutz, 2008.",
+  "Sódio": "Métodos físico-químicos para análise de alimentos, 4. ed. São Paulo: Instituto Adolfo Lutz, 2008.",
+  // Microbiológica
+  "Coliformes totais": "CompactDry™ CF: Instructions for Use. Tokyo: Nissui Pharmaceutical Co., Ltd.",
+  "Salmonella spp.": "CompactDry™ SL: Instructions for Use. Tokyo: Nissui Pharmaceutical Co., Ltd.",
+  "Estafilococos coagulase+": "CompactDry™ X-SA: Instructions for Use. Tokyo: Nissui Pharmaceutical Co., Ltd.",
+  "Bolores e leveduras": "CompactDry™ YMR / YM: Instructions for Use. Tokyo: Nissui Pharmaceutical Co., Ltd.",
+  "Escherichia coli": "CompactDry™ EC: Instructions for Use. Tokyo: Nissui Pharmaceutical Co., Ltd.",
+  "Enterobacteriaceae": "CompactDry™ ETB: Instructions for Use. Tokyo: Nissui Pharmaceutical Co., Ltd.",
+  // Teor do Ativo
+  "Cálcio": "Método interno.",
+  "Vitamina D": "Método interno.",
+  // Embalagem
+  "Torque de tampa": "Procedimento Operacional Padrão (POP) nº 047. Içara: Alphafitus Suplementos Ltda., 2024. Documento interno.",
+  "Selagem por indução": "Procedimento Operacional Padrão (POP) nº 049. Içara: Alphafitus Suplementos Ltda., 2024. Documento interno.",
+  "Integridade selagem": "Procedimento Operacional Padrão (POP) nº 050. Içara: Alphafitus Suplementos Ltda., 2024. Documento interno.",
+};
+
 function collectProtocolImages(
   protocolId: number,
   lots: { id: number; lotNumber: string }[],
@@ -663,8 +693,8 @@ export default function CertificatePage() {
       if (prev) for (const a of prev) visMap[a.parameter] = a.visible;
       return cert.analyses.map(a => ({
         ...a,
-        // Priority: manual cert edit > full citation from Results tab > shortName fallback > API default
-        method: saved[a.parameter]?.method ?? paramCitations[a.parameter] ?? paramMethods[a.parameter] ?? a.method,
+        // Priority: manual cert edit > full citation from Results tab > shortName fallback > default method map > API value
+        method: saved[a.parameter]?.method ?? paramCitations[a.parameter] ?? paramMethods[a.parameter] ?? (a.method || DEFAULT_METHODS[a.parameter]) ?? a.method,
         specification: saved[a.parameter]?.specification ?? a.specification,
         // result and status always come from the DB (API) so changes in the
         // Results tab propagate to the certificate automatically, even after
@@ -1214,41 +1244,50 @@ export default function CertificatePage() {
           <div className="bg-slate-700 px-5 py-3">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-200">Plano de Teste de Estabilidade</h2>
           </div>
-          <div className="grid grid-cols-4 divide-x divide-gray-300">
+
+          {/* ── Sub-cabeçalho: Condições ── */}
+          <div className="bg-slate-50 border-b border-gray-300 px-5 py-2">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Condições de Armazenamento</span>
+          </div>
+          <div className="grid grid-cols-4 divide-x divide-gray-300 border-b border-gray-300">
             <div className="p-4">
-              <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">{ef("lbl_storageTemp", "Temperatura de Armazenamento", { className: "text-[10px] font-bold tracking-normal text-gray-400" })}</p>
-              <p className="font-semibold text-gray-800">{ef("storageTemp", cert.storageTemp ?? "40°C ± 2°C")}</p>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">{ef("lbl_storageTemp", "Temperatura", { className: "text-[9px] font-bold uppercase tracking-widest text-slate-400" })}</p>
+              <p className="font-semibold text-slate-800 text-sm leading-snug">{ef("storageTemp", cert.storageTemp ?? "40°C ± 2°C")}</p>
             </div>
             <div className="p-4">
-              <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">{ef("lbl_storageHumidity", "Umidade Relativa", { className: "text-[10px] font-bold tracking-normal text-gray-400" })}</p>
-              <p className="font-semibold text-gray-800">{ef("storageHumidity", cert.storageHumidity ?? "75% UR ± 5% UR")}</p>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">{ef("lbl_storageHumidity", "Umidade Relativa", { className: "text-[9px] font-bold uppercase tracking-widest text-slate-400" })}</p>
+              <p className="font-semibold text-slate-800 text-sm leading-snug">{ef("storageHumidity", cert.storageHumidity ?? "75% UR ± 5% UR")}</p>
             </div>
             <div className="p-4">
-              <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">{ef("lbl_studyPeriodMonths", "Período do Estudo", { className: "text-[10px] font-bold tracking-normal text-gray-400" })}</p>
-              <p className="font-semibold text-gray-800">{ef("studyPeriodMonths", cert.studyPeriodMonths != null ? String(cert.studyPeriodMonths) + " meses" : "—")}</p>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">{ef("lbl_studyPeriodMonths", "Período do Estudo", { className: "text-[9px] font-bold uppercase tracking-widest text-slate-400" })}</p>
+              <p className="font-semibold text-slate-800 text-sm leading-snug">{ef("studyPeriodMonths", cert.studyPeriodMonths != null ? String(cert.studyPeriodMonths) + " meses" : "—")}</p>
             </div>
             <div className="p-4">
-              <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">{ef("lbl_testIntervals", "Intervalos de Teste", { className: "text-[10px] font-bold tracking-normal text-gray-400" })}</p>
-              <p className="font-semibold text-gray-800">{ef("testIntervals", cert.testIntervals ?? "—")}</p>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">{ef("lbl_testIntervals", "Intervalos de Teste", { className: "text-[9px] font-bold uppercase tracking-widest text-slate-400" })}</p>
+              <p className="font-semibold text-slate-800 text-sm leading-snug">{ef("testIntervals", cert.testIntervals ?? "—")}</p>
             </div>
           </div>
-          {/* ── Datas das análises por período — sempre editáveis ────────── */}
-          <div className="grid grid-cols-3 divide-x divide-gray-300 border-t border-gray-300">
+
+          {/* ── Sub-cabeçalho: Datas ── */}
+          <div className="bg-slate-50 border-b border-gray-300 px-5 py-2">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Datas das Análises por Período</span>
+          </div>
+          <div className="grid grid-cols-3 divide-x divide-gray-300">
             <div className="p-4">
-              <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">Data da Análise — T0</p>
-              <p className="font-semibold text-gray-800">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">T0 — Início do Estudo</p>
+              <p className="font-semibold text-slate-800 text-sm">
                 <CertEditField value={getAnalysisDate("analysisDateT0", cert.analysisDates?.t0, 0)} onChange={v => setCertEdit("analysisDateT0", v)} className="w-full" />
               </p>
             </div>
             <div className="p-4">
-              <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">Data da Análise — T3</p>
-              <p className="font-semibold text-gray-800">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">T3 — 3 Meses</p>
+              <p className="font-semibold text-slate-800 text-sm">
                 <CertEditField value={getAnalysisDate("analysisDateT3", cert.analysisDates?.t3, 3)} onChange={v => setCertEdit("analysisDateT3", v)} className="w-full" />
               </p>
             </div>
             <div className="p-4">
-              <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">Data da Análise — T6</p>
-              <p className="font-semibold text-gray-800">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">T6 — 6 Meses</p>
+              <p className="font-semibold text-slate-800 text-sm">
                 <CertEditField value={getAnalysisDate("analysisDateT6", cert.analysisDates?.t6, 6)} onChange={v => setCertEdit("analysisDateT6", v)} className="w-full" />
               </p>
             </div>
@@ -2254,6 +2293,16 @@ export default function CertificatePage() {
             page-break-inside: avoid;
             overflow: visible !important;
             margin-bottom: 16pt !important;
+          }
+
+          /* ── Tabela de análises: fonte compacta para evitar amontoamento ──────── */
+          .cert-analysis-table table {
+            font-size: 7.5pt !important;
+            line-height: 1.35 !important;
+          }
+          .cert-analysis-table td,
+          .cert-analysis-table th {
+            padding: 3pt 5pt !important;
           }
 
           /* ── Tabela de análises: PODE quebrar entre linhas (tabela grande) ───── */
