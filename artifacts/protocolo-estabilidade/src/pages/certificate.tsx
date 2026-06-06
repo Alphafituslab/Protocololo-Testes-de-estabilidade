@@ -1197,9 +1197,8 @@ export default function CertificatePage() {
                         </div>
                       ))}
                     </div>
-                    <div className="mt-2 flex items-start gap-1.5 rounded border-l-2 border-gray-800 bg-gray-50 px-2 py-1.5 print:bg-gray-50">
-                      <span className="text-gray-800 text-[10px] leading-none mt-px shrink-0">★</span>
-                      <p className="text-[10px] font-bold text-black leading-snug underline">
+                    <div className="mt-3 text-center">
+                      <p className="text-[10px] font-bold text-black leading-snug">
                         Alimento está sendo testado em embalagem equivalente e sistema de fechamento nos quais será comercializado.
                       </p>
                     </div>
@@ -2165,6 +2164,12 @@ export default function CertificatePage() {
             break-inside: avoid;
             page-break-inside: avoid;
             overflow: visible !important;
+            margin-bottom: 12pt !important;
+          }
+
+          /* ── Subseções dentro do bloco introdutório ─────────────────────────── */
+          .cert-intro-block > div {
+            margin-bottom: 10pt !important;
           }
 
           /* ── Seções de texto (lotes, info, conclusão, deliberação, cinética) ─── */
@@ -2172,6 +2177,7 @@ export default function CertificatePage() {
             break-inside: avoid;
             page-break-inside: avoid;
             overflow: visible !important;
+            margin-bottom: 12pt !important;
           }
 
           /* ── Assinaturas: sempre permanecem juntas ───────────────────────────── */
