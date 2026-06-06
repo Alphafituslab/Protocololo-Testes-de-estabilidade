@@ -3,3 +3,4 @@
 - [Auth login — padrão correto](auth-login-pattern.md) — login() só escreve no localStorage, sem setToken/setUser; handleLogin usa window.location.replace; produção tem DB separado do dev.
 - [Sistema de Permissões Granulares](permissions-system.md) — 13 permissões, admin implícito, lock pós-assinatura; como estender e onde estão os arquivos-chave.
 - [Persistência de datas e metodologias](period-dates-methods-persistence.md) — periodDates e paramMethods agora no banco (3 colunas novas); padrão de hidratação localStorage + save debounced 800ms.
+- [Política de dados — nunca apagar](data-deletion-policy.md) — NUNCA deletar dados já cadastrados sem aprovação explícita do usuário; qualquer operação destrutiva exige confirmação antes de executar.
