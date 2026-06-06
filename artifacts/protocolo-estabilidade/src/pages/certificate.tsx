@@ -2032,7 +2032,7 @@ export default function CertificatePage() {
         ══════════════════════════════════════════════════════════════════════════ */
         @page {
           size: A4 portrait;
-          margin: 12mm 15mm;
+          margin: 15mm 20mm;
         }
 
         @media print {
@@ -2130,7 +2130,8 @@ export default function CertificatePage() {
             border: none !important;
             border-radius: 0 !important;
             padding: 0 !important;
-            font-size: 9.5pt !important;
+            font-size: 10.5pt !important;
+            line-height: 1.6 !important;
             overflow: visible !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -2151,6 +2152,7 @@ export default function CertificatePage() {
           /* ── 6. Células de tabela: crescem com o conteúdo ────────────────────── */
           td, th {
             overflow: visible !important;
+            padding: 4pt 7pt !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -2160,9 +2162,10 @@ export default function CertificatePage() {
           ══════════════════════════════════════════════════════════════════════ */
 
           /* ══════════════════════════════════════════════════════════════════════
-             ESPAÇAMENTO — margens entre blocos e padding interno das seções
-             (todos os valores superam os utilitários Tailwind mb-4/mb-6
-              para garantir respiro real num documento lido por fiscal)
+             ESPAÇAMENTO — padrão de documento técnico oficial (ABNT / ANVISA)
+             Regra geral: nenhum bloco deve ficar a menos de 28pt do próximo.
+             Valores internos (barras + conteúdo) seguem o padrão ISO 2145
+             para publicações técnicas: padding vertical ≥ 10pt.
           ══════════════════════════════════════════════════════════════════════ */
 
           /* ── Bloco introdutório: espaço abaixo do bloco inteiro ─────────────── */
@@ -2170,27 +2173,28 @@ export default function CertificatePage() {
             break-inside: avoid;
             page-break-inside: avoid;
             overflow: visible !important;
-            margin-bottom: 24pt !important;
+            margin-bottom: 34pt !important;
           }
 
           /* cabeçalho principal (logo + número + data) */
           .cert-intro-block > div:first-child {
-            margin-bottom: 20pt !important;
+            margin-bottom: 28pt !important;
+            padding-bottom: 14pt !important;
           }
 
           /* subseções do intro (empresa, produto, plano, cond. ambientais) */
           .cert-intro-block > div:not(:first-child) {
-            margin-bottom: 16pt !important;
+            margin-bottom: 22pt !important;
           }
 
           /* barra de título das subseções do intro */
           .cert-intro-block > div:not(:first-child) > div:first-child {
-            padding: 7pt 14pt !important;
+            padding: 9pt 16pt !important;
           }
 
           /* área de conteúdo das subseções do intro */
           .cert-intro-block > div:not(:first-child) > div:not(:first-child) {
-            padding: 10pt 14pt !important;
+            padding: 14pt 16pt !important;
           }
 
           /* ── Seções de texto (lotes, info, conclusão, deliberação, cinética) ─── */
@@ -2198,33 +2202,44 @@ export default function CertificatePage() {
             break-inside: avoid;
             page-break-inside: avoid;
             overflow: visible !important;
-            margin-bottom: 22pt !important;
+            margin-bottom: 30pt !important;
           }
 
           /* barra de título das seções */
           .cert-section > div:first-child {
-            padding: 7pt 14pt !important;
+            padding: 9pt 16pt !important;
           }
 
           /* área de conteúdo das seções */
           .cert-section > div:not(:first-child) {
-            padding: 10pt 14pt !important;
+            padding: 14pt 16pt !important;
           }
 
-          /* ── Tabela de análises: barra de título ─────────────────────────────── */
+          /* ── Tabela de análises ──────────────────────────────────────────────── */
           .cert-analysis-table {
-            margin-bottom: 22pt !important;
+            margin-bottom: 30pt !important;
           }
           .cert-analysis-table > div:first-child {
-            padding: 7pt 14pt !important;
+            padding: 9pt 16pt !important;
           }
 
-          /* ── Assinaturas: espaço acima para respirar no final ───────────────── */
+          /* ── Blocos cinética: margem inferior ──────────────────────────────── */
+          .cert-kinetica-block {
+            margin-bottom: 28pt !important;
+          }
+          .cert-kinetica-block > div:first-child {
+            padding: 9pt 16pt !important;
+          }
+          .cert-kinetica-block > div:not(:first-child) {
+            padding: 14pt 16pt !important;
+          }
+
+          /* ── Assinaturas: amplo espaço acima para serem destacadas ──────────── */
           .cert-signatures {
             break-inside: avoid;
             page-break-inside: avoid;
             overflow: visible !important;
-            margin-top: 24pt !important;
+            margin-top: 36pt !important;
           }
 
           /* ── Deliberação: não fica órfã no fim de uma página ────────────────── */
@@ -2232,7 +2247,7 @@ export default function CertificatePage() {
             break-inside: avoid;
             page-break-inside: avoid;
             overflow: visible !important;
-            margin-bottom: 22pt !important;
+            margin-bottom: 30pt !important;
           }
 
           /* ── Tabela de análises: PODE quebrar entre linhas (tabela grande) ───── */
