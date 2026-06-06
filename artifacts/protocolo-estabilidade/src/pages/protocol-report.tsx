@@ -955,12 +955,23 @@ export default function ProtocolReportPage() {
             page-break-inside: auto !important;
             overflow: visible !important;
             margin-bottom: 7pt !important;
+            border: 0.5pt solid rgb(229, 231, 235) !important;
+            border-radius: 3pt !important;
           }
 
-          /* Título de seção: nunca fica sozinho no final da página */
+          /* Barra de título: nunca fica sozinha no final da página + cor navy no print */
           .report-section-header {
             break-after: avoid !important;
             page-break-after: avoid !important;
+            background-color: rgb(51, 65, 85) !important;
+            color: rgb(226, 232, 240) !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            padding: 4pt 8pt !important;
+          }
+
+          .report-section-header h2 {
+            color: rgb(226, 232, 240) !important;
           }
 
           /* ── 7. Tabelas ── */
