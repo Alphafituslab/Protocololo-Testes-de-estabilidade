@@ -2066,258 +2066,112 @@ export default function CertificatePage() {
       )}
 
       <style>{`
-        /* ══════════════════════════════════════════════════════════════════════════
-           MARGENS DE PÁGINA — aplicadas a TODAS as folhas (1ª, 2ª, 3ª…)
-        ══════════════════════════════════════════════════════════════════════════ */
+        /* ══ MARGENS DE PÁGINA ══════════════════════════════════════════════════ */
         @page {
           size: A4 portrait;
-          margin: 15mm 20mm;
+          margin: 10mm 12mm;
         }
 
         @media print {
-          /* ── 1. Zerar margin/padding de TODOS os containers ancestrais ──────────
-             Sem isso, o padding do layout da app (barra de navegação, wrappers)
-             cria um espaço em branco invisível acima do certificado.           */
+
+          /* ── 1. Zerar html/body para eliminar margens do app ─────────────────── */
           html, body {
             margin: 0 !important;
             padding: 0 !important;
             overflow: visible !important;
             height: auto !important;
-            min-height: 0 !important;
             background: white !important;
           }
 
-          /* ── 2. Ocultar tudo exceto #root do body ────────────────────────────── */
-          body > *:not(#root) { display: none !important; }
-
-          /* ── 3. Colapsar os wrappers estruturais do certificado (profundidades 1–4) ──
-             display:block é seguro aqui porque esses elementos são sempre visíveis.
-             NÃO incluímos profundidade 5 aqui para não sobrescrever print:hidden.  */
-          #root,
-          #root > *,
-          #root > * > *,
-          #root > * > * > *,
-          #root > * > * > * > * {
-            display: block !important;
-            height: auto !important;
-            min-height: 0 !important;
-            max-height: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow: visible !important;
-            background: white !important;
-            border: none !important;
-            box-shadow: none !important;
-          }
-
-          /* ── 3b. Profundidade 5: apenas dimensões, SEM display:block ────────────
-             O nível 5 contém o #certificate-document E os irmãos print:hidden
-             (toolbar, painéis de configuração, painel de fotos, painel de histórico).
-             Forçar display:block aqui sobrescreveria o display:none do print:hidden
-             e os faria aparecer como páginas em branco numeradas no PDF.
-             Solução: resetar apenas dimensões e deixar o display de cada elemento
-             ser definido pelas suas próprias regras (print:hidden → none).           */
-          #root > * > * > * > * > * {
-            height: auto !important;
-            min-height: 0 !important;
-            max-height: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow: visible !important;
-            background: white !important;
-            border: none !important;
-            box-shadow: none !important;
-          }
-
-          /* ── 3c. Garantir que todos os elementos print:hidden fiquem ocultos ─────
-             Vem APÓS os seletores acima para ter a última palavra, mesmo em caso
-             de conflito de especificidade (ID vs classe).                            */
-          .print\:hidden { display: none !important; }
-
-          /* ── 4. Ocultar completamente a sidebar e o header do app ───────────────
-             visibility:hidden preserva espaço no layout — display:none não.
-             Sem isso, a sidebar (~w-64 com nav links) e o header (h-14) ainda
-             contribuem para a altura do fluxo e geram páginas em branco quando
-             o certificado é menor do que essa altura combinada.               */
-          #root aside { display: none !important; }
-          #root header { display: none !important; }
-
-          /* ── 5. Ocultar todo conteúdo da app visualmente (segurança extra) ────── */
+          /* ── 2. Ocultar todo o conteúdo por visibilidade ──────────────────────
+             Usamos visibility (não display) para manter o layout intacto e só
+             revelar o certificado abaixo.                                        */
           body * { visibility: hidden !important; }
 
-          /* ── 6. Tornar o certificado visível ─────────────────────────────────── */
+          /* ── 3. Revelar APENAS o certificado e seus filhos ───────────────────── */
           #certificate-document,
           #certificate-document * { visibility: visible !important; }
 
-          /* ── 7. Certificado ancorado no topo absoluto da área de impressão ────────
-             Com aside e header removidos (display:none), a altura do fluxo dos
-             ancestrais colapsa a zero. O certificado usa position:absolute + top:0
-             para se posicionar exatamente no início da área de impressão (sem
-             margem herdada do layout da app). O browser pagina o conteúdo absoluto
-             normalmente — cada folha mostra a fatia correspondente do certificado.
-             Resultado: exatamente tantas páginas quanto o conteúdo requer, sem
-             páginas em branco e sem espaço extra no topo da primeira página.     */
+          /* ── 4. Ocultar o chrome do app (sidebar, header, toolbar, painéis) ─── */
+          .print\:hidden         { display: none !important; }
+          #root aside            { display: none !important; }
+          #root header           { display: none !important; }
+
+          /* ── 5. Ancorar o certificado no topo absoluto da área de impressão ────
+             Com aside/header ocultos, os wrappers ancestrais colapsam.
+             position:absolute + top:0 garante que o documento começa exatamente
+             na primeira linha imprimível, sem gap herdado do layout da app.      */
           #certificate-document {
             position: absolute !important;
             top: 0 !important;
             left: 0 !important;
             right: 0 !important;
             display: block !important;
+            width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
+            /* Remove decoração de tela (sombra, bordas externas, cantos) */
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
-            padding: 0 !important;
-            font-size: 10.5pt !important;
-            line-height: 1.6 !important;
+            /* NÃO alteramos padding, font-size, line-height, cores —
+               o certificado imprime IDÊNTICO ao que se vê na tela.              */
             overflow: visible !important;
-            page-break-after: avoid !important;
-            break-after: avoid !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
 
-          /* ── 8. Remover overflow:hidden de todos os containers internos ─────────
-             Classes como "rounded-lg overflow-hidden" cortam o conteúdo quando
-             a quebra de página acontece dentro do container.
-             Em impressão todos os containers devem ser overflow:visible.        */
+          /* ── 6. Garantir print-color-adjust em todo o interior ──────────────── */
+          #certificate-document * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          /* ── 7. Eliminar overflow:hidden dos containers internos ─────────────
+             "rounded-*  overflow-hidden" corta conteúdo numa quebra de página.  */
           #certificate-document div,
           #certificate-document section,
-          #certificate-document article,
-          #certificate-document span,
-          #certificate-document p {
+          #certificate-document article {
             overflow: visible !important;
           }
 
-          /* ── 6. Células de tabela: crescem com o conteúdo ────────────────────── */
-          td, th {
+          /* ── 8. Tabelas: células crescem com o conteúdo ──────────────────────── */
+          #certificate-document td,
+          #certificate-document th {
             overflow: visible !important;
-            padding: 4pt 7pt !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
           }
 
-          /* ══════════════════════════════════════════════════════════════════════
-             CONTROLE DE QUEBRAS DE PÁGINA
-          ══════════════════════════════════════════════════════════════════════ */
+          /* ═══════════════════════════════════════════════════════════════════════
+             QUEBRAS DE PÁGINA — apenas regras de fluxo, sem alterar aparência
+          ═══════════════════════════════════════════════════════════════════════ */
 
-          /* ══════════════════════════════════════════════════════════════════════
-             ESPAÇAMENTO — padrão de documento técnico oficial (ABNT / ANVISA)
-             Regra geral: nenhum bloco deve ficar a menos de 28pt do próximo.
-             Valores internos (barras + conteúdo) seguem o padrão ISO 2145
-             para publicações técnicas: padding vertical ≥ 10pt.
-          ══════════════════════════════════════════════════════════════════════ */
-
-          /* ── Bloco introdutório: espaço abaixo do bloco inteiro ─────────────── */
+          /* Bloco intro: nunca parte no meio */
           .cert-intro-block {
             break-inside: avoid;
             page-break-inside: avoid;
             overflow: visible !important;
-            margin-bottom: 34pt !important;
           }
 
-          /* cabeçalho principal (logo + número + data) */
-          .cert-intro-block > div:first-child {
-            margin-bottom: 28pt !important;
-            padding-bottom: 14pt !important;
-          }
-
-          /* subseções do intro (empresa, produto, plano, cond. ambientais) */
-          .cert-intro-block > div:not(:first-child) {
-            margin-bottom: 34pt !important;
-          }
-
-          /* barra de título das subseções do intro */
-          .cert-intro-block > div:not(:first-child) > div:first-child {
-            padding: 9pt 16pt !important;
-          }
-
-          /* área de conteúdo das subseções do intro */
-          .cert-intro-block > div:not(:first-child) > div:not(:first-child) {
-            padding: 14pt 16pt !important;
-          }
-
-          /* ── Seções de texto (lotes, info, conclusão, deliberação, cinética) ─── */
+          /* Seções curtas: nunca partem no meio */
           .cert-section {
             break-inside: avoid;
             page-break-inside: avoid;
             overflow: visible !important;
-            margin-bottom: 36pt !important;
           }
 
-          /* barra de título das seções */
-          .cert-section > div:first-child {
-            padding: 9pt 16pt !important;
-          }
-
-          /* área de conteúdo das seções */
-          .cert-section > div:not(:first-child) {
-            padding: 14pt 16pt !important;
-          }
-
-          /* ── Tabela de análises ──────────────────────────────────────────────── */
-          .cert-analysis-table {
-            margin-bottom: 30pt !important;
-          }
-          .cert-analysis-table > div:first-child {
-            padding: 9pt 16pt !important;
-          }
-
-          /* ── Blocos cinética: margem inferior ──────────────────────────────── */
-          .cert-kinetica-block {
-            margin-bottom: 28pt !important;
-          }
-          .cert-kinetica-block > div:first-child {
-            padding: 9pt 16pt !important;
-          }
-          .cert-kinetica-block > div:not(:first-child) {
-            padding: 14pt 16pt !important;
-          }
-
-          /* ── Assinaturas: ficam na mesma página que o conteúdo anterior ────────
-             page-break-before:avoid impede que as assinaturas saltem sozinhas
-             para uma nova página, criando uma página em branco antes delas.     */
-          .cert-signatures {
-            break-inside: avoid;
-            page-break-inside: avoid;
-            page-break-before: avoid !important;
-            break-before: avoid !important;
-            overflow: visible !important;
-            margin-top: 20pt !important;
-          }
-
-          /* ── Deliberação: margem inferior menor pois assinaturas vêm logo após ─ */
-          .cert-deliberacao {
-            break-inside: avoid;
-            page-break-inside: avoid;
-            overflow: visible !important;
-            margin-bottom: 16pt !important;
-          }
-
-          /* ── Tabela de análises: fonte compacta para evitar amontoamento ──────── */
-          .cert-analysis-table table {
-            font-size: 7.5pt !important;
-            line-height: 1.35 !important;
-          }
-          .cert-analysis-table td,
-          .cert-analysis-table th {
-            padding: 3pt 5pt !important;
-          }
-
-          /* ── Tabela de análises: PODE quebrar entre linhas (tabela grande) ───── */
+          /* Tabela de análises: PODE quebrar entre linhas (é longa) */
           .cert-analysis-table {
             break-inside: auto !important;
             page-break-inside: auto !important;
             overflow: visible !important;
           }
 
-          /* ── Cabeçalho da tabela repete em todas as páginas ─────────────────── */
+          /* Cabeçalho da tabela repete em todas as páginas */
           .cert-analysis-table thead {
             display: table-header-group;
           }
 
-          /* ── Linha de categoria: não fica sozinha no fim da página ──────────── */
+          /* Linha de categoria: não fica sozinha no fim da página */
           .cert-category-row {
             break-after: avoid;
             page-break-after: avoid;
@@ -2325,46 +2179,51 @@ export default function CertificatePage() {
             page-break-inside: avoid;
           }
 
-          /* ── Linhas de dados: não partem ao meio ─────────────────────────────── */
+          /* Linhas de dados: não partem ao meio */
           tr {
             break-inside: avoid;
             page-break-inside: avoid;
           }
 
-          /* ── Seção cinética e fundamentação: nunca parte no meio ────────────── */
+          /* Cinética: nunca parte no meio */
           .cert-kinetica-block {
             break-inside: avoid;
             page-break-inside: avoid;
             overflow: visible !important;
           }
 
-          /* ── Audit appendix: sempre em nova folha ────────────────────────────── */
-          .audit-appendix-section {
-            page-break-before: always;
-            break-before: page;
+          /* Assinaturas: não saltam sozinhas para nova página */
+          .cert-signatures {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            break-before: avoid !important;
+            page-break-before: avoid !important;
             overflow: visible !important;
           }
 
-          /* ── Photo appendix: sempre em nova folha ────────────────────────────── */
+          /* Deliberação: mesma página que as assinaturas */
+          .cert-deliberacao {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            overflow: visible !important;
+          }
+
+          /* Apêndices: sempre nova folha */
+          .audit-appendix-section,
           .photo-appendix-section {
             page-break-before: always;
             break-before: page;
             overflow: visible !important;
           }
-          .photo-appendix-header {
-            page-break-inside: avoid;
-            break-inside: avoid;
-            overflow: visible !important;
-          }
 
-          /* Grupo de parâmetro fotográfico: mantém junto ─────────────────────── */
+          .photo-appendix-header,
           .photo-param-group {
             page-break-inside: avoid;
             break-inside: avoid;
             overflow: visible !important;
           }
 
-          /* Figura fotográfica individual: mantém junto ──────────────────────── */
+          /* Figura fotográfica individual */
           .photo-figure {
             page-break-inside: avoid;
             break-inside: avoid;
@@ -2374,7 +2233,7 @@ export default function CertificatePage() {
             overflow: visible !important;
           }
 
-          /* Grade de fotos: wrapping natural ─────────────────────────────────── */
+          /* Grade de fotos */
           .photo-grid {
             display: flex;
             flex-wrap: wrap;
@@ -2382,60 +2241,11 @@ export default function CertificatePage() {
             overflow: visible !important;
           }
 
-          /* Tamanho fixo de imagem para impressão ────────────────────────────── */
+          /* Tamanho de imagem fotográfica */
           .photo-img {
             width: 180px !important;
             height: 180px !important;
             object-fit: cover;
-          }
-
-          /* ── Barras de título (fundo claro, texto preto) ─────────────────────── */
-          .cert-intro-block > div:not(:first-child) > div:first-child,
-          .cert-section > div:first-child,
-          .cert-analysis-table > div:first-child,
-          .cert-kinetica-block > div:first-child {
-            background-color: rgb(249, 250, 251) !important;
-            color: rgb(17, 24, 39) !important;
-            border-bottom: 2px solid rgb(229, 231, 235) !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-
-          /* ── Borda esquerda colorida (acento de seção) ────────────────────────── */
-          .cert-intro-block > div:not(:first-child),
-          .cert-section,
-          .cert-analysis-table {
-            border-left: 4px solid rgb(71, 85, 105) !important;
-            border-radius: 0 !important;
-          }
-
-          /* ── Barra de ressalva (amber) ────────────────────────────────────────── */
-          .cert-section.border-amber-300 > div:first-child {
-            background-color: rgb(255, 251, 235) !important;
-            color: rgb(78, 52, 9) !important;
-            border-bottom: 2px solid rgb(252, 211, 77) !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-
-          /* ── Cabeçalho da tabela de análise ──────────────────────────────────── */
-          .cert-analysis-table thead tr {
-            background-color: rgb(243, 244, 246) !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          .cert-analysis-table thead th {
-            color: rgb(17, 24, 39) !important;
-            border-color: rgb(209, 213, 219) !important;
-          }
-
-          /* ── Linhas de categoria ──────────────────────────────────────────────── */
-          .cert-category-row td {
-            background-color: rgb(241, 245, 249) !important;
-            color: rgb(51, 65, 85) !important;
-            border-color: rgb(203, 213, 225) !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
           }
         }
       `}</style>
