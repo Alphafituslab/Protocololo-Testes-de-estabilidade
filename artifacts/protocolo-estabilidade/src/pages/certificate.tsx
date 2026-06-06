@@ -283,7 +283,17 @@ export default function CertificatePage() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
-  const [show, setShow] = useState<ShowSections>({
+
+  // ── Print preferences — persisted per protocol in localStorage ──────────────
+  const CERT_PRINT_PREFS_KEY = `cert_print_prefs_${id}`;
+  const _savedPrintPrefs = (() => {
+    try {
+      const raw = localStorage.getItem(CERT_PRINT_PREFS_KEY);
+      return raw ? (JSON.parse(raw) as { includePhotos?: boolean; includeHistory?: boolean; show?: Partial<ShowSections> }) : null;
+    } catch { return null; }
+  })();
+
+  const [show, setShow] = useState<ShowSections>(() => ({
     condicoesAmbientais: true,
     textoLotes: true,
     infoAdicionais: true,
@@ -292,14 +302,22 @@ export default function CertificatePage() {
     fundamentacaoCinetica: true,
     ressalvaNote: true,
     referencias: true,
-  });
+    ...(_savedPrintPrefs?.show ?? {}),
+  }));
 
-  const [includePhotos, setIncludePhotos] = useState(true);
+  const [includePhotos, setIncludePhotos] = useState(() => _savedPrintPrefs?.includePhotos ?? true);
   const [photosExpanded, setPhotosExpanded] = useState(false);
-  const [includeHistory, setIncludeHistory] = useState(true);
+  const [includeHistory, setIncludeHistory] = useState(() => _savedPrintPrefs?.includeHistory ?? true);
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [cineticaExpanded, setCineticaExpanded] = useState(true);
   const [fundamentacaoExpanded, setFundamentacaoExpanded] = useState(true);
+
+  // Persist print preferences whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ includePhotos, includeHistory, show }));
+    } catch { /* ignore */ }
+  }, [includePhotos, includeHistory, show, CERT_PRINT_PREFS_KEY]);
 
   // Environmental conditions — now stored in the database (samplingTemp/Humidity, receptionTemp/Humidity).
   // The old cert_env_* localStorage key is cleaned up during the v4 migration below.
