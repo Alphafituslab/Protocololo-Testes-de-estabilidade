@@ -2127,25 +2127,23 @@ export default function CertificatePage() {
           /* ── 5a2. Escala de fontes: sobrescreve classes Tailwind px-based ──────
              font-size:8pt no container NÃO afeta text-xl/sm/xs (usam px).
              Forçamos cada classe explicitamente para documento técnico compacto. */
+          /* ── Escala de fontes: valores legíveis para documento técnico ──────────
+             Referência: ANVISA usa ~8-9pt para corpo, seções menores 7pt.
+             text-sm (14px nativo) → 8pt, text-xs (12px) → 7pt            */
+
           /* Classes Tailwind padrão */
-          #certificate-document .text-3xl  { font-size: 11pt !important; }
-          #certificate-document .text-2xl  { font-size: 10pt !important; }
-          #certificate-document .text-xl   { font-size:  8pt !important; }
-          #certificate-document .text-lg   { font-size:  7.5pt !important; }
-          #certificate-document .text-base { font-size:  7pt !important; }
-          #certificate-document .text-sm   { font-size:  6.5pt !important; }
-          #certificate-document .text-xs   { font-size:  6pt !important; }
+          #certificate-document .text-3xl  { font-size: 13pt !important; }
+          #certificate-document .text-2xl  { font-size: 11pt !important; }
+          #certificate-document .text-xl   { font-size:  9.5pt !important; }
+          #certificate-document .text-lg   { font-size:  9pt !important; }
+          #certificate-document .text-base { font-size:  8.5pt !important; }
+          #certificate-document .text-sm   { font-size:  8pt !important; }
+          #certificate-document .text-xs   { font-size:  7pt !important; }
 
-          /* Classes com valor px arbitrário do Tailwind */
-          #certificate-document .text-\[11px\] { font-size: 6pt !important; }
-          #certificate-document .text-\[10px\] { font-size: 5.5pt !important; }
-          #certificate-document .text-\[9px\]  { font-size: 5pt !important; }
-
-          /* ── 5a3. Cabeçalho do certificado: MAIOR que o restante ─────────────── */
+          /* ── 5a3. Cabeçalho do certificado: destaque proporcional ───────────── */
           #certificate-document .cert-intro-block > div:first-child .text-xl   { font-size: 13pt !important; }
-          #certificate-document .cert-intro-block > div:first-child .text-sm   { font-size: 9pt !important; }
-          #certificate-document .cert-intro-block > div:first-child .text-base { font-size: 10pt !important; }
-          #certificate-document .cert-intro-block > div:first-child .text-\[10px\] { font-size: 7.5pt !important; }
+          #certificate-document .cert-intro-block > div:first-child .text-sm   { font-size: 9.5pt !important; }
+          #certificate-document .cert-intro-block > div:first-child .text-base { font-size: 10.5pt !important; }
 
           /* ── 5a4. Logo ───────────────────────────────────────────────────────── */
           #certificate-document img[alt="Alphafitus"] {
