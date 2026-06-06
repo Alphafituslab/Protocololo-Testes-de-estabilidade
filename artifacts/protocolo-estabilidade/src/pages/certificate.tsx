@@ -289,7 +289,7 @@ export default function CertificatePage() {
   const _savedPrintPrefs = (() => {
     try {
       const raw = localStorage.getItem(CERT_PRINT_PREFS_KEY);
-      return raw ? (JSON.parse(raw) as { includePhotos?: boolean; includeHistory?: boolean; show?: Partial<ShowSections> }) : null;
+      return raw ? (JSON.parse(raw) as { includePhotos?: boolean; includeHistory?: boolean; show?: Partial<ShowSections>; rowVisibility?: Record<string, boolean> }) : null;
     } catch { return null; }
   })();
 
@@ -312,12 +312,30 @@ export default function CertificatePage() {
   const [cineticaExpanded, setCineticaExpanded] = useState(true);
   const [fundamentacaoExpanded, setFundamentacaoExpanded] = useState(true);
 
-  // Persist print preferences whenever they change
+  const [analyses, setAnalyses] = useState<Array<{
+    parameter: string; category: string; method: string; specification: string;
+    result: string; status: string; visible: boolean;
+  }> | null>(null);
+
+  // Persist print preferences whenever they change.
+  // Guard: skip writing rowVisibility until analyses has been populated from the
+  // server, so we never overwrite previously saved hidden rows with an empty map.
   useEffect(() => {
     try {
-      localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ includePhotos, includeHistory, show }));
+      if (analyses === null) {
+        // Analyses not loaded yet — persist only the non-row prefs so we don't
+        // clobber a saved rowVisibility from a previous visit.
+        const existing = (() => {
+          try { return JSON.parse(localStorage.getItem(CERT_PRINT_PREFS_KEY) ?? "{}"); } catch { return {}; }
+        })();
+        localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ ...existing, includePhotos, includeHistory, show }));
+        return;
+      }
+      const rowVisibility: Record<string, boolean> = {};
+      for (const a of analyses) rowVisibility[a.parameter] = a.visible;
+      localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ includePhotos, includeHistory, show, rowVisibility }));
     } catch { /* ignore */ }
-  }, [includePhotos, includeHistory, show, CERT_PRINT_PREFS_KEY]);
+  }, [includePhotos, includeHistory, show, analyses, CERT_PRINT_PREFS_KEY]);
 
   // Environmental conditions — now stored in the database (samplingTemp/Humidity, receptionTemp/Humidity).
   // The old cert_env_* localStorage key is cleaned up during the v4 migration below.
@@ -349,11 +367,6 @@ export default function CertificatePage() {
     },
   });
   const currentUserAlreadySigned = !!auth?.user && signatures.some(s => s.userId === auth.user!.id);
-
-  const [analyses, setAnalyses] = useState<Array<{
-    parameter: string; category: string; method: string; specification: string;
-    result: string; status: string; visible: boolean;
-  }> | null>(null);
 
   // ── Cert-level field overrides (all free-text edits by operator) ──────────
   // v4 key — v3 data is discarded entirely on first load because the isSyncing
@@ -615,7 +628,7 @@ export default function CertificatePage() {
         // Results tab propagate to the certificate automatically, even after
         // the certificate has been created.
         result: a.result,
-        visible: visMap[a.parameter] ?? true,
+        visible: visMap[a.parameter] ?? _savedPrintPrefs?.rowVisibility?.[a.parameter] ?? true,
       }));
     });
   }, [cert, id]);
