@@ -3,6 +3,8 @@ import { fmtDate } from "@/lib/utils";
 import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey, useListSignatures, useAddSignature, useDeleteSignature, getListSignaturesQueryKey, useUpdateProtocol, useListProtocolBibliographicReferences, getListProtocolBibliographicReferencesQueryKey, type BibliographicReference } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, History, Lock, Unlock, Save, ShieldCheck, PenLine, Trash2, UserCheck } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import React, { useState, useMemo, useEffect, useContext, useRef } from "react";
 import { AuditTrail } from "@/components/audit-trail";
@@ -293,6 +295,9 @@ export default function CertificatePage() {
     } catch { return null; }
   })();
 
+  const { toast } = useToast();
+  const _restoredFromStorage = useRef(_savedPrintPrefs !== null);
+
   const [show, setShow] = useState<ShowSections>(() => ({
     condicoesAmbientais: true,
     textoLotes: true,
@@ -336,6 +341,43 @@ export default function CertificatePage() {
       localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ includePhotos, includeHistory, show, rowVisibility }));
     } catch { /* ignore */ }
   }, [includePhotos, includeHistory, show, analyses, CERT_PRINT_PREFS_KEY]);
+
+  // ── Notify user when print preferences were restored from localStorage ──────
+  const DEFAULT_SHOW: ShowSections = {
+    condicoesAmbientais: true,
+    textoLotes: true,
+    infoAdicionais: true,
+    conclusao: true,
+    cineticaProtocolo: true,
+    fundamentacaoCinetica: true,
+    ressalvaNote: true,
+    referencias: true,
+  };
+
+  useEffect(() => {
+    if (!_restoredFromStorage.current) return;
+
+    const { dismiss } = toast({
+      title: "Configurações de impressão restauradas",
+      description: "Preferências salvas de uma visita anterior foram aplicadas.",
+      duration: 7000,
+      action: (
+        <ToastAction
+          altText="Redefinir padrões"
+          onClick={() => {
+            try { localStorage.removeItem(CERT_PRINT_PREFS_KEY); } catch { /* ignore */ }
+            setShow(DEFAULT_SHOW);
+            setIncludePhotos(true);
+            setIncludeHistory(true);
+            setAnalyses(prev => prev ? prev.map(a => ({ ...a, visible: true })) : prev);
+            dismiss();
+          }}
+        >
+          Redefinir padrões
+        </ToastAction>
+      ),
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Environmental conditions — now stored in the database (samplingTemp/Humidity, receptionTemp/Humidity).
   // The old cert_env_* localStorage key is cleaned up during the v4 migration below.
