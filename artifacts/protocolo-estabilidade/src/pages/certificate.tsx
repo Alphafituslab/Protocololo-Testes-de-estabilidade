@@ -1117,9 +1117,9 @@ export default function CertificatePage() {
         </div>
 
         {/* ── DADOS DA EMPRESA ──────────────────────────────────────────────── */}
-        <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden text-sm">
-          <div className="bg-gray-100 border-b border-gray-200 px-5 py-3">
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Dados da Empresa</h2>
+        <div className="mb-8 border border-gray-300 rounded-lg overflow-hidden text-sm">
+          <div className="bg-slate-700 px-5 py-3">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-200">Dados da Empresa</h2>
           </div>
           <div className="px-5 py-5 grid grid-cols-2 gap-x-8 gap-y-2">
             <div className="flex gap-2"><dt className="text-gray-500 min-w-20 flex-shrink-0">Empresa:</dt><dd className="font-medium flex-1 min-w-0">{ef("companyName", cert.companyName)}</dd></div>
@@ -1131,9 +1131,9 @@ export default function CertificatePage() {
         </div>
 
         {/* ── IDENTIFICAÇÃO DO PRODUTO ──────────────────────────────────────── */}
-        <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden text-xs">
-          <div className="bg-gray-100 border-b border-gray-200 px-5 py-3">
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Identificação do Produto</h2>
+        <div className="mb-8 border border-gray-300 rounded-lg overflow-hidden text-xs">
+          <div className="bg-slate-700 px-5 py-3">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-200">Identificação do Produto</h2>
           </div>
           <div className="px-5 py-5">
             <table className="w-full text-xs border-collapse">
@@ -1210,43 +1210,43 @@ export default function CertificatePage() {
         </div>
 
         {/* ── PLANO DE TESTE DE ESTABILIDADE ─────────────────────────────── */}
-        <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden text-xs">
-          <div className="bg-gray-100 border-b border-gray-200 px-5 py-3">
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Plano de Teste de Estabilidade</h2>
+        <div className="mb-8 border border-gray-300 rounded-lg overflow-hidden text-xs">
+          <div className="bg-slate-700 px-5 py-3">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-200">Plano de Teste de Estabilidade</h2>
           </div>
-          <div className="grid grid-cols-4 divide-x divide-gray-200">
-            <div className="p-3">
+          <div className="grid grid-cols-4 divide-x divide-gray-300">
+            <div className="p-4">
               <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">{ef("lbl_storageTemp", "Temperatura de Armazenamento", { className: "text-[10px] font-bold tracking-normal text-gray-400" })}</p>
               <p className="font-semibold text-gray-800">{ef("storageTemp", cert.storageTemp ?? "40°C ± 2°C")}</p>
             </div>
-            <div className="p-3">
+            <div className="p-4">
               <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">{ef("lbl_storageHumidity", "Umidade Relativa", { className: "text-[10px] font-bold tracking-normal text-gray-400" })}</p>
               <p className="font-semibold text-gray-800">{ef("storageHumidity", cert.storageHumidity ?? "75% UR ± 5% UR")}</p>
             </div>
-            <div className="p-3">
+            <div className="p-4">
               <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">{ef("lbl_studyPeriodMonths", "Período do Estudo", { className: "text-[10px] font-bold tracking-normal text-gray-400" })}</p>
               <p className="font-semibold text-gray-800">{ef("studyPeriodMonths", cert.studyPeriodMonths != null ? String(cert.studyPeriodMonths) + " meses" : "—")}</p>
             </div>
-            <div className="p-3">
+            <div className="p-4">
               <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">{ef("lbl_testIntervals", "Intervalos de Teste", { className: "text-[10px] font-bold tracking-normal text-gray-400" })}</p>
               <p className="font-semibold text-gray-800">{ef("testIntervals", cert.testIntervals ?? "—")}</p>
             </div>
           </div>
           {/* ── Datas das análises por período — sempre editáveis ────────── */}
-          <div className="grid grid-cols-3 divide-x divide-gray-200 border-t border-gray-200">
-            <div className="p-3">
+          <div className="grid grid-cols-3 divide-x divide-gray-300 border-t border-gray-300">
+            <div className="p-4">
               <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">Data da Análise — T0</p>
               <p className="font-semibold text-gray-800">
                 <CertEditField value={getAnalysisDate("analysisDateT0", cert.analysisDates?.t0, 0)} onChange={v => setCertEdit("analysisDateT0", v)} className="w-full" />
               </p>
             </div>
-            <div className="p-3">
+            <div className="p-4">
               <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">Data da Análise — T3</p>
               <p className="font-semibold text-gray-800">
                 <CertEditField value={getAnalysisDate("analysisDateT3", cert.analysisDates?.t3, 3)} onChange={v => setCertEdit("analysisDateT3", v)} className="w-full" />
               </p>
             </div>
-            <div className="p-3">
+            <div className="p-4">
               <p className="text-[10px] font-bold tracking-normal text-gray-400 mb-1">Data da Análise — T6</p>
               <p className="font-semibold text-gray-800">
                 <CertEditField value={getAnalysisDate("analysisDateT6", cert.analysisDates?.t6, 6)} onChange={v => setCertEdit("analysisDateT6", v)} className="w-full" />
@@ -1257,9 +1257,9 @@ export default function CertificatePage() {
 
         {/* ── CONDIÇÕES AMBIENTAIS ─────────────────────────────────────────── */}
         {show.condicoesAmbientais && (
-          <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden text-xs">
-            <div className="bg-gray-100 border-b border-gray-200 px-5 py-3">
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Condições Ambientais</h2>
+          <div className="mb-8 border border-gray-300 rounded-lg overflow-hidden text-xs">
+            <div className="bg-slate-700 px-5 py-3">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-200">Condições Ambientais</h2>
             </div>
             <div className="px-5 py-5 grid grid-cols-2 gap-x-8 gap-y-2">
               <div className="space-y-0.5">
@@ -1285,20 +1285,20 @@ export default function CertificatePage() {
         </div>{/* /cert-intro-block */}
 
         {/* ── MÉTODO DE ANÁLISE ────────────────────────────────────────────── */}
-        <div className="cert-analysis-table mb-8 border border-gray-200 rounded-lg overflow-hidden text-sm">
-          <div className="bg-gray-100 border-b border-gray-200 px-5 py-3">
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Método de Análise</h2>
+        <div className="cert-analysis-table mb-8 border border-gray-300 rounded-lg overflow-hidden text-sm">
+          <div className="bg-slate-700 px-5 py-3">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-200">Método de Análise</h2>
           </div>
           <div className="px-0 py-0">
           <table className="w-full text-xs border-collapse">
             <thead>
-              <tr className="bg-gray-100">
-                <th className="border border-gray-300 px-2 py-2 text-left font-semibold uppercase tracking-wide w-28">{ef("thAnalise", "Analise")}</th>
-                <th className="border border-gray-300 px-2 py-2 text-left font-semibold uppercase tracking-wide">{ef("thMetodo", "Metodo")}</th>
-                <th className="border border-gray-300 px-2 py-2 text-left font-semibold uppercase tracking-wide w-28">{ef("thCriterios", "Critérios de Aceitação")}</th>
-                <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-20">{ef("thResultado", "Resultado")}</th>
-                <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-24">{ef("thStatus", "Status")}</th>
-                <th className="border border-gray-300 px-2 py-2 text-center font-semibold uppercase tracking-wide w-10 print:hidden">
+              <tr className="bg-slate-700 text-white">
+                <th className="border border-slate-500 px-2 py-2 text-left font-semibold uppercase tracking-wide w-28">{ef("thAnalise", "Analise")}</th>
+                <th className="border border-slate-500 px-2 py-2 text-left font-semibold uppercase tracking-wide">{ef("thMetodo", "Metodo")}</th>
+                <th className="border border-slate-500 px-2 py-2 text-left font-semibold uppercase tracking-wide w-28">{ef("thCriterios", "Critérios de Aceitação")}</th>
+                <th className="border border-slate-500 px-2 py-2 text-center font-semibold uppercase tracking-wide w-20">{ef("thResultado", "Resultado")}</th>
+                <th className="border border-slate-500 px-2 py-2 text-center font-semibold uppercase tracking-wide w-24">{ef("thStatus", "Status")}</th>
+                <th className="border border-slate-500 px-2 py-2 text-center font-semibold uppercase tracking-wide w-10 print:hidden">
                   <span className="text-[9px] text-gray-400 uppercase tracking-wide">PDF</span>
                 </th>
               </tr>
@@ -1311,7 +1311,7 @@ export default function CertificatePage() {
                 return (
                   <>
                     <tr key={`cat-${cat}`} className={`cert-category-row ${allCatHidden ? "print:hidden" : ""}`}>
-                      <td colSpan={6} className="border border-gray-300 px-2 py-1 bg-gray-200 font-bold text-[10px] uppercase tracking-widest text-gray-600">
+                      <td colSpan={6} className="border border-slate-300 px-3 py-1.5 bg-slate-100 font-bold text-[10px] uppercase tracking-wider text-slate-700">
                         {CATEGORY_LABELS[cat] ?? cat}
                       </td>
                     </tr>
@@ -1369,9 +1369,9 @@ export default function CertificatePage() {
 
         {/* ── OBSERVAÇÕES SOBRE OS LOTES ───────────────────────────────────── */}
         {show.textoLotes && (
-          <div className="cert-section mb-8 border border-gray-200 rounded-lg overflow-hidden text-xs">
-            <div className="bg-gray-100 border-b border-gray-200 px-5 py-3">
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Observações sobre os Lotes</h2>
+          <div className="cert-section mb-8 border border-gray-300 rounded-lg overflow-hidden text-xs">
+            <div className="bg-slate-700 px-5 py-3">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-200">Observações sobre os Lotes</h2>
             </div>
             <div className="px-5 py-5 text-gray-700 space-y-3">
               <p>{ef("textoLotes1", "Os lotes piloto foram produzidos em datas distintas, sob condições equivalentes de fabricação, visando assegurar a independência entre os lotes, a rastreabilidade do estudo e a minimização do risco de desvios operacionais ou interferências de processo.", { multiline: true })}</p>
@@ -1383,9 +1383,9 @@ export default function CertificatePage() {
 
         {/* ── INFORMAÇÕES ADICIONAIS ───────────────────────────────────────── */}
         {show.infoAdicionais && (
-          <div className="cert-section mb-8 border border-gray-200 rounded-lg overflow-hidden text-xs">
-            <div className="bg-gray-100 border-b border-gray-200 px-5 py-3">
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Informações Adicionais</h2>
+          <div className="cert-section mb-8 border border-gray-300 rounded-lg overflow-hidden text-xs">
+            <div className="bg-slate-700 px-5 py-3">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-200">Informações Adicionais</h2>
             </div>
             <div className="px-5 py-5 text-gray-700 space-y-2">
               <p>{ef("infoAdicionais1", "Este documento deve ser reproduzido integralmente. A reproducao parcial somente e permitida mediante autorizacao formal e escrita do laboratorio.", { multiline: true })}</p>
@@ -1397,9 +1397,9 @@ export default function CertificatePage() {
 
         {/* ── CONCLUSÃO ────────────────────────────────────────────────────── */}
         {show.conclusao && (
-          <div className="cert-section mb-8 border border-gray-200 rounded-lg overflow-hidden text-sm">
-            <div className="bg-gray-100 border-b border-gray-200 px-5 py-3">
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Conclusão</h2>
+          <div className="cert-section mb-8 border border-gray-300 rounded-lg overflow-hidden text-sm">
+            <div className="bg-slate-700 px-5 py-3">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-200">Conclusão</h2>
             </div>
             <div className="px-5 py-5 text-center" style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
               <span className="font-normal">{ef("conclusion", cert.conclusion, { multiline: true, className: "w-full text-sm font-normal" })}</span>
@@ -1408,9 +1408,9 @@ export default function CertificatePage() {
         )}
 
         {/* ── DELIBERAÇÃO ──────────────────────────────────────────────────── */}
-        <div className="cert-section cert-deliberacao mb-8 border border-gray-200 rounded-lg overflow-hidden text-sm">
-          <div className="bg-gray-100 border-b border-gray-200 px-5 py-3">
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Deliberação</h2>
+        <div className="cert-section cert-deliberacao mb-8 border border-gray-300 rounded-lg overflow-hidden text-sm">
+          <div className="bg-slate-700 px-5 py-3">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-200">Deliberação</h2>
           </div>
           <div className="px-5 py-5">
             {hasNonConforming && (
@@ -1448,9 +1448,9 @@ export default function CertificatePage() {
         {/* ── NOTA DE RESSALVA ──────────────────────────────────────────────── */}
         {isAR && cert.ressalva && show.ressalvaNote && (
           <div className="cert-section mb-8 border border-amber-300 rounded-lg overflow-hidden text-xs">
-            <div className="bg-amber-50 border-b border-amber-200 px-5 py-3 flex items-center gap-2">
-              <span className="text-amber-600 text-sm">⚠</span>
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Nota de Ressalva</h2>
+            <div className="bg-amber-600 px-5 py-3 flex items-center gap-2">
+              <span className="text-white text-sm">⚠</span>
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white">Nota de Ressalva</h2>
             </div>
             <div className="px-5 py-5 bg-amber-50/30">
               <p className="text-xs text-amber-900 leading-relaxed whitespace-pre-wrap">{cert.ressalva}</p>
@@ -1707,9 +1707,9 @@ export default function CertificatePage() {
               )}
 
               {/* ── ASSINATURAS ─────────────────────────────────────────────── */}
-              <div className="cert-signatures border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-100 border-b border-gray-200 px-5 py-3">
-                  <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-1.5">
+              <div className="cert-signatures border border-gray-300 rounded-lg overflow-hidden">
+                <div className="bg-slate-700 px-5 py-3">
+                  <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
                     <ShieldCheck className="h-3 w-3" /> Assinaturas
                   </h2>
                 </div>
@@ -1821,7 +1821,7 @@ export default function CertificatePage() {
             <div className="pt-8 border-t-2 border-gray-800 mt-8">
               <div className="flex items-start justify-between mb-2">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Alphafitus Laboratório Nutracêutico</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-200">Alphafitus Laboratório Nutracêutico</p>
                   <h2 className="text-lg font-bold uppercase tracking-wide mt-0.5">
                     Referências Bibliográficas
                   </h2>
@@ -1854,7 +1854,7 @@ export default function CertificatePage() {
             <div className="pt-8 border-t-2 border-gray-800 mt-8">
               <div className="flex items-start justify-between mb-2">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Alphafitus Laboratório Nutracêutico</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-200">Alphafitus Laboratório Nutracêutico</p>
                   <h2 className="text-lg font-bold uppercase tracking-wide mt-0.5 flex items-center gap-2">
                     Anexo — Histórico de Alterações do Protocolo
                   </h2>
@@ -1887,7 +1887,7 @@ export default function CertificatePage() {
             <div className="photo-appendix-header pt-8 border-t-2 border-gray-800 mt-8">
               <div className="flex items-start justify-between mb-2">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Alphafitus Laboratório Nutracêutico</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-200">Alphafitus Laboratório Nutracêutico</p>
                   <h2 className="text-lg font-bold uppercase tracking-wide mt-0.5">Anexo — Registros Fotográficos dos Ensaios</h2>
                 </div>
                 <div className="text-right text-xs text-gray-500">
@@ -2338,6 +2338,45 @@ export default function CertificatePage() {
             width: 180px !important;
             height: 180px !important;
             object-fit: cover;
+          }
+
+          /* ── Barras de título navy: garantir cor na impressão ────────────────── */
+          .cert-intro-block > div:not(:first-child) > div:first-child,
+          .cert-section > div:first-child,
+          .cert-analysis-table > div:first-child,
+          .cert-kinetica-block > div:first-child {
+            background-color: rgb(51, 65, 85) !important;
+            color: rgb(226, 232, 240) !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          /* ── Barra de ressalva (amber) ────────────────────────────────────────── */
+          .cert-section.border-amber-300 > div:first-child {
+            background-color: rgb(217, 119, 6) !important;
+            color: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          /* ── Cabeçalho da tabela de análise ──────────────────────────────────── */
+          .cert-analysis-table thead tr {
+            background-color: rgb(51, 65, 85) !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .cert-analysis-table thead th {
+            color: rgb(226, 232, 240) !important;
+            border-color: rgb(100, 116, 139) !important;
+          }
+
+          /* ── Linhas de categoria ──────────────────────────────────────────────── */
+          .cert-category-row td {
+            background-color: rgb(241, 245, 249) !important;
+            color: rgb(51, 65, 85) !important;
+            border-color: rgb(203, 213, 225) !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         }
       `}</style>
