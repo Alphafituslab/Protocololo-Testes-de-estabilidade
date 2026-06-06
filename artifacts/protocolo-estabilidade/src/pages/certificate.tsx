@@ -2124,6 +2124,23 @@ export default function CertificatePage() {
             print-color-adjust: exact !important;
           }
 
+          /* ── 5a2. Escala de fontes: sobrescreve classes Tailwind px-based ──────
+             font-size:8pt no container NÃO afeta text-xl/sm/xs (usam px).
+             Forçamos cada classe explicitamente para documento técnico compacto. */
+          #certificate-document .text-3xl  { font-size: 11pt !important; }
+          #certificate-document .text-2xl  { font-size: 10pt !important; }
+          #certificate-document .text-xl   { font-size:  9pt !important; }
+          #certificate-document .text-lg   { font-size:  8pt !important; }
+          #certificate-document .text-base { font-size:  7.5pt !important; }
+          #certificate-document .text-sm   { font-size:  7pt !important; }
+          #certificate-document .text-xs   { font-size:  6.5pt !important; }
+
+          /* ── 5a3. Imagens ─────────────────────────────────────────────────────── */
+          #certificate-document img[alt="Alphafitus"] {
+            height: 30px !important;
+            width: auto !important;
+          }
+
           /* ── 5b. Espaço entre seções ─────────────────────────────────────────── */
           .cert-intro-block > div:not(:first-child) { margin-bottom: 8pt !important; }
           .cert-section                              { margin-bottom: 8pt !important; }
