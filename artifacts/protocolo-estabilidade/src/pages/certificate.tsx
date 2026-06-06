@@ -2113,22 +2113,43 @@ export default function CertificatePage() {
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
-            padding: 14mm 18mm !important;
+            padding: 9mm 12mm !important;
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
-            font-size: 8.5pt !important;
-            line-height: 1.45 !important;
+            font-size: 8pt !important;
+            line-height: 1.4 !important;
             overflow: visible !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
 
-          /* ── 5b. Espaçamento compacto entre seções no print ─────────────────── */
-          .cert-intro-block > div:not(:first-child) { margin-bottom: 14pt !important; }
-          .cert-section                              { margin-bottom: 14pt !important; }
-          .cert-analysis-table                       { margin-bottom: 16pt !important; }
-          .cert-kinetica-block                       { margin-bottom: 14pt !important; }
+          /* ── 5b. Espaço entre seções ─────────────────────────────────────────── */
+          .cert-intro-block > div:not(:first-child) { margin-bottom: 8pt !important; }
+          .cert-section                              { margin-bottom: 8pt !important; }
+          .cert-analysis-table                       { margin-bottom: 10pt !important; }
+          .cert-kinetica-block                       { margin-bottom: 8pt !important; }
+
+          /* ── 5b2. Header do certificado (logo + número) ──────────────────────── */
+          .cert-intro-block > div:first-child {
+            padding-bottom: 6pt !important;
+            margin-bottom: 8pt !important;
+          }
+
+          /* ── 5b3. Padding interno das barras de título ───────────────────────── */
+          .cert-intro-block > div:not(:first-child) > div:first-child,
+          .cert-section > div:first-child,
+          .cert-analysis-table > div:first-child,
+          .cert-kinetica-block > div:first-child {
+            padding: 4pt 9pt !important;
+          }
+
+          /* ── 5b4. Padding interno das áreas de conteúdo ──────────────────────── */
+          .cert-intro-block > div:not(:first-child) > div:not(:first-child),
+          .cert-section > div:not(:first-child),
+          .cert-kinetica-block > div:not(:first-child) {
+            padding: 6pt 9pt !important;
+          }
 
           /* ── 5c. Cabeçalhos navy: garantir cor no print ──────────────────────── */
           .cert-intro-block > div:not(:first-child) > div:first-child,
@@ -2273,19 +2294,30 @@ export default function CertificatePage() {
             overflow: visible !important;
           }
 
-          /* Grade de fotos */
+          /* Grade de fotos: compacta */
           .photo-grid {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 6px !important;
             overflow: visible !important;
           }
 
-          /* Tamanho de imagem fotográfica */
+          /* Grupo de parâmetro: menos espaço */
+          .photo-param-group {
+            margin-bottom: 8pt !important;
+          }
+
+          /* Tamanho de imagem fotográfica: menor */
           .photo-img {
-            width: 180px !important;
-            height: 180px !important;
+            width: 130px !important;
+            height: 130px !important;
             object-fit: cover;
+          }
+
+          /* Cabeçalho do apêndice de fotos */
+          .photo-appendix-header {
+            margin-bottom: 6pt !important;
+            padding-bottom: 4pt !important;
           }
         }
       `}</style>
