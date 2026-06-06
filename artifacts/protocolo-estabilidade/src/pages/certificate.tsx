@@ -2133,6 +2133,8 @@ export default function CertificatePage() {
             font-size: 10.5pt !important;
             line-height: 1.6 !important;
             overflow: visible !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -2234,20 +2236,24 @@ export default function CertificatePage() {
             padding: 14pt 16pt !important;
           }
 
-          /* ── Assinaturas: amplo espaço acima para serem destacadas ──────────── */
+          /* ── Assinaturas: ficam na mesma página que o conteúdo anterior ────────
+             page-break-before:avoid impede que as assinaturas saltem sozinhas
+             para uma nova página, criando uma página em branco antes delas.     */
           .cert-signatures {
             break-inside: avoid;
             page-break-inside: avoid;
+            page-break-before: avoid !important;
+            break-before: avoid !important;
             overflow: visible !important;
-            margin-top: 36pt !important;
+            margin-top: 20pt !important;
           }
 
-          /* ── Deliberação: não fica órfã no fim de uma página ────────────────── */
+          /* ── Deliberação: margem inferior menor pois assinaturas vêm logo após ─ */
           .cert-deliberacao {
             break-inside: avoid;
             page-break-inside: avoid;
             overflow: visible !important;
-            margin-bottom: 30pt !important;
+            margin-bottom: 16pt !important;
           }
 
           /* ── Tabela de análises: PODE quebrar entre linhas (tabela grande) ───── */
