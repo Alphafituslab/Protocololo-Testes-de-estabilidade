@@ -2159,17 +2159,38 @@ export default function CertificatePage() {
              CONTROLE DE QUEBRAS DE PÁGINA
           ══════════════════════════════════════════════════════════════════════ */
 
-          /* ── Bloco introdutório (header + empresa + produto + plano) ─────────── */
+          /* ══════════════════════════════════════════════════════════════════════
+             ESPAÇAMENTO — margens entre blocos e padding interno das seções
+             (todos os valores superam os utilitários Tailwind mb-4/mb-6
+              para garantir respiro real num documento lido por fiscal)
+          ══════════════════════════════════════════════════════════════════════ */
+
+          /* ── Bloco introdutório: espaço abaixo do bloco inteiro ─────────────── */
           .cert-intro-block {
             break-inside: avoid;
             page-break-inside: avoid;
             overflow: visible !important;
-            margin-bottom: 12pt !important;
+            margin-bottom: 24pt !important;
           }
 
-          /* ── Subseções dentro do bloco introdutório ─────────────────────────── */
-          .cert-intro-block > div {
-            margin-bottom: 10pt !important;
+          /* cabeçalho principal (logo + número + data) */
+          .cert-intro-block > div:first-child {
+            margin-bottom: 20pt !important;
+          }
+
+          /* subseções do intro (empresa, produto, plano, cond. ambientais) */
+          .cert-intro-block > div:not(:first-child) {
+            margin-bottom: 16pt !important;
+          }
+
+          /* barra de título das subseções do intro */
+          .cert-intro-block > div:not(:first-child) > div:first-child {
+            padding: 7pt 14pt !important;
+          }
+
+          /* área de conteúdo das subseções do intro */
+          .cert-intro-block > div:not(:first-child) > div:not(:first-child) {
+            padding: 10pt 14pt !important;
           }
 
           /* ── Seções de texto (lotes, info, conclusão, deliberação, cinética) ─── */
@@ -2177,14 +2198,33 @@ export default function CertificatePage() {
             break-inside: avoid;
             page-break-inside: avoid;
             overflow: visible !important;
-            margin-bottom: 12pt !important;
+            margin-bottom: 22pt !important;
           }
 
-          /* ── Assinaturas: sempre permanecem juntas ───────────────────────────── */
+          /* barra de título das seções */
+          .cert-section > div:first-child {
+            padding: 7pt 14pt !important;
+          }
+
+          /* área de conteúdo das seções */
+          .cert-section > div:not(:first-child) {
+            padding: 10pt 14pt !important;
+          }
+
+          /* ── Tabela de análises: barra de título ─────────────────────────────── */
+          .cert-analysis-table {
+            margin-bottom: 22pt !important;
+          }
+          .cert-analysis-table > div:first-child {
+            padding: 7pt 14pt !important;
+          }
+
+          /* ── Assinaturas: espaço acima para respirar no final ───────────────── */
           .cert-signatures {
             break-inside: avoid;
             page-break-inside: avoid;
             overflow: visible !important;
+            margin-top: 24pt !important;
           }
 
           /* ── Deliberação: não fica órfã no fim de uma página ────────────────── */
@@ -2192,6 +2232,7 @@ export default function CertificatePage() {
             break-inside: avoid;
             page-break-inside: avoid;
             overflow: visible !important;
+            margin-bottom: 22pt !important;
           }
 
           /* ── Tabela de análises: PODE quebrar entre linhas (tabela grande) ───── */
