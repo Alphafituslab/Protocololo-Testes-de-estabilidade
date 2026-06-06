@@ -1147,7 +1147,7 @@ export default function CertificatePage() {
         </div>
 
         {/* ── DADOS DA EMPRESA ──────────────────────────────────────────────── */}
-        <div className="mb-12 border-l-4 border-l-slate-600 border border-gray-200 rounded-r-lg overflow-hidden text-sm">
+        <div className="mb-10 border border-gray-200 rounded-lg overflow-hidden text-sm">
           <div className="bg-slate-700 px-5 py-3">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Dados da Empresa</h2>
           </div>
@@ -1161,7 +1161,7 @@ export default function CertificatePage() {
         </div>
 
         {/* ── IDENTIFICAÇÃO DO PRODUTO ──────────────────────────────────────── */}
-        <div className="mb-12 border-l-4 border-l-slate-600 border border-gray-200 rounded-r-lg overflow-hidden text-xs">
+        <div className="mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
           <div className="bg-slate-700 px-5 py-3">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Identificação do Produto</h2>
           </div>
@@ -1240,7 +1240,7 @@ export default function CertificatePage() {
         </div>
 
         {/* ── PLANO DE TESTE DE ESTABILIDADE ─────────────────────────────── */}
-        <div className="mb-12 border-l-4 border-l-slate-600 border border-gray-200 rounded-r-lg overflow-hidden text-xs">
+        <div className="mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
           <div className="bg-slate-700 px-5 py-3">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Plano de Teste de Estabilidade</h2>
           </div>
@@ -1296,7 +1296,7 @@ export default function CertificatePage() {
 
         {/* ── CONDIÇÕES AMBIENTAIS ─────────────────────────────────────────── */}
         {show.condicoesAmbientais && (
-          <div className="mb-12 border-l-4 border-l-slate-600 border border-gray-200 rounded-r-lg overflow-hidden text-xs">
+          <div className="mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
             <div className="bg-slate-700 px-5 py-3">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Condições Ambientais</h2>
             </div>
@@ -1324,7 +1324,7 @@ export default function CertificatePage() {
         </div>{/* /cert-intro-block */}
 
         {/* ── MÉTODO DE ANÁLISE ────────────────────────────────────────────── */}
-        <div className="cert-analysis-table mb-12 border-l-4 border-l-slate-600 border border-gray-200 rounded-r-lg overflow-hidden text-sm">
+        <div className="cert-analysis-table mb-10 border border-gray-200 rounded-lg overflow-hidden text-sm">
           <div className="bg-slate-700 px-5 py-3">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Método de Análise</h2>
           </div>
@@ -1408,7 +1408,7 @@ export default function CertificatePage() {
 
         {/* ── OBSERVAÇÕES SOBRE OS LOTES ───────────────────────────────────── */}
         {show.textoLotes && (
-          <div className="cert-section mb-12 border-l-4 border-l-slate-600 border border-gray-200 rounded-r-lg overflow-hidden text-xs">
+          <div className="cert-section mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
             <div className="bg-slate-700 px-5 py-3">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Observações sobre os Lotes</h2>
             </div>
@@ -1422,7 +1422,7 @@ export default function CertificatePage() {
 
         {/* ── INFORMAÇÕES ADICIONAIS ───────────────────────────────────────── */}
         {show.infoAdicionais && (
-          <div className="cert-section mb-12 border-l-4 border-l-slate-600 border border-gray-200 rounded-r-lg overflow-hidden text-xs">
+          <div className="cert-section mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
             <div className="bg-slate-700 px-5 py-3">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Informações Adicionais</h2>
             </div>
@@ -1436,7 +1436,7 @@ export default function CertificatePage() {
 
         {/* ── CONCLUSÃO ────────────────────────────────────────────────────── */}
         {show.conclusao && (
-          <div className="cert-section mb-12 border-l-4 border-l-slate-600 border border-gray-200 rounded-r-lg overflow-hidden text-sm">
+          <div className="cert-section mb-10 border border-gray-200 rounded-lg overflow-hidden text-sm">
             <div className="bg-slate-700 px-5 py-3">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Conclusão</h2>
             </div>
@@ -1447,7 +1447,7 @@ export default function CertificatePage() {
         )}
 
         {/* ── DELIBERAÇÃO ──────────────────────────────────────────────────── */}
-        <div className="cert-section cert-deliberacao mb-12 border-l-4 border-l-slate-600 border border-gray-200 rounded-r-lg overflow-hidden text-sm">
+        <div className="cert-section cert-deliberacao mb-10 border border-gray-200 rounded-lg overflow-hidden text-sm">
           <div className="bg-slate-700 px-5 py-3">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Deliberação</h2>
           </div>
@@ -1486,7 +1486,7 @@ export default function CertificatePage() {
 
         {/* ── NOTA DE RESSALVA ──────────────────────────────────────────────── */}
         {isAR && cert.ressalva && show.ressalvaNote && (
-          <div className="cert-section mb-12 border-l-4 border-l-amber-500 border border-amber-300 rounded-r-lg overflow-hidden text-xs">
+          <div className="cert-section mb-10 border border-amber-300 rounded-lg overflow-hidden text-xs">
             <div className="bg-slate-700 px-5 py-3 flex items-center gap-2">
               <span className="text-amber-400 text-sm">⚠</span>
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Nota de Ressalva</h2>
