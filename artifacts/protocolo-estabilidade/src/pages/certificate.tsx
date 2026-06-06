@@ -1374,8 +1374,8 @@ export default function CertificatePage() {
         </div>
 
         {/* ── NOTA DE RESSALVA ──────────────────────────────────────────────── */}
-        {isAR && cert.ressalva && (
-          <div className={`cert-section mb-4 border border-amber-300 rounded-lg overflow-hidden text-xs ${!show.ressalvaNote ? "print:hidden" : ""}`}>
+        {isAR && cert.ressalva && show.ressalvaNote && (
+          <div className="cert-section mb-4 border border-amber-300 rounded-lg overflow-hidden text-xs">
             <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2">
               <span className="text-amber-600 text-sm">⚠</span>
               <h2 className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Nota de Ressalva</h2>
@@ -1395,8 +1395,9 @@ export default function CertificatePage() {
           const practicedMonths = (cert as any).validityMonths as number | null ?? null;
           const hasData = validParams.length > 0;
 
+          if (!show.cineticaProtocolo) return null;
           return (
-            <div className={`cert-kinetica-block mb-6 rounded border border-blue-200 overflow-hidden text-xs text-gray-700 ${!show.cineticaProtocolo ? "print:hidden" : ""}`}>
+            <div className="cert-kinetica-block mb-6 rounded border border-blue-200 overflow-hidden text-xs text-gray-700">
               {/* Accordion header — screen only */}
               <div
                 className="print:hidden flex items-center justify-between px-4 py-2 bg-blue-50 border-b border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors select-none"
@@ -1501,7 +1502,7 @@ export default function CertificatePage() {
           );
         })()}
 
-        <div className={`cert-kinetica-block mb-6 rounded border border-gray-200 overflow-hidden text-xs text-gray-700 ${!show.fundamentacaoCinetica ? "print:hidden" : ""}`}>
+        {show.fundamentacaoCinetica && <div className="cert-kinetica-block mb-6 rounded border border-gray-200 overflow-hidden text-xs text-gray-700">
           {/* Accordion header — screen only */}
           <div
             className="print:hidden flex items-center justify-between px-4 py-2 bg-gray-100 border-b border-gray-200 cursor-pointer hover:bg-gray-200 transition-colors select-none"
@@ -1535,7 +1536,7 @@ export default function CertificatePage() {
             <p className="font-mono bg-white border border-gray-200 rounded px-3 py-1.5 inline-block">C<sub>t</sub> = C<sub>0</sub> · e<sup>−kt</sup></p>
             <p className="font-mono bg-white border border-gray-200 rounded px-3 py-1.5 inline-block ml-4">k = A · e<sup>−E<sub>a</sub>/RT</sup></p>
           </div>
-        </div>
+        </div>}
 
         {/* ══ ASSINATURAS ELETRÔNICAS + RODAPÉ INTEGRADO ══════════════════ */}
         {(() => {

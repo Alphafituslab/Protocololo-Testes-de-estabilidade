@@ -313,9 +313,9 @@ export default function ProtocolReportPage() {
     return apiMethod ?? "";
   };
 
-  // Wrapper: oculta a seção no CSS de impressão quando desmarcada
+  // Wrapper: quando desmarcada, não renderiza o nó (sem DOM = sem página em branco)
   const ps = (key: string, node: React.ReactNode) =>
-    isPrint(key) ? node : <div key={key} className="print:hidden">{node}</div>;
+    isPrint(key) ? node : null;
 
   const lots = [...lotsRaw].sort((a, b) => a.lotNumber.localeCompare(b.lotNumber));
 
