@@ -2069,7 +2069,10 @@ export default function CertificatePage() {
         /* ══ MARGENS DE PÁGINA ══════════════════════════════════════════════════ */
         @page {
           size: A4 portrait;
-          margin: 10mm 12mm;
+          /* margin: 0 remove o cabeçalho/rodapé automático do Chrome
+             (data, URL, número de página) do PDF gerado via Ctrl+P.
+             O certificado gerencia suas próprias margens via padding. */
+          margin: 0;
         }
 
         @media print {
@@ -2097,7 +2100,10 @@ export default function CertificatePage() {
           #root aside            { display: none !important; }
           #root header           { display: none !important; }
 
-          /* ── 5. Ancorar o certificado no topo absoluto da área de impressão ────*/
+          /* ── 5. Ancorar o certificado — preenche toda a folha A4 ───────────────
+             Com @page { margin: 0 }, não há margem de página — o certificado
+             ocupa 100% da área física. Usamos padding próprio para as margens
+             visuais do documento (equivalente às margens ABNT: 20mm × 15mm).  */
           #certificate-document {
             position: absolute !important;
             top: 0 !important;
@@ -2107,10 +2113,11 @@ export default function CertificatePage() {
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
+            padding: 14mm 18mm !important;
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
-            font-size: 9pt !important;
+            font-size: 8.5pt !important;
             line-height: 1.45 !important;
             overflow: visible !important;
             -webkit-print-color-adjust: exact !important;
