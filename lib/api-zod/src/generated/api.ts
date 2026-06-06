@@ -1286,3 +1286,130 @@ export const UpdateProductTypeResponse = zod.object({
 export const DeleteProductTypeParams = zod.object({
   id: zod.coerce.number(),
 });
+
+/**
+ * @summary List all bibliographic references
+ */
+export const ListBibliographicReferencesResponseItem = zod.object({
+  id: zod.number(),
+  titulo: zod.string(),
+  autores: zod.string().nullish(),
+  ano: zod.number().nullish(),
+  fonte: zod.string().nullish(),
+  volume: zod.string().nullish(),
+  numero: zod.string().nullish(),
+  paginas: zod.string().nullish(),
+  doi: zod.string().nullish(),
+  descricao: zod.string().nullish(),
+  tipoReferencia: zod.string(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListBibliographicReferencesResponse = zod.array(
+  ListBibliographicReferencesResponseItem,
+);
+
+/**
+ * @summary Create a bibliographic reference
+ */
+
+export const CreateBibliographicReferenceBody = zod.object({
+  titulo: zod.string().min(1),
+  autores: zod.string().optional(),
+  ano: zod.number().optional(),
+  fonte: zod.string().optional(),
+  volume: zod.string().optional(),
+  numero: zod.string().optional(),
+  paginas: zod.string().optional(),
+  doi: zod.string().optional(),
+  descricao: zod.string().optional(),
+  tipoReferencia: zod.string().optional(),
+});
+
+/**
+ * @summary Update a bibliographic reference
+ */
+export const UpdateBibliographicReferenceParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateBibliographicReferenceBody = zod.object({
+  titulo: zod.string().min(1),
+  autores: zod.string().optional(),
+  ano: zod.number().optional(),
+  fonte: zod.string().optional(),
+  volume: zod.string().optional(),
+  numero: zod.string().optional(),
+  paginas: zod.string().optional(),
+  doi: zod.string().optional(),
+  descricao: zod.string().optional(),
+  tipoReferencia: zod.string().optional(),
+});
+
+export const UpdateBibliographicReferenceResponse = zod.object({
+  id: zod.number(),
+  titulo: zod.string(),
+  autores: zod.string().nullish(),
+  ano: zod.number().nullish(),
+  fonte: zod.string().nullish(),
+  volume: zod.string().nullish(),
+  numero: zod.string().nullish(),
+  paginas: zod.string().nullish(),
+  doi: zod.string().nullish(),
+  descricao: zod.string().nullish(),
+  tipoReferencia: zod.string(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a bibliographic reference
+ */
+export const DeleteBibliographicReferenceParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List bibliographic references linked to a protocol
+ */
+export const ListProtocolBibliographicReferencesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListProtocolBibliographicReferencesResponseItem = zod.object({
+  id: zod.number(),
+  titulo: zod.string(),
+  autores: zod.string().nullish(),
+  ano: zod.number().nullish(),
+  fonte: zod.string().nullish(),
+  volume: zod.string().nullish(),
+  numero: zod.string().nullish(),
+  paginas: zod.string().nullish(),
+  doi: zod.string().nullish(),
+  descricao: zod.string().nullish(),
+  tipoReferencia: zod.string(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListProtocolBibliographicReferencesResponse = zod.array(
+  ListProtocolBibliographicReferencesResponseItem,
+);
+
+/**
+ * @summary Link a reference to a protocol
+ */
+export const AddProtocolBibliographicReferenceParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const AddProtocolBibliographicReferenceBody = zod.object({
+  referenceId: zod.number(),
+});
+
+/**
+ * @summary Unlink a reference from a protocol
+ */
+export const RemoveProtocolBibliographicReferenceParams = zod.object({
+  id: zod.coerce.number(),
+  refId: zod.coerce.number(),
+});

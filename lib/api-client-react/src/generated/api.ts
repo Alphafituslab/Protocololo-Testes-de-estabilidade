@@ -17,8 +17,11 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AddProtocolReferenceBody,
   AddSignatureBody,
   AnalysisResult,
+  BibliographicReference,
+  BibliographicReferenceInput,
   CatalogItem,
   CatalogItemInput,
   Certificate,
@@ -3533,4 +3536,629 @@ export const useDeleteProductType = <
   TContext
 > => {
   return useMutation(getDeleteProductTypeMutationOptions(options));
+};
+
+/**
+ * @summary List all bibliographic references
+ */
+export const getListBibliographicReferencesUrl = () => {
+  return `/api/bibliographic-references`;
+};
+
+export const listBibliographicReferences = async (
+  options?: RequestInit,
+): Promise<BibliographicReference[]> => {
+  return customFetch<BibliographicReference[]>(
+    getListBibliographicReferencesUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListBibliographicReferencesQueryKey = () => {
+  return [`/api/bibliographic-references`] as const;
+};
+
+export const getListBibliographicReferencesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listBibliographicReferences>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listBibliographicReferences>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListBibliographicReferencesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listBibliographicReferences>>
+  > = ({ signal }) =>
+    listBibliographicReferences({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listBibliographicReferences>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListBibliographicReferencesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listBibliographicReferences>>
+>;
+export type ListBibliographicReferencesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all bibliographic references
+ */
+
+export function useListBibliographicReferences<
+  TData = Awaited<ReturnType<typeof listBibliographicReferences>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listBibliographicReferences>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListBibliographicReferencesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a bibliographic reference
+ */
+export const getCreateBibliographicReferenceUrl = () => {
+  return `/api/bibliographic-references`;
+};
+
+export const createBibliographicReference = async (
+  bibliographicReferenceInput: BibliographicReferenceInput,
+  options?: RequestInit,
+): Promise<BibliographicReference> => {
+  return customFetch<BibliographicReference>(
+    getCreateBibliographicReferenceUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(bibliographicReferenceInput),
+    },
+  );
+};
+
+export const getCreateBibliographicReferenceMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBibliographicReference>>,
+    TError,
+    { data: BodyType<BibliographicReferenceInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createBibliographicReference>>,
+  TError,
+  { data: BodyType<BibliographicReferenceInput> },
+  TContext
+> => {
+  const mutationKey = ["createBibliographicReference"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createBibliographicReference>>,
+    { data: BodyType<BibliographicReferenceInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createBibliographicReference(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateBibliographicReferenceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createBibliographicReference>>
+>;
+export type CreateBibliographicReferenceMutationBody =
+  BodyType<BibliographicReferenceInput>;
+export type CreateBibliographicReferenceMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a bibliographic reference
+ */
+export const useCreateBibliographicReference = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBibliographicReference>>,
+    TError,
+    { data: BodyType<BibliographicReferenceInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createBibliographicReference>>,
+  TError,
+  { data: BodyType<BibliographicReferenceInput> },
+  TContext
+> => {
+  return useMutation(getCreateBibliographicReferenceMutationOptions(options));
+};
+
+/**
+ * @summary Update a bibliographic reference
+ */
+export const getUpdateBibliographicReferenceUrl = (id: number) => {
+  return `/api/bibliographic-references/${id}`;
+};
+
+export const updateBibliographicReference = async (
+  id: number,
+  bibliographicReferenceInput: BibliographicReferenceInput,
+  options?: RequestInit,
+): Promise<BibliographicReference> => {
+  return customFetch<BibliographicReference>(
+    getUpdateBibliographicReferenceUrl(id),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(bibliographicReferenceInput),
+    },
+  );
+};
+
+export const getUpdateBibliographicReferenceMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBibliographicReference>>,
+    TError,
+    { id: number; data: BodyType<BibliographicReferenceInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateBibliographicReference>>,
+  TError,
+  { id: number; data: BodyType<BibliographicReferenceInput> },
+  TContext
+> => {
+  const mutationKey = ["updateBibliographicReference"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateBibliographicReference>>,
+    { id: number; data: BodyType<BibliographicReferenceInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateBibliographicReference(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateBibliographicReferenceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateBibliographicReference>>
+>;
+export type UpdateBibliographicReferenceMutationBody =
+  BodyType<BibliographicReferenceInput>;
+export type UpdateBibliographicReferenceMutationError = ErrorType<void>;
+
+/**
+ * @summary Update a bibliographic reference
+ */
+export const useUpdateBibliographicReference = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBibliographicReference>>,
+    TError,
+    { id: number; data: BodyType<BibliographicReferenceInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateBibliographicReference>>,
+  TError,
+  { id: number; data: BodyType<BibliographicReferenceInput> },
+  TContext
+> => {
+  return useMutation(getUpdateBibliographicReferenceMutationOptions(options));
+};
+
+/**
+ * @summary Delete a bibliographic reference
+ */
+export const getDeleteBibliographicReferenceUrl = (id: number) => {
+  return `/api/bibliographic-references/${id}`;
+};
+
+export const deleteBibliographicReference = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteBibliographicReferenceUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteBibliographicReferenceMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteBibliographicReference>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteBibliographicReference>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteBibliographicReference"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteBibliographicReference>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteBibliographicReference(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteBibliographicReferenceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteBibliographicReference>>
+>;
+
+export type DeleteBibliographicReferenceMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a bibliographic reference
+ */
+export const useDeleteBibliographicReference = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteBibliographicReference>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteBibliographicReference>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteBibliographicReferenceMutationOptions(options));
+};
+
+/**
+ * @summary List bibliographic references linked to a protocol
+ */
+export const getListProtocolBibliographicReferencesUrl = (id: number) => {
+  return `/api/protocols/${id}/bibliographic-references`;
+};
+
+export const listProtocolBibliographicReferences = async (
+  id: number,
+  options?: RequestInit,
+): Promise<BibliographicReference[]> => {
+  return customFetch<BibliographicReference[]>(
+    getListProtocolBibliographicReferencesUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListProtocolBibliographicReferencesQueryKey = (id: number) => {
+  return [`/api/protocols/${id}/bibliographic-references`] as const;
+};
+
+export const getListProtocolBibliographicReferencesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listProtocolBibliographicReferences>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listProtocolBibliographicReferences>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListProtocolBibliographicReferencesQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listProtocolBibliographicReferences>>
+  > = ({ signal }) =>
+    listProtocolBibliographicReferences(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listProtocolBibliographicReferences>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListProtocolBibliographicReferencesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listProtocolBibliographicReferences>>
+>;
+export type ListProtocolBibliographicReferencesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List bibliographic references linked to a protocol
+ */
+
+export function useListProtocolBibliographicReferences<
+  TData = Awaited<ReturnType<typeof listProtocolBibliographicReferences>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listProtocolBibliographicReferences>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListProtocolBibliographicReferencesQueryOptions(
+    id,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Link a reference to a protocol
+ */
+export const getAddProtocolBibliographicReferenceUrl = (id: number) => {
+  return `/api/protocols/${id}/bibliographic-references`;
+};
+
+export const addProtocolBibliographicReference = async (
+  id: number,
+  addProtocolReferenceBody: AddProtocolReferenceBody,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getAddProtocolBibliographicReferenceUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(addProtocolReferenceBody),
+  });
+};
+
+export const getAddProtocolBibliographicReferenceMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addProtocolBibliographicReference>>,
+    TError,
+    { id: number; data: BodyType<AddProtocolReferenceBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof addProtocolBibliographicReference>>,
+  TError,
+  { id: number; data: BodyType<AddProtocolReferenceBody> },
+  TContext
+> => {
+  const mutationKey = ["addProtocolBibliographicReference"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof addProtocolBibliographicReference>>,
+    { id: number; data: BodyType<AddProtocolReferenceBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return addProtocolBibliographicReference(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AddProtocolBibliographicReferenceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof addProtocolBibliographicReference>>
+>;
+export type AddProtocolBibliographicReferenceMutationBody =
+  BodyType<AddProtocolReferenceBody>;
+export type AddProtocolBibliographicReferenceMutationError = ErrorType<void>;
+
+/**
+ * @summary Link a reference to a protocol
+ */
+export const useAddProtocolBibliographicReference = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addProtocolBibliographicReference>>,
+    TError,
+    { id: number; data: BodyType<AddProtocolReferenceBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof addProtocolBibliographicReference>>,
+  TError,
+  { id: number; data: BodyType<AddProtocolReferenceBody> },
+  TContext
+> => {
+  return useMutation(
+    getAddProtocolBibliographicReferenceMutationOptions(options),
+  );
+};
+
+/**
+ * @summary Unlink a reference from a protocol
+ */
+export const getRemoveProtocolBibliographicReferenceUrl = (
+  id: number,
+  refId: number,
+) => {
+  return `/api/protocols/${id}/bibliographic-references/${refId}`;
+};
+
+export const removeProtocolBibliographicReference = async (
+  id: number,
+  refId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(
+    getRemoveProtocolBibliographicReferenceUrl(id, refId),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+export const getRemoveProtocolBibliographicReferenceMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeProtocolBibliographicReference>>,
+    TError,
+    { id: number; refId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof removeProtocolBibliographicReference>>,
+  TError,
+  { id: number; refId: number },
+  TContext
+> => {
+  const mutationKey = ["removeProtocolBibliographicReference"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof removeProtocolBibliographicReference>>,
+    { id: number; refId: number }
+  > = (props) => {
+    const { id, refId } = props ?? {};
+
+    return removeProtocolBibliographicReference(id, refId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RemoveProtocolBibliographicReferenceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof removeProtocolBibliographicReference>>
+>;
+
+export type RemoveProtocolBibliographicReferenceMutationError =
+  ErrorType<unknown>;
+
+/**
+ * @summary Unlink a reference from a protocol
+ */
+export const useRemoveProtocolBibliographicReference = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeProtocolBibliographicReference>>,
+    TError,
+    { id: number; refId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof removeProtocolBibliographicReference>>,
+  TError,
+  { id: number; refId: number },
+  TContext
+> => {
+  return useMutation(
+    getRemoveProtocolBibliographicReferenceMutationOptions(options),
+  );
 };

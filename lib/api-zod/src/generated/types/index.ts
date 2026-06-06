@@ -6,10 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./addProtocolReferenceBody";
 export * from "./addSignatureBody";
 export * from "./analysisResult";
 export * from "./analysisResultCategory";
 export * from "./analysisResultStatus";
+export * from "./bibliographicReference";
+export * from "./bibliographicReferenceInput";
 export * from "./catalogItem";
 export * from "./catalogItemInput";
 export * from "./certificate";

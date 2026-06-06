@@ -38,6 +38,12 @@ import {
   getListAttachmentsQueryKey,
   useListSignatures,
   getListSignaturesQueryKey,
+  useListBibliographicReferences,
+  useListProtocolBibliographicReferences,
+  useAddProtocolBibliographicReference,
+  useRemoveProtocolBibliographicReference,
+  getListProtocolBibliographicReferencesQueryKey,
+  type BibliographicReference,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -3223,6 +3229,7 @@ export default function ProtocolDetail() {
           <TabsTrigger value="metodologia" data-testid="tab-metodologia">Metodologia</TabsTrigger>
           <TabsTrigger value="historico" data-testid="tab-historico"><History className="h-3.5 w-3.5 mr-1" />Histórico</TabsTrigger>
           <TabsTrigger value="documentos" data-testid="tab-documentos"><Paperclip className="h-3.5 w-3.5 mr-1" />Documentos</TabsTrigger>
+          <TabsTrigger value="referencias" data-testid="tab-referencias"><BookOpen className="h-3.5 w-3.5 mr-1" />Referências</TabsTrigger>
         </TabsList>
         <TabsContent value="info">
           <Card>
@@ -3278,6 +3285,9 @@ export default function ProtocolDetail() {
         </TabsContent>
         <TabsContent value="documentos">
           <DocumentosTab protocolId={numId} />
+        </TabsContent>
+        <TabsContent value="referencias">
+          <ReferencesTab protocolId={numId} />
         </TabsContent>
       </Tabs>
     </div>
@@ -3659,6 +3669,183 @@ function DocumentosTab({ protocolId }: { protocolId: number }) {
           </div>
         )}
       </CardContent>
+    </Card>
+  );
+}
+
+const TIPO_LABELS_REF: Record<string, string> = {
+  artigo: "Artigo", livro: "Livro", site: "Site/URL",
+  regulamentacao: "Regulamentação", norma: "Norma Técnica", outro: "Outro",
+};
+
+function formatAbntRef(r: BibliographicReference): string {
+  const parts: string[] = [];
+  if (r.autores) parts.push(r.autores + ".");
+  if (r.titulo) parts.push(r.titulo + ".");
+  if (r.fonte) parts.push(r.fonte + (r.volume || r.numero || r.paginas || r.ano ? "," : "."));
+  if (r.volume) parts.push(`v. ${r.volume}${r.numero || r.paginas || r.ano ? "," : "."}`);
+  if (r.numero) parts.push(`n. ${r.numero}${r.paginas || r.ano ? "," : "."}`);
+  if (r.paginas) parts.push(`p. ${r.paginas}${r.ano ? "," : "."}`);
+  if (r.ano) parts.push(`${r.ano}.`);
+  if (r.doi) parts.push(`Disponível em: ${r.doi}.`);
+  return parts.join(" ");
+}
+
+function ReferencesTab({ protocolId }: { protocolId: number }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [selectorOpen, setSelectorOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const { data: protocolRefs = [], isLoading } = useListProtocolBibliographicReferences(protocolId);
+  const { data: allRefs = [] } = useListBibliographicReferences();
+
+  const addRef = useAddProtocolBibliographicReference({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListProtocolBibliographicReferencesQueryKey(protocolId) });
+        toast({ title: "Referência adicionada ao protocolo" });
+      },
+      onError: () => toast({ title: "Erro ao adicionar referência", variant: "destructive" }),
+    },
+  });
+
+  const removeRef = useRemoveProtocolBibliographicReference({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListProtocolBibliographicReferencesQueryKey(protocolId) });
+        toast({ title: "Referência removida do protocolo" });
+      },
+      onError: () => toast({ title: "Erro ao remover referência", variant: "destructive" }),
+    },
+  });
+
+  const linkedIds = new Set(protocolRefs.map(r => r.id));
+  const available = allRefs.filter(r =>
+    !linkedIds.has(r.id) &&
+    (search === "" || r.titulo.toLowerCase().includes(search.toLowerCase()) || (r.autores ?? "").toLowerCase().includes(search.toLowerCase()))
+  );
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-primary" />
+            <CardTitle className="text-base">Referências Bibliográficas</CardTitle>
+            <span className="text-xs text-muted-foreground">(ABNT NBR 6023)</span>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => { setSearch(""); setSelectorOpen(true); }}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Referência
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Selecione referências do banco de cadastros para associar a este protocolo.
+          Para cadastrar novas referências, acesse <strong>Cadastros</strong> no menu lateral.
+        </p>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : protocolRefs.length === 0 ? (
+          <div className="text-center py-10 text-muted-foreground text-sm">
+            <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-30" />
+            <p>Nenhuma referência associada a este protocolo.</p>
+            <p className="text-xs mt-1">Clique em "Adicionar Referência" para selecionar do banco.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {protocolRefs.map((ref, idx) => (
+              <div key={ref.id} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors group">
+                <span className="text-sm font-bold text-muted-foreground w-6 mt-0.5 flex-shrink-0">{idx + 1}.</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                      {TIPO_LABELS_REF[ref.tipoReferencia] ?? ref.tipoReferencia}
+                    </span>
+                    {ref.ano && <span className="text-xs text-muted-foreground">{ref.ano}</span>}
+                  </div>
+                  <p className="text-sm font-semibold leading-snug">{ref.titulo}</p>
+                  {ref.autores && <p className="text-xs text-muted-foreground mt-0.5">{ref.autores}</p>}
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">{formatAbntRef(ref)}</p>
+                  {ref.descricao && (
+                    <p className="text-xs text-muted-foreground mt-1.5 border-l-2 border-primary/30 pl-2 italic">{ref.descricao}</p>
+                  )}
+                  {ref.doi && (
+                    <a href={ref.doi} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline mt-1 inline-flex items-center gap-0.5">
+                      <ExternalLink className="h-2.5 w-2.5" />
+                      {ref.doi.length > 60 ? ref.doi.slice(0, 60) + "…" : ref.doi}
+                    </a>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
+                  title="Remover do protocolo"
+                  onClick={() => removeRef.mutate({ id: protocolId, refId: ref.id })}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+
+      {/* Selector dialog */}
+      {selectorOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setSelectorOpen(false)}>
+          <div className="bg-background rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="font-semibold text-base">Selecionar Referência</h3>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setSelectorOpen(false)}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="p-3 border-b">
+              <Input
+                autoFocus
+                placeholder="Buscar por título ou autor..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {available.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  {allRefs.length === 0
+                    ? "Nenhuma referência cadastrada. Acesse Cadastros para adicionar."
+                    : "Todas as referências já foram associadas ou nenhuma corresponde à busca."}
+                </p>
+              ) : (
+                available.map(ref => (
+                  <button
+                    key={ref.id}
+                    className="w-full text-left p-3 rounded-lg hover:bg-muted/60 transition-colors group"
+                    onClick={() => {
+                      addRef.mutate({ id: protocolId, data: { referenceId: ref.id } });
+                      setSelectorOpen(false);
+                    }}
+                  >
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                        {TIPO_LABELS_REF[ref.tipoReferencia] ?? ref.tipoReferencia}
+                      </span>
+                      {ref.ano && <span className="text-xs text-muted-foreground">{ref.ano}</span>}
+                    </div>
+                    <p className="text-sm font-medium leading-snug">{ref.titulo}</p>
+                    {ref.autores && <p className="text-xs text-muted-foreground">{ref.autores}</p>}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

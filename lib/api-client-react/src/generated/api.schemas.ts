@@ -504,6 +504,40 @@ export interface ProductTypeInput {
   isPowder?: boolean;
 }
 
+export interface BibliographicReference {
+  id: number;
+  titulo: string;
+  autores?: string | null;
+  ano?: number | null;
+  fonte?: string | null;
+  volume?: string | null;
+  numero?: string | null;
+  paginas?: string | null;
+  doi?: string | null;
+  descricao?: string | null;
+  tipoReferencia: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BibliographicReferenceInput {
+  /** @minLength 1 */
+  titulo: string;
+  autores?: string;
+  ano?: number;
+  fonte?: string;
+  volume?: string;
+  numero?: string;
+  paginas?: string;
+  doi?: string;
+  descricao?: string;
+  tipoReferencia?: string;
+}
+
+export interface AddProtocolReferenceBody {
+  referenceId: number;
+}
+
 export type DeleteAttachment200 = {
   ok?: boolean;
 };

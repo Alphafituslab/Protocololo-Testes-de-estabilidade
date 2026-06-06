@@ -847,6 +847,140 @@ paths:
         "200":
           description: Deleted
 
+  /bibliographic-references:
+    get:
+      operationId: listBibliographicReferences
+      tags: [bibliographic-references]
+      summary: List all bibliographic references
+      responses:
+        "200":
+          description: List of references
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BibliographicReference"
+    post:
+      operationId: createBibliographicReference
+      tags: [bibliographic-references]
+      summary: Create a bibliographic reference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BibliographicReferenceInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BibliographicReference"
+
+  /bibliographic-references/{id}:
+    put:
+      operationId: updateBibliographicReference
+      tags: [bibliographic-references]
+      summary: Update a bibliographic reference
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BibliographicReferenceInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BibliographicReference"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteBibliographicReference
+      tags: [bibliographic-references]
+      summary: Delete a bibliographic reference
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+
+  /protocols/{id}/bibliographic-references:
+    get:
+      operationId: listProtocolBibliographicReferences
+      tags: [bibliographic-references]
+      summary: List bibliographic references linked to a protocol
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of references for this protocol
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BibliographicReference"
+    post:
+      operationId: addProtocolBibliographicReference
+      tags: [bibliographic-references]
+      summary: Link a reference to a protocol
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddProtocolReferenceBody"
+      responses:
+        "201":
+          description: Linked
+        "409":
+          description: Already linked
+
+  /protocols/{id}/bibliographic-references/{refId}:
+    delete:
+      operationId: removeProtocolBibliographicReference
+      tags: [bibliographic-references]
+      summary: Unlink a reference from a protocol
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: refId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unlinked
+
 components:
   schemas:
     HealthStatus:
@@ -1781,3 +1915,77 @@ components:
           type: string
         isPowder:
           type: boolean
+
+    BibliographicReference:
+      type: object
+      required: [id, titulo, tipoReferencia, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        titulo:
+          type: string
+        autores:
+          type: string
+          nullable: true
+        ano:
+          type: integer
+          nullable: true
+        fonte:
+          type: string
+          nullable: true
+        volume:
+          type: string
+          nullable: true
+        numero:
+          type: string
+          nullable: true
+        paginas:
+          type: string
+          nullable: true
+        doi:
+          type: string
+          nullable: true
+        descricao:
+          type: string
+          nullable: true
+        tipoReferencia:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BibliographicReferenceInput:
+      type: object
+      required: [titulo]
+      properties:
+        titulo:
+          type: string
+          minLength: 1
+        autores:
+          type: string
+        ano:
+          type: integer
+        fonte:
+          type: string
+        volume:
+          type: string
+        numero:
+          type: string
+        paginas:
+          type: string
+        doi:
+          type: string
+        descricao:
+          type: string
+        tipoReferencia:
+          type: string
+
+    AddProtocolReferenceBody:
+      type: object
+      required: [referenceId]
+      properties:
+        referenceId:
+          type: integer
