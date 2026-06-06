@@ -1247,46 +1247,46 @@ export default function CertificatePage() {
 
           {/* ── Sub-cabeçalho: Condições ── */}
           <div className="bg-slate-50 border-b border-gray-300 px-5 py-2">
-            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Condições de Armazenamento</span>
+            <span className="text-[9px] font-semibold tracking-wide text-slate-500">Condições de Armazenamento</span>
           </div>
           <div className="grid grid-cols-4 divide-x divide-gray-300 border-b border-gray-300">
             <div className="p-4">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">{ef("lbl_storageTemp", "Temperatura", { className: "text-[9px] font-bold uppercase tracking-widest text-slate-400" })}</p>
+              <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">{ef("lbl_storageTemp", "Temperatura", { className: "text-[9px] font-semibold tracking-wide text-slate-500" })}</p>
               <p className="font-semibold text-slate-800 text-sm leading-snug">{ef("storageTemp", cert.storageTemp ?? "40°C ± 2°C")}</p>
             </div>
             <div className="p-4">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">{ef("lbl_storageHumidity", "Umidade Relativa", { className: "text-[9px] font-bold uppercase tracking-widest text-slate-400" })}</p>
+              <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">{ef("lbl_storageHumidity", "Umidade Relativa", { className: "text-[9px] font-semibold tracking-wide text-slate-500" })}</p>
               <p className="font-semibold text-slate-800 text-sm leading-snug">{ef("storageHumidity", cert.storageHumidity ?? "75% UR ± 5% UR")}</p>
             </div>
             <div className="p-4">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">{ef("lbl_studyPeriodMonths", "Período do Estudo", { className: "text-[9px] font-bold uppercase tracking-widest text-slate-400" })}</p>
+              <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">{ef("lbl_studyPeriodMonths", "Período do Estudo", { className: "text-[9px] font-semibold tracking-wide text-slate-500" })}</p>
               <p className="font-semibold text-slate-800 text-sm leading-snug">{ef("studyPeriodMonths", cert.studyPeriodMonths != null ? String(cert.studyPeriodMonths) + " meses" : "—")}</p>
             </div>
             <div className="p-4">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">{ef("lbl_testIntervals", "Intervalos de Teste", { className: "text-[9px] font-bold uppercase tracking-widest text-slate-400" })}</p>
+              <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">{ef("lbl_testIntervals", "Intervalos de Teste", { className: "text-[9px] font-semibold tracking-wide text-slate-500" })}</p>
               <p className="font-semibold text-slate-800 text-sm leading-snug">{ef("testIntervals", cert.testIntervals ?? "—")}</p>
             </div>
           </div>
 
           {/* ── Sub-cabeçalho: Datas ── */}
           <div className="bg-slate-50 border-b border-gray-300 px-5 py-2">
-            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Datas das Análises por Período</span>
+            <span className="text-[9px] font-semibold tracking-wide text-slate-500">Datas das Análises por Período</span>
           </div>
           <div className="grid grid-cols-3 divide-x divide-gray-300">
             <div className="p-4">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">T0 — Início do Estudo</p>
+              <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">T0 — Início do Estudo</p>
               <p className="font-semibold text-slate-800 text-sm">
                 <CertEditField value={getAnalysisDate("analysisDateT0", cert.analysisDates?.t0, 0)} onChange={v => setCertEdit("analysisDateT0", v)} className="w-full" />
               </p>
             </div>
             <div className="p-4">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">T3 — 3 Meses</p>
+              <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">T3 — 3 Meses</p>
               <p className="font-semibold text-slate-800 text-sm">
                 <CertEditField value={getAnalysisDate("analysisDateT3", cert.analysisDates?.t3, 3)} onChange={v => setCertEdit("analysisDateT3", v)} className="w-full" />
               </p>
             </div>
             <div className="p-4">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">T6 — 6 Meses</p>
+              <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">T6 — 6 Meses</p>
               <p className="font-semibold text-slate-800 text-sm">
                 <CertEditField value={getAnalysisDate("analysisDateT6", cert.analysisDates?.t6, 6)} onChange={v => setCertEdit("analysisDateT6", v)} className="w-full" />
               </p>
@@ -2127,17 +2127,29 @@ export default function CertificatePage() {
           /* ── 5a2. Escala de fontes: sobrescreve classes Tailwind px-based ──────
              font-size:8pt no container NÃO afeta text-xl/sm/xs (usam px).
              Forçamos cada classe explicitamente para documento técnico compacto. */
+          /* Classes Tailwind padrão */
           #certificate-document .text-3xl  { font-size: 11pt !important; }
           #certificate-document .text-2xl  { font-size: 10pt !important; }
-          #certificate-document .text-xl   { font-size:  9pt !important; }
-          #certificate-document .text-lg   { font-size:  8pt !important; }
-          #certificate-document .text-base { font-size:  7.5pt !important; }
-          #certificate-document .text-sm   { font-size:  7pt !important; }
-          #certificate-document .text-xs   { font-size:  6.5pt !important; }
+          #certificate-document .text-xl   { font-size:  8pt !important; }
+          #certificate-document .text-lg   { font-size:  7.5pt !important; }
+          #certificate-document .text-base { font-size:  7pt !important; }
+          #certificate-document .text-sm   { font-size:  6.5pt !important; }
+          #certificate-document .text-xs   { font-size:  6pt !important; }
 
-          /* ── 5a3. Imagens ─────────────────────────────────────────────────────── */
+          /* Classes com valor px arbitrário do Tailwind */
+          #certificate-document .text-\[11px\] { font-size: 6pt !important; }
+          #certificate-document .text-\[10px\] { font-size: 5.5pt !important; }
+          #certificate-document .text-\[9px\]  { font-size: 5pt !important; }
+
+          /* ── 5a3. Cabeçalho do certificado: MAIOR que o restante ─────────────── */
+          #certificate-document .cert-intro-block > div:first-child .text-xl   { font-size: 13pt !important; }
+          #certificate-document .cert-intro-block > div:first-child .text-sm   { font-size: 9pt !important; }
+          #certificate-document .cert-intro-block > div:first-child .text-base { font-size: 10pt !important; }
+          #certificate-document .cert-intro-block > div:first-child .text-\[10px\] { font-size: 7.5pt !important; }
+
+          /* ── 5a4. Logo ───────────────────────────────────────────────────────── */
           #certificate-document img[alt="Alphafitus"] {
-            height: 30px !important;
+            height: 42px !important;
             width: auto !important;
           }
 
