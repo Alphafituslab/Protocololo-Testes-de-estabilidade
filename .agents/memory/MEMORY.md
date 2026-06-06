@@ -2,3 +2,4 @@
 - [setCertEdit — sempre gravar no localStorage](cert-edits-persist.md) — setCertEdit deve sempre gravar no localStorage (não só quando bloqueado) pois contentEditable é autofill-proof.
 - [Auth login — padrão correto](auth-login-pattern.md) — login() só escreve no localStorage, sem setToken/setUser; handleLogin usa window.location.replace; produção tem DB separado do dev.
 - [Sistema de Permissões Granulares](permissions-system.md) — 13 permissões, admin implícito, lock pós-assinatura; como estender e onde estão os arquivos-chave.
+- [Persistência de datas e metodologias](period-dates-methods-persistence.md) — periodDates e paramMethods agora no banco (3 colunas novas); padrão de hidratação localStorage + save debounced 800ms.

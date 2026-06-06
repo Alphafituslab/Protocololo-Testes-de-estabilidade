@@ -1103,6 +1103,18 @@ components:
           type: string
           nullable: true
           description: JSON com lista de parâmetros editáveis (nomes e critérios)
+        periodDatesJson:
+          type: string
+          nullable: true
+          description: JSON com datas de análise por período {"0":"2024-01-15","3":"...","6":"..."}
+        paramMethodsJson:
+          type: string
+          nullable: true
+          description: JSON com metodologia selecionada por parâmetro {paramName:shortName}
+        paramMethodsCitationsJson:
+          type: string
+          nullable: true
+          description: JSON com citação completa por parâmetro {paramName:citation}
         pendingSignatures:
           type: boolean
           nullable: true
@@ -1289,6 +1301,15 @@ components:
           type: string
           nullable: true
         customParamsJson:
+          type: string
+          nullable: true
+        periodDatesJson:
+          type: string
+          nullable: true
+        paramMethodsJson:
+          type: string
+          nullable: true
+        paramMethodsCitationsJson:
           type: string
           nullable: true
         issueDate:

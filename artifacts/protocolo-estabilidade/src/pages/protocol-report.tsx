@@ -95,9 +95,9 @@ function Section({ num, title, children }: { num: string; title: string; childre
   return (
     <div className="report-section mb-5 print:mb-2">
       <div className="report-section-header flex items-center gap-2.5 mb-2">
-        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-[9px] font-bold flex-shrink-0 print:bg-gray-800">{num}</span>
-        <h2 className="text-[11px] font-bold uppercase tracking-widest text-gray-700">{title}</h2>
-        <div className="flex-1 border-b border-gray-200" />
+        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-700 text-white text-[9px] font-bold flex-shrink-0 print:bg-blue-800">{num}</span>
+        <h2 className="text-[11px] font-bold uppercase tracking-widest text-blue-700">{title}</h2>
+        <div className="flex-1 border-b border-blue-200" />
       </div>
       <div className="pl-7 print:pl-5">{children}</div>
     </div>

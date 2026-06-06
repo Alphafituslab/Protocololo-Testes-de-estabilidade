@@ -1179,7 +1179,7 @@ const CATEGORY_PRESETS: Record<string, { parameter: string; criterion: string }[
   ],
 };
 
-function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }: { protocolId: number; initialCustomParamsJson?: string | null; protocolFinalStatus?: string | null }) {
+function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJson, initialParamMethodsJson, initialParamMethodsCitationsJson, protocolFinalStatus }: { protocolId: number; initialCustomParamsJson?: string | null; initialPeriodDatesJson?: string | null; initialParamMethodsJson?: string | null; initialParamMethodsCitationsJson?: string | null; protocolFinalStatus?: string | null }) {
   const protocolIsAR = protocolFinalStatus === "aprovado_com_ressalva";
   const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
   const { data: results = [], isLoading } = useListResults(protocolId, { query: { queryKey: getListResultsQueryKey(protocolId) } });
@@ -1194,15 +1194,31 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
   });
 
   const [paramMethods, setParamMethods] = useState<Record<string, string>>(() => {
+    if (initialParamMethodsJson) {
+      try { return JSON.parse(initialParamMethodsJson); } catch { /* fall through */ }
+    }
     try {
       const raw = localStorage.getItem(`param_methods_${protocolId}`);
       return raw ? JSON.parse(raw) : {};
     } catch { return {}; }
   });
 
-  // ── Datas por período (T0, T3, T6) — salvas no localStorage ──────────────
+  const [paramMethodsCitations, setParamMethodsCitations] = useState<Record<string, string>>(() => {
+    if (initialParamMethodsCitationsJson) {
+      try { return JSON.parse(initialParamMethodsCitationsJson); } catch { /* fall through */ }
+    }
+    try {
+      const raw = localStorage.getItem(`param_methods_citations_${protocolId}`);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+
+  // ── Datas por período (T0, T3, T6) — salvas no DB e localStorage ─────────
   const PERIOD_DATES_KEY = `period_analysis_dates_${protocolId}`;
   const [periodDates, setPeriodDatesState] = useState<Record<number, string>>(() => {
+    if (initialPeriodDatesJson) {
+      try { return JSON.parse(initialPeriodDatesJson); } catch { /* fall through */ }
+    }
     try {
       const raw = localStorage.getItem(`period_analysis_dates_${protocolId}`);
       return raw ? JSON.parse(raw) : {};
@@ -1226,20 +1242,18 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
       } else {
         next[paramName] = shortName;
       }
-      try {
-        localStorage.setItem(`param_methods_${protocolId}`, JSON.stringify(next));
-        // Also persist full citation so the certificate can use it in the Método column
-        const citRaw = localStorage.getItem(`param_methods_citations_${protocolId}`);
-        const citMap: Record<string, string> = citRaw ? JSON.parse(citRaw) : {};
-        if (citation === null) {
-          delete citMap[paramName];
-        } else {
-          citMap[paramName] = citation;
-          // Salva no catálogo global (array) para auto-fill em outros protocolos
-          if (paramName.trim()) addToCatalog(paramName, shortName!, citation);
-        }
-        localStorage.setItem(`param_methods_citations_${protocolId}`, JSON.stringify(citMap));
-      } catch { /* ignore */ }
+      try { localStorage.setItem(`param_methods_${protocolId}`, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+    setParamMethodsCitations((prev) => {
+      const next = { ...prev };
+      if (citation === null) {
+        delete next[paramName];
+      } else {
+        next[paramName] = citation;
+        if (paramName.trim() && shortName) addToCatalog(paramName, shortName, citation);
+      }
+      try { localStorage.setItem(`param_methods_citations_${protocolId}`, JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
   };
@@ -1304,6 +1318,55 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editableParams, protocolId]);
+
+  // ── Hydrate localStorage from DB values on mount (once) ───────────────────
+  useEffect(() => {
+    if (initialPeriodDatesJson) {
+      try { localStorage.setItem(`period_analysis_dates_${protocolId}`, initialPeriodDatesJson); } catch { /* ignore */ }
+    }
+    if (initialParamMethodsJson) {
+      try { localStorage.setItem(`param_methods_${protocolId}`, initialParamMethodsJson); } catch { /* ignore */ }
+    }
+    if (initialParamMethodsCitationsJson) {
+      try { localStorage.setItem(`param_methods_citations_${protocolId}`, initialParamMethodsCitationsJson); } catch { /* ignore */ }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const isMountedPeriodDatesRef = useRef(false);
+  const isMountedParamMethodsRef = useRef(false);
+
+  // ── Debounced DB save — period dates ──────────────────────────────────────
+  useEffect(() => {
+    if (!isMountedPeriodDatesRef.current) {
+      isMountedPeriodDatesRef.current = true;
+      return;
+    }
+    const timer = setTimeout(() => {
+      updateProtocol.mutate({ id: protocolId, data: { periodDatesJson: JSON.stringify(periodDates) } });
+    }, 800);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodDates, protocolId]);
+
+  // ── Debounced DB save — param methods + citations ────────────────────────
+  useEffect(() => {
+    if (!isMountedParamMethodsRef.current) {
+      isMountedParamMethodsRef.current = true;
+      return;
+    }
+    const timer = setTimeout(() => {
+      updateProtocol.mutate({
+        id: protocolId,
+        data: {
+          paramMethodsJson: JSON.stringify(paramMethods),
+          paramMethodsCitationsJson: JSON.stringify(paramMethodsCitations),
+        },
+      });
+    }, 800);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paramMethods, paramMethodsCitations, protocolId]);
 
   const updateParam = (uid: string, field: "parameter" | "criterion", val: string) => {
     setEditableParams((prev) => prev.map((p) => (p.uid === uid ? { ...p, [field]: val } : p)));
@@ -1371,22 +1434,21 @@ function ResultsTab({ protocolId, initialCustomParamsJson, protocolFinalStatus }
   return (
     <div className="space-y-6">
       {/* ── Datas das análises por período ──────────────────────────────────── */}
-      <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
-        <p className="text-xs font-semibold text-blue-700 mb-2 uppercase tracking-wide">Datas das Análises por Período</p>
-        <div className="flex flex-wrap gap-4">
+      <div className="rounded border border-blue-200 bg-blue-50 p-2">
+        <p className="text-[11px] font-semibold text-blue-700 mb-1 uppercase tracking-wide">Datas das Análises por Período</p>
+        <div className="flex flex-wrap gap-3">
           {PERIODS.map((period) => (
-            <label key={period} className="flex items-center gap-2 text-xs text-blue-800">
-              <span className="font-bold w-6">T{period}</span>
+            <label key={period} className="flex items-center gap-1.5 text-xs text-blue-800">
+              <span className="font-bold w-5">T{period}</span>
               <input
                 type="date"
                 value={periodDates[period] ?? ""}
                 onChange={e => setPeriodDate(period, e.target.value)}
-                className="border border-blue-300 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="border border-blue-300 rounded px-1.5 py-0.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
             </label>
           ))}
         </div>
-        <p className="text-[10px] text-blue-500 mt-2">A data definida aqui é aplicada automaticamente ao salvar resultados de cada período e aparece no certificado.</p>
       </div>
 
       <div className="flex flex-wrap items-start gap-x-6 gap-y-1">
@@ -3248,7 +3310,14 @@ export default function ProtocolDetail() {
         <TabsContent value="results">
           <Card>
             <CardContent className="pt-6">
-              <ResultsTab protocolId={numId} initialCustomParamsJson={protocol.customParamsJson} protocolFinalStatus={protocol.finalStatus} />
+              <ResultsTab
+                protocolId={numId}
+                initialCustomParamsJson={protocol.customParamsJson}
+                initialPeriodDatesJson={protocol.periodDatesJson}
+                initialParamMethodsJson={protocol.paramMethodsJson}
+                initialParamMethodsCitationsJson={protocol.paramMethodsCitationsJson}
+                protocolFinalStatus={protocol.finalStatus}
+              />
             </CardContent>
           </Card>
         </TabsContent>

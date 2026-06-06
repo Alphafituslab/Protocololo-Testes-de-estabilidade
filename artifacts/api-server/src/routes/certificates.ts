@@ -143,6 +143,15 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     });
 
   const analysisDates: { t0: string | null; t3: string | null; t6: string | null } = { t0: null, t3: null, t6: null };
+  // Priority: periodDatesJson saved in DB > analysisDate from individual results
+  if (protocol.periodDatesJson) {
+    try {
+      const pd = JSON.parse(protocol.periodDatesJson) as Record<string, string>;
+      analysisDates.t0 = pd["0"] ?? null;
+      analysisDates.t3 = pd["3"] ?? null;
+      analysisDates.t6 = pd["6"] ?? null;
+    } catch { /* ignore malformed JSON */ }
+  }
   for (const r of allResults) {
     if (r.period === 0 && !analysisDates.t0) analysisDates.t0 = r.analysisDate;
     if (r.period === 3 && !analysisDates.t3) analysisDates.t3 = r.analysisDate;

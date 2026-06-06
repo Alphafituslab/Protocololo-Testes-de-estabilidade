@@ -57,6 +57,12 @@ export interface Protocol {
   kineticsNotes?: string | null;
   /** JSON com lista de parâmetros editáveis (nomes e critérios) */
   customParamsJson?: string | null;
+  /** JSON com datas de análise por período {"0":"2024-01-15","3":"...","6":"..."} */
+  periodDatesJson?: string | null;
+  /** JSON com metodologia selecionada por parâmetro {paramName:shortName} */
+  paramMethodsJson?: string | null;
+  /** JSON com citação completa por parâmetro {paramName:citation} */
+  paramMethodsCitationsJson?: string | null;
   /** true se algum dos assinantes obrigatórios (issuedBy / seniorAnalyst) ainda não assinou */
   pendingSignatures?: boolean | null;
   createdAt: string;

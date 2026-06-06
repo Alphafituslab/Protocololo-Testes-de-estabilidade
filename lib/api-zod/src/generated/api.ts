@@ -183,6 +183,22 @@ export const ListProtocolsResponseItem = zod.object({
     .string()
     .nullish()
     .describe("JSON com lista de parâmetros editáveis (nomes e critérios)"),
+  periodDatesJson: zod
+    .string()
+    .nullish()
+    .describe(
+      'JSON com datas de análise por período {\"0\":\"2024-01-15\",\"3\":\"...\",\"6\":\"...\"}',
+    ),
+  paramMethodsJson: zod
+    .string()
+    .nullish()
+    .describe(
+      "JSON com metodologia selecionada por parâmetro {paramName:shortName}",
+    ),
+  paramMethodsCitationsJson: zod
+    .string()
+    .nullish()
+    .describe("JSON com citação completa por parâmetro {paramName:citation}"),
   pendingSignatures: zod
     .boolean()
     .nullish()
@@ -323,6 +339,24 @@ export const GetProtocolStatsResponse = zod.object({
         .string()
         .nullish()
         .describe("JSON com lista de parâmetros editáveis (nomes e critérios)"),
+      periodDatesJson: zod
+        .string()
+        .nullish()
+        .describe(
+          'JSON com datas de análise por período {\"0\":\"2024-01-15\",\"3\":\"...\",\"6\":\"...\"}',
+        ),
+      paramMethodsJson: zod
+        .string()
+        .nullish()
+        .describe(
+          "JSON com metodologia selecionada por parâmetro {paramName:shortName}",
+        ),
+      paramMethodsCitationsJson: zod
+        .string()
+        .nullish()
+        .describe(
+          "JSON com citação completa por parâmetro {paramName:citation}",
+        ),
       pendingSignatures: zod
         .boolean()
         .nullish()
@@ -421,6 +455,22 @@ export const GetProtocolResponse = zod
       .string()
       .nullish()
       .describe("JSON com lista de parâmetros editáveis (nomes e critérios)"),
+    periodDatesJson: zod
+      .string()
+      .nullish()
+      .describe(
+        'JSON com datas de análise por período {\"0\":\"2024-01-15\",\"3\":\"...\",\"6\":\"...\"}',
+      ),
+    paramMethodsJson: zod
+      .string()
+      .nullish()
+      .describe(
+        "JSON com metodologia selecionada por parâmetro {paramName:shortName}",
+      ),
+    paramMethodsCitationsJson: zod
+      .string()
+      .nullish()
+      .describe("JSON com citação completa por parâmetro {paramName:citation}"),
     pendingSignatures: zod
       .boolean()
       .nullish()
@@ -521,6 +571,9 @@ export const UpdateProtocolBody = zod.object({
   validityMonths: zod.number().nullish(),
   kineticsNotes: zod.string().nullish(),
   customParamsJson: zod.string().nullish(),
+  periodDatesJson: zod.string().nullish(),
+  paramMethodsJson: zod.string().nullish(),
+  paramMethodsCitationsJson: zod.string().nullish(),
   issueDate: zod.string().nullish(),
 });
 
@@ -599,6 +652,22 @@ export const UpdateProtocolResponse = zod.object({
     .string()
     .nullish()
     .describe("JSON com lista de parâmetros editáveis (nomes e critérios)"),
+  periodDatesJson: zod
+    .string()
+    .nullish()
+    .describe(
+      'JSON com datas de análise por período {\"0\":\"2024-01-15\",\"3\":\"...\",\"6\":\"...\"}',
+    ),
+  paramMethodsJson: zod
+    .string()
+    .nullish()
+    .describe(
+      "JSON com metodologia selecionada por parâmetro {paramName:shortName}",
+    ),
+  paramMethodsCitationsJson: zod
+    .string()
+    .nullish()
+    .describe("JSON com citação completa por parâmetro {paramName:citation}"),
   pendingSignatures: zod
     .boolean()
     .nullish()
@@ -1070,6 +1139,22 @@ export const FinalizeProtocolResponse = zod.object({
     .string()
     .nullish()
     .describe("JSON com lista de parâmetros editáveis (nomes e critérios)"),
+  periodDatesJson: zod
+    .string()
+    .nullish()
+    .describe(
+      'JSON com datas de análise por período {\"0\":\"2024-01-15\",\"3\":\"...\",\"6\":\"...\"}',
+    ),
+  paramMethodsJson: zod
+    .string()
+    .nullish()
+    .describe(
+      "JSON com metodologia selecionada por parâmetro {paramName:shortName}",
+    ),
+  paramMethodsCitationsJson: zod
+    .string()
+    .nullish()
+    .describe("JSON com citação completa por parâmetro {paramName:citation}"),
   pendingSignatures: zod
     .boolean()
     .nullish()
