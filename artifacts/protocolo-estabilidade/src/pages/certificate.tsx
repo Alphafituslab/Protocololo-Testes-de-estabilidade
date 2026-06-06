@@ -2111,16 +2111,20 @@ export default function CertificatePage() {
           #certificate-document,
           #certificate-document * { visibility: visible !important; }
 
-          /* ── 7. Certificado em fluxo normal (position:static) ───────────────────
-             Com aside e header removidos (display:none), o certificado fica em
-             fluxo normal dentro da <main>. O browser pagina o conteúdo
-             naturalmente — exatamente quantas páginas o conteúdo precisar.
-             Não há mais conflito entre "altura do fluxo" vs "extensão do absoluto"
-             que causava as páginas em branco.                                 */
+          /* ── 7. Certificado ancorado no topo absoluto da área de impressão ────────
+             Com aside e header removidos (display:none), a altura do fluxo dos
+             ancestrais colapsa a zero. O certificado usa position:absolute + top:0
+             para se posicionar exatamente no início da área de impressão (sem
+             margem herdada do layout da app). O browser pagina o conteúdo absoluto
+             normalmente — cada folha mostra a fatia correspondente do certificado.
+             Resultado: exatamente tantas páginas quanto o conteúdo requer, sem
+             páginas em branco e sem espaço extra no topo da primeira página.     */
           #certificate-document {
-            position: static !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
             display: block !important;
-            width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
             box-shadow: none !important;
