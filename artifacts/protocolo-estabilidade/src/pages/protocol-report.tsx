@@ -93,13 +93,11 @@ function ReportField({
 
 function Section({ num, title, children }: { num: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="report-section mb-5 print:mb-2">
-      <div className="report-section-header flex items-center gap-2.5 mb-2">
-        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-700 text-white text-[9px] font-bold flex-shrink-0 print:bg-blue-800">{num}</span>
-        <h2 className="text-[11px] font-bold uppercase tracking-widest text-blue-700">{title}</h2>
-        <div className="flex-1 border-b border-blue-200" />
+    <div className="report-section mb-4 print:mb-2 border border-gray-200 rounded overflow-hidden">
+      <div className="report-section-header bg-slate-700 px-4 py-1.5">
+        <h2 className="text-[10px] font-semibold uppercase tracking-wider text-slate-100">{num}. {title}</h2>
       </div>
-      <div className="pl-7 print:pl-5">{children}</div>
+      <div className="px-4 py-2.5 print:px-3 print:py-1.5">{children}</div>
     </div>
   );
 }

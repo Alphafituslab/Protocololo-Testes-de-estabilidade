@@ -1148,7 +1148,7 @@ export default function CertificatePage() {
 
         {/* ── DADOS DA EMPRESA ──────────────────────────────────────────────── */}
         <div className="mb-10 border border-gray-200 rounded-lg overflow-hidden text-sm">
-          <div className="bg-slate-700 px-5 py-3">
+          <div className="bg-slate-700 px-5 py-1.5">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Dados da Empresa</h2>
           </div>
           <div className="px-5 py-5 grid grid-cols-2 gap-x-8 gap-y-2">
@@ -1162,7 +1162,7 @@ export default function CertificatePage() {
 
         {/* ── IDENTIFICAÇÃO DO PRODUTO ──────────────────────────────────────── */}
         <div className="mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
-          <div className="bg-slate-700 px-5 py-3">
+          <div className="bg-slate-700 px-5 py-1.5">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Identificação do Produto</h2>
           </div>
           <div className="px-5 py-5">
@@ -1241,7 +1241,7 @@ export default function CertificatePage() {
 
         {/* ── PLANO DE TESTE DE ESTABILIDADE ─────────────────────────────── */}
         <div className="mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
-          <div className="bg-slate-700 px-5 py-3">
+          <div className="bg-slate-700 px-5 py-1.5">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Plano de Teste de Estabilidade</h2>
           </div>
 
@@ -1297,7 +1297,7 @@ export default function CertificatePage() {
         {/* ── CONDIÇÕES AMBIENTAIS ─────────────────────────────────────────── */}
         {show.condicoesAmbientais && (
           <div className="mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
-            <div className="bg-slate-700 px-5 py-3">
+            <div className="bg-slate-700 px-5 py-1.5">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Condições Ambientais</h2>
             </div>
             <div className="px-5 py-5 grid grid-cols-2 gap-x-8 gap-y-2">
@@ -1325,7 +1325,7 @@ export default function CertificatePage() {
 
         {/* ── MÉTODO DE ANÁLISE ────────────────────────────────────────────── */}
         <div className="cert-analysis-table mb-10 border border-gray-200 rounded-lg overflow-hidden text-sm">
-          <div className="bg-slate-700 px-5 py-3">
+          <div className="bg-slate-700 px-5 py-1.5">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Método de Análise</h2>
           </div>
           <div className="px-0 py-0">
@@ -1409,7 +1409,7 @@ export default function CertificatePage() {
         {/* ── OBSERVAÇÕES SOBRE OS LOTES ───────────────────────────────────── */}
         {show.textoLotes && (
           <div className="cert-section mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
-            <div className="bg-slate-700 px-5 py-3">
+            <div className="bg-slate-700 px-5 py-1.5">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Observações sobre os Lotes</h2>
             </div>
             <div className="px-5 py-5 text-gray-700 space-y-3">
@@ -1423,7 +1423,7 @@ export default function CertificatePage() {
         {/* ── INFORMAÇÕES ADICIONAIS ───────────────────────────────────────── */}
         {show.infoAdicionais && (
           <div className="cert-section mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
-            <div className="bg-slate-700 px-5 py-3">
+            <div className="bg-slate-700 px-5 py-1.5">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Informações Adicionais</h2>
             </div>
             <div className="px-5 py-5 text-gray-700 space-y-2">
@@ -1437,7 +1437,7 @@ export default function CertificatePage() {
         {/* ── CONCLUSÃO ────────────────────────────────────────────────────── */}
         {show.conclusao && (
           <div className="cert-section mb-10 border border-gray-200 rounded-lg overflow-hidden text-sm">
-            <div className="bg-slate-700 px-5 py-3">
+            <div className="bg-slate-700 px-5 py-1.5">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Conclusão</h2>
             </div>
             <div className="px-5 py-5 text-center" style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
@@ -1448,7 +1448,7 @@ export default function CertificatePage() {
 
         {/* ── DELIBERAÇÃO ──────────────────────────────────────────────────── */}
         <div className="cert-section cert-deliberacao mb-10 border border-gray-200 rounded-lg overflow-hidden text-sm">
-          <div className="bg-slate-700 px-5 py-3">
+          <div className="bg-slate-700 px-5 py-1.5">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Deliberação</h2>
           </div>
           <div className="px-5 py-5">
@@ -1487,7 +1487,7 @@ export default function CertificatePage() {
         {/* ── NOTA DE RESSALVA ──────────────────────────────────────────────── */}
         {isAR && cert.ressalva && show.ressalvaNote && (
           <div className="cert-section mb-10 border border-amber-300 rounded-lg overflow-hidden text-xs">
-            <div className="bg-slate-700 px-5 py-3 flex items-center gap-2">
+            <div className="bg-slate-700 px-5 py-1.5 flex items-center gap-2">
               <span className="text-amber-400 text-sm">⚠</span>
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Nota de Ressalva</h2>
             </div>
@@ -1747,7 +1747,7 @@ export default function CertificatePage() {
 
               {/* ── ASSINATURAS ─────────────────────────────────────────────── */}
               <div className="cert-signatures border border-gray-300 rounded-lg overflow-hidden">
-                <div className="bg-slate-700 px-5 py-3">
+                <div className="bg-slate-700 px-5 py-1.5">
                   <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100 flex items-center gap-1.5">
                     <ShieldCheck className="h-3 w-3" /> Assinaturas
                   </h2>
