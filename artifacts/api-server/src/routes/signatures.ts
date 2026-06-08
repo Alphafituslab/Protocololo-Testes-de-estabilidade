@@ -24,7 +24,7 @@ router.post("/protocols/:id/signatures", requireAuth, requirePermission(PERM.SIG
   const protocolId = parseInt(String(req.params["id"]));
   if (isNaN(protocolId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const { roleLabel } = req.body as { roleLabel?: string };
+  const { roleLabel, displayDate } = req.body as { roleLabel?: string; displayDate?: string };
   if (!roleLabel?.trim()) { res.status(400).json({ error: "roleLabel is required" }); return; }
 
   const user = req.authUser!;
@@ -37,6 +37,7 @@ router.post("/protocols/:id/signatures", requireAuth, requirePermission(PERM.SIG
       userDisplay: user.displayName,
       userRole: user.role,
       roleLabel: roleLabel.trim(),
+      ...(displayDate ? { displayDate } : {}),
     })
     .returning();
 

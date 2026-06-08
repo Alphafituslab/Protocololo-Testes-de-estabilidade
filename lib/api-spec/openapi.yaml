@@ -1770,6 +1770,10 @@ components:
           type: string
         signedAt:
           type: string
+        displayDate:
+          type: string
+          nullable: true
+          description: "Data exibida sob a assinatura. Se presente, substitui a exibição de signedAt."
 
     AddSignatureBody:
       type: object
@@ -1778,6 +1782,10 @@ components:
         roleLabel:
           type: string
           description: "Ex: Elaborador, Analista Sênior, Aprovador, Revisor, Gestor de Qualidade"
+        displayDate:
+          type: string
+          nullable: true
+          description: "Data de exibição opcional. Se omitido, usa a data/hora de signedAt."
 
     FinalizeProtocolBody:
       type: object

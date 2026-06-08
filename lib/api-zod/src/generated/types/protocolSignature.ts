@@ -14,4 +14,6 @@ export interface ProtocolSignature {
   userRole: string;
   roleLabel: string;
   signedAt: string;
+  /** Data exibida sob a assinatura. Se presente, substitui a exibição de signedAt. */
+  displayDate?: string | null;
 }

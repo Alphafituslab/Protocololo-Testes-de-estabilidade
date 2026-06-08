@@ -1005,6 +1005,12 @@ export const ListSignaturesResponseItem = zod.object({
   userRole: zod.string(),
   roleLabel: zod.string(),
   signedAt: zod.string(),
+  displayDate: zod
+    .string()
+    .nullish()
+    .describe(
+      "Data exibida sob a assinatura. Se presente, substitui a exibição de signedAt.",
+    ),
 });
 export const ListSignaturesResponse = zod.array(ListSignaturesResponseItem);
 
@@ -1020,6 +1026,12 @@ export const AddSignatureBody = zod.object({
     .string()
     .describe(
       "Ex: Elaborador, Analista Sênior, Aprovador, Revisor, Gestor de Qualidade",
+    ),
+  displayDate: zod
+    .string()
+    .nullish()
+    .describe(
+      "Data de exibição opcional. Se omitido, usa a data\/hora de signedAt.",
     ),
 });
 

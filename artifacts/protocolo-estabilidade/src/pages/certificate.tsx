@@ -423,6 +423,7 @@ export default function CertificatePage() {
   });
   const [sigDialogOpen, setSigDialogOpen] = useState(false);
   const [selectedRoleLabel, setSelectedRoleLabel] = useState("Elaborador");
+  const [sigDateChoice, setSigDateChoice] = useState<"emissao" | "hoje">("emissao");
   const addSig = useAddSignature({
     mutation: {
       onSuccess: () => {
@@ -1684,7 +1685,9 @@ export default function CertificatePage() {
               </p>
               <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5 mb-2">
                 <ShieldCheck className="h-3 w-3 text-gray-400 flex-shrink-0" />
-                {new Date(sig.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                {sig.displayDate
+                  ? sig.displayDate
+                  : new Date(sig.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
               </p>
               <div className="border-t border-gray-300 mb-2" />
               <p className="font-semibold text-sm text-gray-800">{displayName}</p>
@@ -1696,7 +1699,7 @@ export default function CertificatePage() {
           const SignBtn = ({ preRole }: { preRole?: string }) => !canSign ? null : (
             <button
               type="button"
-              onClick={() => { if (preRole) setSelectedRoleLabel(preRole); setSigDialogOpen(true); }}
+              onClick={() => { if (preRole) setSelectedRoleLabel(preRole); setSigDateChoice("emissao"); setSigDialogOpen(true); }}
               className="print:hidden flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded border border-primary/40 bg-primary/8 text-primary hover:bg-primary/15 transition-colors font-medium mb-3 w-full justify-center"
             >
               <PenLine className="h-3 w-3" /> Assinar digitalmente
@@ -1726,15 +1729,44 @@ export default function CertificatePage() {
                         <option key={r} value={r}>{r}</option>
                       ))}
                     </select>
+                    <div className="mb-4">
+                      <label className="block text-xs font-medium text-gray-600 mb-2">Data exibida na assinatura</label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSigDateChoice("emissao")}
+                          className={`flex-1 text-xs px-3 py-2 rounded border transition-colors text-left ${sigDateChoice === "emissao" ? "border-primary bg-primary/10 text-primary font-medium" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                        >
+                          <div className="font-semibold">Data de Emissão</div>
+                          <div className="text-[10px] mt-0.5 opacity-80">{fmtDate(cert.issueDate) || "—"}</div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSigDateChoice("hoje")}
+                          className={`flex-1 text-xs px-3 py-2 rounded border transition-colors text-left ${sigDateChoice === "hoje" ? "border-primary bg-primary/10 text-primary font-medium" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                        >
+                          <div className="font-semibold">Data de hoje</div>
+                          <div className="text-[10px] mt-0.5 opacity-80">{new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+                        </button>
+                      </div>
+                    </div>
                     <p className="text-[10px] text-gray-400 mb-4">
-                      Esta assinatura eletrônica fica registrada com seu nome, função, data e hora no histórico do protocolo.
+                      Esta assinatura eletrônica fica registrada com seu nome, função e data no histórico do protocolo.
                     </p>
                     <div className="flex gap-2 justify-end">
                       <button type="button" onClick={() => setSigDialogOpen(false)} className="text-xs px-3 py-1.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-50">Cancelar</button>
                       <button
                         type="button"
                         disabled={addSig.isPending}
-                        onClick={() => addSig.mutate({ id: Number(id), data: { roleLabel: selectedRoleLabel } })}
+                        onClick={() => addSig.mutate({
+                          id: Number(id),
+                          data: {
+                            roleLabel: selectedRoleLabel,
+                            ...(sigDateChoice === "emissao" && cert.issueDate
+                              ? { displayDate: fmtDate(cert.issueDate) as string }
+                              : {}),
+                          },
+                        })}
                         className="text-xs px-4 py-1.5 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50 flex items-center gap-1.5"
                       >
                         <ShieldCheck className="h-3 w-3" />

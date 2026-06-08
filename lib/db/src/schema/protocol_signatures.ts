@@ -10,6 +10,7 @@ export const protocolSignaturesTable = pgTable("protocol_signatures", {
   userRole: text("user_role").notNull().default("analyst"),
   roleLabel: text("role_label").notNull(),
   signedAt: timestamp("signed_at", { withTimezone: true }).notNull().defaultNow(),
+  displayDate: text("display_date"),
 });
 
 export type DbProtocolSignature = typeof protocolSignaturesTable.$inferSelect;
