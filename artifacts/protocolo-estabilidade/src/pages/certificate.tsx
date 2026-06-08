@@ -1775,39 +1775,39 @@ export default function CertificatePage() {
                             {(["emissao", "hoje"] as const).map(opt => {
                               const isEmissao = opt === "emissao";
                               const label = isEmissao ? "Data de Emissão do documento" : "Data de hoje";
-                              const sub   = isEmissao ? emissaoStr : nowStr;
+                              const sub   = isEmissao ? emissaoStr : todayDateStr;
                               const sel   = sigDateChoice === opt;
                               return (
-                                <div key={opt}>
-                                  <button
-                                    type="button"
-                                    onClick={() => setSigDateChoice(opt)}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all text-left ${sel ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300 bg-white"}`}
-                                  >
-                                    <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${sel ? "border-primary" : "border-gray-300"}`}>
-                                      {sel && <span className="w-2 h-2 rounded-full bg-primary block" />}
-                                    </span>
-                                    <span>
-                                      <span className={`block text-sm font-medium ${sel ? "text-primary" : "text-gray-700"}`}>{label}</span>
-                                      <span className="block text-xs text-gray-400 mt-0.5">{sub}</span>
-                                    </span>
-                                  </button>
-                                  {sel && !isEmissao && (
-                                    <div className="mt-1.5 px-1">
-                                      <label className="block text-[10px] text-gray-500 mb-1">Editar hora (HH:MM:SS)</label>
-                                      <input
-                                        type="time"
-                                        step="1"
-                                        value={sigCustomTime}
-                                        onChange={e => setSigCustomTime(e.target.value)}
-                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                                      />
-                                    </div>
-                                  )}
-                                </div>
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={() => setSigDateChoice(opt)}
+                                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all text-left ${sel ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300 bg-white"}`}
+                                >
+                                  <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${sel ? "border-primary" : "border-gray-300"}`}>
+                                    {sel && <span className="w-2 h-2 rounded-full bg-primary block" />}
+                                  </span>
+                                  <span>
+                                    <span className={`block text-sm font-medium ${sel ? "text-primary" : "text-gray-700"}`}>{label}</span>
+                                    <span className="block text-xs text-gray-400 mt-0.5">{sub}</span>
+                                  </span>
+                                </button>
                               );
                             })}
                           </div>
+                        </div>
+
+                        {/* Time row — always visible */}
+                        <div className="flex items-center gap-3">
+                          <label className="text-xs font-medium text-gray-700 w-14 flex-shrink-0">Horário</label>
+                          <input
+                            type="time"
+                            step="1"
+                            value={sigCustomTime}
+                            onChange={e => setSigCustomTime(e.target.value)}
+                            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                          />
+                          <span className="text-xs text-gray-400">Altere se necessário</span>
                         </div>
                       </div>
 
@@ -1822,7 +1822,7 @@ export default function CertificatePage() {
                             data: {
                               roleLabel: selectedRoleLabel,
                               displayDate: sigDateChoice === "emissao" && cert.issueDate
-                                ? (fmtDate(cert.issueDate) as string)
+                                ? `${fmtDate(cert.issueDate) as string}, ${sigCustomTime}`
                                 : `${todayDateStr}, ${sigCustomTime}`,
                             },
                           })}
