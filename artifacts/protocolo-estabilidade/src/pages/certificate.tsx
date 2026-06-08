@@ -1708,73 +1708,113 @@ export default function CertificatePage() {
           return (
             <>
               {/* Signature dialog — screen only */}
-              {sigDialogOpen && (
-                <div className="print:hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setSigDialogOpen(false)}>
-                  <div className="bg-white rounded-lg shadow-xl p-6 w-80 max-w-full" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-bold text-sm flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Assinatura Eletrônica</h3>
-                      <button type="button" onClick={() => setSigDialogOpen(false)} className="text-gray-400 hover:text-gray-700"><span className="text-lg leading-none">×</span></button>
-                    </div>
-                    <p className="text-xs text-gray-500 mb-4">
-                      Você está assinando como <strong>{auth?.user?.displayName}</strong>. Selecione sua função neste documento:
-                    </p>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Função / Papel</label>
-                    <select
-                      value={selectedRoleLabel}
-                      onChange={e => setSelectedRoleLabel(e.target.value)}
-                      className="w-full border border-input rounded px-2 py-1.5 text-sm mb-4 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      {["Elaborador", "Analista Sênior", "Aprovador", "Revisor", "Gestor de Qualidade", "Responsável Técnico", "Representante Legal"].map(r => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
-                    <div className="mb-4">
-                      <label className="block text-xs font-medium text-gray-600 mb-2">Data exibida na assinatura</label>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setSigDateChoice("emissao")}
-                          className={`flex-1 text-xs px-3 py-2 rounded border transition-colors text-left ${sigDateChoice === "emissao" ? "border-primary bg-primary/10 text-primary font-medium" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
-                        >
-                          <div className="font-semibold">Data de Emissão</div>
-                          <div className="text-[10px] mt-0.5 opacity-80">{fmtDate(cert.issueDate) || "—"}</div>
+              {sigDialogOpen && (() => {
+                const initials = (auth?.user?.displayName ?? "?").split(" ").filter(Boolean).slice(0, 2).map(n => n[0]?.toUpperCase()).join("");
+                const nowStr = new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+                const emissaoStr = fmtDate(cert.issueDate) || "—";
+                return (
+                  <div className="print:hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setSigDialogOpen(false)}>
+                    <div className="bg-white rounded-xl shadow-2xl w-[420px] max-w-[95vw] max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                      {/* Header */}
+                      <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
+                        <h3 className="font-bold text-base flex items-center gap-2 text-gray-900">
+                          <PenLine className="h-4 w-4 text-primary" /> Assinar Digitalmente
+                        </h3>
+                        <button type="button" onClick={() => setSigDialogOpen(false)} className="text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 w-7 h-7 flex items-center justify-center transition-colors">
+                          <span className="text-xl leading-none">×</span>
                         </button>
+                      </div>
+
+                      <div className="px-6 py-4 space-y-4">
+                        <p className="text-xs text-gray-500">Confirme os dados abaixo. A assinatura será registrada com seu nome de usuário.</p>
+
+                        {/* User card */}
+                        <div className="border border-gray-200 rounded-lg p-3 flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{initials}</div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm text-gray-900 truncate">{auth?.user?.displayName}</p>
+                            <p className="text-xs text-gray-400 capitalize">{auth?.user?.role === "admin" ? "Admin" : "Analista"}</p>
+                            <p className="text-[10px] text-emerald-600 flex items-center gap-1 mt-0.5"><ShieldCheck className="h-3 w-3" /> Usuário verificado</p>
+                          </div>
+                        </div>
+
+                        {/* Signature preview */}
+                        <div className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
+                          <p className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-1 text-center">Prévia da assinatura</p>
+                          <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "1.4rem", lineHeight: 1.4, color: "#111827", fontWeight: 600, textAlign: "center" }}>
+                            {auth?.user?.displayName}
+                          </p>
+                        </div>
+
+                        {/* Role */}
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1.5">Cargo / Função nesta assinatura</label>
+                          <select
+                            value={selectedRoleLabel}
+                            onChange={e => setSelectedRoleLabel(e.target.value)}
+                            className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                          >
+                            {["Elaborador", "Analista Sênior", "Aprovador", "Revisor", "Gestor de Qualidade", "Responsável Técnico", "Representante Legal"].map(r => (
+                              <option key={r} value={r}>{r}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Date choice */}
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1.5">Data da assinatura</label>
+                          <div className="space-y-2">
+                            {(["emissao", "hoje"] as const).map(opt => {
+                              const isEmissao = opt === "emissao";
+                              const label = isEmissao ? "Data de Emissão do documento" : "Data de hoje";
+                              const sub   = isEmissao ? emissaoStr : nowStr;
+                              const sel   = sigDateChoice === opt;
+                              return (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={() => setSigDateChoice(opt)}
+                                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all text-left ${sel ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300 bg-white"}`}
+                                >
+                                  <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${sel ? "border-primary" : "border-gray-300"}`}>
+                                    {sel && <span className="w-2 h-2 rounded-full bg-primary block" />}
+                                  </span>
+                                  <span>
+                                    <span className={`block text-sm font-medium ${sel ? "text-primary" : "text-gray-700"}`}>{label}</span>
+                                    <span className="block text-xs text-gray-400 mt-0.5">{sub}</span>
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Footer */}
+                      <div className="flex gap-3 px-6 pb-5 pt-2">
+                        <button type="button" onClick={() => setSigDialogOpen(false)} className="flex-1 text-sm px-4 py-2.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 font-medium transition-colors">Cancelar</button>
                         <button
                           type="button"
-                          onClick={() => setSigDateChoice("hoje")}
-                          className={`flex-1 text-xs px-3 py-2 rounded border transition-colors text-left ${sigDateChoice === "hoje" ? "border-primary bg-primary/10 text-primary font-medium" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                          disabled={addSig.isPending}
+                          onClick={() => addSig.mutate({
+                            id: Number(id),
+                            data: {
+                              roleLabel: selectedRoleLabel,
+                              ...(sigDateChoice === "emissao" && cert.issueDate
+                                ? { displayDate: fmtDate(cert.issueDate) as string }
+                                : {}),
+                            },
+                          })}
+                          className="flex-1 text-sm px-4 py-2.5 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 font-semibold flex items-center justify-center gap-2 transition-colors"
                         >
-                          <div className="font-semibold">Data de hoje</div>
-                          <div className="text-[10px] mt-0.5 opacity-80">{new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+                          <ShieldCheck className="h-4 w-4" />
+                          {addSig.isPending ? "Assinando..." : "Confirmar Assinatura"}
                         </button>
                       </div>
                     </div>
-                    <p className="text-[10px] text-gray-400 mb-4">
-                      Esta assinatura eletrônica fica registrada com seu nome, função e data no histórico do protocolo.
-                    </p>
-                    <div className="flex gap-2 justify-end">
-                      <button type="button" onClick={() => setSigDialogOpen(false)} className="text-xs px-3 py-1.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-50">Cancelar</button>
-                      <button
-                        type="button"
-                        disabled={addSig.isPending}
-                        onClick={() => addSig.mutate({
-                          id: Number(id),
-                          data: {
-                            roleLabel: selectedRoleLabel,
-                            ...(sigDateChoice === "emissao" && cert.issueDate
-                              ? { displayDate: fmtDate(cert.issueDate) as string }
-                              : {}),
-                          },
-                        })}
-                        className="text-xs px-4 py-1.5 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50 flex items-center gap-1.5"
-                      >
-                        <ShieldCheck className="h-3 w-3" />
-                        {addSig.isPending ? "Assinando..." : "Confirmar assinatura"}
-                      </button>
-                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* ── ASSINATURAS ─────────────────────────────────────────────── */}
               <div className="cert-signatures border border-gray-300 rounded-lg overflow-hidden">
