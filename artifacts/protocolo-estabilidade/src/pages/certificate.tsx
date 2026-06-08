@@ -1954,6 +1954,27 @@ export default function CertificatePage() {
                   )}
                 </div>
               </div>
+
+              {/* ── RODAPÉ DO DOCUMENTO ───────────────────────────────── */}
+              {(() => {
+                const lastSig = [...signatures].sort(
+                  (a, b) => new Date(b.signedAt).getTime() - new Date(a.signedAt).getTime()
+                )[0];
+                const lastSigDate = lastSig
+                  ? (lastSig.displayDate
+                      ?? new Date(lastSig.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }))
+                  : new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+                const cnpjDisplay = getEdit("cnpj", cert.cnpj) || cert.cnpj || "";
+                return (
+                  <div className="mt-6 pt-3 border-t border-gray-200 text-center text-[9px] text-gray-400 leading-relaxed">
+                    <span className="font-medium text-gray-500">Documento gerado em</span>
+                    <br />
+                    <span>{lastSigDate}</span>
+                    <br />
+                    <span>— Sistema Memorial Técnico ANVISA — ALPHAFITUS Laboratório Nutracêutico — CNPJ {cnpjDisplay} —</span>
+                  </div>
+                );
+              })()}
             </>
           );
         })()}
