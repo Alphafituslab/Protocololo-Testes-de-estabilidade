@@ -808,7 +808,7 @@ export default function ProtocolReportPage() {
                     <tr key={s.id} className={i % 2 === 0 ? "" : "bg-gray-50/70"}>
                       <Td bold>{s.userDisplay}</Td>
                       <Td>{s.roleLabel}</Td>
-                      <Td>{new Date(s.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</Td>
+                      <Td>{s.displayDate ?? new Date(s.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</Td>
                       <Td center><span className="text-[8.5px] text-emerald-700 font-semibold">✓ Verificada</span></Td>
                     </tr>
                   ))}
@@ -881,6 +881,25 @@ export default function ProtocolReportPage() {
                 }
               </p>
             )}
+            {/* Documento gerado em — mesma lógica do certificado */}
+            {(() => {
+              const lastSig = [...signatures].sort(
+                (a, b) => new Date(b.signedAt).getTime() - new Date(a.signedAt).getTime()
+              )[0];
+              const lastSigDate = lastSig
+                ? (lastSig.displayDate
+                    ?? new Date(lastSig.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }))
+                : new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+              return (
+                <div className="mt-4 pt-3 border-t border-gray-200 text-center text-[9px] text-gray-400 leading-relaxed">
+                  <span className="font-medium text-gray-500">Documento gerado em</span>
+                  <br />
+                  <span>{lastSigDate}</span>
+                  <br />
+                  <span>— Sistema Memorial Técnico ANVISA — ALPHAFITUS Laboratório Nutracêutico — CNPJ {cert.cnpj} —</span>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>
