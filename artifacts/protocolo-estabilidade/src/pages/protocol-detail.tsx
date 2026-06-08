@@ -696,8 +696,9 @@ function InlineCell({
         queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
         setEditing(false);
       },
-      onError: () => {
-        toast({ title: "Erro ao salvar", variant: "destructive" });
+      onError: (err: unknown) => {
+        const apiMsg = (err as { data?: { error?: string } })?.data?.error;
+        toast({ title: "Erro ao salvar", description: apiMsg ?? "Tente novamente.", variant: "destructive" });
         setEditing(false);
       },
     },
@@ -1261,6 +1262,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   const isMountedParamsRef = useRef(false);
   const updateProtocol = useUpdateProtocol();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Refs and hooks for parameter rename → propagate to DB results
   const focusedOriginalName = useRef<string | null>(null);
@@ -1270,6 +1272,10 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
         queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
+      },
+      onError: (err: unknown) => {
+        const apiMsg = (err as { data?: { error?: string } })?.data?.error;
+        toast({ title: "Erro ao salvar", description: apiMsg ?? "Tente novamente.", variant: "destructive" });
       },
     },
   });
