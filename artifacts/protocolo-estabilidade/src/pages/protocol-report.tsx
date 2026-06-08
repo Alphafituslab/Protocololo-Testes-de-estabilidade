@@ -896,7 +896,7 @@ export default function ProtocolReportPage() {
                   <br />
                   <span>{lastSigDate}</span>
                   <br />
-                  <span>— Sistema Memorial Técnico ANVISA — ALPHAFITUS Laboratório Nutracêutico — CNPJ {cert.cnpj} —</span>
+                  <span>— Sistema Protocolo Técnico ANVISA — ALPHAFITUS Laboratório Nutracêutico — CNPJ {cert.cnpj} —</span>
                 </div>
               );
             })()}
