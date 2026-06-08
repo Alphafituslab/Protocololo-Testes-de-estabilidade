@@ -425,6 +425,7 @@ export default function CertificatePage() {
   const [selectedRoleLabel, setSelectedRoleLabel] = useState("Elaborador");
   const [sigDateChoice, setSigDateChoice] = useState<"emissao" | "hoje">("emissao");
   const [sigCustomTime, setSigCustomTime] = useState("");
+  const [sigCustomEmissaoDate, setSigCustomEmissaoDate] = useState("");
   const addSig = useAddSignature({
     mutation: {
       onSuccess: () => {
@@ -1704,6 +1705,7 @@ export default function CertificatePage() {
                 setSigDateChoice("emissao");
                 const now = new Date();
                 setSigCustomTime(`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`);
+                setSigCustomEmissaoDate(cert.issueDate ?? new Date().toISOString().split("T")[0]!);
                 setSigDialogOpen(true);
               }}
               className="print:hidden flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded border border-primary/40 bg-primary/8 text-primary hover:bg-primary/15 transition-colors font-medium mb-3 w-full justify-center"
@@ -1719,7 +1721,8 @@ export default function CertificatePage() {
                 const initials = (auth?.user?.displayName ?? "?").split(" ").filter(Boolean).slice(0, 2).map(n => n[0]?.toUpperCase()).join("");
                 const todayDateStr = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
                 const nowStr = `${todayDateStr}, ${sigCustomTime}`;
-                const emissaoStr = fmtDate(cert.issueDate) || "—";
+                const fmtInputDate = (d: string) => { const [y,m,day] = d.split("-"); return day && m && y ? `${day}/${m}/${y}` : "—"; };
+                const emissaoStr = sigCustomEmissaoDate ? fmtInputDate(sigCustomEmissaoDate) : (fmtDate(cert.issueDate) || "—");
                 return (
                   <div className="print:hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setSigDialogOpen(false)}>
                     <div className="bg-white rounded-xl shadow-2xl w-[420px] max-w-[95vw] max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -1778,20 +1781,31 @@ export default function CertificatePage() {
                               const sub   = isEmissao ? emissaoStr : todayDateStr;
                               const sel   = sigDateChoice === opt;
                               return (
-                                <button
-                                  key={opt}
-                                  type="button"
-                                  onClick={() => setSigDateChoice(opt)}
-                                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all text-left ${sel ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300 bg-white"}`}
-                                >
-                                  <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${sel ? "border-primary" : "border-gray-300"}`}>
-                                    {sel && <span className="w-2 h-2 rounded-full bg-primary block" />}
-                                  </span>
-                                  <span>
-                                    <span className={`block text-sm font-medium ${sel ? "text-primary" : "text-gray-700"}`}>{label}</span>
-                                    <span className="block text-xs text-gray-400 mt-0.5">{sub}</span>
-                                  </span>
-                                </button>
+                                <div key={opt}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSigDateChoice(opt)}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all text-left ${sel ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300 bg-white"}`}
+                                  >
+                                    <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${sel ? "border-primary" : "border-gray-300"}`}>
+                                      {sel && <span className="w-2 h-2 rounded-full bg-primary block" />}
+                                    </span>
+                                    <span>
+                                      <span className={`block text-sm font-medium ${sel ? "text-primary" : "text-gray-700"}`}>{label}</span>
+                                      <span className="block text-xs text-gray-400 mt-0.5">{sub}</span>
+                                    </span>
+                                  </button>
+                                  {sel && isEmissao && (
+                                    <div className="mt-1.5 px-1">
+                                      <input
+                                        type="date"
+                                        value={sigCustomEmissaoDate}
+                                        onChange={e => setSigCustomEmissaoDate(e.target.value)}
+                                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
                               );
                             })}
                           </div>
@@ -1821,8 +1835,8 @@ export default function CertificatePage() {
                             id: Number(id),
                             data: {
                               roleLabel: selectedRoleLabel,
-                              displayDate: sigDateChoice === "emissao" && cert.issueDate
-                                ? `${fmtDate(cert.issueDate) as string}, ${sigCustomTime}`
+                              displayDate: sigDateChoice === "emissao"
+                                ? `${emissaoStr}, ${sigCustomTime}`
                                 : `${todayDateStr}, ${sigCustomTime}`,
                             },
                           })}
