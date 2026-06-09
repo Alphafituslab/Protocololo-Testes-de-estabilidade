@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { fmtDate } from "@/lib/utils";
+import { fmtDate, addMonthsToIso } from "@/lib/utils";
 import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey, useListSignatures, useAddSignature, useDeleteSignature, getListSignaturesQueryKey, useUpdateProtocol, useListProtocolBibliographicReferences, getListProtocolBibliographicReferencesQueryKey, type BibliographicReference } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, History, Lock, Unlock, Save, ShieldCheck, PenLine, Trash2, UserCheck } from "lucide-react";
@@ -1218,20 +1218,25 @@ export default function CertificatePage() {
                       {(lotsRaw.length > 0
                         ? [...lotsRaw].sort((a, b) => a.lotNumber.localeCompare(b.lotNumber))
                         : cert.lotNumbers.map(n => ({ id: n, lotNumber: n, manufacturingDate: null, expiryDate: null, quantity: null }))
-                      ).map((lot, i) => (
+                      ).map((lot, i) => {
+                        const mfgDate = (lot as { manufacturingDate?: string | null }).manufacturingDate;
+                        const expDate = (lot as { expiryDate?: string | null }).expiryDate
+                          ?? addMonthsToIso(mfgDate, cert.validityMonths);
+                        return (
                         <div key={(lot as { id: string | number }).id} className="flex items-baseline gap-x-3">
                           <span className="font-semibold">{i + 1} — {lot.lotNumber}</span>
-                          {(lot as { manufacturingDate?: string | null }).manufacturingDate && (
-                            <span className="text-gray-500">Fab. {fmtDate((lot as { manufacturingDate?: string | null }).manufacturingDate)}</span>
+                          {mfgDate && (
+                            <span className="text-gray-500">Fab. {fmtDate(mfgDate)}</span>
                           )}
-                          {(lot as { expiryDate?: string | null }).expiryDate && (
-                            <span className="text-gray-500 font-medium">Val. {fmtDate((lot as { expiryDate?: string | null }).expiryDate)}</span>
+                          {expDate && (
+                            <span className="text-gray-800 font-semibold">Val. {fmtDate(expDate)}</span>
                           )}
                           {(lot as { quantity?: number | null }).quantity && (
                             <span className="text-gray-500">{(lot as { quantity?: number | null }).quantity} un.</span>
                           )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     <div className="mt-3 text-center">
                       <p className="text-[10px] font-bold text-black leading-snug">

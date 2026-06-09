@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { fmtDate } from "@/lib/utils";
+import { fmtDate, addMonthsToIso } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import {
   useGetCertificate, getGetCertificateQueryKey,
@@ -563,15 +563,18 @@ export default function ProtocolReportPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {lots.map((lot, i) => (
+                  {lots.map((lot, i) => {
+                    const expDate = lot.expiryDate ?? addMonthsToIso(lot.manufacturingDate, cert.validityMonths);
+                    return (
                     <tr key={lot.id} className={i % 2 === 0 ? "" : "bg-gray-50/70"}>
                       <Td bold>{lot.lotNumber}</Td>
                       <Td>{fmtDate(lot.manufacturingDate) ?? "—"}</Td>
-                      <Td>{lot.expiryDate ? fmtDate(lot.expiryDate) : "—"}</Td>
+                      <Td>{expDate ? fmtDate(expDate) : "—"}</Td>
                       <Td>{lot.quantity ?? "—"}</Td>
                       <Td className="text-gray-500">{lot.notes ?? "—"}</Td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </Section>
