@@ -2024,7 +2024,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               </div>
               <p className="text-xs text-green-700 mt-1">valor adotado no produto</p>
               <p className="text-[11px] text-green-600/80 mt-0.5 flex items-center gap-1 justify-end">
-                <span>✓</span> Este valor é exibido no Certificado de Análise
+                <span>✓</span> Este valor é exibido no Certificado de Análise e no Relatório ANVISA
               </p>
             </div>
           </div>

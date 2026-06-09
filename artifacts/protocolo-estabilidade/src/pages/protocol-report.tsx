@@ -722,7 +722,7 @@ export default function ProtocolReportPage() {
                   })}
                 </tbody>
               </table>
-              <div className="flex gap-6 text-[9px] text-gray-600">
+              <div className="flex gap-6 text-[9px] text-gray-600 mb-3">
                 {(kineticsData as any)?.limitingParameter && (
                   <p><span className="text-gray-400">Ativo limitante:</span> <span className="font-semibold text-amber-700">★ {(kineticsData as any).limitingParameter}</span></p>
                 )}
@@ -732,9 +732,16 @@ export default function ProtocolReportPage() {
                 {(kineticsData as any)?.recommendedValidityMonths != null && (
                   <p><span className="text-gray-400">Recomendada:</span> <span className="font-semibold">{(kineticsData as any).recommendedValidityMonths} meses</span></p>
                 )}
-                {cert.validityMonths != null && (
-                  <p><span className="text-gray-400">Praticada (rótulo):</span> <span className="font-semibold">{cert.validityMonths} meses</span></p>
-                )}
+              </div>
+              <div className="rounded border border-green-300 bg-green-50 print:bg-green-50 px-4 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-[8px] font-bold uppercase tracking-widest text-green-700 mb-0.5">Validade Praticada — Valor Adotado no Produto</p>
+                  <p className="text-[9px] text-green-600">Valor registrado pelo responsável técnico, conforme análise cinética acima.</p>
+                </div>
+                <div className="text-right ml-6 shrink-0">
+                  <span className="text-3xl font-extrabold text-green-800">{cert.validityMonths ?? "—"}</span>
+                  <span className="text-sm font-semibold text-green-700 ml-1">meses</span>
+                </div>
               </div>
               {cert.kineticsNotes && (
                 <p className="text-[9px] text-gray-600 mt-2 border-l-2 border-gray-200 pl-2">{cert.kineticsNotes}</p>
