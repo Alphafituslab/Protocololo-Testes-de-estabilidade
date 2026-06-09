@@ -1220,16 +1220,14 @@ export default function CertificatePage() {
                         : cert.lotNumbers.map(n => ({ id: n, lotNumber: n, manufacturingDate: null, expiryDate: null, quantity: null }))
                       ).map((lot, i) => {
                         const mfgDate = (lot as { manufacturingDate?: string | null }).manufacturingDate;
-                        const expDate = (lot as { expiryDate?: string | null }).expiryDate
-                          ?? addMonthsToIso(mfgDate, cert.validityMonths);
                         return (
                         <div key={(lot as { id: string | number }).id} className="flex items-baseline gap-x-3">
                           <span className="font-semibold">{i + 1} — {lot.lotNumber}</span>
                           {mfgDate && (
                             <span className="text-gray-500">Fab. {fmtDate(mfgDate)}</span>
                           )}
-                          {expDate && (
-                            <span className="text-gray-800 font-semibold">Val. {fmtDate(expDate)}</span>
+                          {cert.validityMonths && (
+                            <span className="text-gray-800 font-semibold">Val. {cert.validityMonths} meses</span>
                           )}
                           {(lot as { quantity?: number | null }).quantity && (
                             <span className="text-gray-500">{(lot as { quantity?: number | null }).quantity} un.</span>
