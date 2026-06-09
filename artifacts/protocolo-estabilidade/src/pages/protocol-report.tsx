@@ -571,11 +571,16 @@ export default function ProtocolReportPage() {
                 <tbody>
                   {lots.map((lot, i) => {
                     const expDate = lot.expiryDate ?? addMonthsToIso(lot.manufacturingDate, cert.validityMonths);
+                    const validityCell = expDate
+                      ? fmtDate(expDate)
+                      : cert.validityMonths
+                        ? `${cert.validityMonths} meses`
+                        : "—";
                     return (
                     <tr key={lot.id} className={i % 2 === 0 ? "" : "bg-gray-50/70"}>
                       <Td bold>{lot.lotNumber}</Td>
                       <Td>{fmtDate(lot.manufacturingDate) ?? "—"}</Td>
-                      <Td>{expDate ? fmtDate(expDate) : "—"}</Td>
+                      <Td bold>{validityCell}</Td>
                       <Td>{lot.quantity ?? "—"}</Td>
                       <Td className="text-gray-500">{lot.notes ?? "—"}</Td>
                     </tr>
