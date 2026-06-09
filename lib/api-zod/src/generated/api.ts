@@ -488,6 +488,7 @@ export const GetProtocolResponse = zod
           protocolId: zod.number(),
           lotNumber: zod.string(),
           manufacturingDate: zod.string(),
+          expiryDate: zod.string().nullish(),
           quantity: zod.number(),
           notes: zod.string().nullish(),
           createdAt: zod.string(),
@@ -697,6 +698,7 @@ export const ListLotsResponseItem = zod.object({
   protocolId: zod.number(),
   lotNumber: zod.string(),
   manufacturingDate: zod.string(),
+  expiryDate: zod.string().nullish(),
   quantity: zod.number(),
   notes: zod.string().nullish(),
   createdAt: zod.string(),
@@ -713,6 +715,7 @@ export const CreateLotParams = zod.object({
 export const CreateLotBody = zod.object({
   lotNumber: zod.string(),
   manufacturingDate: zod.string(),
+  expiryDate: zod.string().optional(),
   quantity: zod.number(),
   notes: zod.string().optional(),
 });
@@ -728,6 +731,7 @@ export const UpdateLotParams = zod.object({
 export const UpdateLotBody = zod.object({
   lotNumber: zod.string(),
   manufacturingDate: zod.string(),
+  expiryDate: zod.string().optional(),
   quantity: zod.number(),
   notes: zod.string().optional(),
 });
@@ -737,6 +741,7 @@ export const UpdateLotResponse = zod.object({
   protocolId: zod.number(),
   lotNumber: zod.string(),
   manufacturingDate: zod.string(),
+  expiryDate: zod.string().nullish(),
   quantity: zod.number(),
   notes: zod.string().nullish(),
   createdAt: zod.string(),

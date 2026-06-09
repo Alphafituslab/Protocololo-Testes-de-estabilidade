@@ -11,6 +11,7 @@ export interface Lot {
   protocolId: number;
   lotNumber: string;
   manufacturingDate: string;
+  expiryDate?: string | null;
   quantity: number;
   notes?: string | null;
   createdAt: string;

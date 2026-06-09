@@ -566,10 +566,10 @@ export default function ProtocolReportPage() {
                   {lots.map((lot, i) => (
                     <tr key={lot.id} className={i % 2 === 0 ? "" : "bg-gray-50/70"}>
                       <Td bold>{lot.lotNumber}</Td>
-                      <Td>{fmtDate((lot as any).manufacturingDate) ?? "—"}</Td>
-                      <Td>{fmtDate((lot as any).expiryDate) ?? "—"}</Td>
-                      <Td>{(lot as any).batchSize ?? "—"}</Td>
-                      <Td className="text-gray-500">{(lot as any).notes ?? "—"}</Td>
+                      <Td>{fmtDate(lot.manufacturingDate) ?? "—"}</Td>
+                      <Td>{lot.expiryDate ? fmtDate(lot.expiryDate) : "—"}</Td>
+                      <Td>{lot.quantity ?? "—"}</Td>
+                      <Td className="text-gray-500">{lot.notes ?? "—"}</Td>
                     </tr>
                   ))}
                 </tbody>

@@ -120,6 +120,7 @@ const PERIODS = [0, 3, 6];
 const lotSchema = z.object({
   lotNumber: z.string().min(1, "Número do lote obrigatório"),
   manufacturingDate: z.string().min(1, "Data obrigatória"),
+  expiryDate: z.string().optional(),
   quantity: z.coerce.number().min(1),
   notes: z.string().optional(),
 });
@@ -324,7 +325,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
 
   const form = useForm<z.infer<typeof lotSchema>>({
     resolver: zodResolver(lotSchema),
-    defaultValues: { lotNumber: "", manufacturingDate: "", quantity: 20, notes: "" },
+    defaultValues: { lotNumber: "", manufacturingDate: "", expiryDate: "", quantity: 20, notes: "" },
   });
 
   const createLot = useCreateLot({
@@ -338,7 +339,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
         // and close the dialog. The query is invalidated in onOpenChange instead.
         setTimeout(() => {
           setLastAdded(justAdded);
-          form.reset({ lotNumber: "", manufacturingDate: "", quantity: 20, notes: "" });
+          form.reset({ lotNumber: "", manufacturingDate: "", expiryDate: "", quantity: 20, notes: "" });
           form.setFocus("lotNumber");
         }, 0);
       },
@@ -379,14 +380,14 @@ function LotsTab({ protocolId }: { protocolId: number }) {
 
   const openEdit = (lot: typeof lots[number]) => {
     setEditLot(lot);
-    form.reset({ lotNumber: lot.lotNumber, manufacturingDate: lot.manufacturingDate, quantity: lot.quantity, notes: lot.notes ?? "" });
+    form.reset({ lotNumber: lot.lotNumber, manufacturingDate: lot.manufacturingDate, expiryDate: lot.expiryDate ?? "", quantity: lot.quantity, notes: lot.notes ?? "" });
     setOpen(true);
   };
 
   const openNew = () => {
     setEditLot(null);
     setLastAdded(null);
-    form.reset({ lotNumber: "", manufacturingDate: "", quantity: 20, notes: "" });
+    form.reset({ lotNumber: "", manufacturingDate: "", expiryDate: "", quantity: 20, notes: "" });
     setOpen(true);
   };
 
@@ -412,8 +413,9 @@ function LotsTab({ protocolId }: { protocolId: number }) {
           <TableHeader>
             <TableRow>
               <TableHead>Número do Lote</TableHead>
-              <TableHead>Data de Fabricação</TableHead>
-              <TableHead>Quantidade</TableHead>
+              <TableHead>Fabricação</TableHead>
+              <TableHead>Validade</TableHead>
+              <TableHead>Qtd.</TableHead>
               <TableHead>Notas</TableHead>
               <TableHead className="w-20"></TableHead>
             </TableRow>
@@ -423,7 +425,8 @@ function LotsTab({ protocolId }: { protocolId: number }) {
               <TableRow key={lot.id} data-testid={`row-lot-${lot.id}`}>
                 <TableCell className="font-mono font-medium">{lot.lotNumber}</TableCell>
                 <TableCell>{fmtDate(lot.manufacturingDate)}</TableCell>
-                <TableCell>{lot.quantity} unidades</TableCell>
+                <TableCell>{lot.expiryDate ? fmtDate(lot.expiryDate) : "—"}</TableCell>
+                <TableCell>{lot.quantity} un.</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{lot.notes ?? "—"}</TableCell>
                 <TableCell>
                   {canManageLots && (
@@ -537,14 +540,21 @@ function LotsTab({ protocolId }: { protocolId: number }) {
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="quantity" render={({ field }) => (
+                <FormField control={form.control} name="expiryDate" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Quantidade</FormLabel>
-                    <FormControl><Input type="number" data-testid="input-quantity" {...field} /></FormControl>
+                    <FormLabel>Validade do Lote</FormLabel>
+                    <FormControl><Input type="date" data-testid="input-expiryDate" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
               </div>
+              <FormField control={form.control} name="quantity" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Quantidade (potes/unidades)</FormLabel>
+                  <FormControl><Input type="number" data-testid="input-quantity" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
               <FormField control={form.control} name="notes" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Notas</FormLabel>

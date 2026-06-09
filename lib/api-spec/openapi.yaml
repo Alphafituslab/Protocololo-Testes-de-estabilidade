@@ -1361,6 +1361,9 @@ components:
           type: string
         manufacturingDate:
           type: string
+        expiryDate:
+          type: string
+          nullable: true
         quantity:
           type: integer
         notes:
@@ -1382,6 +1385,8 @@ components:
         lotNumber:
           type: string
         manufacturingDate:
+          type: string
+        expiryDate:
           type: string
         quantity:
           type: integer

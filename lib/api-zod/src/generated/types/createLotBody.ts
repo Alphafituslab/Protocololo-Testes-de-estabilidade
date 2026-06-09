@@ -9,6 +9,7 @@
 export interface CreateLotBody {
   lotNumber: string;
   manufacturingDate: string;
+  expiryDate?: string;
   quantity: number;
   notes?: string;
 }

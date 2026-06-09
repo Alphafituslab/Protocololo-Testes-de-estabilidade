@@ -8,6 +8,7 @@ export const lotsTable = pgTable("lots", {
   protocolId: integer("protocol_id").notNull().references(() => protocolsTable.id, { onDelete: "cascade" }),
   lotNumber: text("lot_number").notNull(),
   manufacturingDate: text("manufacturing_date").notNull(),
+  expiryDate: text("expiry_date"),
   quantity: integer("quantity").notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -101,6 +101,7 @@ export interface Lot {
   protocolId: number;
   lotNumber: string;
   manufacturingDate: string;
+  expiryDate?: string | null;
   quantity: number;
   notes?: string | null;
   createdAt: string;
@@ -252,6 +253,7 @@ export interface ProtocolStats {
 export interface CreateLotBody {
   lotNumber: string;
   manufacturingDate: string;
+  expiryDate?: string;
   quantity: number;
   notes?: string;
 }
