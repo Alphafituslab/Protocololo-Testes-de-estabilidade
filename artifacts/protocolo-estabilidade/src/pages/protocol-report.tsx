@@ -489,7 +489,7 @@ export default function ProtocolReportPage() {
               <InfoRow label="Produto" value={cert.productName} wide />
               <InfoRow label="Apresentação" value={cert.presentation} />
               <InfoRow label="Tipo de Embalagem" value={cert.packagingType} />
-              <InfoRow label="Validade Declarada" value={cert.validityMonths ? `${cert.validityMonths} meses` : undefined} />
+              <InfoRow label="Validade Praticada" value={cert.validityMonths ? `${cert.validityMonths} meses` : "—"} />
               <InfoRow label="Ingredientes Ativos" value={cert.activeIngredients} wide />
               <InfoRow label="Excipientes" value={cert.excipients} wide />
               <InfoRow label="Composição da Cápsula" value={cert.capsuleComposition} wide />
@@ -498,17 +498,23 @@ export default function ProtocolReportPage() {
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <p className="text-[8px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Lotes Piloto Incluídos neste Estudo</p>
                 <div className="space-y-0.5">
-                  {lots.map((lot, i) => (
+                  {lots.map((lot, i) => {
+                    const expDate = lot.expiryDate ?? addMonthsToIso(lot.manufacturingDate, cert.validityMonths);
+                    return (
                     <div key={lot.id} className="flex flex-wrap items-baseline gap-x-3 text-[10px]">
                       <span className="font-semibold">{i + 1} — {lot.lotNumber}</span>
-                      {(lot as any).manufacturingDate && (
-                        <span className="text-gray-500">{fmtDate((lot as any).manufacturingDate)}</span>
+                      {lot.manufacturingDate && (
+                        <span className="text-gray-500">Fab. {fmtDate(lot.manufacturingDate)}</span>
                       )}
-                      {(lot as any).quantity && (
-                        <span className="text-gray-500">{(lot as any).quantity} unidades</span>
+                      {expDate && (
+                        <span className="text-gray-800 font-semibold">Val. {fmtDate(expDate)}</span>
+                      )}
+                      {lot.quantity && (
+                        <span className="text-gray-500">{lot.quantity} un.</span>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="mt-2 flex items-start gap-1.5 rounded border-l-2 border-gray-800 bg-gray-50 px-2 py-1.5 print:bg-gray-50">
                   <span className="text-gray-800 text-[8.5px] leading-none mt-px shrink-0">★</span>
