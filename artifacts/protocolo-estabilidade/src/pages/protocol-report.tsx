@@ -499,17 +499,11 @@ export default function ProtocolReportPage() {
                 <p className="text-[8px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Lotes Piloto Incluídos neste Estudo</p>
                 <div className="space-y-0.5">
                   {lots.map((lot, i) => (
-                    <div key={lot.id} className="flex flex-wrap items-baseline gap-x-3 text-[10px]">
+                    <div key={lot.id} className="grid text-[10px]" style={{ gridTemplateColumns: "1fr auto auto auto", gap: "0 12px" }}>
                       <span className="font-semibold">{i + 1} — {lot.lotNumber}</span>
-                      {lot.manufacturingDate && (
-                        <span className="text-gray-500">Fab. {fmtDate(lot.manufacturingDate)}</span>
-                      )}
-                      {cert.validityMonths && (
-                        <span className="text-gray-800 font-semibold">Val. {cert.validityMonths} meses</span>
-                      )}
-                      {lot.quantity && (
-                        <span className="text-gray-500">{lot.quantity} un.</span>
-                      )}
+                      <span className="text-gray-500 text-right">{lot.manufacturingDate ? `Fab. ${fmtDate(lot.manufacturingDate)}` : ""}</span>
+                      <span className="text-gray-800 font-semibold text-right">{cert.validityMonths ? `Val. ${cert.validityMonths} meses` : ""}</span>
+                      <span className="text-gray-500 text-right">{lot.quantity ? `${lot.quantity} un.` : ""}</span>
                     </div>
                   ))}
                 </div>

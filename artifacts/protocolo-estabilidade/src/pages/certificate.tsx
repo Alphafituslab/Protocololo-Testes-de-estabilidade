@@ -1220,18 +1220,13 @@ export default function CertificatePage() {
                         : cert.lotNumbers.map(n => ({ id: n, lotNumber: n, manufacturingDate: null, expiryDate: null, quantity: null }))
                       ).map((lot, i) => {
                         const mfgDate = (lot as { manufacturingDate?: string | null }).manufacturingDate;
+                        const qty = (lot as { quantity?: number | null }).quantity;
                         return (
-                        <div key={(lot as { id: string | number }).id} className="flex items-baseline gap-x-3">
+                        <div key={(lot as { id: string | number }).id} className="grid" style={{ gridTemplateColumns: "1fr auto auto auto", gap: "0 12px" }}>
                           <span className="font-semibold">{i + 1} — {lot.lotNumber}</span>
-                          {mfgDate && (
-                            <span className="text-gray-500">Fab. {fmtDate(mfgDate)}</span>
-                          )}
-                          {cert.validityMonths && (
-                            <span className="text-gray-800 font-semibold">Val. {cert.validityMonths} meses</span>
-                          )}
-                          {(lot as { quantity?: number | null }).quantity && (
-                            <span className="text-gray-500">{(lot as { quantity?: number | null }).quantity} un.</span>
-                          )}
+                          <span className="text-gray-500 text-right">{mfgDate ? `Fab. ${fmtDate(mfgDate)}` : ""}</span>
+                          <span className="text-gray-800 font-semibold text-right">{cert.validityMonths ? `Val. ${cert.validityMonths} meses` : ""}</span>
+                          <span className="text-gray-500 text-right">{qty ? `${qty} un.` : ""}</span>
                         </div>
                         );
                       })}
