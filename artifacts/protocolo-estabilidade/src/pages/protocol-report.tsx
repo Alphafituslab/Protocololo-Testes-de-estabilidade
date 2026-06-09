@@ -558,7 +558,7 @@ export default function ProtocolReportPage() {
                     <Th>Nº Lote</Th>
                     <Th>Fabricação</Th>
                     <Th>Validade</Th>
-                    <Th>Tamanho</Th>
+                    <Th>Qtd.</Th>
                     <Th>Observações</Th>
                   </tr>
                 </thead>

@@ -1217,15 +1217,18 @@ export default function CertificatePage() {
                     <div className="space-y-0.5">
                       {(lotsRaw.length > 0
                         ? [...lotsRaw].sort((a, b) => a.lotNumber.localeCompare(b.lotNumber))
-                        : cert.lotNumbers.map(n => ({ id: n, lotNumber: n, manufacturingDate: null, quantity: null }))
+                        : cert.lotNumbers.map(n => ({ id: n, lotNumber: n, manufacturingDate: null, expiryDate: null, quantity: null }))
                       ).map((lot, i) => (
                         <div key={(lot as { id: string | number }).id} className="flex items-baseline gap-x-3">
                           <span className="font-semibold">{i + 1} — {lot.lotNumber}</span>
                           {(lot as { manufacturingDate?: string | null }).manufacturingDate && (
-                            <span className="text-gray-500">{fmtDate((lot as { manufacturingDate?: string | null }).manufacturingDate)}</span>
+                            <span className="text-gray-500">Fab. {fmtDate((lot as { manufacturingDate?: string | null }).manufacturingDate)}</span>
+                          )}
+                          {(lot as { expiryDate?: string | null }).expiryDate && (
+                            <span className="text-gray-500 font-medium">Val. {fmtDate((lot as { expiryDate?: string | null }).expiryDate)}</span>
                           )}
                           {(lot as { quantity?: number | null }).quantity && (
-                            <span className="text-gray-500">{(lot as { quantity?: number | null }).quantity} unidades</span>
+                            <span className="text-gray-500">{(lot as { quantity?: number | null }).quantity} un.</span>
                           )}
                         </div>
                       ))}
