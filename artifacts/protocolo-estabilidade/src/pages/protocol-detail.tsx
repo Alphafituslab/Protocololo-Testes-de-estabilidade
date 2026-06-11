@@ -1274,6 +1274,40 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // Undo refs for parameter removal
+  const lastRemovedParamRef = useRef<{ param: EditableParam; index: number } | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const undoHandlerRef = useRef<() => void>(() => {});
+  undoHandlerRef.current = () => {
+    if (!lastRemovedParamRef.current) return;
+    const { param, index } = lastRemovedParamRef.current;
+    lastRemovedParamRef.current = null;
+    if (undoTimerRef.current) { clearTimeout(undoTimerRef.current); undoTimerRef.current = null; }
+    setEditableParams(prev => {
+      const next = [...prev];
+      next.splice(index, 0, param);
+      const newJson = JSON.stringify(next);
+      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: newJson } });
+      queryClient.setQueryData(
+        getGetProtocolQueryKey(protocolId),
+        (old: Record<string, unknown> | undefined) => old ? { ...old, customParamsJson: newJson } : old,
+      );
+      return next;
+    });
+    toast({ title: "Parâmetro restaurado", description: param.parameter ? `"${param.parameter}" foi recuperado.` : "Parâmetro recuperado." });
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && lastRemovedParamRef.current) {
+        e.preventDefault();
+        undoHandlerRef.current();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Refs and hooks for parameter rename → propagate to DB results
   const focusedOriginalName = useRef<string | null>(null);
   const renameUpsert = useUpsertResult({
@@ -1409,13 +1443,15 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
 
   const removeParam = (uid: string) => {
     setEditableParams((prev) => {
+      const idx = prev.findIndex(p => p.uid === uid);
+      const removed = prev[idx];
       const next = prev.filter((p) => p.uid !== uid);
       const newJson = JSON.stringify(next);
-      // Immediate save — no debounce.
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      lastRemovedParamRef.current = { param: removed, index: idx };
+      undoTimerRef.current = setTimeout(() => { lastRemovedParamRef.current = null; }, 10000);
+      toast({ title: "Parâmetro removido", description: "Pressione Ctrl+Z para desfazer (10s)" });
       updateProtocol.mutate({ id: protocolId, data: { customParamsJson: newJson } });
-      // Optimistically patch the protocol query cache so that if the component
-      // remounts (e.g. tab switch) before the API response arrives, it
-      // re-initialises from the correct data and does NOT restore the deleted item.
       queryClient.setQueryData(
         getGetProtocolQueryKey(protocolId),
         (old: Record<string, unknown> | undefined) =>
@@ -1617,9 +1653,16 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Remover parâmetro?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      {param.parameter ? `"${param.parameter}" e todos os seus resultados serão removidos permanentemente. ` : "Este parâmetro e todos os seus resultados serão removidos permanentemente. "}
-                                      Esta ação não pode ser desfeita.
+                                    <AlertDialogDescription asChild>
+                                      <div>
+                                        <p className="font-bold text-destructive uppercase mb-2">
+                                          ⚠ ATENÇÃO: ESTA OPERAÇÃO É IRREVERSÍVEL!
+                                        </p>
+                                        <p>
+                                          {param.parameter ? `"${param.parameter}" e todos os seus resultados serão excluídos permanentemente.` : "Este parâmetro e todos os seus resultados serão excluídos permanentemente."}
+                                          {" "}Use <strong>Ctrl+Z</strong> logo após para desfazer (10s).
+                                        </p>
+                                      </div>
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
@@ -2202,6 +2245,40 @@ function MethodologiaTab({
   const updateProtocol = useUpdateProtocol();
   const isMountedRef = useRef(false);
 
+  // Undo refs for parameter removal
+  const lastRemovedParamRef2 = useRef<{ param: EditableParam; index: number } | null>(null);
+  const undoTimerRef2 = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const undoHandlerRef2 = useRef<() => void>(() => {});
+  undoHandlerRef2.current = () => {
+    if (!lastRemovedParamRef2.current) return;
+    const { param, index } = lastRemovedParamRef2.current;
+    lastRemovedParamRef2.current = null;
+    if (undoTimerRef2.current) { clearTimeout(undoTimerRef2.current); undoTimerRef2.current = null; }
+    setEditableParams(prev => {
+      const next = [...prev];
+      next.splice(index, 0, param);
+      const newJson = JSON.stringify(next);
+      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: newJson } });
+      queryClient.setQueryData(
+        getGetProtocolQueryKey(protocolId),
+        (old: Record<string, unknown> | undefined) => old ? { ...old, customParamsJson: newJson } : old,
+      );
+      return next;
+    });
+    toast({ title: "Parâmetro restaurado", description: param.parameter ? `"${param.parameter}" foi recuperado.` : "Parâmetro recuperado." });
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && lastRemovedParamRef2.current) {
+        e.preventDefault();
+        undoHandlerRef2.current();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Parâmetros editáveis ───────────────────────────────────────────
   const defaultParams = ANALYSIS_PARAMETERS.map((p, i) => ({ ...p, uid: `${p.category}_${i}` }));
   const [editableParams, setEditableParams] = useState<EditableParam[]>(() => {
@@ -2275,11 +2352,18 @@ function MethodologiaTab({
 
   const removeParam = (uid: string) => {
     setEditableParams(prev => {
+      const idx = prev.findIndex(p => p.uid === uid);
+      const removed = prev[idx];
       const next = prev.filter(p => p.uid !== uid);
-      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: JSON.stringify(next) } });
+      const newJson = JSON.stringify(next);
+      if (undoTimerRef2.current) clearTimeout(undoTimerRef2.current);
+      lastRemovedParamRef2.current = { param: removed, index: idx };
+      undoTimerRef2.current = setTimeout(() => { lastRemovedParamRef2.current = null; }, 10000);
+      toast({ title: "Parâmetro removido", description: "Pressione Ctrl+Z para desfazer (10s)" });
+      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: newJson } });
       queryClient.setQueryData(
         getGetProtocolQueryKey(protocolId),
-        (old: Record<string, unknown> | undefined) => old ? { ...old, customParamsJson: JSON.stringify(next) } : old,
+        (old: Record<string, unknown> | undefined) => old ? { ...old, customParamsJson: newJson } : old,
       );
       return next;
     });
@@ -2525,9 +2609,16 @@ function MethodologiaTab({
                               <AlertDialogContent>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Remover parâmetro?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    {p.parameter ? `"${p.parameter}" será removido permanentemente. ` : "Este parâmetro será removido permanentemente. "}
-                                    Esta ação não pode ser desfeita.
+                                  <AlertDialogDescription asChild>
+                                    <div>
+                                      <p className="font-bold text-destructive uppercase mb-2">
+                                        ⚠ ATENÇÃO: ESTA OPERAÇÃO É IRREVERSÍVEL!
+                                      </p>
+                                      <p>
+                                        {p.parameter ? `"${p.parameter}" será excluído permanentemente.` : "Este parâmetro será excluído permanentemente."}
+                                        {" "}Use <strong>Ctrl+Z</strong> logo após para desfazer (10s).
+                                      </p>
+                                    </div>
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
