@@ -1591,14 +1591,35 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                               rowSpan={lots.length}
                               className={`py-1 px-1 text-center sticky left-[19rem] z-10 border-r border-border/40 align-top ${stickyBg}`}
                             >
-                              <button
-                                type="button"
-                                onClick={() => removeParam(param.uid)}
-                                className="text-muted-foreground/20 hover:text-destructive text-base leading-none transition-colors"
-                                title="Remover parâmetro"
-                              >
-                                ×
-                              </button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="text-muted-foreground/20 hover:text-destructive text-base leading-none transition-colors"
+                                    title="Remover parâmetro"
+                                  >
+                                    ×
+                                  </button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Remover parâmetro?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      {param.parameter ? `"${param.parameter}" e todos os seus resultados serão removidos permanentemente. ` : "Este parâmetro e todos os seus resultados serão removidos permanentemente. "}
+                                      Esta ação não pode ser desfeita.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-destructive text-white hover:bg-destructive/90"
+                                      onClick={() => removeParam(param.uid)}
+                                    >
+                                      Remover
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </TableCell>
                           </>
                         )}
@@ -2484,14 +2505,35 @@ function MethodologiaTab({
                             )}
                           </td>
                           <td className="px-2 py-1.5 text-center">
-                            <button
-                              type="button"
-                              onClick={() => removeParam(p.uid)}
-                              className="text-muted-foreground/30 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                              title="Remover parâmetro"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="text-muted-foreground/30 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                                  title="Remover parâmetro"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Remover parâmetro?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    {p.parameter ? `"${p.parameter}" será removido permanentemente. ` : "Este parâmetro será removido permanentemente. "}
+                                    Esta ação não pode ser desfeita.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-destructive text-white hover:bg-destructive/90"
+                                    onClick={() => removeParam(p.uid)}
+                                  >
+                                    Remover
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </td>
                         </tr>
                       ))}
@@ -3917,15 +3959,35 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                     </a>
                   )}
                 </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
-                  title="Remover do protocolo"
-                  onClick={() => removeRef.mutate({ id: protocolId, refId: ref.id })}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
+                      title="Remover do protocolo"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remover referência?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta referência será removida permanentemente do protocolo. Esta ação não pode ser desfeita.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-white hover:bg-destructive/90"
+                        onClick={() => removeRef.mutate({ id: protocolId, refId: ref.id })}
+                      >
+                        Remover
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             ))}
           </div>
