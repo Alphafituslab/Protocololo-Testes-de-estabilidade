@@ -7,6 +7,8 @@ export const methodologiesTable = pgTable("methodologies", {
   shortName: text("short_name").notNull(),
   citation: text("citation").notNull(),
   category: text("category"),
+  parameter: text("parameter"),
+  criteria: text("criteria"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

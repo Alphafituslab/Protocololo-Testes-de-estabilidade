@@ -10,4 +10,6 @@ export interface CreateMethodologyBody {
   shortName: string;
   citation: string;
   category?: string | null;
+  parameter?: string | null;
+  criteria?: string | null;
 }

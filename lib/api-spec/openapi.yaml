@@ -1720,6 +1720,14 @@ components:
           type: string
           nullable: true
           description: 'Categoria opcional (ex: Fisico-Quimica, Microbiologica)'
+        parameter:
+          type: string
+          nullable: true
+          description: 'Parametro de analise associado (ex: pH, Umidade)'
+        criteria:
+          type: string
+          nullable: true
+          description: 'Criterio / Especificacao associado (ex: 5,0 – 7,0)'
         createdAt:
           type: string
       required:
@@ -1738,6 +1746,12 @@ components:
         category:
           type: string
           nullable: true
+        parameter:
+          type: string
+          nullable: true
+        criteria:
+          type: string
+          nullable: true
       required:
         - shortName
         - citation
@@ -1750,6 +1764,12 @@ components:
         citation:
           type: string
         category:
+          type: string
+          nullable: true
+        parameter:
+          type: string
+          nullable: true
+        criteria:
           type: string
           nullable: true
       required:

@@ -2153,7 +2153,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
 type MethodologyDialogState =
   | { mode: "closed" }
   | { mode: "create" }
-  | { mode: "edit"; id: number; shortName: string; citation: string; category: string };
+  | { mode: "edit"; id: number; shortName: string; citation: string; category: string; parameter: string; criteria: string };
 
 function MethodologiaTab({
   protocolId,
@@ -2202,23 +2202,33 @@ function MethodologiaTab({
   };
 
   const setParamMethodInTab = (uid: string, paramName: string, shortName: string | null, citation: string | null) => {
-    // Lookup reverso: se o parâmetro está em branco e a metodologia já foi usada para
-    // exatamente 1 composto, preenche nome e critério automaticamente
-    const reverseMatches = shortName && !paramName.trim() ? getParamsForMethodology(shortName) : [];
-    const autoFill = reverseMatches.length === 1 ? reverseMatches[0] : null;
+    // 1. Lookup na biblioteca: se a metodologia tem parâmetro/critério cadastrados, usa esses
+    const libEntry = shortName ? methodologies.find(m => m.shortName === shortName) : undefined;
+    const libParam = libEntry?.parameter ?? null;
+    const libCriteria = libEntry?.criteria ?? null;
+
+    // 2. Lookup reverso no catálogo local: se ainda não preencheu nome, tenta catálogo
+    const reverseMatches = shortName && !paramName.trim() && !libParam ? getParamsForMethodology(shortName) : [];
+    const catalogFill = reverseMatches.length === 1 ? reverseMatches[0] : null;
 
     setEditableParams(prev => prev.map(p => {
       if (p.uid !== uid) return p;
+      const newParameter = !p.parameter.trim()
+        ? (libParam ?? catalogFill?.paramName ?? p.parameter)
+        : p.parameter;
+      const newCriterion = !p.criterion.trim()
+        ? (libCriteria ?? catalogFill?.criterion ?? p.criterion)
+        : p.criterion;
       return {
         ...p,
-        parameter: autoFill ? autoFill.paramName : p.parameter,
-        criterion: autoFill && !p.criterion.trim() ? autoFill.criterion : p.criterion,
+        parameter: newParameter,
+        criterion: newCriterion,
         methodologyShort: shortName ?? undefined,
         methodologyCitation: citation ?? undefined,
       };
     }));
 
-    const finalName = autoFill ? autoFill.paramName : paramName;
+    const finalName = libParam ?? catalogFill?.paramName ?? paramName;
     if (shortName && citation && finalName.trim()) {
       addToCatalog(finalName, shortName, citation);
     }
@@ -2279,14 +2289,18 @@ function MethodologiaTab({
   const [shortName, setShortName] = useState("");
   const [citation, setCitation] = useState("");
   const [category, setCategory] = useState("");
+  const [parameterField, setParameterField] = useState("");
+  const [criteriaField, setCriteriaField] = useState("");
 
-  const openCreate = () => { setShortName(""); setCitation(""); setCategory(""); setDialog({ mode: "create" }); };
+  const openCreate = () => { setShortName(""); setCitation(""); setCategory(""); setParameterField(""); setCriteriaField(""); setDialog({ mode: "create" }); };
 
-  const openEdit = (m: { id: number; shortName: string; citation: string; category?: string | null }) => {
+  const openEdit = (m: { id: number; shortName: string; citation: string; category?: string | null; parameter?: string | null; criteria?: string | null }) => {
     setShortName(m.shortName);
     setCitation(m.citation);
     setCategory(m.category ?? "");
-    setDialog({ mode: "edit", id: m.id, shortName: m.shortName, citation: m.citation, category: m.category ?? "" });
+    setParameterField(m.parameter ?? "");
+    setCriteriaField(m.criteria ?? "");
+    setDialog({ mode: "edit", id: m.id, shortName: m.shortName, citation: m.citation, category: m.category ?? "", parameter: m.parameter ?? "", criteria: m.criteria ?? "" });
   };
 
   const closeDialog = () => setDialog({ mode: "closed" });
@@ -2318,7 +2332,13 @@ function MethodologiaTab({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!shortName.trim() || !citation.trim()) return;
-    const data = { shortName: shortName.trim(), citation: citation.trim(), category: category.trim() || null };
+    const data = {
+      shortName: shortName.trim(),
+      citation: citation.trim(),
+      category: category.trim() || null,
+      parameter: parameterField.trim() || null,
+      criteria: criteriaField.trim() || null,
+    };
     if (isEditing && dialog.mode === "edit") {
       updateMutation.mutate({ id: dialog.id, data });
     } else {
@@ -2539,6 +2559,24 @@ function MethodologiaTab({
                   onChange={(e) => setCategory(e.target.value)}
                 />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Parâmetro (opcional)</label>
+                  <Input
+                    placeholder='ex: pH, Umidade, Vitamina C'
+                    value={parameterField}
+                    onChange={(e) => setParameterField(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Critério / Especificação (opcional)</label>
+                  <Input
+                    placeholder='ex: 5,0 – 7,0, ≤ 5%, ≥ 80%'
+                    value={criteriaField}
+                    onChange={(e) => setCriteriaField(e.target.value)}
+                  />
+                </div>
+              </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
                 <Button type="submit" disabled={isPending}>
@@ -2571,6 +2609,20 @@ function MethodologiaTab({
                       {m.category && <Badge variant="outline" className="text-xs">{m.category}</Badge>}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5 break-words">{m.citation}</p>
+                    {(m.parameter || m.criteria) && (
+                      <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                        {m.parameter && (
+                          <span className="text-xs text-foreground/80">
+                            <span className="font-medium">Parâm.:</span> {m.parameter}
+                          </span>
+                        )}
+                        {m.criteria && (
+                          <span className="text-xs text-foreground/80">
+                            <span className="font-medium">Critério:</span> {m.criteria}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {/* Documento anexado */}
                     {isEditingDoc ? (

@@ -10,6 +10,8 @@ const CreateMethodologyBody = z.object({
   shortName: z.string().min(1),
   citation: z.string().min(1),
   category: z.string().nullable().optional(),
+  parameter: z.string().nullable().optional(),
+  criteria: z.string().nullable().optional(),
 });
 
 const MethodologyIdParams = z.object({
@@ -20,6 +22,8 @@ const UpdateMethodologyBody = z.object({
   shortName: z.string().min(1),
   citation: z.string().min(1),
   category: z.string().nullable().optional(),
+  parameter: z.string().nullable().optional(),
+  criteria: z.string().nullable().optional(),
 });
 
 router.get("/methodologies", async (_req, res): Promise<void> => {
@@ -42,6 +46,8 @@ router.post("/methodologies", requireAuth, async (req, res): Promise<void> => {
       shortName: parsed.data.shortName,
       citation: parsed.data.citation,
       category: parsed.data.category ?? null,
+      parameter: parsed.data.parameter ?? null,
+      criteria: parsed.data.criteria ?? null,
     })
     .returning();
   res.status(201).json(created);
@@ -64,6 +70,8 @@ router.put("/methodologies/:id", requireAuth, async (req, res): Promise<void> =>
       shortName: body.data.shortName,
       citation: body.data.citation,
       category: body.data.category ?? null,
+      parameter: body.data.parameter ?? null,
+      criteria: body.data.criteria ?? null,
     })
     .where(eq(methodologiesTable.id, params.data.id))
     .returning();

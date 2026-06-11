@@ -398,6 +398,10 @@ export interface Methodology {
   citation: string;
   /** Categoria opcional (ex: Fisico-Quimica, Microbiologica) */
   category?: string | null;
+  /** Parametro de analise associado (ex: pH, Umidade) */
+  parameter?: string | null;
+  /** Criterio / Especificacao associado (ex: 5,0 – 7,0) */
+  criteria?: string | null;
   createdAt: string;
 }
 
@@ -405,12 +409,16 @@ export interface CreateMethodologyBody {
   shortName: string;
   citation: string;
   category?: string | null;
+  parameter?: string | null;
+  criteria?: string | null;
 }
 
 export interface UpdateMethodologyBody {
   shortName: string;
   citation: string;
   category?: string | null;
+  parameter?: string | null;
+  criteria?: string | null;
 }
 
 export interface ProtocolSignature {

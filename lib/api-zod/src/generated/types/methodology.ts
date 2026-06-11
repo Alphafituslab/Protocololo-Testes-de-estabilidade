@@ -14,5 +14,9 @@ export interface Methodology {
   citation: string;
   /** Categoria opcional (ex: Fisico-Quimica, Microbiologica) */
   category?: string | null;
+  /** Parametro de analise associado (ex: pH, Umidade) */
+  parameter?: string | null;
+  /** Criterio / Especificacao associado (ex: 5,0 – 7,0) */
+  criteria?: string | null;
   createdAt: string;
 }

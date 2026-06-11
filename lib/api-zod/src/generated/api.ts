@@ -1193,6 +1193,14 @@ export const ListMethodologiesResponseItem = zod.object({
     .string()
     .nullish()
     .describe("Categoria opcional (ex: Fisico-Quimica, Microbiologica)"),
+  parameter: zod
+    .string()
+    .nullish()
+    .describe("Parametro de analise associado (ex: pH, Umidade)"),
+  criteria: zod
+    .string()
+    .nullish()
+    .describe("Criterio \/ Especificacao associado (ex: 5,0 – 7,0)"),
   createdAt: zod.string(),
 });
 export const ListMethodologiesResponse = zod.array(
@@ -1206,6 +1214,8 @@ export const CreateMethodologyBody = zod.object({
   shortName: zod.string(),
   citation: zod.string(),
   category: zod.string().nullish(),
+  parameter: zod.string().nullish(),
+  criteria: zod.string().nullish(),
 });
 
 /**
@@ -1219,6 +1229,8 @@ export const UpdateMethodologyBody = zod.object({
   shortName: zod.string(),
   citation: zod.string(),
   category: zod.string().nullish(),
+  parameter: zod.string().nullish(),
+  criteria: zod.string().nullish(),
 });
 
 export const UpdateMethodologyResponse = zod.object({
@@ -1229,6 +1241,14 @@ export const UpdateMethodologyResponse = zod.object({
     .string()
     .nullish()
     .describe("Categoria opcional (ex: Fisico-Quimica, Microbiologica)"),
+  parameter: zod
+    .string()
+    .nullish()
+    .describe("Parametro de analise associado (ex: pH, Umidade)"),
+  criteria: zod
+    .string()
+    .nullish()
+    .describe("Criterio \/ Especificacao associado (ex: 5,0 – 7,0)"),
   createdAt: zod.string(),
 });
 
