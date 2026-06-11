@@ -1557,16 +1557,29 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                 methodologies={methodologies}
                                 catalogEntries={getCatalogEntries(param.parameter)}
                                 onSelect={(s, c) => {
-                                  // Lookup reverso: se o parâmetro está em branco e a
-                                  // metodologia aponta para exatamente 1 composto, preenche
-                                  if (!param.parameter.trim() && s) {
-                                    const matches = getParamsForMethodology(s);
-                                    if (matches.length === 1) {
-                                      updateParam(param.uid, "parameter", matches[0].paramName);
-                                      if (!param.criterion?.trim()) updateParam(param.uid, "criterion", matches[0].criterion);
+                                  // Biblioteca sempre tem prioridade absoluta
+                                  const libEntry = s ? methodologies.find(m => m.shortName === s) : undefined;
+                                  const libParam = libEntry?.parameter ?? null;
+                                  const libCriteria = libEntry?.criteria ?? null;
+
+                                  if (s) {
+                                    if (libParam) {
+                                      updateParam(param.uid, "parameter", libParam);
+                                    } else {
+                                      const matches = getParamsForMethodology(s);
+                                      if (matches.length === 1) {
+                                        updateParam(param.uid, "parameter", matches[0].paramName);
+                                        updateParam(param.uid, "criterion", matches[0].criterion);
+                                      }
+                                    }
+                                    if (libCriteria) {
+                                      updateParam(param.uid, "criterion", libCriteria);
                                     }
                                   }
-                                  setParamMethod(param.parameter || (s ? (getParamsForMethodology(s)[0]?.paramName ?? "") : ""), s, c);
+
+                                  const _fallbackName = param.parameter || (s ? (getParamsForMethodology(s)[0]?.paramName ?? "") : "");
+                                  const finalName = libParam ?? _fallbackName;
+                                  setParamMethod(finalName, s, c);
                                 }}
                               />
                             </TableCell>
@@ -2223,27 +2236,21 @@ function MethodologiaTab({
   };
 
   const setParamMethodInTab = (uid: string, paramName: string, shortName: string | null, citation: string | null) => {
-    // 1. Lookup na biblioteca: se a metodologia tem parâmetro/critério cadastrados, usa esses
+    // Biblioteca sempre tem prioridade absoluta sobre qualquer valor existente
     const libEntry = shortName ? methodologies.find(m => m.shortName === shortName) : undefined;
     const libParam = libEntry?.parameter ?? null;
     const libCriteria = libEntry?.criteria ?? null;
 
-    // 2. Lookup reverso no catálogo local: se ainda não preencheu nome, tenta catálogo
-    const reverseMatches = shortName && !paramName.trim() && !libParam ? getParamsForMethodology(shortName) : [];
+    // Fallback: catálogo local (usado apenas se a biblioteca não tem dados)
+    const reverseMatches = shortName && !libParam ? getParamsForMethodology(shortName) : [];
     const catalogFill = reverseMatches.length === 1 ? reverseMatches[0] : null;
 
     setEditableParams(prev => prev.map(p => {
       if (p.uid !== uid) return p;
-      const newParameter = !p.parameter.trim()
-        ? (libParam ?? catalogFill?.paramName ?? p.parameter)
-        : p.parameter;
-      const newCriterion = !p.criterion.trim()
-        ? (libCriteria ?? catalogFill?.criterion ?? p.criterion)
-        : p.criterion;
       return {
         ...p,
-        parameter: newParameter,
-        criterion: newCriterion,
+        parameter: libParam ?? catalogFill?.paramName ?? p.parameter,
+        criterion: libCriteria ?? catalogFill?.criterion ?? p.criterion,
         methodologyShort: shortName ?? undefined,
         methodologyCitation: citation ?? undefined,
       };
