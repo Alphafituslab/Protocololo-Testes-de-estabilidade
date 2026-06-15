@@ -59,7 +59,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink, Upload, Download, X, File, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink, Upload, Download, X, File, ChevronUp, ChevronDown, Search } from "lucide-react";
 import { AuditTrail } from "@/components/audit-trail";
 import { useToast } from "@/hooks/use-toast";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
@@ -947,6 +947,10 @@ function InlineCell({
 
 type EditableParam = { uid: string; parameter: string; category: string; criterion: string; methodologyShort?: string; methodologyCitation?: string };
 
+function normalizeSearch(s: string) {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 function ParamMethodSelector({
   paramName,
   selected,
@@ -964,9 +968,19 @@ function ParamMethodSelector({
   compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const hasCatalog = catalogEntries.length > 0;
+
+  const norm = normalizeSearch(search);
+  const filteredCatalog = catalogEntries.filter(
+    m => normalizeSearch(m.shortName).includes(norm) || normalizeSearch(m.citation).includes(norm)
+  );
+  const filteredMethodologies = methodologies.filter(
+    m => normalizeSearch(m.shortName).includes(norm) || normalizeSearch(m.citation).includes(norm)
+  );
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(""); }}>
       <PopoverTrigger asChild>
         {compact ? (
           <button
@@ -1003,18 +1017,40 @@ function ParamMethodSelector({
           Metodologia — <span className="font-normal italic">{paramName || "parâmetro"}</span>
         </p>
 
+        {/* Campo de busca */}
+        <div className="relative mb-2">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50 pointer-events-none" />
+          <input
+            autoFocus
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar metodologia..."
+            className="w-full pl-6 pr-2 py-1.5 text-xs border border-input rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/40"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+
         {/* Entradas do catálogo para este parâmetro */}
-        {hasCatalog && (
+        {hasCatalog && filteredCatalog.length > 0 && (
           <>
             <p className="text-[9px] uppercase tracking-widest text-primary/60 font-bold px-1 mb-1">
               Cadastradas para este parâmetro
             </p>
             <div className="space-y-0.5 mb-2">
-              {catalogEntries.map((m, i) => (
+              {filteredCatalog.map((m, i) => (
                 <button
                   type="button"
                   key={i}
-                  onClick={() => { onSelect(m.shortName, m.citation); setOpen(false); }}
+                  onClick={() => { onSelect(m.shortName, m.citation); setOpen(false); setSearch(""); }}
                   className={`w-full text-left text-xs px-2 py-1.5 rounded border transition-colors hover:bg-primary/10 ${
                     selected === m.shortName
                       ? "border-primary/40 bg-primary/10 text-primary font-semibold"
@@ -1029,25 +1065,29 @@ function ParamMethodSelector({
                 </button>
               ))}
             </div>
-            <div className="border-t my-1.5" />
-            <p className="text-[9px] uppercase tracking-widest text-muted-foreground/50 font-bold px-1 mb-1">
-              Biblioteca geral
-            </p>
+            {filteredMethodologies.length > 0 && (
+              <>
+                <div className="border-t my-1.5" />
+                <p className="text-[9px] uppercase tracking-widest text-muted-foreground/50 font-bold px-1 mb-1">
+                  Biblioteca geral
+                </p>
+              </>
+            )}
           </>
         )}
 
         {/* Todas as metodologias cadastradas */}
-        {methodologies.length === 0 ? (
-          <p className="text-xs text-muted-foreground italic px-1">
-            Nenhuma metodologia cadastrada. Acesse a aba "Metodologia".
+        {filteredMethodologies.length === 0 && filteredCatalog.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic px-1 py-2 text-center">
+            {search ? `Nenhuma metodologia encontrada para "${search}"` : "Nenhuma metodologia cadastrada."}
           </p>
-        ) : (
+        ) : filteredMethodologies.length > 0 ? (
           <div className="space-y-0.5 max-h-48 overflow-y-auto">
-            {methodologies.map((m) => (
+            {filteredMethodologies.map((m) => (
               <button
                 type="button"
                 key={m.id}
-                onClick={() => { onSelect(m.shortName, m.citation); setOpen(false); }}
+                onClick={() => { onSelect(m.shortName, m.citation); setOpen(false); setSearch(""); }}
                 className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted transition-colors ${
                   selected === m.shortName && !hasCatalog ? "bg-primary/10 text-primary font-semibold" : ""
                 }`}
@@ -1057,13 +1097,13 @@ function ParamMethodSelector({
               </button>
             ))}
           </div>
-        )}
+        ) : null}
 
         {selected && (
           <div className="border-t mt-1.5 pt-1">
             <button
               type="button"
-              onClick={() => { onSelect(null, null); setOpen(false); }}
+              onClick={() => { onSelect(null, null); setOpen(false); setSearch(""); }}
               className="w-full text-left text-[10px] px-2 py-1 rounded hover:bg-destructive/10 text-destructive"
             >
               × Remover seleção
