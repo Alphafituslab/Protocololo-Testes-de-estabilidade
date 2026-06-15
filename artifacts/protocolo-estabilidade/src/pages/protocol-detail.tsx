@@ -1587,15 +1587,15 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                           <>
                             <TableCell
                               rowSpan={lots.length}
-                              className={`py-1 pr-1 sticky left-0 z-10 border-r border-border/60 align-top group/reorder ${stickyBg}`}
+                              className={`py-1 pr-1 sticky left-0 z-10 border-r border-border/60 align-top ${stickyBg}`}
                             >
                               <div className="flex items-start gap-1">
-                                <div className="flex flex-col pt-0.5 opacity-0 group-hover/reorder:opacity-100 transition-opacity">
+                                <div className="flex flex-col pt-0.5">
                                   <button
                                     type="button"
                                     onClick={() => moveParam(param.uid, 'up')}
                                     disabled={catParams.indexOf(param) === 0}
-                                    className="text-muted-foreground/50 hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
+                                    className="text-muted-foreground/30 hover:text-primary disabled:opacity-10 disabled:cursor-not-allowed p-0.5 transition-colors"
                                     title="Mover para cima"
                                   >
                                     <ChevronUp className="h-3 w-3" />
@@ -1604,7 +1604,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                     type="button"
                                     onClick={() => moveParam(param.uid, 'down')}
                                     disabled={catParams.indexOf(param) === catParams.length - 1}
-                                    className="text-muted-foreground/50 hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
+                                    className="text-muted-foreground/30 hover:text-primary disabled:opacity-10 disabled:cursor-not-allowed p-0.5 transition-colors"
                                     title="Mover para baixo"
                                   >
                                     <ChevronDown className="h-3 w-3" />
