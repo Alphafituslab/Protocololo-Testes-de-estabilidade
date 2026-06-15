@@ -59,7 +59,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink, Upload, Download, X, File } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink, Upload, Download, X, File, ChevronUp, ChevronDown } from "lucide-react";
 import { AuditTrail } from "@/components/audit-trail";
 import { useToast } from "@/hooks/use-toast";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
@@ -1461,6 +1461,28 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
     });
   };
 
+  const moveParam = (uid: string, dir: 'up' | 'down') => {
+    setEditableParams(prev => {
+      const idx = prev.findIndex(p => p.uid === uid);
+      const param = prev[idx];
+      const catUids = prev.filter(p => p.category === param.category).map(p => p.uid);
+      const catIdx = catUids.indexOf(uid);
+      if (dir === 'up' && catIdx === 0) return prev;
+      if (dir === 'down' && catIdx === catUids.length - 1) return prev;
+      const targetUid = dir === 'up' ? catUids[catIdx - 1] : catUids[catIdx + 1];
+      const targetIdx = prev.findIndex(p => p.uid === targetUid);
+      const next = [...prev];
+      [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
+      const newJson = JSON.stringify(next);
+      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: newJson } });
+      queryClient.setQueryData(
+        getGetProtocolQueryKey(protocolId),
+        (old: Record<string, unknown> | undefined) => old ? { ...old, customParamsJson: newJson } : old,
+      );
+      return next;
+    });
+  };
+
   const getResult = (lotId: number, period: number, parameter: string) =>
     results.find((r) => r.lotId === lotId && r.period === period && r.parameter === parameter);
 
@@ -1567,57 +1589,81 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                               rowSpan={lots.length}
                               className={`py-1 pr-1 sticky left-0 z-10 border-r border-border/60 align-top ${stickyBg}`}
                             >
-                              <input
-                                value={param.parameter}
-                                onChange={(e) => updateParam(param.uid, "parameter", e.target.value)}
-                                onFocus={() => { focusedOriginalName.current = param.parameter; }}
-                                onBlur={() => {
-                                  const orig = focusedOriginalName.current;
-                                  focusedOriginalName.current = null;
-                                  if (orig !== null && orig !== param.parameter && param.parameter.trim()) {
-                                    renameResultParam(orig, param.parameter);
-                                  }
-                                }}
-                                autoComplete="new-password"
-                                autoCorrect="off"
-                                autoCapitalize="off"
-                                spellCheck={false}
-                                data-form-type="other"
-                                data-lpignore="true"
-                                className="w-full text-xs font-medium bg-transparent border-b border-dashed border-transparent hover:border-muted-foreground/30 focus:border-primary focus:outline-none py-0.5 placeholder:text-muted-foreground/40"
-                                placeholder="Nome do parâmetro"
-                              />
-                              <ParamMethodSelector
-                                paramName={param.parameter}
-                                selected={paramMethods[param.parameter] ?? null}
-                                methodologies={methodologies}
-                                catalogEntries={getCatalogEntries(param.parameter)}
-                                onSelect={(s, c) => {
-                                  // Biblioteca sempre tem prioridade absoluta
-                                  const libEntry = s ? methodologies.find(m => m.shortName === s) : undefined;
-                                  const libParam = libEntry?.parameter ?? null;
-                                  const libCriteria = libEntry?.criteria ?? null;
-
-                                  if (s) {
-                                    if (libParam) {
-                                      updateParam(param.uid, "parameter", libParam);
-                                    } else {
-                                      const matches = getParamsForMethodology(s);
-                                      if (matches.length === 1) {
-                                        updateParam(param.uid, "parameter", matches[0].paramName);
-                                        updateParam(param.uid, "criterion", matches[0].criterion);
+                              <div className="flex items-start gap-1">
+                                <div className="flex flex-col pt-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => moveParam(param.uid, 'up')}
+                                    disabled={catParams.indexOf(param) === 0}
+                                    className="text-muted-foreground/25 hover:text-muted-foreground disabled:opacity-10 disabled:cursor-not-allowed p-0"
+                                    title="Mover para cima"
+                                  >
+                                    <ChevronUp className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => moveParam(param.uid, 'down')}
+                                    disabled={catParams.indexOf(param) === catParams.length - 1}
+                                    className="text-muted-foreground/25 hover:text-muted-foreground disabled:opacity-10 disabled:cursor-not-allowed p-0"
+                                    title="Mover para baixo"
+                                  >
+                                    <ChevronDown className="h-3 w-3" />
+                                  </button>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <input
+                                    value={param.parameter}
+                                    onChange={(e) => updateParam(param.uid, "parameter", e.target.value)}
+                                    onFocus={() => { focusedOriginalName.current = param.parameter; }}
+                                    onBlur={() => {
+                                      const orig = focusedOriginalName.current;
+                                      focusedOriginalName.current = null;
+                                      if (orig !== null && orig !== param.parameter && param.parameter.trim()) {
+                                        renameResultParam(orig, param.parameter);
                                       }
-                                    }
-                                    if (libCriteria) {
-                                      updateParam(param.uid, "criterion", libCriteria);
-                                    }
-                                  }
+                                    }}
+                                    autoComplete="new-password"
+                                    autoCorrect="off"
+                                    autoCapitalize="off"
+                                    spellCheck={false}
+                                    data-form-type="other"
+                                    data-lpignore="true"
+                                    className="w-full text-xs font-medium bg-transparent border-b border-dashed border-transparent hover:border-muted-foreground/30 focus:border-primary focus:outline-none py-0.5 placeholder:text-muted-foreground/40"
+                                    placeholder="Nome do parâmetro"
+                                  />
+                                  <ParamMethodSelector
+                                    paramName={param.parameter}
+                                    selected={paramMethods[param.parameter] ?? null}
+                                    methodologies={methodologies}
+                                    catalogEntries={getCatalogEntries(param.parameter)}
+                                    onSelect={(s, c) => {
+                                      // Biblioteca sempre tem prioridade absoluta
+                                      const libEntry = s ? methodologies.find(m => m.shortName === s) : undefined;
+                                      const libParam = libEntry?.parameter ?? null;
+                                      const libCriteria = libEntry?.criteria ?? null;
 
-                                  const _fallbackName = param.parameter || (s ? (getParamsForMethodology(s)[0]?.paramName ?? "") : "");
-                                  const finalName = libParam ?? _fallbackName;
-                                  setParamMethod(finalName, s, c);
-                                }}
-                              />
+                                      if (s) {
+                                        if (libParam) {
+                                          updateParam(param.uid, "parameter", libParam);
+                                        } else {
+                                          const matches = getParamsForMethodology(s);
+                                          if (matches.length === 1) {
+                                            updateParam(param.uid, "parameter", matches[0].paramName);
+                                            updateParam(param.uid, "criterion", matches[0].criterion);
+                                          }
+                                        }
+                                        if (libCriteria) {
+                                          updateParam(param.uid, "criterion", libCriteria);
+                                        }
+                                      }
+
+                                      const _fallbackName = param.parameter || (s ? (getParamsForMethodology(s)[0]?.paramName ?? "") : "");
+                                      const finalName = libParam ?? _fallbackName;
+                                      setParamMethod(finalName, s, c);
+                                    }}
+                                  />
+                                </div>
+                              </div>
                             </TableCell>
                             <TableCell
                               rowSpan={lots.length}
@@ -2369,6 +2415,28 @@ function MethodologiaTab({
     });
   };
 
+  const moveParam2 = (uid: string, dir: 'up' | 'down') => {
+    setEditableParams(prev => {
+      const idx = prev.findIndex(p => p.uid === uid);
+      const param = prev[idx];
+      const catUids = prev.filter(p => p.category === param.category).map(p => p.uid);
+      const catIdx = catUids.indexOf(uid);
+      if (dir === 'up' && catIdx === 0) return prev;
+      if (dir === 'down' && catIdx === catUids.length - 1) return prev;
+      const targetUid = dir === 'up' ? catUids[catIdx - 1] : catUids[catIdx + 1];
+      const targetIdx = prev.findIndex(p => p.uid === targetUid);
+      const next = [...prev];
+      [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
+      const newJson = JSON.stringify(next);
+      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: newJson } });
+      queryClient.setQueryData(
+        getGetProtocolQueryKey(protocolId),
+        (old: Record<string, unknown> | undefined) => old ? { ...old, customParamsJson: newJson } : old,
+      );
+      return next;
+    });
+  };
+
   const paramCategories = [
     { label: "Físico-Química", key: "fisico_quimica" },
     { label: "Microbiológica", key: "microbiologica" },
@@ -2540,6 +2608,7 @@ function MethodologiaTab({
                         <th className="px-3 py-1.5 text-left font-semibold w-[28%]">Parâmetro</th>
                         <th className="px-3 py-1.5 text-left font-semibold w-[32%]">Critério / Especificação</th>
                         <th className="px-3 py-1.5 text-left font-semibold w-[36%]">Metodologia</th>
+                        <th className="w-6"></th>
                         <th className="w-8"></th>
                       </tr>
                     </thead>
@@ -2594,6 +2663,28 @@ function MethodologiaTab({
                                 onSelect={(s, c) => setParamMethodInTab(p.uid, p.parameter, s, c)}
                               />
                             )}
+                          </td>
+                          <td className="px-1 py-1.5 text-center">
+                            <div className="flex flex-col gap-0 opacity-0 group-hover:opacity-100 transition-opacity items-center">
+                              <button
+                                type="button"
+                                onClick={() => moveParam2(p.uid, 'up')}
+                                disabled={catParams.indexOf(p) === 0}
+                                className="text-muted-foreground/50 hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
+                                title="Mover para cima"
+                              >
+                                <ChevronUp className="h-3 w-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveParam2(p.uid, 'down')}
+                                disabled={catParams.indexOf(p) === catParams.length - 1}
+                                className="text-muted-foreground/50 hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
+                                title="Mover para baixo"
+                              >
+                                <ChevronDown className="h-3 w-3" />
+                              </button>
+                            </div>
                           </td>
                           <td className="px-2 py-1.5 text-center">
                             <AlertDialog>
