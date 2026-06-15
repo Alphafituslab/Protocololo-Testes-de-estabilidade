@@ -1019,14 +1019,13 @@ function ParamMethodSelector({
 
         {/* Campo de busca */}
         <div className="relative mb-2">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50 pointer-events-none" />
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-primary/50 pointer-events-none" />
           <input
-            autoFocus
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar metodologia..."
-            className="w-full pl-6 pr-2 py-1.5 text-xs border border-input rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/40"
+            placeholder="Buscar por nome..."
+            className="w-full pl-7 pr-2 py-1.5 text-xs border-2 border-primary/30 rounded-md bg-background focus:outline-none focus:border-primary placeholder:text-muted-foreground/50"
           />
           {search && (
             <button
