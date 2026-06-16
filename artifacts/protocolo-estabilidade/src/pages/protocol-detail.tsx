@@ -59,7 +59,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink, Upload, Download, X, File, ChevronUp, ChevronDown, Search } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink, Upload, Download, X, File, GripVertical, Search } from "lucide-react";
 import { AuditTrail } from "@/components/audit-trail";
 import { useToast } from "@/hooks/use-toast";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
@@ -1500,27 +1500,41 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
     });
   };
 
-  const moveParam = (uid: string, dir: 'up' | 'down') => {
-    setEditableParams(prev => {
-      const idx = prev.findIndex(p => p.uid === uid);
-      const param = prev[idx];
-      const catUids = prev.filter(p => p.category === param.category).map(p => p.uid);
-      const catIdx = catUids.indexOf(uid);
-      if (dir === 'up' && catIdx === 0) return prev;
-      if (dir === 'down' && catIdx === catUids.length - 1) return prev;
-      const targetUid = dir === 'up' ? catUids[catIdx - 1] : catUids[catIdx + 1];
-      const targetIdx = prev.findIndex(p => p.uid === targetUid);
-      const next = [...prev];
-      [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
-      const newJson = JSON.stringify(next);
-      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: newJson } });
-      queryClient.setQueryData(
-        getGetProtocolQueryKey(protocolId),
-        (old: Record<string, unknown> | undefined) => old ? { ...old, customParamsJson: newJson } : old,
-      );
-      return next;
-    });
-  };
+  const [draggingParamUid, setDraggingParamUid] = useState<string | null>(null);
+  const [dragOverParamUid, setDragOverParamUid] = useState<string | null>(null);
+  const draggingParamRef = useRef<string | null>(null);
+  const dragOverParamRef = useRef<string | null>(null);
+  const setDraggingParam = (uid: string | null) => { draggingParamRef.current = uid; setDraggingParamUid(uid); };
+  const setDragOverParam = (uid: string | null) => { dragOverParamRef.current = uid; setDragOverParamUid(uid); };
+
+  useEffect(() => {
+    const onPointerUp = () => {
+      const from = draggingParamRef.current;
+      const to = dragOverParamRef.current;
+      if (from && to && from !== to) {
+        setEditableParams(prev => {
+          const fromIdx = prev.findIndex(p => p.uid === from);
+          const toIdx = prev.findIndex(p => p.uid === to);
+          if (fromIdx < 0 || toIdx < 0 || prev[fromIdx].category !== prev[toIdx].category) return prev;
+          const next = [...prev];
+          const [item] = next.splice(fromIdx, 1);
+          next.splice(toIdx, 0, item);
+          const newJson = JSON.stringify(next);
+          updateProtocol.mutate({ id: protocolId, data: { customParamsJson: newJson } });
+          queryClient.setQueryData(
+            getGetProtocolQueryKey(protocolId),
+            (old: Record<string, unknown> | undefined) => old ? { ...old, customParamsJson: newJson } : old,
+          );
+          return next;
+        });
+      }
+      setDraggingParam(null);
+      setDragOverParam(null);
+    };
+    window.addEventListener('pointerup', onPointerUp);
+    return () => window.removeEventListener('pointerup', onPointerUp);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getResult = (lotId: number, period: number, parameter: string) =>
     results.find((r) => r.lotId === lotId && r.period === period && r.parameter === parameter);
@@ -1626,28 +1640,16 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                           <>
                             <TableCell
                               rowSpan={lots.length}
-                              className={`py-1 pr-1 sticky left-0 z-10 border-r border-border/60 align-top ${stickyBg}`}
+                              className={`py-1 pr-1 sticky left-0 z-10 border-r border-border/60 align-top transition-colors ${stickyBg}${dragOverParamUid === param.uid && draggingParamUid !== param.uid ? ' border-t-2 border-t-primary' : ''}`}
+                              onPointerEnter={() => { if (draggingParamUid && draggingParamUid !== param.uid) setDragOverParam(param.uid); }}
                             >
                               <div className="flex items-start gap-1">
-                                <div className="flex flex-col pt-0.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => moveParam(param.uid, 'up')}
-                                    disabled={catParams.indexOf(param) === 0}
-                                    className="text-muted-foreground/30 hover:text-primary disabled:opacity-10 disabled:cursor-not-allowed p-0.5 transition-colors"
-                                    title="Mover para cima"
-                                  >
-                                    <ChevronUp className="h-3 w-3" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => moveParam(param.uid, 'down')}
-                                    disabled={catParams.indexOf(param) === catParams.length - 1}
-                                    className="text-muted-foreground/30 hover:text-primary disabled:opacity-10 disabled:cursor-not-allowed p-0.5 transition-colors"
-                                    title="Mover para baixo"
-                                  >
-                                    <ChevronDown className="h-3 w-3" />
-                                  </button>
+                                <div
+                                  className={`cursor-grab active:cursor-grabbing touch-none mt-0.5 text-muted-foreground/30 hover:text-primary p-0.5 transition-colors select-none${draggingParamUid === param.uid ? ' opacity-30' : ''}`}
+                                  onPointerDown={(e) => { e.preventDefault(); setDraggingParam(param.uid); }}
+                                  title="Arrastar para reordenar"
+                                >
+                                  <GripVertical className="h-3.5 w-3.5" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <input
@@ -2454,27 +2456,41 @@ function MethodologiaTab({
     });
   };
 
-  const moveParam2 = (uid: string, dir: 'up' | 'down') => {
-    setEditableParams(prev => {
-      const idx = prev.findIndex(p => p.uid === uid);
-      const param = prev[idx];
-      const catUids = prev.filter(p => p.category === param.category).map(p => p.uid);
-      const catIdx = catUids.indexOf(uid);
-      if (dir === 'up' && catIdx === 0) return prev;
-      if (dir === 'down' && catIdx === catUids.length - 1) return prev;
-      const targetUid = dir === 'up' ? catUids[catIdx - 1] : catUids[catIdx + 1];
-      const targetIdx = prev.findIndex(p => p.uid === targetUid);
-      const next = [...prev];
-      [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
-      const newJson = JSON.stringify(next);
-      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: newJson } });
-      queryClient.setQueryData(
-        getGetProtocolQueryKey(protocolId),
-        (old: Record<string, unknown> | undefined) => old ? { ...old, customParamsJson: newJson } : old,
-      );
-      return next;
-    });
-  };
+  const [draggingParamUid2, setDraggingParamUid2] = useState<string | null>(null);
+  const [dragOverParamUid2, setDragOverParamUid2] = useState<string | null>(null);
+  const draggingParamRef2 = useRef<string | null>(null);
+  const dragOverParamRef2 = useRef<string | null>(null);
+  const setDraggingParam2 = (uid: string | null) => { draggingParamRef2.current = uid; setDraggingParamUid2(uid); };
+  const setDragOverParam2 = (uid: string | null) => { dragOverParamRef2.current = uid; setDragOverParamUid2(uid); };
+
+  useEffect(() => {
+    const onPointerUp2 = () => {
+      const from = draggingParamRef2.current;
+      const to = dragOverParamRef2.current;
+      if (from && to && from !== to) {
+        setEditableParams(prev => {
+          const fromIdx = prev.findIndex(p => p.uid === from);
+          const toIdx = prev.findIndex(p => p.uid === to);
+          if (fromIdx < 0 || toIdx < 0 || prev[fromIdx].category !== prev[toIdx].category) return prev;
+          const next = [...prev];
+          const [item] = next.splice(fromIdx, 1);
+          next.splice(toIdx, 0, item);
+          const newJson = JSON.stringify(next);
+          updateProtocol.mutate({ id: protocolId, data: { customParamsJson: newJson } });
+          queryClient.setQueryData(
+            getGetProtocolQueryKey(protocolId),
+            (old: Record<string, unknown> | undefined) => old ? { ...old, customParamsJson: newJson } : old,
+          );
+          return next;
+        });
+      }
+      setDraggingParam2(null);
+      setDragOverParam2(null);
+    };
+    window.addEventListener('pointerup', onPointerUp2);
+    return () => window.removeEventListener('pointerup', onPointerUp2);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const paramCategories = [
     { label: "Físico-Química", key: "fisico_quimica" },
@@ -2653,7 +2669,11 @@ function MethodologiaTab({
                     </thead>
                     <tbody>
                       {catParams.map((p) => (
-                        <tr key={p.uid} className="border-b last:border-0 hover:bg-muted/20 transition-colors group">
+                        <tr
+                          key={p.uid}
+                          className={`border-b last:border-0 hover:bg-muted/20 transition-colors group${draggingParamUid2 === p.uid ? ' opacity-40' : ''}${dragOverParamUid2 === p.uid && draggingParamUid2 !== p.uid ? ' border-t-2 border-t-primary' : ''}`}
+                          onPointerEnter={() => { if (draggingParamUid2 && draggingParamUid2 !== p.uid) setDragOverParam2(p.uid); }}
+                        >
                           <td className="px-3 py-1.5">
                             <input
                               value={p.parameter}
@@ -2704,25 +2724,12 @@ function MethodologiaTab({
                             )}
                           </td>
                           <td className="px-1 py-1.5 text-center">
-                            <div className="flex flex-col gap-0 opacity-0 group-hover:opacity-100 transition-opacity items-center">
-                              <button
-                                type="button"
-                                onClick={() => moveParam2(p.uid, 'up')}
-                                disabled={catParams.indexOf(p) === 0}
-                                className="text-muted-foreground/50 hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
-                                title="Mover para cima"
-                              >
-                                <ChevronUp className="h-3 w-3" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => moveParam2(p.uid, 'down')}
-                                disabled={catParams.indexOf(p) === catParams.length - 1}
-                                className="text-muted-foreground/50 hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
-                                title="Mover para baixo"
-                              >
-                                <ChevronDown className="h-3 w-3" />
-                              </button>
+                            <div
+                              className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground/30 hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity p-0.5 flex items-center justify-center select-none"
+                              onPointerDown={(e) => { e.preventDefault(); setDraggingParam2(p.uid); }}
+                              title="Arrastar para reordenar"
+                            >
+                              <GripVertical className="h-3.5 w-3.5" />
                             </div>
                           </td>
                           <td className="px-2 py-1.5 text-center">
