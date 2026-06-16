@@ -1193,6 +1193,12 @@ export const ListMethodologiesResponseItem = zod.object({
     .string()
     .nullish()
     .describe("Categoria opcional (ex: Fisico-Quimica, Microbiologica)"),
+  subject: zod
+    .string()
+    .nullish()
+    .describe(
+      "Substancia ou tema principal (ex: Vitamina D, Calcio, L-Triptofano)",
+    ),
   parameter: zod
     .string()
     .nullish()
@@ -1214,6 +1220,7 @@ export const CreateMethodologyBody = zod.object({
   shortName: zod.string(),
   citation: zod.string(),
   category: zod.string().nullish(),
+  subject: zod.string().nullish(),
   parameter: zod.string().nullish(),
   criteria: zod.string().nullish(),
 });
@@ -1229,6 +1236,7 @@ export const UpdateMethodologyBody = zod.object({
   shortName: zod.string(),
   citation: zod.string(),
   category: zod.string().nullish(),
+  subject: zod.string().nullish(),
   parameter: zod.string().nullish(),
   criteria: zod.string().nullish(),
 });
@@ -1241,6 +1249,12 @@ export const UpdateMethodologyResponse = zod.object({
     .string()
     .nullish()
     .describe("Categoria opcional (ex: Fisico-Quimica, Microbiologica)"),
+  subject: zod
+    .string()
+    .nullish()
+    .describe(
+      "Substancia ou tema principal (ex: Vitamina D, Calcio, L-Triptofano)",
+    ),
   parameter: zod
     .string()
     .nullish()

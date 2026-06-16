@@ -10,6 +10,7 @@ const CreateMethodologyBody = z.object({
   shortName: z.string().min(1),
   citation: z.string().min(1),
   category: z.string().nullable().optional(),
+  subject: z.string().nullable().optional(),
   parameter: z.string().nullable().optional(),
   criteria: z.string().nullable().optional(),
 });
@@ -22,6 +23,7 @@ const UpdateMethodologyBody = z.object({
   shortName: z.string().min(1),
   citation: z.string().min(1),
   category: z.string().nullable().optional(),
+  subject: z.string().nullable().optional(),
   parameter: z.string().nullable().optional(),
   criteria: z.string().nullable().optional(),
 });
@@ -46,6 +48,7 @@ router.post("/methodologies", requireAuth, async (req, res): Promise<void> => {
       shortName: parsed.data.shortName,
       citation: parsed.data.citation,
       category: parsed.data.category ?? null,
+      subject: parsed.data.subject ?? null,
       parameter: parsed.data.parameter ?? null,
       criteria: parsed.data.criteria ?? null,
     })
@@ -70,6 +73,7 @@ router.put("/methodologies/:id", requireAuth, async (req, res): Promise<void> =>
       shortName: body.data.shortName,
       citation: body.data.citation,
       category: body.data.category ?? null,
+      subject: body.data.subject ?? null,
       parameter: body.data.parameter ?? null,
       criteria: body.data.criteria ?? null,
     })

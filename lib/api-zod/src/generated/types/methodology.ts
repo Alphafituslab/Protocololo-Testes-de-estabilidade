@@ -14,6 +14,8 @@ export interface Methodology {
   citation: string;
   /** Categoria opcional (ex: Fisico-Quimica, Microbiologica) */
   category?: string | null;
+  /** Substancia ou tema principal (ex: Vitamina D, Calcio, L-Triptofano) */
+  subject?: string | null;
   /** Parametro de analise associado (ex: pH, Umidade) */
   parameter?: string | null;
   /** Criterio / Especificacao associado (ex: 5,0 – 7,0) */

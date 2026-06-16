@@ -1720,6 +1720,10 @@ components:
           type: string
           nullable: true
           description: 'Categoria opcional (ex: Fisico-Quimica, Microbiologica)'
+        subject:
+          type: string
+          nullable: true
+          description: 'Substancia ou tema principal (ex: Vitamina D, Calcio, L-Triptofano)'
         parameter:
           type: string
           nullable: true
@@ -1746,6 +1750,9 @@ components:
         category:
           type: string
           nullable: true
+        subject:
+          type: string
+          nullable: true
         parameter:
           type: string
           nullable: true
@@ -1764,6 +1771,9 @@ components:
         citation:
           type: string
         category:
+          type: string
+          nullable: true
+        subject:
           type: string
           nullable: true
         parameter:

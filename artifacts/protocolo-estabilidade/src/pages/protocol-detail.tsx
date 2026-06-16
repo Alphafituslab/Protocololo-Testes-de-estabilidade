@@ -961,7 +961,7 @@ function ParamMethodSelector({
 }: {
   paramName: string;
   selected: string | null;
-  methodologies: { id: number; shortName: string; citation: string; category?: string | null }[];
+  methodologies: { id: number; shortName: string; citation: string; category?: string | null; subject?: string | null }[];
   catalogEntries?: { shortName: string; citation: string }[];
   onSelect: (shortName: string | null, citation: string | null) => void;
   /** Quando true, renderiza apenas um ícone de edição (para uso ao lado de texto visível). */
@@ -976,7 +976,7 @@ function ParamMethodSelector({
     m => normalizeSearch(m.shortName).includes(norm) || normalizeSearch(m.citation).includes(norm)
   );
   const filteredMethodologies = methodologies.filter(
-    m => normalizeSearch(m.shortName).includes(norm) || normalizeSearch(m.citation).includes(norm)
+    m => normalizeSearch(m.shortName).includes(norm) || normalizeSearch(m.citation).includes(norm) || normalizeSearch(m.subject ?? "").includes(norm)
   );
 
   return (
@@ -1091,7 +1091,10 @@ function ParamMethodSelector({
                   selected === m.shortName && !hasCatalog ? "bg-primary/10 text-primary font-semibold" : ""
                 }`}
               >
-                <div className="font-medium text-[11px]">{m.shortName}</div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-medium text-[11px]">{m.shortName}</span>
+                  {m.subject && <span className="text-[9px] bg-primary/10 text-primary/80 px-1 py-0 rounded font-medium leading-tight">{m.subject}</span>}
+                </div>
                 <div className="text-[9px] text-muted-foreground truncate leading-tight">{m.citation}</div>
               </button>
             ))}
@@ -2317,7 +2320,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
 type MethodologyDialogState =
   | { mode: "closed" }
   | { mode: "create" }
-  | { mode: "edit"; id: number; shortName: string; citation: string; category: string; parameter: string; criteria: string };
+  | { mode: "edit"; id: number; shortName: string; citation: string; category: string; subject: string; parameter: string; criteria: string };
 
 function MethodologiaTab({
   protocolId,
@@ -2524,18 +2527,20 @@ function MethodologiaTab({
   const [shortName, setShortName] = useState("");
   const [citation, setCitation] = useState("");
   const [category, setCategory] = useState("");
+  const [subjectField, setSubjectField] = useState("");
   const [parameterField, setParameterField] = useState("");
   const [criteriaField, setCriteriaField] = useState("");
 
-  const openCreate = () => { setShortName(""); setCitation(""); setCategory(""); setParameterField(""); setCriteriaField(""); setDialog({ mode: "create" }); };
+  const openCreate = () => { setShortName(""); setCitation(""); setCategory(""); setSubjectField(""); setParameterField(""); setCriteriaField(""); setDialog({ mode: "create" }); };
 
-  const openEdit = (m: { id: number; shortName: string; citation: string; category?: string | null; parameter?: string | null; criteria?: string | null }) => {
+  const openEdit = (m: { id: number; shortName: string; citation: string; category?: string | null; subject?: string | null; parameter?: string | null; criteria?: string | null }) => {
     setShortName(m.shortName);
     setCitation(m.citation);
     setCategory(m.category ?? "");
+    setSubjectField(m.subject ?? "");
     setParameterField(m.parameter ?? "");
     setCriteriaField(m.criteria ?? "");
-    setDialog({ mode: "edit", id: m.id, shortName: m.shortName, citation: m.citation, category: m.category ?? "", parameter: m.parameter ?? "", criteria: m.criteria ?? "" });
+    setDialog({ mode: "edit", id: m.id, shortName: m.shortName, citation: m.citation, category: m.category ?? "", subject: m.subject ?? "", parameter: m.parameter ?? "", criteria: m.criteria ?? "" });
   };
 
   const closeDialog = () => setDialog({ mode: "closed" });
@@ -2571,6 +2576,7 @@ function MethodologiaTab({
       shortName: shortName.trim(),
       citation: citation.trim(),
       category: category.trim() || null,
+      subject: subjectField.trim() || null,
       parameter: parameterField.trim() || null,
       criteria: criteriaField.trim() || null,
     };
@@ -2829,6 +2835,15 @@ function MethodologiaTab({
                 />
               </div>
               <div className="space-y-1">
+                <label className="text-sm font-medium">Substância / Tema</label>
+                <Input
+                  placeholder='ex: Vitamina D, Cálcio, L-Triptofano, pH, Microbiológico'
+                  value={subjectField}
+                  onChange={(e) => setSubjectField(e.target.value)}
+                />
+                <p className="text-[11px] text-muted-foreground">Facilita a busca — identifica o ativo ou tema principal da referência.</p>
+              </div>
+              <div className="space-y-1">
                 <label className="text-sm font-medium">Categoria (opcional)</label>
                 <Input
                   placeholder='ex: Fisico-Quimica, Microbiologica, Teor do Ativo'
@@ -2883,6 +2898,7 @@ function MethodologiaTab({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm">{m.shortName}</span>
+                      {m.subject && <Badge variant="secondary" className="text-xs font-normal">{m.subject}</Badge>}
                       {m.category && <Badge variant="outline" className="text-xs">{m.category}</Badge>}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5 break-words">{m.citation}</p>

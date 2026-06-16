@@ -10,6 +10,7 @@ export interface UpdateMethodologyBody {
   shortName: string;
   citation: string;
   category?: string | null;
+  subject?: string | null;
   parameter?: string | null;
   criteria?: string | null;
 }
