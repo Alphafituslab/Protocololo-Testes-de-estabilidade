@@ -2528,6 +2528,7 @@ function MethodologiaTab({
   const [citation, setCitation] = useState("");
   const [category, setCategory] = useState("");
   const [subjectField, setSubjectField] = useState("");
+  const [libSearch, setLibSearch] = useState("");
   const [parameterField, setParameterField] = useState("");
   const [criteriaField, setCriteriaField] = useState("");
 
@@ -2807,6 +2808,26 @@ function MethodologiaTab({
           </Button>
         </div>
 
+        {/* Barra de busca da biblioteca */}
+        <div className="relative mb-3">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            className="pl-8 h-8 text-sm"
+            placeholder="Buscar por nome, substância, categoria ou citação…"
+            value={libSearch}
+            onChange={(e) => setLibSearch(e.target.value)}
+          />
+          {libSearch && (
+            <button
+              type="button"
+              onClick={() => setLibSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
         {/* Dialog de criação / edição */}
         <Dialog open={isOpen} onOpenChange={(o) => { if (!o) closeDialog(); }}>
           <DialogContent>
@@ -2888,9 +2909,28 @@ function MethodologiaTab({
           <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
             Nenhuma referência cadastrada. Clique em "Nova Referência" para começar.
           </div>
+        ) : libSearch.trim() && methodologies.filter((m) => {
+            const q = libSearch.toLowerCase();
+            return m.shortName.toLowerCase().includes(q) || (m.subject ?? "").toLowerCase().includes(q) || (m.category ?? "").toLowerCase().includes(q) || m.citation.toLowerCase().includes(q) || (m.parameter ?? "").toLowerCase().includes(q);
+          }).length === 0 ? (
+          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+            Nenhuma referência encontrada para "<span className="font-medium">{libSearch}</span>".
+          </div>
         ) : (
           <div className="space-y-2">
-            {methodologies.map((m) => {
+            {(libSearch.trim()
+              ? methodologies.filter((m) => {
+                  const q = libSearch.toLowerCase();
+                  return (
+                    m.shortName.toLowerCase().includes(q) ||
+                    (m.subject ?? "").toLowerCase().includes(q) ||
+                    (m.category ?? "").toLowerCase().includes(q) ||
+                    m.citation.toLowerCase().includes(q) ||
+                    (m.parameter ?? "").toLowerCase().includes(q)
+                  );
+                })
+              : methodologies
+            ).map((m) => {
               const docUrl = docUrls[String(m.id)];
               const isEditingDoc = editingDocId === m.id;
               return (
