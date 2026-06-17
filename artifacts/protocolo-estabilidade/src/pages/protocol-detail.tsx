@@ -2529,6 +2529,7 @@ function MethodologiaTab({
   const [category, setCategory] = useState("");
   const [subjectField, setSubjectField] = useState("");
   const [libSearch, setLibSearch] = useState("");
+  const [dupWarning, setDupWarning] = useState<{ match: (typeof methodologies)[0]; proceed: () => void } | null>(null);
   const [parameterField, setParameterField] = useState("");
   const [criteriaField, setCriteriaField] = useState("");
 
@@ -2570,6 +2571,11 @@ function MethodologiaTab({
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  const _normCit = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+  const _authorPart = (cit: string) => { const i = cit.indexOf(". "); return _normCit(i > 0 ? cit.slice(0, i) : cit); };
+
+  const doCreate = (data: Parameters<typeof createMutation.mutate>[0]["data"]) => createMutation.mutate({ data });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!shortName.trim() || !citation.trim()) return;
@@ -2583,9 +2589,20 @@ function MethodologiaTab({
     };
     if (isEditing && dialog.mode === "edit") {
       updateMutation.mutate({ id: dialog.id, data });
-    } else {
-      createMutation.mutate({ data });
+      return;
     }
+    // Duplicate check: same shortName (normalized) or same ABNT author part
+    const newAuthor = _authorPart(data.citation);
+    const newShort = _normCit(data.shortName);
+    const match = methodologies.find((m) =>
+      _normCit(m.shortName) === newShort ||
+      (newAuthor.length > 4 && _authorPart(m.citation) === newAuthor)
+    );
+    if (match) {
+      setDupWarning({ match, proceed: () => { setDupWarning(null); doCreate(data); } });
+      return;
+    }
+    doCreate(data);
   };
 
   const _normLib = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -2913,6 +2930,31 @@ function MethodologiaTab({
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* AlertDialog — referência duplicada */}
+        <AlertDialog open={!!dupWarning} onOpenChange={(o) => { if (!o) setDupWarning(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Referência possivelmente duplicada</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-2 text-sm">
+                  <p>Já existe uma referência semelhante na biblioteca:</p>
+                  <div className="rounded-md border bg-muted/50 px-3 py-2 text-xs space-y-0.5">
+                    <p className="font-semibold">{dupWarning?.match.shortName}</p>
+                    <p className="text-muted-foreground break-words">{dupWarning?.match.citation}</p>
+                  </div>
+                  <p>Deseja cadastrar mesmo assim?</p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => dupWarning?.proceed()}>
+                Sim, cadastrar mesmo assim
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {isLoading ? (
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
