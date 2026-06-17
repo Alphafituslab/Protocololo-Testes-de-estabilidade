@@ -2590,7 +2590,7 @@ function MethodologiaTab({
 
   const _normLib = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const _libQ = _normLib(libSearch.trim());
-  const filteredMethodologies = _libQ
+  const filteredMethodologies = (_libQ
     ? methodologies.filter((m) =>
         _normLib(m.shortName).includes(_libQ) ||
         _normLib(m.subject ?? "").includes(_libQ) ||
@@ -2598,7 +2598,8 @@ function MethodologiaTab({
         _normLib(m.citation).includes(_libQ) ||
         _normLib(m.parameter ?? "").includes(_libQ)
       )
-    : methodologies;
+    : [...methodologies]
+  ).sort((a, b) => _normLib(a.shortName).localeCompare(_normLib(b.shortName)));
 
   return (
     <div className="space-y-6">
