@@ -147,12 +147,12 @@ export default function ProtocolForm() {
           storageHumidity: "75% UR ± 5% UR",
           studyPeriodMonths: 6,
           testIntervals: "0, 3, 6 meses",
-          elaboratedBy: "Clayton Borges da Silva — Representante Legal CRF: 18580",
+          elaboratedBy: "Edson Zaldguer — Representante Legal CRQ: 13303282",
           approvedBy: "Clayton Borges da Silva — Representante Legal CRF: 18580",
-          issuedBy: "Caroline Batista Pacheco — Responsável Técnica CRF: 7698",
+          issuedBy: "Edson Zaldguer — Responsável Técnica CRQ: 13303282",
           seniorAnalyst: "Clayton Borges da Silva — Representante Legal CRF: 18580",
           seniorAnalystEmail: "claytonborges@alphafitus.com",
-          issuedByEmail: "carolinepacheco@alphafitus.com.br",
+          issuedByEmail: "edsonzaldguer@alphafitus.com.br",
         },
   });
 
