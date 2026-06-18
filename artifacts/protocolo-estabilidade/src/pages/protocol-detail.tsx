@@ -1862,9 +1862,20 @@ type KineticOverride = {
 function parseCriterionRange(criterion: string | null | undefined): { min: string; max: string } {
   if (!criterion) return { min: "", max: "" };
   const normalized = criterion.replace(/,/g, ".").replace(/[–—]/g, "-").replace(/%/g, "").trim();
-  const match = normalized.match(/(\d+\.?\d*)\s*-\s*(\d+\.?\d*)/);
-  if (!match) return { min: "", max: "" };
-  return { min: match[1], max: match[2] };
+
+  // Case 1: full range "X - Y" (e.g. "98.50 - 100.50")
+  const rangeMatch = normalized.match(/(\d+\.?\d*)\s*-\s*(\d+\.?\d*)/);
+  if (rangeMatch) return { min: rangeMatch[1], max: rangeMatch[2] };
+
+  // Case 2: minimum-only spec "Mín. X" / "Min X" / "≥ X" (e.g. "Mín. 80 do valor declarado")
+  const minOnlyMatch = normalized.match(/(?:m[íi]n\.?\s*|>=?\s*|≥\s*)(\d+\.?\d*)/i);
+  if (minOnlyMatch) return { min: minOnlyMatch[1], max: "" };
+
+  // Case 3: bare single number
+  const singleMatch = normalized.match(/^(\d+\.?\d*)$/);
+  if (singleMatch) return { min: singleMatch[1], max: "" };
+
+  return { min: "", max: "" };
 }
 
 /**
@@ -2085,8 +2096,8 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
         shelfLife: recomputed.shelfLife ?? base.shelfLife,
         validadePraticada: saved.validadePraticada ?? base.validadePraticada,
         ichThreshold,
-        specMin: saved.specMin ?? base.specMin,
-        specMax: saved.specMax ?? base.specMax,
+        specMin: saved.specMin || base.specMin,
+        specMax: saved.specMax || base.specMax,
       };
     }
     setOverrides(next);
