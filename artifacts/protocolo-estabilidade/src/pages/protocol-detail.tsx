@@ -2027,10 +2027,10 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     }
 
     try {
-      const parsed: Array<{ label: string; key: string; category: string; uid: string }> =
+      const parsed: Array<{ parameter: string; category: string; uid: string }> =
         customParamsJson ? JSON.parse(customParamsJson) : [];
       const updated = parsed.filter(
-        (p) => !(p.category === "teor_ativo" && p.label === deleteConfirm?.param),
+        (p) => !(p.category === "teor_ativo" && p.parameter === deleteConfirm?.param),
       );
       await updateProtocol.mutateAsync({
         id: protocolId,

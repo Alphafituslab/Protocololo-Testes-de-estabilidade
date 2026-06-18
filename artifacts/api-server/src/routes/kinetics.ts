@@ -75,13 +75,12 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
   try {
     if (protocol?.customParamsJson) {
       const parsed = JSON.parse(protocol.customParamsJson) as Array<{
-        label: string;
-        key: string;
+        parameter: string;
         category: string;
       }>;
       const registered = parsed
         .filter((p) => p.category === "teor_ativo")
-        .map((p) => p.label);
+        .map((p) => p.parameter);
       if (registered.length > 0) {
         // Only include params that actually have at least one result row
         activeParamNames = registered.filter((name) =>
