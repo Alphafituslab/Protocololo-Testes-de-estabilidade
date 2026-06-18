@@ -1,9 +1,11 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, analysisResultsTable, lotsTable } from "@workspace/db";
+import { db, analysisResultsTable, lotsTable, protocolsTable } from "@workspace/db";
 import { GetKineticsParams } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+
+void lotsTable;
 
 /**
  * ICH Q1A(R2) minimum content threshold for shelf-life estimation.
@@ -54,21 +56,67 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
     return;
   }
 
+  // Fetch protocol to get customParamsJson (authoritative parameter list)
+  const [protocol] = await db
+    .select({ customParamsJson: protocolsTable.customParamsJson })
+    .from(protocolsTable)
+    .where(eq(protocolsTable.id, params.data.id));
+
   const results = await db
     .select()
     .from(analysisResultsTable)
     .where(eq(analysisResultsTable.protocolId, params.data.id));
 
-  // Dynamically discover all teor_ativo parameters present in this protocol's results.
-  // This replaces the previous hardcoded ["Calcio", "Vitamina D"] list so that any
-  // active ingredient — Creatina, Magnésio, Vitamina C, etc. — is handled automatically.
-  const activeParamNames = Array.from(
-    new Set(
-      results
-        .filter((r) => r.category === "teor_ativo")
-        .map((r) => r.parameter),
-    ),
-  ).sort();
+  // Determine the authoritative teor_ativo parameter names from customParamsJson.
+  // This prevents phantom duplicate rows when results were accidentally entered
+  // under slightly different names (e.g. "Creatina" vs "Creatina monohidratada").
+  // Falls back to dynamic discovery only when customParamsJson has no teor_ativo entries.
+  let activeParamNames: string[];
+  try {
+    if (protocol?.customParamsJson) {
+      const parsed = JSON.parse(protocol.customParamsJson) as Array<{
+        label: string;
+        key: string;
+        category: string;
+      }>;
+      const registered = parsed
+        .filter((p) => p.category === "teor_ativo")
+        .map((p) => p.label);
+      if (registered.length > 0) {
+        // Only include params that actually have at least one result row
+        activeParamNames = registered.filter((name) =>
+          results.some((r) => r.category === "teor_ativo" && r.parameter === name),
+        );
+      } else {
+        // No teor_ativo params registered yet — fall back to discovery
+        activeParamNames = Array.from(
+          new Set(
+            results
+              .filter((r) => r.category === "teor_ativo")
+              .map((r) => r.parameter),
+          ),
+        ).sort();
+      }
+    } else {
+      // No customParamsJson at all — fall back to discovery
+      activeParamNames = Array.from(
+        new Set(
+          results
+            .filter((r) => r.category === "teor_ativo")
+            .map((r) => r.parameter),
+        ),
+      ).sort();
+    }
+  } catch {
+    // Parse error — fall back to discovery
+    activeParamNames = Array.from(
+      new Set(
+        results
+          .filter((r) => r.category === "teor_ativo")
+          .map((r) => r.parameter),
+      ),
+    ).sort();
+  }
 
   const kineticData: Record<string, { t0vals: number[]; t3vals: number[]; t6vals: number[]; criterion: string | null }> = {};
   for (const p of activeParamNames) {

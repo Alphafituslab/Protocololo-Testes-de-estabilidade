@@ -1957,11 +1957,12 @@ function buildKineticOverride(p: KineticApiParam): KineticOverride {
   };
 }
 
-function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths }: {
+function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths, customParamsJson }: {
   protocolId: number;
   productName: string;
   initialKineticsNotes?: string | null;
   initialValidityMonths?: number | null;
+  customParamsJson?: string | null;
 }) {
   const { data: kinetics, isLoading } = useGetKinetics(protocolId, {
     query: { queryKey: getGetKineticsQueryKey(protocolId), staleTime: 0 },
@@ -1998,6 +1999,55 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     return initialKineticsNotes ?? "";
   });
   const [customShelfLife, setCustomShelfLife] = useState<string>("");
+  const [deleteConfirm, setDeleteConfirm] = useState<{ param: string } | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const queryClient = useQueryClient();
+
+  const handleDeleteParam = async () => {
+    setDeleteError("");
+    setIsDeleting(true);
+    try {
+      const resp = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: deletePassword }),
+      });
+      if (!resp.ok) {
+        setDeleteError("Senha incorreta.");
+        setIsDeleting(false);
+        return;
+      }
+    } catch {
+      setDeleteError("Erro ao verificar senha.");
+      setIsDeleting(false);
+      return;
+    }
+
+    try {
+      const parsed: Array<{ label: string; key: string; category: string; uid: string }> =
+        customParamsJson ? JSON.parse(customParamsJson) : [];
+      const updated = parsed.filter(
+        (p) => !(p.category === "teor_ativo" && p.label === deleteConfirm?.param),
+      );
+      await updateProtocol.mutateAsync({
+        id: protocolId,
+        data: { customParamsJson: JSON.stringify(updated) },
+      });
+      queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
+    } catch {
+      setDeleteError("Erro ao remover parâmetro.");
+      setIsDeleting(false);
+      return;
+    }
+
+    setDeleteConfirm(null);
+    setDeletePassword("");
+    setDeleteError("");
+    setIsDeleting(false);
+  };
 
   // Re-runs every time the kinetics API data changes (i.e. after a result upsert
   // invalidates the query). T0/T3/T6 always come fresh from the API; user-edited
@@ -2210,6 +2260,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               <TableHead className="text-right text-xs bg-amber-50/60 whitespace-nowrap">Vida Útil Calculada (meses)</TableHead>
               <TableHead className="text-right text-xs whitespace-nowrap">Validade Adotada (meses)</TableHead>
               <TableHead className="text-right text-xs whitespace-nowrap">Espec. mín – máx (%)</TableHead>
+              <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -2249,12 +2300,73 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       <EditableNum value={ov.specMax} onChange={(v) => setField(p.parameter, "specMax", v)} width="w-14" placeholder="máx" />
                     </div>
                   </TableCell>
+                  <TableCell className="py-2 text-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                      title="Remover parâmetro da tabela cinética"
+                      onClick={() => {
+                        setDeleteConfirm({ param: p.parameter });
+                        setDeletePassword("");
+                        setDeleteError("");
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               );
             })}
           </TableBody>
         </Table>
       </div>
+
+      {/* Delete parameter confirmation dialog */}
+      <AlertDialog open={deleteConfirm !== null} onOpenChange={(open) => { if (!open) { setDeleteConfirm(null); setDeletePassword(""); setDeleteError(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-700 flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Remover parâmetro da cinética
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Você está prestes a remover <strong className="text-foreground">{deleteConfirm?.param}</strong> da tabela cinética deste protocolo.
+                </p>
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                  <p className="font-semibold">⚠ Esta ação é IRREVERSÍVEL.</p>
+                  <p className="mt-1">O parâmetro será removido da lista de ativos do protocolo. Os resultados de análise já registrados <strong>não serão apagados</strong>.</p>
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-sm font-medium text-foreground">Digite a senha mestra para confirmar:</p>
+                  <Input
+                    type="password"
+                    placeholder="Senha mestra"
+                    value={deletePassword}
+                    onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(""); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleDeleteParam(); }}
+                    autoFocus
+                  />
+                  {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting} onClick={() => { setDeleteConfirm(null); setDeletePassword(""); setDeleteError(""); }}>
+              Cancelar
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={isDeleting || !deletePassword}
+              onClick={handleDeleteParam}
+            >
+              {isDeleting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Removendo…</> : "Remover parâmetro"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Step-by-step formula breakdown */}
       <div className="rounded-md bg-slate-50 border border-slate-200 p-5 text-sm text-slate-700 space-y-4">
@@ -3770,6 +3882,7 @@ export default function ProtocolDetail() {
                 productName={protocol.productName}
                 initialKineticsNotes={protocol.kineticsNotes}
                 initialValidityMonths={protocol.validityMonths}
+                customParamsJson={protocol.customParamsJson}
               />
             </CardContent>
           </Card>
