@@ -178,6 +178,14 @@ function SidebarFooter() {
       >
         <LogOut className="h-3.5 w-3.5" /> Sair da conta
       </button>
+      <div className="px-3 pt-1">
+        <span
+          className="text-[10px] font-mono text-muted-foreground/50 select-none"
+          title={`Publicado em ${BUILD_DATE}`}
+        >
+          v{BUILD_NUMBER}
+        </span>
+      </div>
     </div>
   );
 }
@@ -366,18 +374,6 @@ function useGlobalLocalStorageMigration() {
   }, []);
 }
 
-function BuildBadge() {
-  return (
-    <div
-      className="fixed bottom-3 right-3 z-50 print:hidden"
-      title={`Publicado em ${BUILD_DATE}`}
-    >
-      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-mono text-primary/60 select-none">
-        v{BUILD_NUMBER}
-      </span>
-    </div>
-  );
-}
 
 function App() {
   useGlobalLocalStorageMigration();
@@ -390,7 +386,6 @@ function App() {
           </WouterRouter>
         </AuthProvider>
         <Toaster />
-        <BuildBadge />
       </TooltipProvider>
     </QueryClientProvider>
   );
