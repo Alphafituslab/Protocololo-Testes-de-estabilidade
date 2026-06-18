@@ -151,11 +151,11 @@ function UserMenu() {
 
 function SidebarFooter() {
   const { user, logout, isAdmin } = useAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   if (!user) return null;
   const initials = user.displayName.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
   return (
-    <div className="border-t border-border p-3 space-y-2">
+    <div className="border-t border-border p-3 space-y-1">
       <div className="flex items-center gap-2 px-2 py-1">
         <Avatar className="h-7 w-7 shrink-0">
           <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">{initials}</AvatarFallback>
@@ -174,11 +174,25 @@ function SidebarFooter() {
         </button>
       )}
       <button
+        onClick={() => navigate("/snapshots")}
+        className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors ${location === "/snapshots" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
+      >
+        <History className="h-3.5 w-3.5" /> Snapshots &amp; Restauração
+      </button>
+      <button
         onClick={async () => { await logout(); }}
         className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-destructive hover:bg-destructive/10 transition-colors font-medium"
       >
         <LogOut className="h-3.5 w-3.5" /> Sair da conta
       </button>
+      <div className="px-3 pt-1">
+        <span
+          className="text-[10px] font-mono text-muted-foreground/40 select-none"
+          title={`Publicado em ${BUILD_DATE}`}
+        >
+          v{BUILD_NUMBER}
+        </span>
+      </div>
     </div>
   );
 }
@@ -202,17 +216,6 @@ function Layout({ children }: { children: React.ReactNode }) {
           <Link href="/catalog" className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${location === "/catalog" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
             <BookOpen className="h-4 w-4" /> Cadastros
           </Link>
-          <Link href="/snapshots" className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${location === "/snapshots" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
-            <History className="h-4 w-4" /> Snapshots &amp; Restauração
-          </Link>
-          <div className="px-3 pt-0.5 pb-1">
-            <span
-              className="text-[10px] font-mono text-muted-foreground/40 select-none"
-              title={`Publicado em ${BUILD_DATE}`}
-            >
-              v{BUILD_NUMBER}
-            </span>
-          </div>
         </nav>
         <SidebarFooter />
       </aside>
