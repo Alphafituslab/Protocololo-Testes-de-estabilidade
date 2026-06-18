@@ -14,9 +14,10 @@ import LoginPage from "./pages/login";
 import UsersPage, { ROLE_LABELS } from "./pages/users";
 import CatalogPage from "./pages/catalog";
 import BackupPage from "./pages/backup";
+import SnapshotsGlobalPage from "./pages/snapshots-global";
 import { AuthProvider } from "@/contexts/auth-context";
 import { useAuth } from "@/contexts/use-auth";
-import { FileText, Home, Users, LogOut, Loader2, AlertTriangle, RefreshCcw, BookOpen, DatabaseBackup } from "lucide-react";
+import { FileText, Home, Users, LogOut, Loader2, AlertTriangle, RefreshCcw, BookOpen, DatabaseBackup, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -178,14 +179,6 @@ function SidebarFooter() {
       >
         <LogOut className="h-3.5 w-3.5" /> Sair da conta
       </button>
-      <div className="px-3 pt-1">
-        <span
-          className="text-[10px] font-mono text-muted-foreground/50 select-none"
-          title={`Publicado em ${BUILD_DATE}`}
-        >
-          v{BUILD_NUMBER}
-        </span>
-      </div>
     </div>
   );
 }
@@ -209,6 +202,17 @@ function Layout({ children }: { children: React.ReactNode }) {
           <Link href="/catalog" className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${location === "/catalog" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
             <BookOpen className="h-4 w-4" /> Cadastros
           </Link>
+          <Link href="/snapshots" className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${location === "/snapshots" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
+            <History className="h-4 w-4" /> Snapshots &amp; Restauração
+          </Link>
+          <div className="px-3 pt-0.5 pb-1">
+            <span
+              className="text-[10px] font-mono text-muted-foreground/40 select-none"
+              title={`Publicado em ${BUILD_DATE}`}
+            >
+              v{BUILD_NUMBER}
+            </span>
+          </div>
         </nav>
         <SidebarFooter />
       </aside>
@@ -305,7 +309,8 @@ const ProtocolReportRoute = () => <ProtectedDetailRoute component={ProtocolRepor
 const ProtocolDetailRoute = () => <ProtectedRoute component={ProtocolDetail} />;
 const UsersRoute = () => <ProtectedRoute component={UsersPage} />;
 const CatalogRoute = () => <ProtectedRoute component={CatalogPage} />;
-  const BackupRoute   = () => <ProtectedRoute component={BackupPage} />;
+  const BackupRoute           = () => <ProtectedRoute component={BackupPage} />;
+const SnapshotsGlobalRoute  = () => <ProtectedRoute component={SnapshotsGlobalPage} />;
 
 const LoginRoute = () => (
   <AppErrorBoundary>
@@ -325,8 +330,9 @@ function Router() {
       <Route path="/protocols/:id/report" component={ProtocolReportRoute} />
       <Route path="/protocols/:id" component={ProtocolDetailRoute} />
       <Route path="/users" component={UsersRoute} />
-      <Route path="/catalog" component={CatalogRoute} />
-        <Route path="/backup"  component={BackupRoute} />
+      <Route path="/catalog"    component={CatalogRoute} />
+      <Route path="/snapshots" component={SnapshotsGlobalRoute} />
+      <Route path="/backup"    component={BackupRoute} />
       <Route component={NotFound} />
     </Switch>
   );

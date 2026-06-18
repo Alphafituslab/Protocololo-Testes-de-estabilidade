@@ -13,3 +13,4 @@ export * from "./capsule_types";
 export * from "./product_types";
 export * from "./bibliographic_references";
 export * from "./protocol_snapshots";
+export * from "./global_snapshots";

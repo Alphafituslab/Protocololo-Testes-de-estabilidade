@@ -18,6 +18,7 @@ import catalogRouter from "./catalog";
 import backupRouter from "./backup";
 import bibliographicReferencesRouter from "./bibliographic-references";
 import snapshotsRouter from "./snapshots";
+import globalSnapshotsRouter from "./global-snapshots";
 
 const router: IRouter = Router();
 
@@ -41,5 +42,6 @@ router.use(catalogRouter);
 router.use(backupRouter);
 router.use(bibliographicReferencesRouter);
 router.use(snapshotsRouter);
+router.use(globalSnapshotsRouter);
 
 export default router;
