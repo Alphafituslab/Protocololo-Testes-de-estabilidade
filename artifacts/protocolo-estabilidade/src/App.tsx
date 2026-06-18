@@ -2,6 +2,7 @@ import { Switch, Route, Router as WouterRouter, useLocation, Link } from "wouter
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { BUILD_NUMBER, BUILD_DATE } from "@/build-info";
 import NotFound from "@/pages/not-found";
 import Dashboard from "./pages/dashboard";
 import ProtocolsList from "./pages/protocols-list";
@@ -365,6 +366,19 @@ function useGlobalLocalStorageMigration() {
   }, []);
 }
 
+function BuildBadge() {
+  return (
+    <div
+      className="fixed bottom-3 right-3 z-50 print:hidden"
+      title={`Publicado em ${BUILD_DATE}`}
+    >
+      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-mono text-primary/60 select-none">
+        v{BUILD_NUMBER}
+      </span>
+    </div>
+  );
+}
+
 function App() {
   useGlobalLocalStorageMigration();
   return (
@@ -376,6 +390,7 @@ function App() {
           </WouterRouter>
         </AuthProvider>
         <Toaster />
+        <BuildBadge />
       </TooltipProvider>
     </QueryClientProvider>
   );
