@@ -958,6 +958,7 @@ function ParamMethodSelector({
   catalogEntries = [],
   onSelect,
   compact = false,
+  hideRemove = false,
 }: {
   paramName: string;
   selected: string | null;
@@ -966,6 +967,8 @@ function ParamMethodSelector({
   onSelect: (shortName: string | null, citation: string | null) => void;
   /** Quando true, renderiza apenas um ícone de edição (para uso ao lado de texto visível). */
   compact?: boolean;
+  /** Quando true, esconde o botão "× Remover seleção" dentro do popover. */
+  hideRemove?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -1101,7 +1104,7 @@ function ParamMethodSelector({
           </div>
         ) : null}
 
-        {selected && (
+        {selected && !hideRemove && (
           <div className="border-t mt-1.5 pt-1">
             <button
               type="button"
@@ -2578,6 +2581,42 @@ function MethodologiaTab({
   const setDraggingParam2 = (uid: string | null) => { draggingParamRef2.current = uid; setDraggingParamUid2(uid); };
   const setDragOverParam2 = (uid: string | null) => { dragOverParamRef2.current = uid; setDragOverParamUid2(uid); };
 
+  const [removeMethodConfirm, setRemoveMethodConfirm] = useState<{ uid: string; paramName: string; shortName: string } | null>(null);
+  const [removeMethodPwd, setRemoveMethodPwd] = useState("");
+  const [removeMethodError, setRemoveMethodError] = useState("");
+  const [isRemovingMethod, setIsRemovingMethod] = useState(false);
+
+  const handleRemoveMethodology = async () => {
+    if (!removeMethodConfirm) return;
+    setRemoveMethodError("");
+    setIsRemovingMethod(true);
+    try {
+      const resp = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: removeMethodPwd }),
+      });
+      if (!resp.ok) {
+        setRemoveMethodError("Senha incorreta.");
+        setIsRemovingMethod(false);
+        return;
+      }
+    } catch {
+      setRemoveMethodError("Erro ao verificar senha.");
+      setIsRemovingMethod(false);
+      return;
+    }
+    setEditableParams(prev => prev.map(p =>
+      p.uid === removeMethodConfirm.uid
+        ? { ...p, methodologyShort: undefined, methodologyCitation: undefined }
+        : p
+    ));
+    setRemoveMethodConfirm(null);
+    setRemoveMethodPwd("");
+    setRemoveMethodError("");
+    setIsRemovingMethod(false);
+  };
+
   useEffect(() => {
     const onPointerUp2 = () => {
       const from = draggingParamRef2.current;
@@ -2853,14 +2892,29 @@ function MethodologiaTab({
                                     </p>
                                   )}
                                 </div>
-                                <ParamMethodSelector
-                                  paramName={p.parameter}
-                                  selected={p.methodologyShort ?? null}
-                                  methodologies={methodologies}
-                                  catalogEntries={getCatalogEntries(p.parameter)}
-                                  onSelect={(s, c) => setParamMethodInTab(p.uid, p.parameter, s, c)}
-                                  compact
-                                />
+                                <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
+                                  <ParamMethodSelector
+                                    paramName={p.parameter}
+                                    selected={p.methodologyShort ?? null}
+                                    methodologies={methodologies}
+                                    catalogEntries={getCatalogEntries(p.parameter)}
+                                    onSelect={(s, c) => setParamMethodInTab(p.uid, p.parameter, s, c)}
+                                    compact
+                                    hideRemove
+                                  />
+                                  <button
+                                    type="button"
+                                    title="Remover metodologia (requer senha)"
+                                    className="flex items-center justify-center h-5 w-5 rounded text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                    onClick={() => {
+                                      setRemoveMethodConfirm({ uid: p.uid, paramName: p.parameter, shortName: p.methodologyShort! });
+                                      setRemoveMethodPwd("");
+                                      setRemoveMethodError("");
+                                    }}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </div>
                               </div>
                             ) : (
                               <ParamMethodSelector
@@ -3214,6 +3268,66 @@ function MethodologiaTab({
         )}
       </div>
     </div>
+
+      {/* AlertDialog — remover metodologia com senha */}
+      <AlertDialog
+        open={removeMethodConfirm !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRemoveMethodConfirm(null);
+            setRemoveMethodPwd("");
+            setRemoveMethodError("");
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-700 flex items-center gap-2">
+              <X className="h-5 w-5" /> Remover metodologia
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Você está prestes a remover a metodologia{" "}
+                  <strong className="text-foreground">"{removeMethodConfirm?.shortName}"</strong>{" "}
+                  do parâmetro{" "}
+                  <strong className="text-foreground">"{removeMethodConfirm?.paramName}"</strong>.
+                </p>
+                <p className="text-sm">
+                  O parâmetro continuará cadastrado; apenas a referência metodológica será desvinculada.
+                </p>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">Senha mestra</label>
+                  <input
+                    type="password"
+                    autoFocus
+                    value={removeMethodPwd}
+                    onChange={(e) => setRemoveMethodPwd(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleRemoveMethodology(); }}
+                    className="w-full rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    placeholder="Digite a senha mestra"
+                  />
+                  {removeMethodError && (
+                    <p className="text-xs text-red-600 font-medium">{removeMethodError}</p>
+                  )}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setRemoveMethodConfirm(null); setRemoveMethodPwd(""); setRemoveMethodError(""); }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={(e) => { e.preventDefault(); handleRemoveMethodology(); }}
+              disabled={isRemovingMethod || !removeMethodPwd}
+            >
+              {isRemovingMethod ? "Verificando…" : "Remover metodologia"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
   );
 }
 
