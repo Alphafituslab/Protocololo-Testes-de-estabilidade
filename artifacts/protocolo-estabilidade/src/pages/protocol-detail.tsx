@@ -2770,7 +2770,8 @@ function MethodologiaTab({
   ).sort((a, b) => _normLib(a.shortName).localeCompare(_normLib(b.shortName)));
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
 
       {/* ═══════════════════════════════════════════════════════════════
           SEÇÃO 1 — PARÂMETROS CADASTRADOS
@@ -3328,6 +3329,7 @@ function MethodologiaTab({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </>
   );
 }
 

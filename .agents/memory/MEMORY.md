@@ -4,3 +4,4 @@
 - [Sistema de Permissões Granulares](permissions-system.md) — 13 permissões, admin implícito, lock pós-assinatura; como estender e onde estão os arquivos-chave.
 - [Persistência de datas e metodologias](period-dates-methods-persistence.md) — periodDates e paramMethods agora no banco (3 colunas novas); padrão de hidratação localStorage + save debounced 800ms.
 - [Política de dados — nunca apagar](data-deletion-policy.md) — NUNCA deletar dados já cadastrados sem aprovação explícita do usuário; qualquer operação destrutiva exige confirmação antes de executar.
+- [MethodologiaTab JSX — Fragment obrigatório](metodologia-tab-jsx.md) — return usa `<>` Fragment: Seção 1 (space-y-6) e Seção 2 (border-t) são elementos raiz separados; dialogs globais ficam como terceiro filho do Fragment.
