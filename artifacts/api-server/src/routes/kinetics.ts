@@ -72,15 +72,27 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
   // under slightly different names (e.g. "Creatina" vs "Creatina monohidratada").
   // Falls back to dynamic discovery only when customParamsJson has no teor_ativo entries.
   let activeParamNames: string[];
+  // criterionFromParams: criterion defined on the parameter itself (customParamsJson),
+  // which is the authoritative source (set by the user and the methodology library).
+  const criterionFromParams: Record<string, string> = {};
   try {
     if (protocol?.customParamsJson) {
       const parsed = JSON.parse(protocol.customParamsJson) as Array<{
         parameter: string;
         category: string;
+        criterion?: string;
       }>;
       const registered = parsed
         .filter((p) => p.category === "teor_ativo")
         .map((p) => p.parameter);
+
+      // Build criterion map from customParamsJson (primary source)
+      for (const p of parsed) {
+        if (p.category === "teor_ativo" && p.parameter && p.criterion) {
+          criterionFromParams[p.parameter] = p.criterion;
+        }
+      }
+
       if (registered.length > 0) {
         // Only include params that actually have at least one result row
         activeParamNames = registered.filter((name) =>
@@ -119,13 +131,15 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
 
   const kineticData: Record<string, { t0vals: number[]; t3vals: number[]; t6vals: number[]; criterion: string | null }> = {};
   for (const p of activeParamNames) {
-    kineticData[p] = { t0vals: [], t3vals: [], t6vals: [], criterion: null };
+    // Seed criterion from customParamsJson (authoritative); analysis_results.criterion is fallback
+    kineticData[p] = { t0vals: [], t3vals: [], t6vals: [], criterion: criterionFromParams[p] ?? null };
   }
 
   for (const r of results) {
     if (r.category !== "teor_ativo") continue;
     const entry = kineticData[r.parameter];
     if (!entry) continue;
+    // Only use analysis_results.criterion as fallback when customParamsJson had none
     if (!entry.criterion && r.criterion) entry.criterion = r.criterion;
     const val = r.numericResult;
     if (val == null) continue;
