@@ -12,8 +12,52 @@ import { useToast } from "@/hooks/use-toast";
 import {
   History, Plus, Download, RotateCcw, ShieldAlert,
   Clock, User, HardDrive, Loader2, Search, CheckCircle2,
-  AlertTriangle, Info,
+  AlertTriangle, Info, FolderOpen,
 } from "lucide-react";
+
+/**
+ * Download a blob using the File System Access API ("Save As" dialog).
+ * Falls back to a regular <a download> if the API is not available.
+ */
+async function saveFileAs(blob: Blob, suggestedName: string): Promise<void> {
+  if ("showSaveFilePicker" in window) {
+    try {
+      const handle = await (window as unknown as {
+        showSaveFilePicker: (opts: object) => Promise<{ createWritable: () => Promise<{ write: (b: Blob) => Promise<void>; close: () => Promise<void> }> }>;
+      }).showSaveFilePicker({
+        suggestedName,
+        types: [{ description: "Arquivo JSON de backup", accept: { "application/json": [".json"] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (e) {
+      // User cancelled — don't fall through to auto-download
+      if ((e as Error).name === "AbortError") return;
+    }
+  }
+  // Fallback: browser default download (no folder picker)
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = suggestedName;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+}
+
+/**
+ * Fetch snapshot data from API and save via "Save As" dialog (or browser default).
+ */
+async function downloadSnapshot(id: number, createdAt: string): Promise<void> {
+  const res = await fetch(`/api/global-snapshots/${id}/download`, { credentials: "include" });
+  if (!res.ok) throw new Error(`Erro ${res.status} ao buscar snapshot`);
+  const text = await res.text();
+  const blob = new Blob([text], { type: "application/json" });
+  const ts = new Date(createdAt).toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  await saveFileAs(blob, `alphafitus-backup-${id}-${ts}.json`);
+}
 
 interface Snapshot {
   id: number;
@@ -108,18 +152,39 @@ export default function SnapshotsGlobalPage() {
     if (!restoreTarget) return;
     setIsDownloadingBefore(true);
     try {
-      // Create a snapshot of current state, then trigger download
       const snap = await apiFetch<Snapshot>("/api/global-snapshots", {
         method: "POST",
         body: JSON.stringify({ label: "Backup manual antes de restaurar" }),
       });
       qc.invalidateQueries({ queryKey: ["global-snapshots"] });
-      window.open(`/api/global-snapshots/${snap.id}/download`, "_blank");
-      toast({ title: "Backup atual salvo e baixado!", description: snap.label });
+      await downloadSnapshot(snap.id, snap.createdAt);
+      toast({ title: "Backup salvo!", description: snap.label });
     } catch (e) {
       toast({ title: "Erro ao baixar backup", description: (e as Error).message, variant: "destructive" });
     } finally {
       setIsDownloadingBefore(false);
+    }
+  }
+
+  // ── Export now ────────────────────────────────────────────────────────────
+  const [isExporting, setIsExporting] = useState(false);
+
+  async function handleExportNow() {
+    setIsExporting(true);
+    try {
+      const snap = await apiFetch<Snapshot>("/api/global-snapshots", {
+        method: "POST",
+        body: JSON.stringify({ label: `Exportação manual — ${new Date().toLocaleString("pt-BR")}` }),
+      });
+      qc.invalidateQueries({ queryKey: ["global-snapshots"] });
+      await downloadSnapshot(snap.id, snap.createdAt);
+      toast({ title: "Banco exportado!", description: "Arquivo salvo no local escolhido." });
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") {
+        toast({ title: "Erro na exportação", description: (e as Error).message, variant: "destructive" });
+      }
+    } finally {
+      setIsExporting(false);
     }
   }
 
@@ -163,6 +228,29 @@ export default function SnapshotsGlobalPage() {
           <Plus className="h-4 w-4" /> Criar Snapshot
         </Button>
       </div>
+
+      {/* Export now */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FolderOpen className="h-4 w-4 text-primary" /> Exportar banco de dados para o seu computador
+          </CardTitle>
+          <CardDescription>
+            Cria um snapshot da versão atual e abre o diálogo <strong>"Salvar como…"</strong> para você escolher
+            a pasta no seu computador onde o arquivo JSON será salvo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={handleExportNow} disabled={isExporting} className="gap-2">
+            {isExporting
+              ? <><Loader2 className="h-4 w-4 animate-spin" /> Gerando arquivo...</>
+              : <><FolderOpen className="h-4 w-4" /> Exportar agora — Salvar como...</>}
+          </Button>
+          <p className="text-xs text-muted-foreground mt-2">
+            O arquivo também fica salvo na lista de snapshots abaixo, no servidor, como garantia adicional.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Date/time finder */}
       <Card>
@@ -272,11 +360,16 @@ export default function SnapshotsGlobalPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <a href={`/api/global-snapshots/${s.id}/download`} download>
-                          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                            <Download className="h-3.5 w-3.5" /> Baixar
-                          </Button>
-                        </a>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-1.5 text-xs"
+                          onClick={() => downloadSnapshot(s.id, s.createdAt).catch(e => {
+                            if ((e as Error).name !== "AbortError") toast({ title: "Erro ao baixar", description: (e as Error).message, variant: "destructive" });
+                          })}
+                        >
+                          <Download className="h-3.5 w-3.5" /> Baixar
+                        </Button>
                         <Button
                           size="sm"
                           variant={isNearest ? "default" : "outline"}
