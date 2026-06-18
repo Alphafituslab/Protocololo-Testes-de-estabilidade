@@ -17,6 +17,7 @@ import storageRouter from "./storage";
 import catalogRouter from "./catalog";
 import backupRouter from "./backup";
 import bibliographicReferencesRouter from "./bibliographic-references";
+import snapshotsRouter from "./snapshots";
 
 const router: IRouter = Router();
 
@@ -39,5 +40,6 @@ router.use(storageRouter);
 router.use(catalogRouter);
 router.use(backupRouter);
 router.use(bibliographicReferencesRouter);
+router.use(snapshotsRouter);
 
 export default router;

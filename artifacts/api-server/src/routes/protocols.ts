@@ -15,6 +15,7 @@ import { logAudit } from "../lib/audit";
 import { requireAuth } from "../lib/session";
 import { PERM, requirePermission, isProtocolSigned } from "../lib/permissions";
 import { notifyProtocolDeleted } from "../lib/notifications";
+import { createAutoSnapshot } from "../lib/snapshot-helper";
 
 const router: IRouter = Router();
 
@@ -244,6 +245,13 @@ router.post("/protocols/:id/finalize", requireAuth, requirePermission(PERM.PROTO
     };
     statusLabel = fs === "aprovado" ? "APROVADO" : fs === "aprovado_com_ressalva" ? "APROVADO COM RESSALVA" : "REPROVADO";
   }
+  // Auto-snapshot before finalizing so the pre-finalize state can be restored
+  await createAutoSnapshot(
+    params.data.id,
+    `Auto: antes de finalizar (${statusLabel})`,
+    req.authUser?.displayName ?? "Sistema",
+  );
+
   const [protocol] = await db.update(protocolsTable).set(updateData).where(eq(protocolsTable.id, params.data.id)).returning();
   if (!protocol) { res.status(404).json({ error: "Protocol not found" }); return; }
   await logAudit(req, "FINALIZAR_PROTOCOLO", "protocolo", `Protocolo "${protocol.productName}" marcado como ${statusLabel}`, { entityId: protocol.id, protocolId: protocol.id });
