@@ -192,10 +192,16 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
             const actualMg = (avg / 100) * declaredNum;
             const minNum = lim.min ? parseFloat(lim.min) : null;
             const maxNum = lim.max ? parseFloat(lim.max) : null;
-            // Format: "510,30 mg (ANVISA: 450 – 750 mg)"
-            const faixaStr = (minNum !== null || maxNum !== null)
-              ? ` | Faixa ANVISA: ${minNum ?? "—"} – ${maxNum ?? "—"} ${lim.unit}`
-              : "";
+            // Format adapts to which bounds are present:
+            // both: "450 – 750 mg"  |  only min: "≥ 450 mg"  |  only max: "≤ 750 mg"
+            let faixaStr = "";
+            if (minNum !== null && maxNum !== null) {
+              faixaStr = ` | Faixa ANVISA: ${minNum} – ${maxNum} ${lim.unit}`;
+            } else if (minNum !== null) {
+              faixaStr = ` | Faixa ANVISA: ≥ ${minNum} ${lim.unit}`;
+            } else if (maxNum !== null) {
+              faixaStr = ` | Faixa ANVISA: ≤ ${maxNum} ${lim.unit}`;
+            }
             ativoMgInfo = `${actualMg.toFixed(2).replace(".", ",")} ${lim.unit}${faixaStr}`;
 
             // Flag out-of-range in status (does not override AR)

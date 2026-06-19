@@ -1711,29 +1711,73 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                       <tr className="text-indigo-600 font-medium border-b border-indigo-200">
                         <th className="text-left pr-3 pb-1.5">Ativo</th>
                         <th className="text-right pr-2 pb-1.5">Qtd declarada</th>
-                        <th className="text-right pr-2 pb-1.5">Mín. ANVISA</th>
-                        <th className="text-right pr-2 pb-1.5">Máx. ANVISA</th>
+                        <th className="text-right pr-2 pb-1.5">
+                          Mín. ANVISA
+                          <span className="block text-[9px] font-normal text-indigo-400 normal-case">opcional</span>
+                        </th>
+                        <th className="text-right pr-2 pb-1.5">
+                          Máx. ANVISA
+                          <span className="block text-[9px] font-normal text-indigo-400 normal-case">opcional</span>
+                        </th>
                         <th className="text-left pb-1.5 pl-1">Unidade</th>
                       </tr>
                     </thead>
                     <tbody>
                       {catParams.map(param => {
                         const lim = ativoLimits[param.parameter] ?? { min: "", max: "", unit: "mg", declared: "" };
+                        const hasMin = !!lim.min;
+                        const hasMax = !!lim.max;
                         return (
                           <tr key={param.parameter} className="border-t border-indigo-100">
-                            <td className="pr-3 py-1 font-medium text-indigo-900 whitespace-nowrap">{param.parameter}</td>
-                            {(["declared", "min", "max"] as const).map(field => (
-                              <td key={field} className="pr-2 py-1">
-                                <input
-                                  type="number"
-                                  step="any"
-                                  value={lim[field]}
-                                  onChange={e => setAtivoLimit(param.parameter, field, e.target.value)}
-                                  placeholder={field === "declared" ? "qtd declarada" : field}
-                                  className="w-24 border border-indigo-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 text-right bg-white"
-                                />
-                              </td>
-                            ))}
+                            <td className="pr-3 py-1 font-medium text-indigo-900 whitespace-nowrap">
+                              {param.parameter}
+                              {lim.declared && (
+                                <span className="block text-[10px] font-normal text-indigo-500">
+                                  {hasMin && !hasMax && "só mínimo (≥)"}
+                                  {!hasMin && hasMax && "só máximo (≤)"}
+                                  {hasMin && hasMax && "min – max"}
+                                  {!hasMin && !hasMax && "sem faixa"}
+                                </span>
+                              )}
+                            </td>
+                            <td className="pr-2 py-1">
+                              <input
+                                type="number"
+                                step="any"
+                                value={lim.declared}
+                                onChange={e => setAtivoLimit(param.parameter, "declared", e.target.value)}
+                                placeholder="qtd declarada"
+                                className="w-24 border border-indigo-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 text-right bg-white"
+                              />
+                            </td>
+                            <td className="pr-2 py-1">
+                              <input
+                                type="number"
+                                step="any"
+                                value={lim.min}
+                                onChange={e => setAtivoLimit(param.parameter, "min", e.target.value)}
+                                placeholder="— (opcional)"
+                                className={`w-24 border rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 text-right bg-white ${
+                                  hasMin
+                                    ? "border-indigo-300 focus:ring-indigo-400"
+                                    : "border-dashed border-indigo-200 text-indigo-300 focus:ring-indigo-300"
+                                }`}
+                              />
+                            </td>
+                            <td className="pr-2 py-1">
+                              <input
+                                type="number"
+                                step="any"
+                                value={lim.max}
+                                onChange={e => setAtivoLimit(param.parameter, "max", e.target.value)}
+                                placeholder="— (opcional)"
+                                className={`w-24 border rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 text-right bg-white ${
+                                  hasMax
+                                    ? "border-indigo-300 focus:ring-indigo-400"
+                                    : "border-dashed border-indigo-200 text-indigo-300 focus:ring-indigo-300"
+                                }`}
+                              />
+                            </td>
                             <td className="py-1 pl-1">
                               <select
                                 value={lim.unit}
@@ -2815,15 +2859,25 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       const aboveMax = maxNum !== null && actualMg > maxNum;
                       const highDegradation = degradation !== null && degradation > 20;
                       const isOutOfRange = belowMin || aboveMax || highDegradation;
+                      // Build range label according to which bounds exist
+                      const faixaLabel = (() => {
+                        if (minNum !== null && maxNum !== null) return `${minNum} – ${maxNum} ${lim.unit}`;
+                        if (minNum !== null) return `≥ ${minNum} ${lim.unit}`;
+                        if (maxNum !== null) return `≤ ${maxNum} ${lim.unit}`;
+                        return null;
+                      })();
                       return (
                         <div className="flex flex-col items-end gap-0.5">
                           <span className={`text-sm font-bold tabular-nums ${isOutOfRange ? "text-red-700" : "text-indigo-700"}`}>
                             {actualMg.toFixed(2)} {lim.unit}
                           </span>
+                          {faixaLabel && (
+                            <span className="text-[10px] text-indigo-400 tabular-nums">faixa: {faixaLabel}</span>
+                          )}
                           {isOutOfRange && (
                             <span className="text-[10px] text-red-600 font-semibold">⚠ fora da faixa</span>
                           )}
-                          {!isOutOfRange && (minNum !== null || maxNum !== null) && (
+                          {!isOutOfRange && faixaLabel && (
                             <span className="text-[10px] text-green-600">✓ dentro da faixa</span>
                           )}
                         </div>
