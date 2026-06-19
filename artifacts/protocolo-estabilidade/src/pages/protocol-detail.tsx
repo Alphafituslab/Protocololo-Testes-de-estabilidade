@@ -1873,11 +1873,10 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                             </td>
                             <td className="pr-2 py-1">
                               <input
-                                type="number"
-                                step="any"
+                                type="text"
                                 value={lim.min}
                                 onChange={e => setAtivoLimit(param.parameter, "min", e.target.value)}
-                                placeholder="— (opcional)"
+                                placeholder="livre"
                                 className={`w-24 border rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 text-right bg-white ${
                                   hasMin
                                     ? "border-indigo-300 focus:ring-indigo-400"
@@ -1887,11 +1886,10 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                             </td>
                             <td className="pr-2 py-1">
                               <input
-                                type="number"
-                                step="any"
+                                type="text"
                                 value={lim.max}
                                 onChange={e => setAtivoLimit(param.parameter, "max", e.target.value)}
-                                placeholder="— (opcional)"
+                                placeholder="livre"
                                 className={`w-24 border rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 text-right bg-white ${
                                   hasMax
                                     ? "border-indigo-300 focus:ring-indigo-400"
@@ -1959,22 +1957,20 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                         <div className="flex flex-col gap-0.5">
                           <label className="text-[9px] text-indigo-500 uppercase">Mín. (opcional)</label>
                           <input
-                            type="number"
-                            step="any"
+                            type="text"
                             value={refForm.minValue}
                             onChange={e => setRefForm(f => ({ ...f, minValue: e.target.value }))}
-                            placeholder="—"
+                            placeholder="livre"
                             className="border border-indigo-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 w-20 text-right"
                           />
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <label className="text-[9px] text-indigo-500 uppercase">Máx. (opcional)</label>
                           <input
-                            type="number"
-                            step="any"
+                            type="text"
                             value={refForm.maxValue}
                             onChange={e => setRefForm(f => ({ ...f, maxValue: e.target.value }))}
-                            placeholder="—"
+                            placeholder="livre"
                             className="border border-indigo-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 w-20 text-right"
                           />
                         </div>

@@ -206,8 +206,10 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
           const basePercent = kineticsT6Map[param] ?? avg;
           if (basePercent !== null && !isNaN(declaredNum) && declaredNum > 0) {
             const actualMg = (basePercent / 100) * declaredNum;
-            const minNum = lim.min ? parseFloat(lim.min) : null;
-            const maxNum = lim.max ? parseFloat(lim.max) : null;
+            const minParsed = lim.min ? parseFloat(lim.min) : NaN;
+            const maxParsed = lim.max ? parseFloat(lim.max) : NaN;
+            const minNum = isNaN(minParsed) ? null : minParsed;
+            const maxNum = isNaN(maxParsed) ? null : maxParsed;
             // Format adapts to which bounds are present:
             // both: "450 – 750 mg"  |  only min: "≥ 450 mg"  |  only max: "≤ 750 mg"
             let faixaStr = "";
