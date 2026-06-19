@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, protocolsTable, lotsTable, analysisResultsTable } from "@workspace/db";
+import { db, protocolsTable, lotsTable, analysisResultsTable, methodologiesTable } from "@workspace/db";
 import { GetCertificateParams } from "@workspace/api-zod";
 
 const METHOD_MAP: Record<string, string> = {
@@ -55,6 +55,40 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     .select()
     .from(analysisResultsTable)
     .where(eq(analysisResultsTable.protocolId, params.data.id));
+
+  // ── Methodology library: criteria and citations ───────────────────────────
+  // Parse param → shortName and param → citation maps from the protocol.
+  let paramMethodsMap: Record<string, string> = {};
+  let paramCitationsMap: Record<string, string> = {};
+  try {
+    if (protocol.paramMethodsJson) paramMethodsMap = JSON.parse(protocol.paramMethodsJson) as Record<string, string>;
+    if (protocol.paramMethodsCitationsJson) paramCitationsMap = JSON.parse(protocol.paramMethodsCitationsJson) as Record<string, string>;
+  } catch { /* ignore */ }
+
+  // Fetch all methodologies to build shortName → criteria lookup.
+  const allMethodologies = await db.select().from(methodologiesTable);
+  const shortNameToCriteria: Record<string, string> = {};
+  for (const m of allMethodologies) {
+    if (m.criteria) shortNameToCriteria[m.shortName] = m.criteria;
+  }
+
+  // ── Duplicate parameter detection ─────────────────────────────────────────
+  let duplicateParameters: string[] = [];
+  const customParamsJson: string | null = protocol.customParamsJson ?? null;
+  try {
+    if (customParamsJson) {
+      const customParams = JSON.parse(customParamsJson) as Array<{ parameter: string }>;
+      const seen = new Set<string>();
+      const dupes = new Set<string>();
+      for (const p of customParams) {
+        if (p.parameter) {
+          if (seen.has(p.parameter)) dupes.add(p.parameter);
+          seen.add(p.parameter);
+        }
+      }
+      duplicateParameters = [...dupes];
+    }
+  } catch { /* ignore */ }
 
   const CATEGORY_ORDER: Record<string, number> = {
     fisico_quimica: 0,
@@ -132,11 +166,20 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
         finalStatus = "aprovado_com_ressalva";
       }
 
+      // ── method: DB citation (from methodology library) > static fallback map > generic ──
+      const method = paramCitationsMap[param] || METHOD_MAP[param] || "Método interno.";
+
+      // ── specification: methodology library criteria > analysis result criterion ──
+      const methodShortName = paramMethodsMap[param];
+      const specification = (methodShortName && shortNameToCriteria[methodShortName])
+        ? shortNameToCriteria[methodShortName]
+        : data.criterion;
+
       return {
         parameter: param,
         category: data.category,
-        method: METHOD_MAP[param] ?? "Método interno.",
-        specification: data.criterion,
+        method,
+        specification,
         result: avgResult,
         status: finalStatus === "nao_conforme" ? "Nao Conforme" : finalStatus === "na" ? "N/A" : finalStatus === "aprovado_com_ressalva" ? "Aprovado com Ressalva" : "Conforme",
       };
@@ -198,6 +241,8 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     notes: "Os resultados obtidos nos tempos T0, T3 e T6 (40 °C / 75% UR) demonstraram estabilidade do componente, com variações atribuídas exclusivamente à variabilidade analítica.",
     kineticsNotes: protocol.kineticsNotes ?? null,
     ressalva: protocol.ressalva ?? null,
+    duplicateParameters,
+    customParamsJson,
   });
 });
 

@@ -2,7 +2,7 @@ import { useParams, Link } from "wouter";
 import { fmtDate, addMonthsToIso } from "@/lib/utils";
 import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey, useListSignatures, useAddSignature, useDeleteSignature, getListSignaturesQueryKey, useUpdateProtocol, useListProtocolBibliographicReferences, getListProtocolBibliographicReferencesQueryKey, type BibliographicReference } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, History, Lock, Unlock, Save, ShieldCheck, PenLine, Trash2, UserCheck } from "lucide-react";
+import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, History, Lock, Unlock, Save, ShieldCheck, PenLine, Trash2, UserCheck, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -785,6 +785,57 @@ export default function CertificatePage() {
     setAnalyses(prev => prev ? prev.map(a => ({ ...a, visible: !allVisible })) : prev);
   };
 
+  // ── Duplicate parameter deletion ───────────────────────────────────────────
+  const [dupDeleteDialog, setDupDeleteDialog] = useState<{ param: string } | null>(null);
+  const [dupPwd, setDupPwd] = useState("");
+  const [dupPwdError, setDupPwdError] = useState("");
+  const [dupPwdLoading, setDupPwdLoading] = useState(false);
+  const [dupPwdShow, setDupPwdShow] = useState(false);
+
+  const handleDeleteDuplicate = async () => {
+    if (!dupDeleteDialog || !dupPwd.trim()) return;
+    setDupPwdLoading(true);
+    setDupPwdError("");
+    try {
+      const verifyRes = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: dupPwd }),
+      });
+      if (!verifyRes.ok) {
+        setDupPwdError("Senha incorreta.");
+        setDupPwdLoading(false);
+        return;
+      }
+      // Remove the SECOND occurrence of the duplicate parameter from customParamsJson
+      const paramName = dupDeleteDialog.param;
+      let customParams: Array<{ parameter: string; [key: string]: unknown }> = [];
+      try {
+        customParams = JSON.parse(cert?.customParamsJson ?? "[]") as typeof customParams;
+      } catch { /* ignore */ }
+      let removed = false;
+      const updated = customParams.filter(p => {
+        if (!removed && p.parameter === paramName) { return true; } // keep first
+        if (p.parameter === paramName) { removed = true; return false; } // remove second
+        return true;
+      });
+      await new Promise<void>((resolve, reject) => {
+        updateProtocol.mutate(
+          { id: Number(id), data: { customParamsJson: JSON.stringify(updated) } },
+          { onSuccess: () => resolve(), onError: () => reject() },
+        );
+      });
+      queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(Number(id)) });
+      toast({ title: "Duplicata removida", description: `O parâmetro "${paramName}" duplicado foi removido.` });
+      setDupDeleteDialog(null);
+      setDupPwd("");
+    } catch {
+      setDupPwdError("Erro ao remover duplicata. Tente novamente.");
+    } finally {
+      setDupPwdLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="max-w-4xl mx-auto space-y-4">
@@ -835,6 +886,95 @@ export default function CertificatePage() {
         description="Digite a senha mestra para liberar a edição dos campos do certificado."
         submitLabel="Desbloquear"
       />
+
+      {/* ─── Aviso de parâmetros duplicados ─── */}
+      {cert.duplicateParameters && cert.duplicateParameters.length > 0 && (
+        <div className="print:hidden border border-amber-400 bg-amber-50 rounded-lg p-4 flex flex-col gap-3">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold text-amber-800 text-sm">Parâmetros duplicados detectados</p>
+              <p className="text-amber-700 text-xs mt-0.5">
+                Os parâmetros abaixo aparecem mais de uma vez na lista de parâmetros deste protocolo.
+                Isso pode causar inconsistências nos resultados. Remova a entrada duplicada usando senha.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 pl-8">
+            {cert.duplicateParameters.map(param => (
+              <div key={param} className="flex items-center justify-between bg-amber-100 rounded px-3 py-2">
+                <span className="text-sm font-medium text-amber-900">"{param}" — aparece duplicado</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-red-600 border-red-300 hover:bg-red-50 h-7 text-xs"
+                  onClick={() => { setDupDeleteDialog({ param }); setDupPwd(""); setDupPwdError(""); setDupPwdShow(false); }}
+                >
+                  <Trash2 className="h-3 w-3 mr-1" /> Remover duplicata
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Dialog senha — excluir duplicata ─── */}
+      {dupDeleteDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 print:hidden">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              <h3 className="font-semibold text-gray-900">Remover parâmetro duplicado</h3>
+            </div>
+            <p className="text-sm text-gray-600">
+              A segunda ocorrência de <strong>"{dupDeleteDialog.param}"</strong> será removida da lista de parâmetros.
+              Esta ação não pode ser desfeita.
+            </p>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-700">Senha</label>
+              <div className="relative">
+                <input
+                  type={dupPwdShow ? "text" : "password"}
+                  value={dupPwd}
+                  onChange={e => setDupPwd(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") handleDeleteDuplicate(); }}
+                  className="w-full border rounded px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  placeholder="Senha mestra"
+                  autoFocus
+                  disabled={dupPwdLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setDupPwdShow(v => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  tabIndex={-1}
+                >
+                  {dupPwdShow ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {dupPwdError && <p className="text-xs text-red-600">{dupPwdError}</p>}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDupDeleteDialog(null)}
+                disabled={dupPwdLoading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleDeleteDuplicate}
+                disabled={dupPwdLoading || !dupPwd.trim()}
+              >
+                {dupPwdLoading ? "Removendo…" : "Confirmar remoção"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── Toolbar ─── */}
       <div className="flex items-center justify-between print:hidden">

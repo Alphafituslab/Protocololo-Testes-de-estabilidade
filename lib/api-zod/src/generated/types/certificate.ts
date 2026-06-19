@@ -51,4 +51,8 @@ export interface Certificate {
   /** Condições de coleta/recebimento — umidade */
   receptionHumidity?: string | null;
   analysisDates?: CertificateAnalysisDates;
+  /** Nomes de parâmetros duplicados detectados em customParamsJson */
+  duplicateParameters?: string[] | null;
+  /** JSON com a lista de parâmetros customizados do protocolo (para edição de duplicatas) */
+  customParamsJson?: string | null;
 }

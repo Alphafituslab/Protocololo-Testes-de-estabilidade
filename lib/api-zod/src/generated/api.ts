@@ -1018,6 +1018,16 @@ export const GetCertificateResponse = zod.object({
       t6: zod.string().nullish(),
     })
     .nullish(),
+  duplicateParameters: zod
+    .array(zod.string())
+    .nullish()
+    .describe("Nomes de parâmetros duplicados detectados em customParamsJson"),
+  customParamsJson: zod
+    .string()
+    .nullish()
+    .describe(
+      "JSON com a lista de parâmetros customizados do protocolo (para edição de duplicatas)",
+    ),
 });
 
 /**

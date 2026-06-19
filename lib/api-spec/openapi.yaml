@@ -1679,6 +1679,16 @@ components:
             t6:
               type: string
               nullable: true
+        duplicateParameters:
+          type: array
+          nullable: true
+          items:
+            type: string
+          description: Nomes de parâmetros duplicados detectados em customParamsJson
+        customParamsJson:
+          type: string
+          nullable: true
+          description: JSON com a lista de parâmetros customizados do protocolo (para edição de duplicatas)
       required:
         - certNumber
         - issueDate
