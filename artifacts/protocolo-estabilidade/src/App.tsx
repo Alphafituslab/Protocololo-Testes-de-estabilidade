@@ -15,9 +15,10 @@ import UsersPage, { ROLE_LABELS } from "./pages/users";
 import CatalogPage from "./pages/catalog";
 import BackupPage from "./pages/backup";
 import SnapshotsGlobalPage from "./pages/snapshots-global";
+import AtivoReferencesPage from "./pages/ativo-references";
 import { AuthProvider } from "@/contexts/auth-context";
 import { useAuth } from "@/contexts/use-auth";
-import { FileText, Home, Users, LogOut, Loader2, AlertTriangle, RefreshCcw, BookOpen, DatabaseBackup, History } from "lucide-react";
+import { FileText, Home, Users, LogOut, Loader2, AlertTriangle, RefreshCcw, BookOpen, DatabaseBackup, History, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -216,6 +217,9 @@ function Layout({ children }: { children: React.ReactNode }) {
           <Link href="/catalog" className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${location === "/catalog" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
             <BookOpen className="h-4 w-4" /> Cadastros
           </Link>
+          <Link href="/ativo-references" className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${location === "/ativo-references" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
+            <FlaskConical className="h-4 w-4" /> Banco de Ativos ANVISA
+          </Link>
         </nav>
         <SidebarFooter />
       </aside>
@@ -312,6 +316,7 @@ const ProtocolReportRoute = () => <ProtectedDetailRoute component={ProtocolRepor
 const ProtocolDetailRoute = () => <ProtectedRoute component={ProtocolDetail} />;
 const UsersRoute = () => <ProtectedRoute component={UsersPage} />;
 const CatalogRoute = () => <ProtectedRoute component={CatalogPage} />;
+const AtivoReferencesRoute = () => <ProtectedRoute component={AtivoReferencesPage} />;
   const BackupRoute           = () => <ProtectedRoute component={BackupPage} />;
 const SnapshotsGlobalRoute  = () => <ProtectedRoute component={SnapshotsGlobalPage} />;
 
@@ -334,6 +339,7 @@ function Router() {
       <Route path="/protocols/:id" component={ProtocolDetailRoute} />
       <Route path="/users" component={UsersRoute} />
       <Route path="/catalog"    component={CatalogRoute} />
+      <Route path="/ativo-references" component={AtivoReferencesRoute} />
       <Route path="/snapshots" component={SnapshotsGlobalRoute} />
       <Route path="/backup"    component={BackupRoute} />
       <Route component={NotFound} />
