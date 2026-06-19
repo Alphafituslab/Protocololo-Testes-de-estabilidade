@@ -205,6 +205,12 @@ export const ListProtocolsResponseItem = zod.object({
     .describe(
       "JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife}",
     ),
+  ativoLimitsJson: zod
+    .string()
+    .nullish()
+    .describe(
+      "JSON com faixa ANVISA por ativo {paramName:{min,max,unit,declared}}",
+    ),
   pendingSignatures: zod
     .boolean()
     .nullish()
@@ -369,6 +375,12 @@ export const GetProtocolStatsResponse = zod.object({
         .describe(
           "JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife}",
         ),
+      ativoLimitsJson: zod
+        .string()
+        .nullish()
+        .describe(
+          "JSON com faixa ANVISA por ativo {paramName:{min,max,unit,declared}}",
+        ),
       pendingSignatures: zod
         .boolean()
         .nullish()
@@ -489,6 +501,12 @@ export const GetProtocolResponse = zod
       .describe(
         "JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife}",
       ),
+    ativoLimitsJson: zod
+      .string()
+      .nullish()
+      .describe(
+        "JSON com faixa ANVISA por ativo {paramName:{min,max,unit,declared}}",
+      ),
     pendingSignatures: zod
       .boolean()
       .nullish()
@@ -594,6 +612,7 @@ export const UpdateProtocolBody = zod.object({
   paramMethodsJson: zod.string().nullish(),
   paramMethodsCitationsJson: zod.string().nullish(),
   kineticsOverridesJson: zod.string().nullish(),
+  ativoLimitsJson: zod.string().nullish(),
   issueDate: zod.string().nullish(),
 });
 
@@ -693,6 +712,12 @@ export const UpdateProtocolResponse = zod.object({
     .nullish()
     .describe(
       "JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife}",
+    ),
+  ativoLimitsJson: zod
+    .string()
+    .nullish()
+    .describe(
+      "JSON com faixa ANVISA por ativo {paramName:{min,max,unit,declared}}",
     ),
   pendingSignatures: zod
     .boolean()
@@ -968,9 +993,15 @@ export const GetCertificateResponse = zod.object({
         "embalagem",
       ]),
       method: zod.string(),
-      specification: zod.string(),
+      specification: zod.string().nullable(),
       result: zod.string(),
       status: zod.string(),
+      ativoMgInfo: zod
+        .string()
+        .nullish()
+        .describe(
+          'Valor absoluto calculado em mg\/mcg para parametros teor_ativo (ex: \"510,30 mg | Faixa ANVISA: 450 - 750 mg\")',
+        ),
     }),
   ),
   conclusion: zod.string().nullish(),
@@ -1018,16 +1049,6 @@ export const GetCertificateResponse = zod.object({
       t6: zod.string().nullish(),
     })
     .nullish(),
-  duplicateParameters: zod
-    .array(zod.string())
-    .nullish()
-    .describe("Nomes de parâmetros duplicados detectados em customParamsJson"),
-  customParamsJson: zod
-    .string()
-    .nullish()
-    .describe(
-      "JSON com a lista de parâmetros customizados do protocolo (para edição de duplicatas)",
-    ),
 });
 
 /**
@@ -1212,6 +1233,12 @@ export const FinalizeProtocolResponse = zod.object({
     .nullish()
     .describe(
       "JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife}",
+    ),
+  ativoLimitsJson: zod
+    .string()
+    .nullish()
+    .describe(
+      "JSON com faixa ANVISA por ativo {paramName:{min,max,unit,declared}}",
     ),
   pendingSignatures: zod
     .boolean()

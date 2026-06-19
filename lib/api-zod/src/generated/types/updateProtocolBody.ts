@@ -46,5 +46,6 @@ export interface UpdateProtocolBody {
   paramMethodsJson?: string | null;
   paramMethodsCitationsJson?: string | null;
   kineticsOverridesJson?: string | null;
+  ativoLimitsJson?: string | null;
   issueDate?: string | null;
 }

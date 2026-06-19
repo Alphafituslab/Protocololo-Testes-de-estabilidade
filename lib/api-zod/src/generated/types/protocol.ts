@@ -65,6 +65,8 @@ export interface Protocol {
   paramMethodsCitationsJson?: string | null;
   /** JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife} */
   kineticsOverridesJson?: string | null;
+  /** JSON com faixa ANVISA por ativo {paramName:{min,max,unit,declared}} */
+  ativoLimitsJson?: string | null;
   /** true se algum dos assinantes obrigatórios (issuedBy / seniorAnalyst) ainda não assinou */
   pendingSignatures?: boolean | null;
   createdAt: string;

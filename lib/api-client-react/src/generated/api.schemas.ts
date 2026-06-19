@@ -92,6 +92,8 @@ export interface Protocol {
   paramMethodsCitationsJson?: string | null;
   /** JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife} */
   kineticsOverridesJson?: string | null;
+  /** JSON com faixa ANVISA por ativo {paramName:{min,max,unit,declared}} */
+  ativoLimitsJson?: string | null;
   /** true se algum dos assinantes obrigatórios (issuedBy / seniorAnalyst) ainda não assinou */
   pendingSignatures?: boolean | null;
   createdAt: string;
@@ -238,6 +240,7 @@ export interface UpdateProtocolBody {
   paramMethodsJson?: string | null;
   paramMethodsCitationsJson?: string | null;
   kineticsOverridesJson?: string | null;
+  ativoLimitsJson?: string | null;
   issueDate?: string | null;
 }
 
@@ -343,9 +346,11 @@ export interface CertificateAnalysis {
   parameter: string;
   category: CertificateAnalysisCategory;
   method: string;
-  specification: string;
+  specification: string | null;
   result: string;
   status: string;
+  /** Valor absoluto calculado em mg/mcg para parametros teor_ativo (ex: "510,30 mg | Faixa ANVISA: 450 - 750 mg") */
+  ativoMgInfo?: string | null;
 }
 
 export interface Certificate {
@@ -391,10 +396,6 @@ export interface Certificate {
   /** Condições de coleta/recebimento — umidade */
   receptionHumidity?: string | null;
   analysisDates?: CertificateAnalysisDates;
-  /** Nomes de parâmetros duplicados detectados em customParamsJson */
-  duplicateParameters?: string[] | null;
-  /** JSON com a lista de parâmetros customizados do protocolo (para edição de duplicatas) */
-  customParamsJson?: string | null;
 }
 
 export interface Methodology {

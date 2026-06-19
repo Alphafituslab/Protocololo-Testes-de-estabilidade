@@ -45,6 +45,7 @@ export const protocolsTable = pgTable("protocols", {
   paramMethodsJson: text("param_methods_json"),
   paramMethodsCitationsJson: text("param_methods_citations_json"),
   kineticsOverridesJson: text("kinetics_overrides_json"),
+  ativoLimitsJson: text("ativo_limits_json"),
   ressalva: text("ressalva"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

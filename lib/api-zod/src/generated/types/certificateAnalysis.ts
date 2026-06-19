@@ -11,7 +11,9 @@ export interface CertificateAnalysis {
   parameter: string;
   category: CertificateAnalysisCategory;
   method: string;
-  specification: string;
+  specification: string | null;
   result: string;
   status: string;
+  /** Valor absoluto calculado em mg/mcg para parametros teor_ativo (ex: "510,30 mg | Faixa ANVISA: 450 - 750 mg") */
+  ativoMgInfo?: string | null;
 }

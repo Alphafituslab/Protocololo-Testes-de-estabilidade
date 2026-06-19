@@ -1119,6 +1119,10 @@ components:
           type: string
           nullable: true
           description: JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife}
+        ativoLimitsJson:
+          type: string
+          nullable: true
+          description: JSON com faixa ANVISA por ativo {paramName:{min,max,unit,declared}}
         pendingSignatures:
           type: boolean
           nullable: true
@@ -1317,6 +1321,9 @@ components:
           type: string
           nullable: true
         kineticsOverridesJson:
+          type: string
+          nullable: true
+        ativoLimitsJson:
           type: string
           nullable: true
         issueDate:
@@ -1679,16 +1686,6 @@ components:
             t6:
               type: string
               nullable: true
-        duplicateParameters:
-          type: array
-          nullable: true
-          items:
-            type: string
-          description: Nomes de parâmetros duplicados detectados em customParamsJson
-        customParamsJson:
-          type: string
-          nullable: true
-          description: JSON com a lista de parâmetros customizados do protocolo (para edição de duplicatas)
       required:
         - certNumber
         - issueDate
@@ -1710,10 +1707,15 @@ components:
           type: string
         specification:
           type: string
+          nullable: true
         result:
           type: string
         status:
           type: string
+        ativoMgInfo:
+          type: string
+          nullable: true
+          description: 'Valor absoluto calculado em mg/mcg para parametros teor_ativo (ex: "510,30 mg | Faixa ANVISA: 450 - 750 mg")'
       required:
         - parameter
         - category

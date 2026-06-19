@@ -1,6 +1,6 @@
 import { useParams, Link, useLocation } from "wouter";
 import { fmtDate } from "@/lib/utils";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useUnlock } from "@/hooks/use-unlock";
 import { UnlockDialog } from "@/components/unlock-dialog";
 import { useForm } from "react-hook-form";
@@ -1308,7 +1308,7 @@ const CATEGORY_PRESETS: Record<string, { parameter: string; criterion: string }[
   ],
 };
 
-function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJson, initialParamMethodsJson, initialParamMethodsCitationsJson, protocolFinalStatus }: { protocolId: number; initialCustomParamsJson?: string | null; initialPeriodDatesJson?: string | null; initialParamMethodsJson?: string | null; initialParamMethodsCitationsJson?: string | null; protocolFinalStatus?: string | null }) {
+function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJson, initialParamMethodsJson, initialParamMethodsCitationsJson, protocolFinalStatus, initialAtivoLimitsJson }: { protocolId: number; initialCustomParamsJson?: string | null; initialPeriodDatesJson?: string | null; initialParamMethodsJson?: string | null; initialParamMethodsCitationsJson?: string | null; protocolFinalStatus?: string | null; initialAtivoLimitsJson?: string | null }) {
   const protocolIsAR = protocolFinalStatus === "aprovado_com_ressalva";
   const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
   const { data: results = [], isLoading } = useListResults(protocolId, { query: { queryKey: getListResultsQueryKey(protocolId) } });
@@ -1341,6 +1341,30 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
       return raw ? JSON.parse(raw) : {};
     } catch { return {}; }
   });
+
+  // ── Limites ANVISA por ativo (min/max/unidade/declarado) ─────────────────
+  const ATIVO_LIMITS_KEY = `ativo_limits_${protocolId}`;
+  const [ativoLimits, setAtivoLimitsState] = useState<Record<string, { min: string; max: string; unit: string; declared: string }>>(() => {
+    if (initialAtivoLimitsJson) {
+      try { return JSON.parse(initialAtivoLimitsJson); } catch { /* fall through */ }
+    }
+    try {
+      const raw = localStorage.getItem(`ativo_limits_${protocolId}`);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+
+  const setAtivoLimit = (param: string, field: "min" | "max" | "unit" | "declared", value: string) => {
+    setAtivoLimitsState(prev => {
+      const next = {
+        ...prev,
+        [param]: { ...(prev[param] ?? { min: "", max: "", unit: "mg", declared: "" }), [field]: value }
+      };
+      try { localStorage.setItem(ATIVO_LIMITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      updateProtocol.mutate({ id: protocolId, data: { ativoLimitsJson: JSON.stringify(next) } });
+      return next;
+    });
+  };
 
   // ── Datas por período (T0, T3, T6) — salvas no DB e localStorage ─────────
   const PERIOD_DATES_KEY = `period_analysis_dates_${protocolId}`;
@@ -1676,12 +1700,72 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
         return (
           <div key={key}>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">{label}</h3>
+            {key === "teor_ativo" && (
+              <div className="mb-3 rounded-md border border-indigo-200 bg-indigo-50 p-3">
+                <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-2">
+                  Faixa de Conformidade por Ativo — ANVISA (RDC 269/2005)
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="text-xs w-full">
+                    <thead>
+                      <tr className="text-indigo-600 font-medium border-b border-indigo-200">
+                        <th className="text-left pr-3 pb-1.5">Ativo</th>
+                        <th className="text-right pr-2 pb-1.5">Qtd declarada</th>
+                        <th className="text-right pr-2 pb-1.5">Mín. ANVISA</th>
+                        <th className="text-right pr-2 pb-1.5">Máx. ANVISA</th>
+                        <th className="text-left pb-1.5 pl-1">Unidade</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {catParams.map(param => {
+                        const lim = ativoLimits[param.parameter] ?? { min: "", max: "", unit: "mg", declared: "" };
+                        return (
+                          <tr key={param.parameter} className="border-t border-indigo-100">
+                            <td className="pr-3 py-1 font-medium text-indigo-900 whitespace-nowrap">{param.parameter}</td>
+                            {(["declared", "min", "max"] as const).map(field => (
+                              <td key={field} className="pr-2 py-1">
+                                <input
+                                  type="number"
+                                  step="any"
+                                  value={lim[field]}
+                                  onChange={e => setAtivoLimit(param.parameter, field, e.target.value)}
+                                  placeholder={field === "declared" ? "qtd declarada" : field}
+                                  className="w-24 border border-indigo-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 text-right bg-white"
+                                />
+                              </td>
+                            ))}
+                            <td className="py-1 pl-1">
+                              <select
+                                value={lim.unit}
+                                onChange={e => setAtivoLimit(param.parameter, "unit", e.target.value)}
+                                className="border border-indigo-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white"
+                              >
+                                <option value="mg">mg</option>
+                                <option value="mcg">mcg</option>
+                                <option value="UI">UI</option>
+                                <option value="UFC/g">UFC/g</option>
+                                <option value="g">g</option>
+                              </select>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-[10px] text-indigo-500 mt-2">
+                  ✓ Salvo automaticamente. Os limites são usados na aba Cinética para calcular o valor em mg/mcg e alertar quando fora da faixa ANVISA.
+                </p>
+              </div>
+            )}
             <div className="rounded-md border overflow-x-auto">
               <Table style={{ minWidth: 680 }}>
                 <TableHeader>
                   <TableRow className="bg-muted">
                     <TableHead className="w-36 text-xs sticky left-0 z-20 bg-muted border-r border-border/60">Parâmetro</TableHead>
-                    <TableHead className="w-40 text-xs sticky left-36 z-20 bg-muted border-r border-border/60">Critérios de Aceitação</TableHead>
+                    <TableHead className="w-40 text-xs sticky left-36 z-20 bg-muted border-r border-border/60">
+                      {key === "teor_ativo" ? "% de aceitação da matéria prima" : "Critérios de Aceitação"}
+                    </TableHead>
                     <TableHead className="w-6 text-xs sticky left-[19rem] z-20 bg-muted border-r border-border/40"></TableHead>
                     <TableHead className="text-xs text-center font-semibold border-l border-border/30 w-20">Lote</TableHead>
                     {PERIODS.map((period) => (
@@ -2056,13 +2140,14 @@ type KineticsOverridesDB = {
   customShelfLife?: string;
 };
 
-function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths, customParamsJson, initialKineticsOverridesJson }: {
+function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths, customParamsJson, initialKineticsOverridesJson, ativoLimitsJson }: {
   protocolId: number;
   productName: string;
   initialKineticsNotes?: string | null;
   initialValidityMonths?: number | null;
   customParamsJson?: string | null;
   initialKineticsOverridesJson?: string | null;
+  ativoLimitsJson?: string | null;
 }) {
   const { data: kinetics, isLoading } = useGetKinetics(protocolId, {
     query: { queryKey: getGetKineticsQueryKey(protocolId), staleTime: 0 },
@@ -2127,6 +2212,14 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const [kineticsPwdShowPwd, setKineticsPwdShowPwd] = useState(false);
   const [pendingFieldChange, setPendingFieldChange] = useState<{ param: string; field: keyof KineticOverride; val: string } | null>(null);
   const hasSavedOverrides = !!initialKineticsOverridesJson;
+
+  const ativoLimits = useMemo<Record<string, { min: string; max: string; unit: string; declared: string }>>(() => {
+    if (!ativoLimitsJson) return {};
+    try { return JSON.parse(ativoLimitsJson); } catch { return {}; }
+  }, [ativoLimitsJson]);
+
+  // Decisão para parâmetros fora da faixa ANVISA
+  const [ativoDecision, setAtivoDecision] = useState<Record<string, "reprova" | "refaz" | null>>({});
 
   const confirmKineticsPwd = async () => {
     if (!kineticsPwdValue.trim()) return;
@@ -2504,6 +2597,75 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
 
       {missingMsg}
 
+      {/* Alerta ANVISA — parâmetros fora da faixa de conformidade */}
+      {(() => {
+        const outOfRange = kinetics?.parameters.flatMap(p => {
+          const ov = overrides[p.parameter];
+          const lim = ativoLimits[p.parameter];
+          if (!ov || !lim?.declared) return [];
+          const t6Num = parseFloat(ov.t6);
+          const t0Num = parseFloat(ov.t0);
+          const declaredNum = parseFloat(lim.declared);
+          if (isNaN(t6Num) || isNaN(declaredNum)) return [];
+          const actualMg = (t6Num / 100) * declaredNum;
+          const minNum = lim.min ? parseFloat(lim.min) : null;
+          const maxNum = lim.max ? parseFloat(lim.max) : null;
+          const degradation = !isNaN(t0Num) && t0Num > 0 ? ((t0Num - t6Num) / t0Num) * 100 : null;
+          const belowMin = minNum !== null && actualMg < minNum;
+          const aboveMax = maxNum !== null && actualMg > maxNum;
+          const highDegradation = degradation !== null && degradation > 20;
+          if (!belowMin && !aboveMax && !highDegradation) return [];
+          return [{ param: p.parameter, actualMg, unit: lim.unit, minNum, maxNum, degradation, belowMin, aboveMax, highDegradation }];
+        }) ?? [];
+        if (outOfRange.length === 0) return null;
+        return (
+          <div className="rounded-md border border-red-300 bg-red-50 px-4 py-4 space-y-4">
+            <p className="font-semibold text-sm text-red-800 flex items-center gap-2">
+              ⚠ Parâmetro(s) fora da faixa ANVISA — decisão necessária
+            </p>
+            {outOfRange.map(item => (
+              <div key={item.param} className="space-y-2 border-t border-red-200 pt-3 first:border-0 first:pt-0">
+                <p className="text-xs text-red-700">
+                  <strong>{item.param}</strong>: T6 calculado = <strong>{item.actualMg.toFixed(2)} {item.unit}</strong>
+                  {item.belowMin && <span className="ml-2 text-red-600">↓ abaixo do mínimo ANVISA ({item.minNum} {item.unit})</span>}
+                  {item.aboveMax && <span className="ml-2 text-red-600">↑ acima do máximo ANVISA ({item.maxNum} {item.unit})</span>}
+                  {item.highDegradation && <span className="ml-2 text-amber-700">⚡ degradação {item.degradation?.toFixed(1)}% {">"} 20%</span>}
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-red-700 font-medium">Decisão do técnico:</span>
+                  <button
+                    onClick={() => setAtivoDecision(prev => ({ ...prev, [item.param]: prev[item.param] === "reprova" ? null : "reprova" }))}
+                    className={`text-xs px-3 py-1.5 rounded border font-semibold transition-colors ${
+                      ativoDecision[item.param] === "reprova"
+                        ? "bg-red-600 text-white border-red-600"
+                        : "bg-white text-red-700 border-red-300 hover:bg-red-50"
+                    }`}
+                  >
+                    ✗ Reprovar lote
+                  </button>
+                  <button
+                    onClick={() => setAtivoDecision(prev => ({ ...prev, [item.param]: prev[item.param] === "refaz" ? null : "refaz" }))}
+                    className={`text-xs px-3 py-1.5 rounded border font-semibold transition-colors ${
+                      ativoDecision[item.param] === "refaz"
+                        ? "bg-amber-500 text-white border-amber-500"
+                        : "bg-white text-amber-700 border-amber-300 hover:bg-amber-50"
+                    }`}
+                  >
+                    ↺ Refazer análise
+                  </button>
+                  {ativoDecision[item.param] === "reprova" && (
+                    <span className="text-xs text-red-700 font-medium">→ Encaminhe para reprovação na aba de finalização do protocolo.</span>
+                  )}
+                  {ativoDecision[item.param] === "refaz" && (
+                    <span className="text-xs text-amber-700 font-medium">→ Agende nova coleta e reanálise antes de gerar o certificado.</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Summary card */}
       <Card className="border-green-200 bg-green-50">
         <CardContent className="pt-4">
@@ -2595,6 +2757,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               <TableHead className="text-right text-xs bg-amber-50/60 whitespace-nowrap">Vida Útil Calculada (meses)</TableHead>
               <TableHead className="text-right text-xs whitespace-nowrap">Validade Adotada (meses)</TableHead>
               <TableHead className="text-right text-xs whitespace-nowrap">Espec. mín – máx (%)</TableHead>
+              <TableHead className="text-right text-xs whitespace-nowrap bg-indigo-50/50">Valor em mg/mcg (T6)</TableHead>
               <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
@@ -2634,6 +2797,38 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       <span className="text-muted-foreground text-xs">–</span>
                       <EditableNum value={ov.specMax} onChange={(v) => setField(p.parameter, "specMax", v)} width="w-14" placeholder="máx" />
                     </div>
+                  </TableCell>
+                  {/* Valor absoluto em mg/mcg calculado a partir de T6% × declarado */}
+                  <TableCell className="text-right py-2 bg-indigo-50/30">
+                    {(() => {
+                      const lim = ativoLimits[p.parameter];
+                      if (!lim?.declared) return <span className="text-xs text-muted-foreground">—</span>;
+                      const t6Num = parseFloat(ov.t6);
+                      const declaredNum = parseFloat(lim.declared);
+                      if (isNaN(t6Num) || isNaN(declaredNum)) return <span className="text-xs text-muted-foreground">—</span>;
+                      const actualMg = (t6Num / 100) * declaredNum;
+                      const minNum = lim.min ? parseFloat(lim.min) : null;
+                      const maxNum = lim.max ? parseFloat(lim.max) : null;
+                      const t0Num = parseFloat(ov.t0);
+                      const degradation = !isNaN(t0Num) && t0Num > 0 ? ((t0Num - t6Num) / t0Num) * 100 : null;
+                      const belowMin = minNum !== null && actualMg < minNum;
+                      const aboveMax = maxNum !== null && actualMg > maxNum;
+                      const highDegradation = degradation !== null && degradation > 20;
+                      const isOutOfRange = belowMin || aboveMax || highDegradation;
+                      return (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className={`text-sm font-bold tabular-nums ${isOutOfRange ? "text-red-700" : "text-indigo-700"}`}>
+                            {actualMg.toFixed(2)} {lim.unit}
+                          </span>
+                          {isOutOfRange && (
+                            <span className="text-[10px] text-red-600 font-semibold">⚠ fora da faixa</span>
+                          )}
+                          {!isOutOfRange && (minNum !== null || maxNum !== null) && (
+                            <span className="text-[10px] text-green-600">✓ dentro da faixa</span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="py-2 text-center">
                     <Button
@@ -4412,6 +4607,7 @@ export default function ProtocolDetail() {
                 initialParamMethodsJson={protocol.paramMethodsJson}
                 initialParamMethodsCitationsJson={protocol.paramMethodsCitationsJson}
                 protocolFinalStatus={protocol.finalStatus}
+                initialAtivoLimitsJson={protocol.ativoLimitsJson}
               />
             </CardContent>
           </Card>
@@ -4426,6 +4622,7 @@ export default function ProtocolDetail() {
                 initialValidityMonths={protocol.validityMonths}
                 customParamsJson={protocol.customParamsJson}
                 initialKineticsOverridesJson={protocol.kineticsOverridesJson}
+                ativoLimitsJson={protocol.ativoLimitsJson}
               />
             </CardContent>
           </Card>

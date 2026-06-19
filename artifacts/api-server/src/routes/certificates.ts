@@ -45,50 +45,37 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     return;
   }
 
-  const lots = await db
-    .select()
-    .from(lotsTable)
-    .where(eq(lotsTable.protocolId, params.data.id))
-    .orderBy(lotsTable.createdAt);
+  const [lots, allResults, allMethodologies] = await Promise.all([
+    db.select().from(lotsTable).where(eq(lotsTable.protocolId, params.data.id)).orderBy(lotsTable.createdAt),
+    db.select().from(analysisResultsTable).where(eq(analysisResultsTable.protocolId, params.data.id)),
+    db.select().from(methodologiesTable),
+  ]);
 
-  const allResults = await db
-    .select()
-    .from(analysisResultsTable)
-    .where(eq(analysisResultsTable.protocolId, params.data.id));
-
-  // ── Methodology library: criteria and citations ───────────────────────────
-  // Parse param → shortName and param → citation maps from the protocol.
-  let paramMethodsMap: Record<string, string> = {};
-  let paramCitationsMap: Record<string, string> = {};
-  try {
-    if (protocol.paramMethodsJson) paramMethodsMap = JSON.parse(protocol.paramMethodsJson) as Record<string, string>;
-    if (protocol.paramMethodsCitationsJson) paramCitationsMap = JSON.parse(protocol.paramMethodsCitationsJson) as Record<string, string>;
-  } catch { /* ignore */ }
-
-  // Fetch all methodologies to build shortName → criteria lookup.
-  const allMethodologies = await db.select().from(methodologiesTable);
+  // ── Methodology library lookups ──────────────────────────────────────────
+  // shortName → criteria text (for specification column)
   const shortNameToCriteria: Record<string, string> = {};
   for (const m of allMethodologies) {
-    if (m.criteria) shortNameToCriteria[m.shortName] = m.criteria;
+    if (m.shortName && m.criteria) shortNameToCriteria[m.shortName] = m.criteria;
   }
 
-  // ── Duplicate parameter detection ─────────────────────────────────────────
-  let duplicateParameters: string[] = [];
-  const customParamsJson: string | null = protocol.customParamsJson ?? null;
-  try {
-    if (customParamsJson) {
-      const customParams = JSON.parse(customParamsJson) as Array<{ parameter: string }>;
-      const seen = new Set<string>();
-      const dupes = new Set<string>();
-      for (const p of customParams) {
-        if (p.parameter) {
-          if (seen.has(p.parameter)) dupes.add(p.parameter);
-          seen.add(p.parameter);
-        }
-      }
-      duplicateParameters = [...dupes];
-    }
-  } catch { /* ignore */ }
+  // paramName → methodology shortName (from paramMethodsJson stored on protocol)
+  const paramMethodsMap: Record<string, string> = {};
+  if (protocol.paramMethodsJson) {
+    try { Object.assign(paramMethodsMap, JSON.parse(protocol.paramMethodsJson)); } catch { /* ignore */ }
+  }
+
+  // paramName → citation (from paramMethodsCitationsJson stored on protocol)
+  const paramCitationsMap: Record<string, string> = {};
+  if (protocol.paramMethodsCitationsJson) {
+    try { Object.assign(paramCitationsMap, JSON.parse(protocol.paramMethodsCitationsJson)); } catch { /* ignore */ }
+  }
+
+  // ── ANVISA limits per ativo (min/max/unit/declared) ──────────────────────
+  type AtivoLimit = { min: string; max: string; unit: string; declared: string };
+  const ativoLimitsMap: Record<string, AtivoLimit> = {};
+  if (protocol.ativoLimitsJson) {
+    try { Object.assign(ativoLimitsMap, JSON.parse(protocol.ativoLimitsJson)); } catch { /* ignore */ }
+  }
 
   const CATEGORY_ORDER: Record<string, number> = {
     fisico_quimica: 0,
@@ -149,7 +136,7 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     .sort(([, a], [, b]) => (CATEGORY_ORDER[a.category] ?? 9) - (CATEGORY_ORDER[b.category] ?? 9))
     .map(([param, data]) => {
       const avg = data.count > 0 ? data.sum / data.count : null;
-      const avgResult = avg !== null ? avg.toFixed(2) : data.resultText;
+      const avgPercent = avg !== null ? avg.toFixed(2) : null;
 
       // Re-evaluate status based on the computed average vs criterion.
       // AR (whether per-cell or protocol-level) is never downgraded automatically.
@@ -167,11 +154,7 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       }
 
       // Step 3: Brazilian nutritional labeling rule (RDC 429/2020 / IN 75/2020).
-      // Kcal and Sódio are ALWAYS Conforme:
-      //   Kcal < 4 kcal/porção → pode declarar como 0  → conforme
-      //   Kcal ≥ 4 kcal/porção → declara valor real     → conforme (sem limite máximo)
-      //   Sódio < 5 mg/porção  → pode declarar como 0  → conforme
-      //   Sódio ≥ 5 mg/porção  → declara valor real     → conforme (sem limite máximo)
+      // Kcal and Sódio are ALWAYS Conforme (< threshold → declare as 0 → valid; ≥ threshold → declare value → valid).
       const ALWAYS_CONFORME_PARAMS = new Set(["kcal", "sódio", "sodio", "sódio (mg)", "sodio (mg)"]);
       if (ALWAYS_CONFORME_PARAMS.has(param.toLowerCase()) && finalStatus === "nao_conforme") {
         finalStatus = "conforme";
@@ -197,12 +180,47 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
         specification = libCriteria ?? data.criterion;
       }
 
+      // ── ANVISA mg/mcg calculation for teor_ativo params ─────────────────
+      // If ativoLimitsJson has declared amount and the result is a percentage (avg),
+      // calculate the actual absolute value at the measured result %.
+      let ativoMgInfo: string | null = null;
+      if (data.category === "teor_ativo" && avg !== null) {
+        const lim = ativoLimitsMap[param];
+        if (lim?.declared) {
+          const declaredNum = parseFloat(lim.declared);
+          if (!isNaN(declaredNum) && declaredNum > 0) {
+            const actualMg = (avg / 100) * declaredNum;
+            const minNum = lim.min ? parseFloat(lim.min) : null;
+            const maxNum = lim.max ? parseFloat(lim.max) : null;
+            // Format: "510,30 mg (ANVISA: 450 – 750 mg)"
+            const faixaStr = (minNum !== null || maxNum !== null)
+              ? ` | Faixa ANVISA: ${minNum ?? "—"} – ${maxNum ?? "—"} ${lim.unit}`
+              : "";
+            ativoMgInfo = `${actualMg.toFixed(2).replace(".", ",")} ${lim.unit}${faixaStr}`;
+
+            // Flag out-of-range in status (does not override AR)
+            if (finalStatus !== "aprovado_com_ressalva") {
+              const belowMin = minNum !== null && actualMg < minNum;
+              const aboveMax = maxNum !== null && actualMg > maxNum;
+              if (belowMin || aboveMax) finalStatus = "nao_conforme";
+            }
+          }
+        }
+      }
+
+      // ── result: include mg/mcg value for teor_ativo params ──────────────
+      let resultDisplay = avgPercent ?? data.resultText;
+      if (ativoMgInfo) {
+        resultDisplay = avgPercent !== null ? `${avgPercent}%` : data.resultText;
+      }
+
       return {
         parameter: param,
         category: data.category,
         method,
         specification,
-        result: avgResult,
+        result: resultDisplay,
+        ativoMgInfo,
         status: finalStatus === "nao_conforme" ? "Nao Conforme" : finalStatus === "na" ? "N/A" : finalStatus === "aprovado_com_ressalva" ? "Aprovado com Ressalva" : "Conforme",
       };
     });
@@ -263,8 +281,6 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     notes: "Os resultados obtidos nos tempos T0, T3 e T6 (40 °C / 75% UR) demonstraram estabilidade do componente, com variações atribuídas exclusivamente à variabilidade analítica.",
     kineticsNotes: protocol.kineticsNotes ?? null,
     ressalva: protocol.ressalva ?? null,
-    duplicateParameters,
-    customParamsJson,
   });
 });
 
