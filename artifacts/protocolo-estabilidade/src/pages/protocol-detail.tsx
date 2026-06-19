@@ -59,7 +59,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink, Upload, Download, X, File, GripVertical, Search, SaveAll, RotateCcw, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink, Upload, Download, X, File, GripVertical, Search, SaveAll, RotateCcw, ShieldAlert, Eye, EyeOff } from "lucide-react";
 import { AuditTrail } from "@/components/audit-trail";
 import { useToast } from "@/hooks/use-toast";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
@@ -689,6 +689,44 @@ function InlineCell({
   const [observation, setObservation] = useState(result?.observation ?? "");
   const queryClient = useQueryClient();
 
+  // Pede senha antes de reeditar resultado já salvo
+  const [pwdOpen, setPwdOpen] = useState(false);
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdError, setPwdError] = useState("");
+  const [pwdValue, setPwdValue] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+
+  const openEditing = () => {
+    if (!result) { open(); return; }
+    setPwdOpen(true);
+    setPwdValue("");
+    setPwdError("");
+  };
+
+  const confirmPwd = async () => {
+    if (!pwdValue.trim()) return;
+    setPwdLoading(true);
+    setPwdError("");
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pwdValue }),
+      });
+      if (res.ok) {
+        setPwdOpen(false);
+        setPwdValue("");
+        open();
+      } else {
+        setPwdError("Senha incorreta.");
+        setPwdValue("");
+      }
+    } catch {
+      setPwdError("Erro de conexão.");
+    }
+    setPwdLoading(false);
+  };
+
   useEffect(() => {
     if (!editing) {
       setValue(result?.result ?? "");
@@ -910,13 +948,48 @@ function InlineCell({
   const imgKey = `imgs_${protocolId}_${param.parameter}_${lotId}_${period}`;
   return (
     <div className="flex flex-col items-center gap-0.5" data-testid={`cell-${param.parameter}-${lotId}-${period}`}>
+      {/* Dialog de confirmação de senha para reeditar resultado já salvo */}
+      {pwdOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { setPwdOpen(false); setPwdError(""); }}>
+          <div className="bg-white rounded-lg shadow-xl w-80 p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-amber-600 shrink-0" />
+              <p className="font-semibold text-sm">Alterar resultado já salvo</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              O parâmetro <strong>{param.parameter}</strong> já possui resultado salvo. Digite a senha para autorizar a alteração.
+            </p>
+            <div className="relative">
+              <input
+                type={showPwd ? "text" : "password"}
+                value={pwdValue}
+                onChange={e => { setPwdValue(e.target.value); setPwdError(""); }}
+                onKeyDown={e => { if (e.key === "Enter") confirmPwd(); if (e.key === "Escape") { setPwdOpen(false); } }}
+                placeholder="Senha mestra"
+                autoFocus
+                className="w-full border border-border rounded px-3 py-1.5 text-sm pr-9 focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <button type="button" onClick={() => setShowPwd(s => !s)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">
+                {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {pwdError && <p className="text-xs text-destructive font-medium -mt-2">{pwdError}</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => { setPwdOpen(false); setPwdError(""); }} className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted">Cancelar</button>
+              <button type="button" onClick={confirmPwd} disabled={pwdLoading || !pwdValue.trim()} className="text-xs px-3 py-1.5 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50">
+                {pwdLoading ? "Verificando…" : "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div
-        onClick={open}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } }}
+        onClick={openEditing}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openEditing(); } }}
         tabIndex={0}
         data-inline-cell
         className="cursor-pointer group flex items-center justify-center min-h-8 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-inset rounded w-full"
-        title="Clique ou Enter para editar"
+        title={result ? "Clique para alterar (exige senha)" : "Clique para inserir resultado"}
       >
         {result ? (
           <span className={`inline-flex flex-col items-center gap-0.5 px-1.5 py-0.5 rounded text-xs border font-medium group-hover:opacity-80 transition-opacity ${statusColors[result.status] ?? "text-slate-600 bg-slate-50 border-slate-200"}`}>
@@ -2045,6 +2118,46 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Sessão de edição desbloqueada na aba cinética (pede senha uma vez por sessão)
+  const [kineticsUnlocked, setKineticsUnlocked] = useState(false);
+  const [kineticsPwdOpen, setKineticsPwdOpen] = useState(false);
+  const [kineticsPwdValue, setKineticsPwdValue] = useState("");
+  const [kineticsPwdError, setKineticsPwdError] = useState("");
+  const [kineticsPwdLoading, setKineticsPwdLoading] = useState(false);
+  const [kineticsPwdShowPwd, setKineticsPwdShowPwd] = useState(false);
+  const [pendingFieldChange, setPendingFieldChange] = useState<{ param: string; field: keyof KineticOverride; val: string } | null>(null);
+  const hasSavedOverrides = !!initialKineticsOverridesJson;
+
+  const confirmKineticsPwd = async () => {
+    if (!kineticsPwdValue.trim()) return;
+    setKineticsPwdLoading(true);
+    setKineticsPwdError("");
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: kineticsPwdValue }),
+      });
+      if (res.ok) {
+        setKineticsUnlocked(true);
+        setKineticsPwdOpen(false);
+        setKineticsPwdValue("");
+        // Aplica a mudança pendente após desbloquear
+        if (pendingFieldChange) {
+          const { param, field, val } = pendingFieldChange;
+          setPendingFieldChange(null);
+          applyFieldChange(param, field, val);
+        }
+      } else {
+        setKineticsPwdError("Senha incorreta.");
+        setKineticsPwdValue("");
+      }
+    } catch {
+      setKineticsPwdError("Erro de conexão.");
+    }
+    setKineticsPwdLoading(false);
+  };
+
   const queryClient = useQueryClient();
 
   const handleDeleteParam = async () => {
@@ -2166,9 +2279,8 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     } catch { /* ignore */ }
   };
 
-  const setField = (param: string, field: keyof KineticOverride, val: string) => {
+  const applyFieldChange = (param: string, field: keyof KineticOverride, val: string) => {
     setIsDirty(true);
-    // Track manual edits to T0/T3/T6 for source indicator
     if (field === "t0" || field === "t3" || field === "t6") {
       setManualFields((prev) => {
         const existing = prev[param] ?? [];
@@ -2178,9 +2290,6 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     }
     setOverrides((prev) => {
       const ov = { ...prev[param], [field]: val };
-      // Recalculate Δln, k and t_val whenever inputs change.
-      // ichThreshold (ICH 80 % limit) drives the t_val calculation.
-      // specMin/specMax are informational only and do NOT trigger recalculation.
       if (["t0", "t3", "t6", "ichThreshold"].includes(field)) {
         const computed = calcKineticOverride(ov.t0, ov.t3, ov.t6, ov.ichThreshold);
         Object.assign(ov, computed);
@@ -2189,6 +2298,18 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       persistOverrides(next);
       return next;
     });
+  };
+
+  const setField = (param: string, field: keyof KineticOverride, val: string) => {
+    // Se já existem overrides salvos no DB e a sessão não foi desbloqueada, pede senha
+    if (hasSavedOverrides && !kineticsUnlocked) {
+      setPendingFieldChange({ param, field, val });
+      setKineticsPwdOpen(true);
+      setKineticsPwdValue("");
+      setKineticsPwdError("");
+      return;
+    }
+    applyFieldChange(param, field, val);
   };
 
   const resetToCalculated = () => {
@@ -2272,6 +2393,42 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
 
   return (
     <div className="space-y-6">
+      {/* Dialog de senha para desbloquear edição da cinética */}
+      {kineticsPwdOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { setKineticsPwdOpen(false); setPendingFieldChange(null); }}>
+          <div className="bg-white rounded-lg shadow-xl w-80 p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-amber-600 shrink-0" />
+              <p className="font-semibold text-sm">Editar correções já salvas</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Esta aba possui correções gravadas no banco. Digite a senha mestra para liberar edições nesta sessão.
+            </p>
+            <div className="relative">
+              <input
+                type={kineticsPwdShowPwd ? "text" : "password"}
+                value={kineticsPwdValue}
+                onChange={e => { setKineticsPwdValue(e.target.value); setKineticsPwdError(""); }}
+                onKeyDown={e => { if (e.key === "Enter") confirmKineticsPwd(); if (e.key === "Escape") { setKineticsPwdOpen(false); setPendingFieldChange(null); } }}
+                placeholder="Senha mestra"
+                autoFocus
+                className="w-full border border-border rounded px-3 py-1.5 text-sm pr-9 focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <button type="button" onClick={() => setKineticsPwdShowPwd(s => !s)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">
+                {kineticsPwdShowPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {kineticsPwdError && <p className="text-xs text-destructive font-medium -mt-2">{kineticsPwdError}</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => { setKineticsPwdOpen(false); setPendingFieldChange(null); }} className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted">Cancelar</button>
+              <button type="button" onClick={confirmKineticsPwd} disabled={kineticsPwdLoading || !kineticsPwdValue.trim()} className="text-xs px-3 py-1.5 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50">
+                {kineticsPwdLoading ? "Verificando…" : "Desbloquear"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Product header */}
       <div className="flex items-center justify-between gap-4 pb-3 border-b border-border">
         <div>
@@ -2282,6 +2439,16 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {hasSavedOverrides && !kineticsUnlocked && (
+            <span className="flex items-center gap-1 text-xs text-amber-700 border border-amber-300 bg-amber-50 px-2 py-1 rounded">
+              <Lock className="h-3 w-3" /> Edição bloqueada — clique em um campo para desbloquear
+            </span>
+          )}
+          {hasSavedOverrides && kineticsUnlocked && (
+            <span className="flex items-center gap-1 text-xs text-green-700 border border-green-300 bg-green-50 px-2 py-1 rounded">
+              <Unlock className="h-3 w-3" /> Edição desbloqueada nesta sessão
+            </span>
+          )}
           {isDirty && (
             <Button
               variant="default"
@@ -2731,6 +2898,42 @@ function MethodologiaTab({
   const setDraggingParam2 = (uid: string | null) => { draggingParamRef2.current = uid; setDraggingParamUid2(uid); };
   const setDragOverParam2 = (uid: string | null) => { dragOverParamRef2.current = uid; setDragOverParamUid2(uid); };
 
+  // Senha para TROCAR metodologia já atribuída
+  const [changeMethodConfirm, setChangeMethodConfirm] = useState<{ uid: string; paramName: string; currentShort: string; newShortName: string | null; newCitation: string | null } | null>(null);
+  const [changeMethodPwd, setChangeMethodPwd] = useState("");
+  const [changeMethodError, setChangeMethodError] = useState("");
+  const [changeMethodLoading, setChangeMethodLoading] = useState(false);
+  const [changeMethodShowPwd, setChangeMethodShowPwd] = useState(false);
+
+  const handleChangeMethodology = async () => {
+    if (!changeMethodConfirm) return;
+    setChangeMethodError("");
+    setChangeMethodLoading(true);
+    try {
+      const resp = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: changeMethodPwd }),
+      });
+      if (!resp.ok) {
+        setChangeMethodError("Senha incorreta.");
+        setChangeMethodLoading(false);
+        setChangeMethodPwd("");
+        return;
+      }
+    } catch {
+      setChangeMethodError("Erro ao verificar senha.");
+      setChangeMethodLoading(false);
+      return;
+    }
+    const { uid, paramName, newShortName, newCitation } = changeMethodConfirm;
+    setParamMethodInTab(uid, paramName, newShortName, newCitation);
+    setChangeMethodConfirm(null);
+    setChangeMethodPwd("");
+    setChangeMethodError("");
+    setChangeMethodLoading(false);
+  };
+
   const [removeMethodConfirm, setRemoveMethodConfirm] = useState<{ uid: string; paramName: string; shortName: string } | null>(null);
   const [removeMethodPwd, setRemoveMethodPwd] = useState("");
   const [removeMethodError, setRemoveMethodError] = useState("");
@@ -3049,7 +3252,15 @@ function MethodologiaTab({
                                     selected={p.methodologyShort ?? null}
                                     methodologies={methodologies}
                                     catalogEntries={getCatalogEntries(p.parameter)}
-                                    onSelect={(s, c) => setParamMethodInTab(p.uid, p.parameter, s, c)}
+                                    onSelect={(s, c) => {
+                                      if (p.methodologyShort) {
+                                        setChangeMethodConfirm({ uid: p.uid, paramName: p.parameter, currentShort: p.methodologyShort, newShortName: s, newCitation: c });
+                                        setChangeMethodPwd("");
+                                        setChangeMethodError("");
+                                      } else {
+                                        setParamMethodInTab(p.uid, p.parameter, s, c);
+                                      }
+                                    }}
                                     compact
                                     hideRemove
                                   />
@@ -3073,7 +3284,15 @@ function MethodologiaTab({
                                 selected={null}
                                 methodologies={methodologies}
                                 catalogEntries={getCatalogEntries(p.parameter)}
-                                onSelect={(s, c) => setParamMethodInTab(p.uid, p.parameter, s, c)}
+                                onSelect={(s, c) => {
+                                  if (p.methodologyShort) {
+                                    setChangeMethodConfirm({ uid: p.uid, paramName: p.parameter, currentShort: p.methodologyShort, newShortName: s, newCitation: c });
+                                    setChangeMethodPwd("");
+                                    setChangeMethodError("");
+                                  } else {
+                                    setParamMethodInTab(p.uid, p.parameter, s, c);
+                                  }
+                                }}
                               />
                             )}
                           </td>
@@ -3479,6 +3698,47 @@ function MethodologiaTab({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog — confirmar troca de metodologia já atribuída */}
+      {changeMethodConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { setChangeMethodConfirm(null); setChangeMethodPwd(""); setChangeMethodError(""); }}>
+          <div className="bg-white rounded-lg shadow-xl w-80 p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-amber-600 shrink-0" />
+              <p className="font-semibold text-sm">Alterar metodologia já atribuída</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              O parâmetro <strong>{changeMethodConfirm.paramName}</strong> já tem a metodologia{" "}
+              <strong>{changeMethodConfirm.currentShort}</strong> atribuída.{" "}
+              {changeMethodConfirm.newShortName
+                ? <>Será trocada por <strong>{changeMethodConfirm.newShortName}</strong>.</>
+                : "Será desvinculada."}
+              {" "}Digite a senha mestra para confirmar.
+            </p>
+            <div className="relative">
+              <input
+                type={changeMethodShowPwd ? "text" : "password"}
+                value={changeMethodPwd}
+                onChange={e => { setChangeMethodPwd(e.target.value); setChangeMethodError(""); }}
+                onKeyDown={e => { if (e.key === "Enter") handleChangeMethodology(); if (e.key === "Escape") { setChangeMethodConfirm(null); } }}
+                placeholder="Senha mestra"
+                autoFocus
+                className="w-full border border-border rounded px-3 py-1.5 text-sm pr-9 focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <button type="button" onClick={() => setChangeMethodShowPwd(s => !s)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">
+                {changeMethodShowPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {changeMethodError && <p className="text-xs text-destructive font-medium -mt-2">{changeMethodError}</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => { setChangeMethodConfirm(null); setChangeMethodPwd(""); setChangeMethodError(""); }} className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted">Cancelar</button>
+              <button type="button" onClick={handleChangeMethodology} disabled={changeMethodLoading || !changeMethodPwd.trim()} className="text-xs px-3 py-1.5 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50">
+                {changeMethodLoading ? "Verificando…" : "Confirmar troca"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
