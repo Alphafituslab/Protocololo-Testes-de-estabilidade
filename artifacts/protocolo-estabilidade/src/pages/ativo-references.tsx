@@ -11,6 +11,22 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Trash2, FlaskConical } from "lucide-react";
+import { UnlockDialog } from "@/components/unlock-dialog";
+
+async function verifyMasterPassword(password: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch("/api/auth/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    if (res.ok) return { ok: true };
+    const body = await res.json().catch(() => ({})) as { error?: string };
+    return { ok: false, error: body.error ?? "Senha incorreta." };
+  } catch {
+    return { ok: false, error: "Erro de conexão. Tente novamente." };
+  }
+}
 
 type RefForm = {
   parameter: string;
@@ -38,6 +54,7 @@ export default function AtivoReferencesPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<AtivoReference | null>(null);
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -87,11 +104,16 @@ export default function AtivoReferencesPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDelete = async (ref: AtivoReference) => {
-    if (!window.confirm(`Remover "${ref.parameter}" do banco de limites?`)) return;
-    await deleteRef.mutateAsync({ id: ref.id });
+  const handleDelete = (ref: AtivoReference) => {
+    setPendingDelete(ref);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    await deleteRef.mutateAsync({ id: pendingDelete.id });
     queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() });
-    if (editingId === ref.id) resetForm();
+    if (editingId === pendingDelete.id) resetForm();
+    setPendingDelete(null);
   };
 
   return (
@@ -283,6 +305,16 @@ export default function AtivoReferencesPage() {
       <p className="text-xs text-muted-foreground pb-4">
         Os limites cadastrados aqui são preenchidos automaticamente em novos protocolos (exceto "Qtd declarada", que é específica de cada fórmula). Use o botão "↩ banco" na aba Resultados para restaurar os valores padrão em protocolos já existentes.
       </p>
+
+      <UnlockDialog
+        open={pendingDelete !== null}
+        onOpenChange={open => { if (!open) setPendingDelete(null); }}
+        onUnlock={verifyMasterPassword}
+        onSuccess={confirmDelete}
+        title="Confirmar exclusão"
+        description={`Remover "${pendingDelete?.parameter}" do banco de limites? Esta ação não pode ser desfeita. Digite a senha mestra para confirmar.`}
+        submitLabel="Confirmar exclusão"
+      />
     </div>
   );
 }

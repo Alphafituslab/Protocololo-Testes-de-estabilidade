@@ -1417,6 +1417,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   const [refEditingId, setRefEditingId] = useState<number | null>(null);
   const [refForm, setRefForm] = useState<RefForm>(emptyRefForm);
   const [refSaving, setRefSaving] = useState(false);
+  const [pendingDeleteBankRef, setPendingDeleteBankRef] = useState<AtivoReference | null>(null);
 
   const createRef = useCreateAtivoReference();
   const updateRef = useUpdateAtivoReference();
@@ -2062,11 +2063,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={async () => {
-                                      if (!window.confirm(`Remover "${ref.parameter}" do banco?`)) return;
-                                      await deleteRef.mutateAsync({ id: ref.id });
-                                      queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() });
-                                    }}
+                                    onClick={() => setPendingDeleteBankRef(ref)}
                                     className="text-[10px] px-1.5 py-0.5 rounded border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
                                   >
                                     Remover
@@ -2080,6 +2077,39 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                     )}
                   </div>
                 )}
+
+                {/* Master password dialog for bank delete */}
+                <UnlockDialog
+                  open={pendingDeleteBankRef !== null}
+                  onOpenChange={open => { if (!open) setPendingDeleteBankRef(null); }}
+                  onUnlock={async (password) => {
+                    try {
+                      const res = await fetch("/api/auth/verify", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ password }),
+                      });
+                      if (res.ok) return { ok: true };
+                      const body = await res.json().catch(() => ({})) as { error?: string };
+                      return { ok: false, error: body.error ?? "Senha incorreta." };
+                    } catch {
+                      return { ok: false, error: "Erro de conexão." };
+                    }
+                  }}
+                  onSuccess={async () => {
+                    if (!pendingDeleteBankRef) return;
+                    await deleteRef.mutateAsync({ id: pendingDeleteBankRef.id });
+                    queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() });
+                    if (refEditingId === pendingDeleteBankRef.id) {
+                      setRefForm(emptyRefForm);
+                      setRefEditingId(null);
+                    }
+                    setPendingDeleteBankRef(null);
+                  }}
+                  title="Confirmar exclusão"
+                  description={`Remover "${pendingDeleteBankRef?.parameter}" do banco de limites? Esta ação não pode ser desfeita. Digite a senha mestra para confirmar.`}
+                  submitLabel="Confirmar exclusão"
+                />
               </div>
             )}
             <div className="rounded-md border overflow-x-auto">
