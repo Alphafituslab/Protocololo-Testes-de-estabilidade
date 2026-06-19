@@ -1928,8 +1928,8 @@ function calcMedia(t0s: string, t3s: string, t6s: string): string {
 }
 
 function EditableNum({
-  value, onChange, width = "w-20", placeholder = "—",
-}: { value: string; onChange: (v: string) => void; width?: string; placeholder?: string }) {
+  value, onChange, width = "w-20", placeholder = "—", highlighted = false,
+}: { value: string; onChange: (v: string) => void; width?: string; placeholder?: string; highlighted?: boolean }) {
   return (
     <input
       value={value}
@@ -1940,8 +1940,9 @@ function EditableNum({
       spellCheck={false}
       data-form-type="other"
       data-lpignore="true"
-      className={`${width} border border-border rounded px-1.5 py-0.5 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary bg-white`}
+      className={`${width} border rounded px-1.5 py-0.5 text-xs font-mono text-right focus:outline-none bg-white ${highlighted ? "border-amber-400 ring-1 ring-amber-300 bg-amber-50 focus:ring-amber-500" : "border-border focus:ring-1 focus:ring-primary"}`}
       placeholder={placeholder}
+      title={highlighted ? "Valor editado manualmente — fonte: correção manual na aba Cinética" : undefined}
     />
   );
 }
@@ -1971,12 +1972,24 @@ function buildKineticOverride(p: KineticApiParam): KineticOverride {
   };
 }
 
-function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths, customParamsJson }: {
+type KineticsOverridesDB = {
+  savedAt?: string;
+  params?: Record<string, {
+    t0?: string; t3?: string; t6?: string;
+    specMin?: string; specMax?: string;
+    validadePraticada?: string; ichThreshold?: string;
+    manualFields?: string[];
+  }>;
+  customShelfLife?: string;
+};
+
+function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths, customParamsJson, initialKineticsOverridesJson }: {
   protocolId: number;
   productName: string;
   initialKineticsNotes?: string | null;
   initialValidityMonths?: number | null;
   customParamsJson?: string | null;
+  initialKineticsOverridesJson?: string | null;
 }) {
   const { data: kinetics, isLoading } = useGetKinetics(protocolId, {
     query: { queryKey: getGetKineticsQueryKey(protocolId), staleTime: 0 },
@@ -2017,6 +2030,20 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [manualFields, setManualFields] = useState<Record<string, string[]>>(() => {
+    try {
+      const db: KineticsOverridesDB = JSON.parse(initialKineticsOverridesJson ?? "{}");
+      const mf: Record<string, string[]> = {};
+      for (const [param, pdata] of Object.entries(db.params ?? {})) {
+        if (Array.isArray(pdata.manualFields)) mf[param] = pdata.manualFields;
+      }
+      return mf;
+    } catch { return {}; }
+  });
+  const [isDirty, setIsDirty] = useState(false);
+  const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -2063,41 +2090,64 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     setIsDeleting(false);
   };
 
+  // Sync manualFields + reset isDirty when DB overrides change (e.g. after a save)
+  useEffect(() => {
+    try {
+      const db: KineticsOverridesDB = JSON.parse(initialKineticsOverridesJson ?? "{}");
+      const mf: Record<string, string[]> = {};
+      for (const [param, pdata] of Object.entries(db.params ?? {})) {
+        if (Array.isArray(pdata.manualFields)) mf[param] = pdata.manualFields;
+      }
+      setManualFields(mf);
+      setIsDirty(false);
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialKineticsOverridesJson]);
+
   // Re-runs every time the kinetics API data changes (i.e. after a result upsert
-  // invalidates the query). T0/T3/T6 always come fresh from the API; user-edited
-  // computed fields are preserved from localStorage.
+  // invalidates the query). DB-saved manual T overrides take priority over fresh
+  // API values for fields that were manually edited; all other fields come fresh.
   useEffect(() => {
     if (!kinetics) return;
 
     type SavedPartial = Partial<Omit<KineticOverride, "t0" | "t3" | "t6">>;
     let savedOverrides: Record<string, SavedPartial> = {};
     let savedCustomShelfLife = "";
+    let dbOverrides: KineticsOverridesDB | null = null;
     try {
       const stored = readLs();
       if (stored.overrides) savedOverrides = stored.overrides;
       if (stored.customShelfLife != null) savedCustomShelfLife = stored.customShelfLife;
+    } catch { /* ignore */ }
+    try {
+      if (initialKineticsOverridesJson) {
+        dbOverrides = JSON.parse(initialKineticsOverridesJson) as KineticsOverridesDB;
+        if (dbOverrides?.customShelfLife) savedCustomShelfLife = dbOverrides.customShelfLife;
+      }
     } catch { /* ignore */ }
 
     const next: Record<string, KineticOverride> = {};
     for (const p of kinetics.parameters) {
       const base = buildKineticOverride(p);
       const saved = savedOverrides[p.parameter] ?? {};
-      // User-editable preferences preserved from localStorage
-      const ichThreshold = saved.ichThreshold ?? base.ichThreshold;
-      // Always recompute derived fields (deltaLn, k, shelfLife) from fresh
-      // API values (t0/t3/t6), applying the user's saved ichThreshold.
-      // This ensures the table reacts immediately when results are updated,
-      // without stale computed values from a previous localStorage snapshot.
-      const recomputed = calcKineticOverride(base.t0, base.t3, base.t6, ichThreshold);
+      const dbParam = dbOverrides?.params?.[p.parameter];
+
+      const ichThreshold = dbParam?.ichThreshold ?? saved.ichThreshold ?? base.ichThreshold;
+      // T0/T3/T6: use DB-saved value when that field was manually edited; otherwise fresh API
+      const t0 = (dbParam?.manualFields?.includes("t0") && dbParam.t0) ? dbParam.t0 : base.t0;
+      const t3 = (dbParam?.manualFields?.includes("t3") && dbParam.t3) ? dbParam.t3 : base.t3;
+      const t6 = (dbParam?.manualFields?.includes("t6") && dbParam.t6) ? dbParam.t6 : base.t6;
+      const recomputed = calcKineticOverride(t0, t3, t6, ichThreshold);
+
       next[p.parameter] = {
-        t0: base.t0, t3: base.t3, t6: base.t6,
+        t0, t3, t6,
         deltaLn: recomputed.deltaLn ?? base.deltaLn,
         k: recomputed.k ?? base.k,
         shelfLife: recomputed.shelfLife ?? base.shelfLife,
-        validadePraticada: saved.validadePraticada ?? base.validadePraticada,
+        validadePraticada: dbParam?.validadePraticada ?? saved.validadePraticada ?? base.validadePraticada,
         ichThreshold,
-        specMin: saved.specMin || base.specMin,
-        specMax: saved.specMax || base.specMax,
+        specMin: dbParam?.specMin || saved.specMin || base.specMin,
+        specMax: dbParam?.specMax || saved.specMax || base.specMax,
       };
     }
     setOverrides(next);
@@ -2117,6 +2167,15 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   };
 
   const setField = (param: string, field: keyof KineticOverride, val: string) => {
+    setIsDirty(true);
+    // Track manual edits to T0/T3/T6 for source indicator
+    if (field === "t0" || field === "t3" || field === "t6") {
+      setManualFields((prev) => {
+        const existing = prev[param] ?? [];
+        if (!existing.includes(field)) return { ...prev, [param]: [...existing, field] };
+        return prev;
+      });
+    }
     setOverrides((prev) => {
       const ov = { ...prev[param], [field]: val };
       // Recalculate Δln, k and t_val whenever inputs change.
@@ -2142,7 +2201,41 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     setCustomShelfLife("");
     setCardValidity(initialValidityMonths != null ? String(initialValidityMonths) : "");
     setKineticsObs(initialKineticsNotes ?? "");
+    setManualFields({});
+    setIsDirty(false);
     try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
+    // Clear DB overrides too
+    updateProtocol.mutate({ id: protocolId, data: { kineticsOverridesJson: null } });
+  };
+
+  const saveOverridesToDb = () => {
+    setIsSaving(true);
+    const payload: KineticsOverridesDB = {
+      savedAt: new Date().toISOString(),
+      params: {},
+      customShelfLife: customShelfLife || undefined,
+    };
+    for (const [param, ov] of Object.entries(overrides)) {
+      payload.params![param] = {
+        t0: ov.t0, t3: ov.t3, t6: ov.t6,
+        specMin: ov.specMin, specMax: ov.specMax,
+        validadePraticada: ov.validadePraticada,
+        ichThreshold: ov.ichThreshold,
+        manualFields: manualFields[param] ?? [],
+      };
+    }
+    updateProtocol.mutate(
+      { id: protocolId, data: { kineticsOverridesJson: JSON.stringify(payload) } },
+      {
+        onSuccess: () => {
+          setIsDirty(false);
+          setSaveConfirmOpen(false);
+          setIsSaving(false);
+          try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
+        },
+        onError: () => { setIsSaving(false); },
+      },
+    );
   };
 
   if (isLoading) return <div className="text-center py-8 text-muted-foreground">Calculando...</div>;
@@ -2188,11 +2281,57 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
             {kinetics.parameters.length} parâmetro(s) de Teor do Ativo analisados via cinética de 1ª ordem (ICH Q1A)
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={resetToCalculated}>
-          Restaurar valores calculados
-        </Button>
+        <div className="flex items-center gap-2">
+          {isDirty && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setSaveConfirmOpen(true)}
+              className="gap-1.5 bg-primary text-primary-foreground"
+            >
+              <SaveAll className="h-3.5 w-3.5" />
+              Salvar correções
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={resetToCalculated}>
+            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+            Restaurar valores calculados
+          </Button>
+        </div>
       </div>
-      <p className="text-xs text-muted-foreground -mt-2">Todos os valores são editáveis diretamente nas células — os cálculos são atualizados automaticamente.</p>
+      {isDirty && (
+        <p className="text-xs text-amber-700 -mt-2 flex items-center gap-1">
+          <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+          Há correções não salvas. Clique em <strong>Salvar correções</strong> para persistir no banco de dados.
+        </p>
+      )}
+      {!isDirty && (
+        <p className="text-xs text-muted-foreground -mt-2">Todos os valores são editáveis diretamente nas células — os cálculos são atualizados automaticamente.</p>
+      )}
+
+      <AlertDialog open={saveConfirmOpen} onOpenChange={setSaveConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar gravação das correções</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>As correções manuais feitas nesta sessão serão gravadas no banco de dados.</p>
+                <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-blue-800 text-xs">
+                  <p className="font-semibold mb-1">ℹ Sobre a fonte dos dados</p>
+                  <p>Campos de T0/T3/T6 editados manualmente serão marcados como <strong>"editado manualmente"</strong> (indicados em âmbar) e substituirão os valores calculados automaticamente. Os demais campos (Espec. mín/máx, Validade Praticada, Vida Útil Personalizada) também são persistidos.</p>
+                </div>
+                <p className="text-muted-foreground text-xs">Para reverter, use o botão <strong>Restaurar valores calculados</strong>.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSaving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={saveOverridesToDb} disabled={isSaving}>
+              {isSaving ? "Salvando…" : "Sim, salvar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {missingMsg}
 
@@ -2287,13 +2426,13 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                 <TableRow key={p.parameter} className={isLimiting ? "bg-amber-50/40" : ""}>
                   <TableCell className="font-medium text-sm">{p.parameter}</TableCell>
                   <TableCell className="text-right py-2">
-                    <EditableNum value={ov.t0} onChange={(v) => setField(p.parameter, "t0", v)} width="w-20" placeholder="T0" />
+                    <EditableNum value={ov.t0} onChange={(v) => setField(p.parameter, "t0", v)} width="w-20" placeholder="T0" highlighted={manualFields[p.parameter]?.includes("t0") ?? false} />
                   </TableCell>
                   <TableCell className="text-right py-2">
-                    <EditableNum value={ov.t3} onChange={(v) => setField(p.parameter, "t3", v)} width="w-20" placeholder="T3" />
+                    <EditableNum value={ov.t3} onChange={(v) => setField(p.parameter, "t3", v)} width="w-20" placeholder="T3" highlighted={manualFields[p.parameter]?.includes("t3") ?? false} />
                   </TableCell>
                   <TableCell className="text-right py-2">
-                    <EditableNum value={ov.t6} onChange={(v) => setField(p.parameter, "t6", v)} width="w-20" placeholder="T6" />
+                    <EditableNum value={ov.t6} onChange={(v) => setField(p.parameter, "t6", v)} width="w-20" placeholder="T6" highlighted={manualFields[p.parameter]?.includes("t6") ?? false} />
                   </TableCell>
                   {/* Vida Útil Calculada — computed via ICH Q1A(R2); Δln/k/limiar run silently */}
                   <TableCell className="text-right py-2 bg-amber-50/30">
@@ -4011,6 +4150,7 @@ export default function ProtocolDetail() {
                 initialKineticsNotes={protocol.kineticsNotes}
                 initialValidityMonths={protocol.validityMonths}
                 customParamsJson={protocol.customParamsJson}
+                initialKineticsOverridesJson={protocol.kineticsOverridesJson}
               />
             </CardContent>
           </Card>

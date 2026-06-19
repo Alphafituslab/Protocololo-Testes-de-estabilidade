@@ -90,6 +90,8 @@ export interface Protocol {
   paramMethodsJson?: string | null;
   /** JSON com citação completa por parâmetro {paramName:citation} */
   paramMethodsCitationsJson?: string | null;
+  /** JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife} */
+  kineticsOverridesJson?: string | null;
   /** true se algum dos assinantes obrigatórios (issuedBy / seniorAnalyst) ainda não assinou */
   pendingSignatures?: boolean | null;
   createdAt: string;
@@ -235,6 +237,7 @@ export interface UpdateProtocolBody {
   periodDatesJson?: string | null;
   paramMethodsJson?: string | null;
   paramMethodsCitationsJson?: string | null;
+  kineticsOverridesJson?: string | null;
   issueDate?: string | null;
 }
 

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, methodologiesTable } from "@workspace/db";
+import { db, methodologiesTable, protocolsTable } from "@workspace/db";
 import { z } from "zod";
 import { requireAuth } from "../lib/session";
 
@@ -67,6 +67,17 @@ router.put("/methodologies/:id", requireAuth, async (req, res): Promise<void> =>
     res.status(400).json({ error: body.error.message });
     return;
   }
+
+  // Fetch old methodology before update (need old shortName for propagation)
+  const [old] = await db
+    .select()
+    .from(methodologiesTable)
+    .where(eq(methodologiesTable.id, params.data.id));
+  if (!old) {
+    res.status(404).json({ error: "Methodology not found" });
+    return;
+  }
+
   const [updated] = await db
     .update(methodologiesTable)
     .set({
@@ -83,6 +94,82 @@ router.put("/methodologies/:id", requireAuth, async (req, res): Promise<void> =>
     res.status(404).json({ error: "Methodology not found" });
     return;
   }
+
+  // Propagate changes to all protocols that reference this methodology.
+  // A protocol references a methodology when paramMethodsJson maps any param → old.shortName.
+  const oldShortName = old.shortName;
+  const newShortName = body.data.shortName;
+  const newCitation = body.data.citation;
+  const newCriteria = body.data.criteria ?? null;
+
+  try {
+    const allProtocols = await db
+      .select({
+        id: protocolsTable.id,
+        paramMethodsJson: protocolsTable.paramMethodsJson,
+        paramMethodsCitationsJson: protocolsTable.paramMethodsCitationsJson,
+        customParamsJson: protocolsTable.customParamsJson,
+      })
+      .from(protocolsTable);
+
+    for (const protocol of allProtocols) {
+      let paramMethods: Record<string, string> = {};
+      try {
+        if (protocol.paramMethodsJson) paramMethods = JSON.parse(protocol.paramMethodsJson) as Record<string, string>;
+      } catch { continue; }
+
+      // Find which params in this protocol reference the old methodology
+      const affectedParams = Object.entries(paramMethods)
+        .filter(([, method]) => method === oldShortName)
+        .map(([paramName]) => paramName);
+
+      if (affectedParams.length === 0) continue;
+
+      // 1. Update paramMethodsJson if shortName changed
+      if (newShortName !== oldShortName) {
+        for (const paramName of affectedParams) {
+          paramMethods[paramName] = newShortName;
+        }
+      }
+
+      // 2. Update paramMethodsCitationsJson
+      let paramCitations: Record<string, string> = {};
+      try {
+        if (protocol.paramMethodsCitationsJson) paramCitations = JSON.parse(protocol.paramMethodsCitationsJson) as Record<string, string>;
+      } catch {}
+      for (const paramName of affectedParams) {
+        paramCitations[paramName] = newCitation;
+      }
+
+      // 3. Update customParamsJson: set criterion for affected params when criteria changed
+      let customParams: Array<{ parameter: string; category: string; criterion?: string; [key: string]: unknown }> = [];
+      let customParamsChanged = false;
+      try {
+        if (protocol.customParamsJson) customParams = JSON.parse(protocol.customParamsJson) as typeof customParams;
+      } catch {}
+      if (newCriteria) {
+        customParams = customParams.map((p) => {
+          if (affectedParams.includes(p.parameter)) {
+            customParamsChanged = true;
+            return { ...p, criterion: newCriteria };
+          }
+          return p;
+        });
+      }
+
+      await db
+        .update(protocolsTable)
+        .set({
+          paramMethodsJson: JSON.stringify(paramMethods),
+          paramMethodsCitationsJson: JSON.stringify(paramCitations),
+          ...(customParamsChanged ? { customParamsJson: JSON.stringify(customParams) } : {}),
+        })
+        .where(eq(protocolsTable.id, protocol.id));
+    }
+  } catch {
+    // Propagation errors are non-fatal — the methodology update itself succeeded
+  }
+
   res.json(updated);
 });
 

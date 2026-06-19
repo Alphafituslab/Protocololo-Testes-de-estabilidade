@@ -45,5 +45,6 @@ export interface UpdateProtocolBody {
   periodDatesJson?: string | null;
   paramMethodsJson?: string | null;
   paramMethodsCitationsJson?: string | null;
+  kineticsOverridesJson?: string | null;
   issueDate?: string | null;
 }

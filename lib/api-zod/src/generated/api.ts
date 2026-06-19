@@ -199,6 +199,12 @@ export const ListProtocolsResponseItem = zod.object({
     .string()
     .nullish()
     .describe("JSON com citação completa por parâmetro {paramName:citation}"),
+  kineticsOverridesJson: zod
+    .string()
+    .nullish()
+    .describe(
+      "JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife}",
+    ),
   pendingSignatures: zod
     .boolean()
     .nullish()
@@ -357,6 +363,12 @@ export const GetProtocolStatsResponse = zod.object({
         .describe(
           "JSON com citação completa por parâmetro {paramName:citation}",
         ),
+      kineticsOverridesJson: zod
+        .string()
+        .nullish()
+        .describe(
+          "JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife}",
+        ),
       pendingSignatures: zod
         .boolean()
         .nullish()
@@ -471,6 +483,12 @@ export const GetProtocolResponse = zod
       .string()
       .nullish()
       .describe("JSON com citação completa por parâmetro {paramName:citation}"),
+    kineticsOverridesJson: zod
+      .string()
+      .nullish()
+      .describe(
+        "JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife}",
+      ),
     pendingSignatures: zod
       .boolean()
       .nullish()
@@ -575,6 +593,7 @@ export const UpdateProtocolBody = zod.object({
   periodDatesJson: zod.string().nullish(),
   paramMethodsJson: zod.string().nullish(),
   paramMethodsCitationsJson: zod.string().nullish(),
+  kineticsOverridesJson: zod.string().nullish(),
   issueDate: zod.string().nullish(),
 });
 
@@ -669,6 +688,12 @@ export const UpdateProtocolResponse = zod.object({
     .string()
     .nullish()
     .describe("JSON com citação completa por parâmetro {paramName:citation}"),
+  kineticsOverridesJson: zod
+    .string()
+    .nullish()
+    .describe(
+      "JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife}",
+    ),
   pendingSignatures: zod
     .boolean()
     .nullish()
@@ -1172,6 +1197,12 @@ export const FinalizeProtocolResponse = zod.object({
     .string()
     .nullish()
     .describe("JSON com citação completa por parâmetro {paramName:citation}"),
+  kineticsOverridesJson: zod
+    .string()
+    .nullish()
+    .describe(
+      "JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife}",
+    ),
   pendingSignatures: zod
     .boolean()
     .nullish()
