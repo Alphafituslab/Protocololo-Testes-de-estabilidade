@@ -1492,6 +1492,90 @@ export const DeleteProductTypeParams = zod.object({
 });
 
 /**
+ * @summary List all ANVISA active ingredient reference limits
+ */
+export const ListAtivoReferencesResponseItem = zod.object({
+  id: zod.number(),
+  parameter: zod.string(),
+  minValue: zod.string().nullish(),
+  maxValue: zod.string().nullish(),
+  unit: zod.string(),
+  source: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const ListAtivoReferencesResponse = zod.array(
+  ListAtivoReferencesResponseItem,
+);
+
+/**
+ * @summary Create an ativo reference limit
+ */
+export const CreateAtivoReferenceBody = zod.object({
+  parameter: zod.string(),
+  minValue: zod.string().nullish(),
+  maxValue: zod.string().nullish(),
+  unit: zod.string().optional(),
+  source: zod.string().nullish(),
+  notes: zod.string().nullish(),
+});
+
+/**
+ * @summary Lookup ativo reference by parameter name
+ */
+export const LookupAtivoReferenceQueryParams = zod.object({
+  parameter: zod.coerce.string(),
+});
+
+export const LookupAtivoReferenceResponseItem = zod.object({
+  id: zod.number(),
+  parameter: zod.string(),
+  minValue: zod.string().nullish(),
+  maxValue: zod.string().nullish(),
+  unit: zod.string(),
+  source: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const LookupAtivoReferenceResponse = zod.array(
+  LookupAtivoReferenceResponseItem,
+);
+
+/**
+ * @summary Update an ativo reference
+ */
+export const UpdateAtivoReferenceParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateAtivoReferenceBody = zod.object({
+  parameter: zod.string(),
+  minValue: zod.string().nullish(),
+  maxValue: zod.string().nullish(),
+  unit: zod.string().optional(),
+  source: zod.string().nullish(),
+  notes: zod.string().nullish(),
+});
+
+export const UpdateAtivoReferenceResponse = zod.object({
+  id: zod.number(),
+  parameter: zod.string(),
+  minValue: zod.string().nullish(),
+  maxValue: zod.string().nullish(),
+  unit: zod.string(),
+  source: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete an ativo reference
+ */
+export const DeleteAtivoReferenceParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary List all bibliographic references
  */
 export const ListBibliographicReferencesResponseItem = zod.object({

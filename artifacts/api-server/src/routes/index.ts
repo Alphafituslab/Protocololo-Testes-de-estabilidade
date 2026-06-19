@@ -19,6 +19,7 @@ import backupRouter from "./backup";
 import bibliographicReferencesRouter from "./bibliographic-references";
 import snapshotsRouter from "./snapshots";
 import globalSnapshotsRouter from "./global-snapshots";
+import ativoReferencesRouter from "./ativo-references";
 
 const router: IRouter = Router();
 
@@ -43,5 +44,6 @@ router.use(backupRouter);
 router.use(bibliographicReferencesRouter);
 router.use(snapshotsRouter);
 router.use(globalSnapshotsRouter);
+router.use(ativoReferencesRouter);
 
 export default router;

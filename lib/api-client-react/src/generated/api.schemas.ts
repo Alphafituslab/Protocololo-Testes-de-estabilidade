@@ -539,6 +539,26 @@ export interface ProductTypeInput {
   isPowder?: boolean;
 }
 
+export interface AtivoReference {
+  id: number;
+  parameter: string;
+  minValue?: string | null;
+  maxValue?: string | null;
+  unit: string;
+  source?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface AtivoReferenceInput {
+  parameter: string;
+  minValue?: string | null;
+  maxValue?: string | null;
+  unit?: string;
+  source?: string | null;
+  notes?: string | null;
+}
+
 export interface BibliographicReference {
   id: number;
   titulo: string;
@@ -596,4 +616,8 @@ export const ListProtocolsStatus = {
 
 export type DeleteSignature200 = {
   ok?: boolean;
+};
+
+export type LookupAtivoReferenceParams = {
+  parameter: string;
 };

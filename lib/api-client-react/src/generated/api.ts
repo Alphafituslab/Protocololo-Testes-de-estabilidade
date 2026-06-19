@@ -20,6 +20,8 @@ import type {
   AddProtocolReferenceBody,
   AddSignatureBody,
   AnalysisResult,
+  AtivoReference,
+  AtivoReferenceInput,
   BibliographicReference,
   BibliographicReferenceInput,
   CatalogItem,
@@ -36,6 +38,7 @@ import type {
   HealthStatus,
   KineticsResult,
   ListProtocolsParams,
+  LookupAtivoReferenceParams,
   Lot,
   Methodology,
   ProductTypeInput,
@@ -3536,6 +3539,438 @@ export const useDeleteProductType = <
   TContext
 > => {
   return useMutation(getDeleteProductTypeMutationOptions(options));
+};
+
+/**
+ * @summary List all ANVISA active ingredient reference limits
+ */
+export const getListAtivoReferencesUrl = () => {
+  return `/api/ativo-references`;
+};
+
+export const listAtivoReferences = async (
+  options?: RequestInit,
+): Promise<AtivoReference[]> => {
+  return customFetch<AtivoReference[]>(getListAtivoReferencesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListAtivoReferencesQueryKey = () => {
+  return [`/api/ativo-references`] as const;
+};
+
+export const getListAtivoReferencesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAtivoReferences>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAtivoReferences>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAtivoReferencesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listAtivoReferences>>
+  > = ({ signal }) => listAtivoReferences({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAtivoReferences>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAtivoReferencesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAtivoReferences>>
+>;
+export type ListAtivoReferencesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all ANVISA active ingredient reference limits
+ */
+
+export function useListAtivoReferences<
+  TData = Awaited<ReturnType<typeof listAtivoReferences>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAtivoReferences>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAtivoReferencesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create an ativo reference limit
+ */
+export const getCreateAtivoReferenceUrl = () => {
+  return `/api/ativo-references`;
+};
+
+export const createAtivoReference = async (
+  ativoReferenceInput: AtivoReferenceInput,
+  options?: RequestInit,
+): Promise<AtivoReference> => {
+  return customFetch<AtivoReference>(getCreateAtivoReferenceUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(ativoReferenceInput),
+  });
+};
+
+export const getCreateAtivoReferenceMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAtivoReference>>,
+    TError,
+    { data: BodyType<AtivoReferenceInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createAtivoReference>>,
+  TError,
+  { data: BodyType<AtivoReferenceInput> },
+  TContext
+> => {
+  const mutationKey = ["createAtivoReference"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createAtivoReference>>,
+    { data: BodyType<AtivoReferenceInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createAtivoReference(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateAtivoReferenceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createAtivoReference>>
+>;
+export type CreateAtivoReferenceMutationBody = BodyType<AtivoReferenceInput>;
+export type CreateAtivoReferenceMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create an ativo reference limit
+ */
+export const useCreateAtivoReference = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAtivoReference>>,
+    TError,
+    { data: BodyType<AtivoReferenceInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createAtivoReference>>,
+  TError,
+  { data: BodyType<AtivoReferenceInput> },
+  TContext
+> => {
+  return useMutation(getCreateAtivoReferenceMutationOptions(options));
+};
+
+/**
+ * @summary Lookup ativo reference by parameter name
+ */
+export const getLookupAtivoReferenceUrl = (
+  params: LookupAtivoReferenceParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/ativo-references/lookup?${stringifiedParams}`
+    : `/api/ativo-references/lookup`;
+};
+
+export const lookupAtivoReference = async (
+  params: LookupAtivoReferenceParams,
+  options?: RequestInit,
+): Promise<AtivoReference[]> => {
+  return customFetch<AtivoReference[]>(getLookupAtivoReferenceUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLookupAtivoReferenceQueryKey = (
+  params?: LookupAtivoReferenceParams,
+) => {
+  return [`/api/ativo-references/lookup`, ...(params ? [params] : [])] as const;
+};
+
+export const getLookupAtivoReferenceQueryOptions = <
+  TData = Awaited<ReturnType<typeof lookupAtivoReference>>,
+  TError = ErrorType<unknown>,
+>(
+  params: LookupAtivoReferenceParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof lookupAtivoReference>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getLookupAtivoReferenceQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof lookupAtivoReference>>
+  > = ({ signal }) =>
+    lookupAtivoReference(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof lookupAtivoReference>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type LookupAtivoReferenceQueryResult = NonNullable<
+  Awaited<ReturnType<typeof lookupAtivoReference>>
+>;
+export type LookupAtivoReferenceQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Lookup ativo reference by parameter name
+ */
+
+export function useLookupAtivoReference<
+  TData = Awaited<ReturnType<typeof lookupAtivoReference>>,
+  TError = ErrorType<unknown>,
+>(
+  params: LookupAtivoReferenceParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof lookupAtivoReference>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getLookupAtivoReferenceQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update an ativo reference
+ */
+export const getUpdateAtivoReferenceUrl = (id: number) => {
+  return `/api/ativo-references/${id}`;
+};
+
+export const updateAtivoReference = async (
+  id: number,
+  ativoReferenceInput: AtivoReferenceInput,
+  options?: RequestInit,
+): Promise<AtivoReference> => {
+  return customFetch<AtivoReference>(getUpdateAtivoReferenceUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(ativoReferenceInput),
+  });
+};
+
+export const getUpdateAtivoReferenceMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAtivoReference>>,
+    TError,
+    { id: number; data: BodyType<AtivoReferenceInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateAtivoReference>>,
+  TError,
+  { id: number; data: BodyType<AtivoReferenceInput> },
+  TContext
+> => {
+  const mutationKey = ["updateAtivoReference"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateAtivoReference>>,
+    { id: number; data: BodyType<AtivoReferenceInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateAtivoReference(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateAtivoReferenceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateAtivoReference>>
+>;
+export type UpdateAtivoReferenceMutationBody = BodyType<AtivoReferenceInput>;
+export type UpdateAtivoReferenceMutationError = ErrorType<void>;
+
+/**
+ * @summary Update an ativo reference
+ */
+export const useUpdateAtivoReference = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAtivoReference>>,
+    TError,
+    { id: number; data: BodyType<AtivoReferenceInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateAtivoReference>>,
+  TError,
+  { id: number; data: BodyType<AtivoReferenceInput> },
+  TContext
+> => {
+  return useMutation(getUpdateAtivoReferenceMutationOptions(options));
+};
+
+/**
+ * @summary Delete an ativo reference
+ */
+export const getDeleteAtivoReferenceUrl = (id: number) => {
+  return `/api/ativo-references/${id}`;
+};
+
+export const deleteAtivoReference = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteAtivoReferenceUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteAtivoReferenceMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAtivoReference>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAtivoReference>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteAtivoReference"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAtivoReference>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteAtivoReference(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteAtivoReferenceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteAtivoReference>>
+>;
+
+export type DeleteAtivoReferenceMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete an ativo reference
+ */
+export const useDeleteAtivoReference = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAtivoReference>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAtivoReference>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteAtivoReferenceMutationOptions(options));
 };
 
 /**

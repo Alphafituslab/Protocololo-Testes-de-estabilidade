@@ -77,6 +77,20 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     try { Object.assign(ativoLimitsMap, JSON.parse(protocol.ativoLimitsJson)); } catch { /* ignore */ }
   }
 
+  // ── T6 values from kinetics overrides (what the user sees in the Cinética tab) ─
+  // Structure: { [parameter]: { t0, t3, t6, specMin, specMax, validadePraticada } }
+  type KineticOverride = { t0: string; t3: string; t6: string };
+  const kineticsT6Map: Record<string, number> = {};
+  if (protocol.kineticsOverridesJson) {
+    try {
+      const overrides = JSON.parse(protocol.kineticsOverridesJson) as Record<string, KineticOverride>;
+      for (const [param, ov] of Object.entries(overrides)) {
+        const t6Num = parseFloat(ov.t6);
+        if (!isNaN(t6Num)) kineticsT6Map[param] = t6Num;
+      }
+    } catch { /* ignore */ }
+  }
+
   const CATEGORY_ORDER: Record<string, number> = {
     fisico_quimica: 0,
     microbiologica: 1,
@@ -181,15 +195,17 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       }
 
       // ── ANVISA mg/mcg calculation for teor_ativo params ─────────────────
-      // If ativoLimitsJson has declared amount and the result is a percentage (avg),
-      // calculate the actual absolute value at the measured result %.
+      // Uses T6 value from kinetics overrides (same value shown in the Cinética tab)
+      // if available; falls back to avg of all analysis results if kinetics not set.
       let ativoMgInfo: string | null = null;
-      if (data.category === "teor_ativo" && avg !== null) {
+      if (data.category === "teor_ativo") {
         const lim = ativoLimitsMap[param];
         if (lim?.declared) {
           const declaredNum = parseFloat(lim.declared);
-          if (!isNaN(declaredNum) && declaredNum > 0) {
-            const actualMg = (avg / 100) * declaredNum;
+          // Prefer T6 from kinetics overrides; fall back to the overall average
+          const basePercent = kineticsT6Map[param] ?? avg;
+          if (basePercent !== null && !isNaN(declaredNum) && declaredNum > 0) {
+            const actualMg = (basePercent / 100) * declaredNum;
             const minNum = lim.min ? parseFloat(lim.min) : null;
             const maxNum = lim.max ? parseFloat(lim.max) : null;
             // Format adapts to which bounds are present:
@@ -202,9 +218,10 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
             } else if (maxNum !== null) {
               faixaStr = ` | Faixa ANVISA: ≤ ${maxNum} ${lim.unit}`;
             }
-            ativoMgInfo = `${actualMg.toFixed(2).replace(".", ",")} ${lim.unit}${faixaStr}`;
+            const sourceLabel = kineticsT6Map[param] !== undefined ? " (T6)" : "";
+            ativoMgInfo = `${actualMg.toFixed(2).replace(".", ",")} ${lim.unit}${sourceLabel}${faixaStr}`;
 
-            // Flag out-of-range in status (does not override AR)
+            // Automatically flag as Nao Conforme when below minimum (does not override AR)
             if (finalStatus !== "aprovado_com_ressalva") {
               const belowMin = minNum !== null && actualMg < minNum;
               const aboveMax = maxNum !== null && actualMg > maxNum;

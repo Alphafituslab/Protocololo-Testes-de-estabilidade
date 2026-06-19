@@ -847,6 +847,99 @@ paths:
         "200":
           description: Deleted
 
+  /ativo-references:
+    get:
+      operationId: listAtivoReferences
+      tags: [ativo-references]
+      summary: List all ANVISA active ingredient reference limits
+      responses:
+        "200":
+          description: List of ativo references
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AtivoReference"
+    post:
+      operationId: createAtivoReference
+      tags: [ativo-references]
+      summary: Create an ativo reference limit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AtivoReferenceInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtivoReference"
+
+  /ativo-references/lookup:
+    get:
+      operationId: lookupAtivoReference
+      tags: [ativo-references]
+      summary: Lookup ativo reference by parameter name
+      parameters:
+        - name: parameter
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matching references
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AtivoReference"
+
+  /ativo-references/{id}:
+    put:
+      operationId: updateAtivoReference
+      tags: [ativo-references]
+      summary: Update an ativo reference
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AtivoReferenceInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtivoReference"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteAtivoReference
+      tags: [ativo-references]
+      summary: Delete an ativo reference
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
   /bibliographic-references:
     get:
       operationId: listBibliographicReferences
@@ -1998,6 +2091,53 @@ components:
           type: string
         isPowder:
           type: boolean
+
+    AtivoReference:
+      type: object
+      properties:
+        id:
+          type: integer
+        parameter:
+          type: string
+        minValue:
+          type: string
+          nullable: true
+        maxValue:
+          type: string
+          nullable: true
+        unit:
+          type: string
+        source:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, parameter, unit, createdAt]
+
+    AtivoReferenceInput:
+      type: object
+      required: [parameter]
+      properties:
+        parameter:
+          type: string
+        minValue:
+          type: string
+          nullable: true
+        maxValue:
+          type: string
+          nullable: true
+        unit:
+          type: string
+        source:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
 
     BibliographicReference:
       type: object

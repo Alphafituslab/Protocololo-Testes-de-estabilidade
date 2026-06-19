@@ -44,6 +44,12 @@ import {
   useRemoveProtocolBibliographicReference,
   getListProtocolBibliographicReferencesQueryKey,
   type BibliographicReference,
+  useListAtivoReferences,
+  useCreateAtivoReference,
+  useUpdateAtivoReference,
+  useDeleteAtivoReference,
+  getListAtivoReferencesQueryKey,
+  type AtivoReference,
 } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1313,6 +1319,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
   const { data: results = [], isLoading } = useListResults(protocolId, { query: { queryKey: getListResultsQueryKey(protocolId) } });
   const { data: methodologies = [] } = useListMethodologies();
+  const { data: ativoRefs = [] } = useListAtivoReferences({ query: { queryKey: getListAtivoReferencesQueryKey(), staleTime: 30_000 } });
 
   const defaultParams = ANALYSIS_PARAMETERS.map((p, i) => ({ ...p, uid: `${p.category}_${i}` }));
   const [editableParams, setEditableParams] = useState<EditableParam[]>(() => {
@@ -1361,7 +1368,104 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
         [param]: { ...(prev[param] ?? { min: "", max: "", unit: "mg", declared: "" }), [field]: value }
       };
       try { localStorage.setItem(ATIVO_LIMITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-      updateProtocol.mutate({ id: protocolId, data: { ativoLimitsJson: JSON.stringify(next) } });
+      updateProtocol.mutate(
+        { id: protocolId, data: { ativoLimitsJson: JSON.stringify(next) } },
+        {
+          onSuccess: () => {
+            // Sync KineticsTab immediately — it reads ativoLimitsJson from the protocol query
+            queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
+            queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocolId) });
+          },
+        }
+      );
+      return next;
+    });
+  };
+
+  // Auto-populate ativoLimits from reference bank when a parameter has no saved limits
+  useEffect(() => {
+    if (!ativoRefs.length) return;
+    setAtivoLimitsState(prev => {
+      let changed = false;
+      const next = { ...prev };
+      for (const ref of ativoRefs) {
+        const existing = prev[ref.parameter];
+        const isEmpty = !existing || (!existing.min && !existing.max);
+        if (isEmpty) {
+          next[ref.parameter] = {
+            min: ref.minValue ?? "",
+            max: ref.maxValue ?? "",
+            unit: ref.unit ?? "mg",
+            declared: existing?.declared ?? "",
+          };
+          changed = true;
+        }
+      }
+      if (changed) {
+        try { localStorage.setItem(ATIVO_LIMITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+        updateProtocol.mutate({ id: protocolId, data: { ativoLimitsJson: JSON.stringify(next) } });
+      }
+      return changed ? next : prev;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ativoRefs]);
+
+  // ── Reference bank management state ───────────────────────────────────────
+  type RefForm = { parameter: string; minValue: string; maxValue: string; unit: string; notes: string };
+  const emptyRefForm: RefForm = { parameter: "", minValue: "", maxValue: "", unit: "mg", notes: "" };
+  const [refBankOpen, setRefBankOpen] = useState(false);
+  const [refEditingId, setRefEditingId] = useState<number | null>(null);
+  const [refForm, setRefForm] = useState<RefForm>(emptyRefForm);
+  const [refSaving, setRefSaving] = useState(false);
+
+  const createRef = useCreateAtivoReference();
+  const updateRef = useUpdateAtivoReference();
+  const deleteRef = useDeleteAtivoReference();
+
+  const saveRefForm = async () => {
+    setRefSaving(true);
+    try {
+      const payload = {
+        parameter: refForm.parameter.trim(),
+        minValue: refForm.minValue || null,
+        maxValue: refForm.maxValue || null,
+        unit: refForm.unit || "mg",
+        notes: refForm.notes || null,
+      };
+      if (refEditingId !== null) {
+        await updateRef.mutateAsync({ id: refEditingId, data: payload });
+      } else {
+        await createRef.mutateAsync({ data: payload });
+      }
+      queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() });
+      setRefForm(emptyRefForm);
+      setRefEditingId(null);
+    } finally {
+      setRefSaving(false);
+    }
+  };
+
+  const applyRefToLimit = (ref: AtivoReference) => {
+    setAtivoLimitsState(prev => {
+      const existing = prev[ref.parameter] ?? { min: "", max: "", unit: "mg", declared: "" };
+      const next = {
+        ...prev,
+        [ref.parameter]: {
+          ...existing,
+          min: ref.minValue ?? "",
+          max: ref.maxValue ?? "",
+          unit: ref.unit ?? "mg",
+        },
+      };
+      try { localStorage.setItem(ATIVO_LIMITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      updateProtocol.mutate(
+        { id: protocolId, data: { ativoLimitsJson: JSON.stringify(next) } },
+        { onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
+            queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocolId) });
+          },
+        }
+      );
       return next;
     });
   };
@@ -1702,9 +1806,24 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">{label}</h3>
             {key === "teor_ativo" && (
               <div className="mb-3 rounded-md border border-indigo-200 bg-indigo-50 p-3">
-                <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-2">
-                  Faixa de Conformidade por Ativo — ANVISA (RDC 269/2005)
-                </p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">
+                    Faixa de Conformidade por Ativo — ANVISA (RDC 269/2005)
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setRefBankOpen(o => !o)}
+                    className="flex items-center gap-1 text-[10px] font-medium text-indigo-600 hover:text-indigo-800 border border-indigo-300 rounded px-2 py-0.5 bg-white hover:bg-indigo-50 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
+                    </svg>
+                    {refBankOpen ? "Fechar banco" : "Gerenciar banco"}
+                    {ativoRefs.length > 0 && (
+                      <span className="ml-1 bg-indigo-100 text-indigo-700 rounded-full px-1.5 py-px text-[9px] font-semibold">{ativoRefs.length}</span>
+                    )}
+                  </button>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="text-xs w-full">
                     <thead>
@@ -1720,6 +1839,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                           <span className="block text-[9px] font-normal text-indigo-400 normal-case">opcional</span>
                         </th>
                         <th className="text-left pb-1.5 pl-1">Unidade</th>
+                        <th className="text-left pb-1.5 pl-2"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1727,6 +1847,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                         const lim = ativoLimits[param.parameter] ?? { min: "", max: "", unit: "mg", declared: "" };
                         const hasMin = !!lim.min;
                         const hasMax = !!lim.max;
+                        const bankRef = ativoRefs.find(r => r.parameter === param.parameter);
                         return (
                           <tr key={param.parameter} className="border-t border-indigo-100">
                             <td className="pr-3 py-1 font-medium text-indigo-900 whitespace-nowrap">
@@ -1791,6 +1912,20 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                 <option value="g">g</option>
                               </select>
                             </td>
+                            <td className="py-1 pl-2">
+                              {bankRef ? (
+                                <button
+                                  type="button"
+                                  title={`Usar banco: mín ${bankRef.minValue ?? "—"}, máx ${bankRef.maxValue ?? "—"} ${bankRef.unit}`}
+                                  onClick={() => applyRefToLimit(bankRef)}
+                                  className="text-[10px] px-1.5 py-0.5 rounded border border-indigo-300 bg-white text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 transition-colors whitespace-nowrap"
+                                >
+                                  ↩ banco
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-indigo-200">—</span>
+                              )}
+                            </td>
                           </tr>
                         );
                       })}
@@ -1798,8 +1933,157 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                   </table>
                 </div>
                 <p className="text-[10px] text-indigo-500 mt-2">
-                  ✓ Salvo automaticamente. Os limites são usados na aba Cinética para calcular o valor em mg/mcg e alertar quando fora da faixa ANVISA.
+                  ✓ Salvo automaticamente. Os limites são usados na aba Cinética para calcular o valor em mg/mcg e alertar quando fora da faixa ANVISA. Use "↩ banco" para restaurar o valor padrão cadastrado.
                 </p>
+
+                {/* ── Banco de Referências — CRUD ───────────────────────── */}
+                {refBankOpen && (
+                  <div className="mt-3 border-t border-indigo-200 pt-3">
+                    <p className="text-xs font-semibold text-indigo-700 mb-2">Banco de Referências de Limites</p>
+
+                    {/* Form */}
+                    <div className="bg-white border border-indigo-200 rounded p-2 mb-3">
+                      <p className="text-[10px] font-semibold text-indigo-600 uppercase tracking-wide mb-1.5">
+                        {refEditingId !== null ? "Editar entrada" : "Nova entrada"}
+                      </p>
+                      <div className="flex flex-wrap gap-2 items-end">
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[9px] text-indigo-500 uppercase">Ativo *</label>
+                          <input
+                            value={refForm.parameter}
+                            onChange={e => setRefForm(f => ({ ...f, parameter: e.target.value }))}
+                            placeholder="ex: Cálcio"
+                            className="border border-indigo-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 w-36"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[9px] text-indigo-500 uppercase">Mín. (opcional)</label>
+                          <input
+                            type="number"
+                            step="any"
+                            value={refForm.minValue}
+                            onChange={e => setRefForm(f => ({ ...f, minValue: e.target.value }))}
+                            placeholder="—"
+                            className="border border-indigo-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 w-20 text-right"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[9px] text-indigo-500 uppercase">Máx. (opcional)</label>
+                          <input
+                            type="number"
+                            step="any"
+                            value={refForm.maxValue}
+                            onChange={e => setRefForm(f => ({ ...f, maxValue: e.target.value }))}
+                            placeholder="—"
+                            className="border border-indigo-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 w-20 text-right"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[9px] text-indigo-500 uppercase">Unidade</label>
+                          <select
+                            value={refForm.unit}
+                            onChange={e => setRefForm(f => ({ ...f, unit: e.target.value }))}
+                            className="border border-indigo-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                          >
+                            <option value="mg">mg</option>
+                            <option value="mcg">mcg</option>
+                            <option value="UI">UI</option>
+                            <option value="UFC/g">UFC/g</option>
+                            <option value="g">g</option>
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[9px] text-indigo-500 uppercase">Observações</label>
+                          <input
+                            value={refForm.notes}
+                            onChange={e => setRefForm(f => ({ ...f, notes: e.target.value }))}
+                            placeholder="RDC 269/2005..."
+                            className="border border-indigo-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 w-40"
+                          />
+                        </div>
+                        <div className="flex gap-1 items-end">
+                          <button
+                            type="button"
+                            disabled={!refForm.parameter.trim() || refSaving}
+                            onClick={saveRefForm}
+                            className="px-3 py-0.5 rounded bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+                          >
+                            {refSaving ? "Salvando…" : refEditingId !== null ? "Atualizar" : "Adicionar"}
+                          </button>
+                          {refEditingId !== null && (
+                            <button
+                              type="button"
+                              onClick={() => { setRefForm(emptyRefForm); setRefEditingId(null); }}
+                              className="px-2 py-0.5 rounded border border-indigo-200 text-indigo-600 text-xs hover:bg-indigo-50 transition-colors"
+                            >
+                              Cancelar
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* List */}
+                    {ativoRefs.length === 0 ? (
+                      <p className="text-[10px] text-indigo-400 italic">Nenhuma entrada cadastrada ainda.</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="text-xs w-full">
+                          <thead>
+                            <tr className="text-indigo-500 font-medium border-b border-indigo-100">
+                              <th className="text-left pr-3 pb-1">Ativo</th>
+                              <th className="text-right pr-2 pb-1">Mín.</th>
+                              <th className="text-right pr-2 pb-1">Máx.</th>
+                              <th className="text-left pr-2 pb-1">Unidade</th>
+                              <th className="text-left pb-1">Observações</th>
+                              <th className="pb-1"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {ativoRefs.map(ref => (
+                              <tr key={ref.id} className="border-t border-indigo-50 hover:bg-indigo-50/40">
+                                <td className="pr-3 py-1 font-medium text-indigo-900 whitespace-nowrap">{ref.parameter}</td>
+                                <td className="pr-2 py-1 text-right text-indigo-700">{ref.minValue ?? "—"}</td>
+                                <td className="pr-2 py-1 text-right text-indigo-700">{ref.maxValue ?? "—"}</td>
+                                <td className="pr-2 py-1 text-indigo-600">{ref.unit}</td>
+                                <td className="py-1 text-indigo-400 text-[10px] max-w-[160px] truncate">{ref.notes ?? ""}</td>
+                                <td className="py-1 pl-2 flex gap-1 whitespace-nowrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setRefEditingId(ref.id);
+                                      setRefForm({
+                                        parameter: ref.parameter,
+                                        minValue: ref.minValue ?? "",
+                                        maxValue: ref.maxValue ?? "",
+                                        unit: ref.unit ?? "mg",
+                                        notes: ref.notes ?? "",
+                                      });
+                                    }}
+                                    className="text-[10px] px-1.5 py-0.5 rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                                  >
+                                    Editar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      if (!window.confirm(`Remover "${ref.parameter}" do banco?`)) return;
+                                      await deleteRef.mutateAsync({ id: ref.id });
+                                      queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() });
+                                    }}
+                                    className="text-[10px] px-1.5 py-0.5 rounded border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                                  >
+                                    Remover
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             <div className="rounded-md border overflow-x-auto">
