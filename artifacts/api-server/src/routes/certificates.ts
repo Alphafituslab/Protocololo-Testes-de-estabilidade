@@ -166,14 +166,36 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
         finalStatus = "aprovado_com_ressalva";
       }
 
+      // Step 3: Brazilian nutritional labeling rule (RDC 429/2020 / IN 75/2020).
+      // Kcal and Sódio are ALWAYS Conforme:
+      //   Kcal < 4 kcal/porção → pode declarar como 0  → conforme
+      //   Kcal ≥ 4 kcal/porção → declara valor real     → conforme (sem limite máximo)
+      //   Sódio < 5 mg/porção  → pode declarar como 0  → conforme
+      //   Sódio ≥ 5 mg/porção  → declara valor real     → conforme (sem limite máximo)
+      const ALWAYS_CONFORME_PARAMS = new Set(["kcal", "sódio", "sodio", "sódio (mg)", "sodio (mg)"]);
+      if (ALWAYS_CONFORME_PARAMS.has(param.toLowerCase()) && finalStatus === "nao_conforme") {
+        finalStatus = "conforme";
+      }
+
       // ── method: DB citation (from methodology library) > static fallback map > generic ──
       const method = paramCitationsMap[param] || METHOD_MAP[param] || "Método interno.";
 
       // ── specification: methodology library criteria > analysis result criterion ──
+      // For Kcal/Sódio, use the nutritional labeling threshold rule when no methodology criterion is set.
       const methodShortName = paramMethodsMap[param];
-      const specification = (methodShortName && shortNameToCriteria[methodShortName])
+      const libCriteria = (methodShortName && shortNameToCriteria[methodShortName])
         ? shortNameToCriteria[methodShortName]
-        : data.criterion;
+        : null;
+
+      let specification: string | null;
+      const paramLower = param.toLowerCase();
+      if (!libCriteria && (paramLower === "kcal" || paramLower === "kcal (kcal)")) {
+        specification = "< 4 Kcal/porção: declarar como 0; ≥ 4 Kcal/porção: declarar";
+      } else if (!libCriteria && (paramLower === "sódio" || paramLower === "sodio" || paramLower === "sódio (mg)" || paramLower === "sodio (mg)")) {
+        specification = "< 5 mg/porção: declarar como 0; ≥ 5 mg/porção: declarar";
+      } else {
+        specification = libCriteria ?? data.criterion;
+      }
 
       return {
         parameter: param,
