@@ -2226,11 +2226,13 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     type SavedPartial = Partial<Omit<KineticOverride, "t0" | "t3" | "t6">>;
     let savedOverrides: Record<string, SavedPartial> = {};
     let savedCustomShelfLife = "";
+    let savedCardValidity = "";
     let dbOverrides: KineticsOverridesDB | null = null;
     try {
       const stored = readLs();
       if (stored.overrides) savedOverrides = stored.overrides;
       if (stored.customShelfLife != null) savedCustomShelfLife = stored.customShelfLife;
+      if (typeof stored.cardValidity === "string") savedCardValidity = stored.cardValidity;
     } catch { /* ignore */ }
     try {
       if (initialKineticsOverridesJson) {
@@ -2257,7 +2259,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
         deltaLn: recomputed.deltaLn ?? base.deltaLn,
         k: recomputed.k ?? base.k,
         shelfLife: recomputed.shelfLife ?? base.shelfLife,
-        validadePraticada: dbParam?.validadePraticada ?? saved.validadePraticada ?? base.validadePraticada,
+        validadePraticada: dbParam?.validadePraticada || saved.validadePraticada || base.validadePraticada || savedCardValidity || "",
         ichThreshold,
         specMin: dbParam?.specMin || saved.specMin || base.specMin,
         specMax: dbParam?.specMax || saved.specMax || base.specMax,
@@ -2547,9 +2549,22 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   onChange={(e) => {
                     const val = e.target.value;
                     setCardValidity(val);
+                    // Propagar para todas as linhas da tabela Validade Adotada
+                    setOverrides(prev => {
+                      const next: Record<string, KineticOverride> = {};
+                      for (const [key, ov] of Object.entries(prev)) {
+                        next[key] = { ...ov, validadePraticada: val };
+                      }
+                      return next;
+                    });
+                    setIsDirty(true);
                     try {
                       const stored = readLs();
-                      localStorage.setItem(LS_KEY, JSON.stringify({ ...stored, cardValidity: val }));
+                      const updatedOvs: Record<string, KineticOverride> = {};
+                      for (const [key, ov] of Object.entries(stored.overrides ?? {})) {
+                        updatedOvs[key] = { ...(ov as KineticOverride), validadePraticada: val };
+                      }
+                      localStorage.setItem(LS_KEY, JSON.stringify({ ...stored, cardValidity: val, overrides: updatedOvs }));
                     } catch { /* ignore */ }
                     const num = parseInt(val, 10);
                     debouncedSave({ validityMonths: isNaN(num) ? null : num });
