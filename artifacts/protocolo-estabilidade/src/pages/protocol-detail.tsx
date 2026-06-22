@@ -2751,7 +2751,7 @@ type KineticsOverridesDB = {
   customShelfLife?: string;
 };
 
-function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths, customParamsJson, initialKineticsOverridesJson, ativoLimitsJson }: {
+function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths, customParamsJson, initialKineticsOverridesJson, ativoLimitsJson, onApplyOverage }: {
   protocolId: number;
   productName: string;
   initialKineticsNotes?: string | null;
@@ -2759,6 +2759,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   customParamsJson?: string | null;
   initialKineticsOverridesJson?: string | null;
   ativoLimitsJson?: string | null;
+  onApplyOverage?: (param: string, overage: string) => void;
 }) {
   const { data: kinetics, isLoading } = useGetKinetics(protocolId, {
     query: { queryKey: getGetKineticsQueryKey(protocolId), staleTime: 0 },
@@ -3472,9 +3473,16 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
 
                       if (isNaN(k) || k <= 0) {
                         return (
-                          <div className="flex flex-col items-end gap-0.5">
+                          <div className="flex flex-col items-end gap-1">
                             <span className="text-xs text-green-600 font-medium">✓ estável</span>
                             <span className="text-[10px] text-green-500">sem overage necessário</span>
+                            {onApplyOverage && currentOveragePct > 0 && (
+                              <button
+                                onClick={() => onApplyOverage(p.parameter, "0")}
+                                className="text-[10px] px-1.5 py-0.5 rounded border border-green-300 text-green-700 hover:bg-green-50 transition-colors"
+                                title="Zerar overage — ingrediente estável, não precisa"
+                              >✗ zerar overage</button>
+                            )}
                           </div>
                         );
                       }
@@ -3498,35 +3506,58 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       if (overageRequired === 0 || measuredT0Ok) {
                         if (currentOveragePct > 0 && configuredOverageOk) {
                           return (
-                            <div className="flex flex-col items-end gap-0.5">
+                            <div className="flex flex-col items-end gap-1">
                               <span className="text-xs text-green-600 font-medium">✓ dentro do padrão</span>
                               <span className="text-[10px] text-green-500">overage +{currentOveragePct}% suficiente</span>
                             </div>
                           );
                         }
                         return (
-                          <div className="flex flex-col items-end gap-0.5">
+                          <div className="flex flex-col items-end gap-1">
                             <span className="text-xs text-green-600 font-medium">✓ dentro do padrão</span>
                             <span className="text-[10px] text-green-500">sem overage necessário</span>
+                            {onApplyOverage && currentOveragePct > 0 && (
+                              <button
+                                onClick={() => onApplyOverage(p.parameter, "0")}
+                                className="text-[10px] px-1.5 py-0.5 rounded border border-green-300 text-green-700 hover:bg-green-50 transition-colors"
+                                title="Zerar overage — estável no prazo, não precisa"
+                              >✗ zerar overage</button>
+                            )}
                           </div>
                         );
                       }
 
+                      const recStr = overageRequired.toFixed(1);
+
                       if (currentOveragePct > 0 && !configuredOverageOk) {
                         return (
-                          <div className="flex flex-col items-end gap-0.5">
+                          <div className="flex flex-col items-end gap-1">
                             <span className="text-[10px] text-amber-700">atual +{currentOveragePct}% insuficiente</span>
-                            <span className="text-xs text-amber-800 font-bold">↑ rec.: +{overageRequired.toFixed(1)}%</span>
+                            <span className="text-xs text-amber-800 font-bold">↑ rec.: +{recStr}%</span>
                             {mfgQty && <span className="text-[10px] text-muted-foreground">{mfgQty.toFixed(2)} {lim?.unit ?? ""} mfg.</span>}
+                            {onApplyOverage && (
+                              <button
+                                onClick={() => onApplyOverage(p.parameter, recStr)}
+                                className="text-[10px] px-2 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100 font-semibold transition-colors"
+                                title={`Aplicar overage de +${recStr}% para este ingrediente`}
+                              >↑ aplicar +{recStr}%</button>
+                            )}
                           </div>
                         );
                       }
 
                       return (
-                        <div className="flex flex-col items-end gap-0.5">
-                          <span className="text-xs text-amber-800 font-bold">↑ rec.: +{overageRequired.toFixed(1)}%</span>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-xs text-amber-800 font-bold">↑ rec.: +{recStr}%</span>
                           {mfgQty && <span className="text-[10px] text-muted-foreground">{mfgQty.toFixed(2)} {lim?.unit ?? ""} mfg.</span>}
                           <span className="text-[10px] text-amber-600">para ≥{ichThreshold}% em {validadeMeses}m</span>
+                          {onApplyOverage && (
+                            <button
+                              onClick={() => onApplyOverage(p.parameter, recStr)}
+                              className="text-[10px] px-2 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100 font-semibold transition-colors"
+                              title={`Aplicar overage de +${recStr}% para este ingrediente`}
+                            >↑ aplicar +{recStr}%</button>
+                          )}
                         </div>
                       );
                     })()}
@@ -5324,6 +5355,7 @@ export default function ProtocolDetail() {
                 customParamsJson={protocol.customParamsJson}
                 initialKineticsOverridesJson={protocol.kineticsOverridesJson}
                 ativoLimitsJson={protocol.ativoLimitsJson}
+                onApplyOverage={(param, overage) => setAtivoLimit(param, "overage", overage)}
               />
             </CardContent>
           </Card>
