@@ -11,6 +11,8 @@ export interface AtivoReferenceInput {
   minValue?: string | null;
   maxValue?: string | null;
   unit?: string;
+  /** Overage em % (ex: '10' para 10%) */
+  overage?: string | null;
   source?: string | null;
   notes?: string | null;
 }

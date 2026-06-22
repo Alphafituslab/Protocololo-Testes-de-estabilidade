@@ -1500,6 +1500,12 @@ export const ListAtivoReferencesResponseItem = zod.object({
   minValue: zod.string().nullish(),
   maxValue: zod.string().nullish(),
   unit: zod.string(),
+  overage: zod
+    .string()
+    .nullish()
+    .describe(
+      "Overage em % (ex: '10' para 10%). Quantidade extra adicionada na manufatura para garantir o teor mínimo ao final do prazo.",
+    ),
   source: zod.string().nullish(),
   notes: zod.string().nullish(),
   createdAt: zod.coerce.date(),
@@ -1516,6 +1522,7 @@ export const CreateAtivoReferenceBody = zod.object({
   minValue: zod.string().nullish(),
   maxValue: zod.string().nullish(),
   unit: zod.string().optional(),
+  overage: zod.string().nullish().describe("Overage em % (ex: '10' para 10%)"),
   source: zod.string().nullish(),
   notes: zod.string().nullish(),
 });
@@ -1533,6 +1540,12 @@ export const LookupAtivoReferenceResponseItem = zod.object({
   minValue: zod.string().nullish(),
   maxValue: zod.string().nullish(),
   unit: zod.string(),
+  overage: zod
+    .string()
+    .nullish()
+    .describe(
+      "Overage em % (ex: '10' para 10%). Quantidade extra adicionada na manufatura para garantir o teor mínimo ao final do prazo.",
+    ),
   source: zod.string().nullish(),
   notes: zod.string().nullish(),
   createdAt: zod.coerce.date(),
@@ -1553,6 +1566,7 @@ export const UpdateAtivoReferenceBody = zod.object({
   minValue: zod.string().nullish(),
   maxValue: zod.string().nullish(),
   unit: zod.string().optional(),
+  overage: zod.string().nullish().describe("Overage em % (ex: '10' para 10%)"),
   source: zod.string().nullish(),
   notes: zod.string().nullish(),
 });
@@ -1563,6 +1577,12 @@ export const UpdateAtivoReferenceResponse = zod.object({
   minValue: zod.string().nullish(),
   maxValue: zod.string().nullish(),
   unit: zod.string(),
+  overage: zod
+    .string()
+    .nullish()
+    .describe(
+      "Overage em % (ex: '10' para 10%). Quantidade extra adicionada na manufatura para garantir o teor mínimo ao final do prazo.",
+    ),
   source: zod.string().nullish(),
   notes: zod.string().nullish(),
   createdAt: zod.coerce.date(),

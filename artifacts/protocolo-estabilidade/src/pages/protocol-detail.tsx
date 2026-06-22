@@ -1441,7 +1441,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
 
   // ── Limites ANVISA por ativo (min/max/unidade/declarado) ─────────────────
   const ATIVO_LIMITS_KEY = `ativo_limits_${protocolId}`;
-  const [ativoLimits, setAtivoLimitsState] = useState<Record<string, { min: string; max: string; unit: string; declared: string }>>(() => {
+  const [ativoLimits, setAtivoLimitsState] = useState<Record<string, { min: string; max: string; unit: string; declared: string; overage: string }>>(() => {
     if (initialAtivoLimitsJson) {
       try { return JSON.parse(initialAtivoLimitsJson); } catch { /* fall through */ }
     }
@@ -1451,11 +1451,11 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
     } catch { return {}; }
   });
 
-  const setAtivoLimit = (param: string, field: "min" | "max" | "unit" | "declared", value: string) => {
+  const setAtivoLimit = (param: string, field: "min" | "max" | "unit" | "declared" | "overage", value: string) => {
     setAtivoLimitsState(prev => {
       const next = {
         ...prev,
-        [param]: { ...(prev[param] ?? { min: "", max: "", unit: "mg", declared: "" }), [field]: value }
+        [param]: { ...(prev[param] ?? { min: "", max: "", unit: "mg", declared: "", overage: "" }), [field]: value }
       };
       try { localStorage.setItem(ATIVO_LIMITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
       updateProtocol.mutate(
@@ -1469,7 +1469,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
       );
 
       // Debounced upsert to global ativo_references bank (1200 ms after last change per ativo)
-      if (field === "min" || field === "max" || field === "unit") {
+      if (field === "min" || field === "max" || field === "unit" || field === "overage") {
         const existing = bankSyncTimersRef.current[param];
         if (existing) clearTimeout(existing);
         bankSyncTimersRef.current[param] = setTimeout(() => {
@@ -1484,17 +1484,19 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                 minValue: limit.min || null,
                 maxValue: limit.max || null,
                 unit: limit.unit || "mg",
+                overage: limit.overage || null,
               },
             }, {
               onSuccess: () => queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() }),
             });
-          } else if (limit.min || limit.max) {
+          } else if (limit.min || limit.max || limit.overage) {
             createRef.mutate({
               data: {
                 parameter: param,
                 minValue: limit.min || null,
                 maxValue: limit.max || null,
                 unit: limit.unit || "mg",
+                overage: limit.overage || null,
               },
             }, {
               onSuccess: () => queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() }),
@@ -1522,6 +1524,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
             max: ref.maxValue ?? "",
             unit: ref.unit ?? "mg",
             declared: existing?.declared ?? "",
+            overage: existing?.overage ?? ref.overage ?? "",
           };
           changed = true;
         }
@@ -1536,8 +1539,8 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   }, [ativoRefs]);
 
   // ── Reference bank management state ───────────────────────────────────────
-  type RefForm = { parameter: string; minValue: string; maxValue: string; unit: string; notes: string };
-  const emptyRefForm: RefForm = { parameter: "", minValue: "", maxValue: "", unit: "mg", notes: "" };
+  type RefForm = { parameter: string; minValue: string; maxValue: string; unit: string; overage: string; notes: string };
+  const emptyRefForm: RefForm = { parameter: "", minValue: "", maxValue: "", unit: "mg", overage: "", notes: "" };
   const [refBankOpen, setRefBankOpen] = useState(false);
   const [refEditingId, setRefEditingId] = useState<number | null>(null);
   const [refForm, setRefForm] = useState<RefForm>(emptyRefForm);
@@ -1557,6 +1560,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
         minValue: refForm.minValue || null,
         maxValue: refForm.maxValue || null,
         unit: refForm.unit || "mg",
+        overage: refForm.overage || null,
         notes: refForm.notes || null,
       };
       if (refEditingId !== null) {
@@ -1579,6 +1583,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
             min: payload.minValue ?? "",
             max: payload.maxValue ?? "",
             unit: payload.unit ?? "mg",
+            overage: payload.overage ?? existing.overage ?? "",
           },
         };
         try { localStorage.setItem(ATIVO_LIMITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
@@ -1604,7 +1609,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
 
   const applyRefToLimit = (ref: AtivoReference) => {
     setAtivoLimitsState(prev => {
-      const existing = prev[ref.parameter] ?? { min: "", max: "", unit: "mg", declared: "" };
+      const existing = prev[ref.parameter] ?? { min: "", max: "", unit: "mg", declared: "", overage: "" };
       const next = {
         ...prev,
         [ref.parameter]: {
@@ -1612,6 +1617,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
           min: ref.minValue ?? "",
           max: ref.maxValue ?? "",
           unit: ref.unit ?? "mg",
+          overage: ref.overage ?? "",
         },
       };
       try { localStorage.setItem(ATIVO_LIMITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
@@ -2002,6 +2008,10 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                         <th className="text-left pr-3 pb-1.5">Ativo</th>
                         <th className="text-right pr-2 pb-1.5">Qtd declarada</th>
                         <th className="text-right pr-2 pb-1.5">
+                          Overage
+                          <span className="block text-[9px] font-normal text-indigo-400 normal-case">% (opcional)</span>
+                        </th>
+                        <th className="text-right pr-2 pb-1.5">
                           Mín. ANVISA
                           <span className="block text-[9px] font-normal text-indigo-400 normal-case">opcional</span>
                         </th>
@@ -2015,7 +2025,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                     </thead>
                     <tbody>
                       {catParams.map(param => {
-                        const lim = ativoLimits[param.parameter] ?? { min: "", max: "", unit: "mg", declared: "" };
+                        const lim = ativoLimits[param.parameter] ?? { min: "", max: "", unit: "mg", declared: "", overage: "" };
                         const hasMin = !!lim.min;
                         const hasMax = !!lim.max;
                         const bankRef = ativoRefs.find(r => r.parameter === param.parameter);
@@ -2041,6 +2051,35 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                 placeholder="qtd declarada"
                                 className="w-24 border border-indigo-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 text-right bg-white"
                               />
+                            </td>
+                            <td className="pr-2 py-1">
+                              <div className="flex items-center gap-0.5">
+                                <input
+                                  type="number"
+                                  step="any"
+                                  min="0"
+                                  max="100"
+                                  value={lim.overage}
+                                  onChange={e => setAtivoLimit(param.parameter, "overage", e.target.value)}
+                                  placeholder="0"
+                                  title="Overage (%): quantidade extra adicionada na manufatura para garantir o teor mínimo ao final do prazo de validade"
+                                  className="w-16 border border-amber-300 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 text-right bg-amber-50"
+                                />
+                                <span className="text-[10px] text-amber-600 font-medium">%</span>
+                              </div>
+                              {lim.overage && lim.declared && (() => {
+                                const d = parseFloat(lim.declared.replace(",", "."));
+                                const o = parseFloat(lim.overage.replace(",", "."));
+                                if (!isNaN(d) && !isNaN(o) && o > 0) {
+                                  const mfg = d * (1 + o / 100);
+                                  return (
+                                    <span className="block text-[9px] text-amber-600 text-right mt-0.5" title="Qtd manufaturada = declarada × (1 + overage%)">
+                                      Mfg: {mfg % 1 === 0 ? mfg : mfg.toFixed(2)} {lim.unit}
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </td>
                             <td className="pr-2 py-1">
                               <input
@@ -2160,6 +2199,23 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                           </select>
                         </div>
                         <div className="flex flex-col gap-0.5">
+                          <label className="text-[9px] text-amber-600 uppercase font-semibold">Overage %</label>
+                          <div className="flex items-center gap-0.5">
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              max="100"
+                              value={refForm.overage}
+                              onChange={e => setRefForm(f => ({ ...f, overage: e.target.value }))}
+                              placeholder="0"
+                              title="Overage (%)"
+                              className="border border-amber-300 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 w-16 text-right bg-amber-50"
+                            />
+                            <span className="text-[10px] text-amber-600">%</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-0.5">
                           <label className="text-[9px] text-indigo-500 uppercase">Observações</label>
                           <input
                             value={refForm.notes}
@@ -2222,6 +2278,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                               <th className="text-right pr-2 pb-1">Mín.</th>
                               <th className="text-right pr-2 pb-1">Máx.</th>
                               <th className="text-left pr-2 pb-1">Unidade</th>
+                              <th className="text-right pr-2 pb-1 text-amber-500">Overage</th>
                               <th className="text-left pb-1">Observações</th>
                               <th className="pb-1"></th>
                             </tr>
@@ -2235,6 +2292,13 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                 <td className="pr-2 py-1 text-right text-indigo-700">{ref.minValue ?? "—"}</td>
                                 <td className="pr-2 py-1 text-right text-indigo-700">{ref.maxValue ?? "—"}</td>
                                 <td className="pr-2 py-1 text-indigo-600">{ref.unit}</td>
+                                <td className="pr-2 py-1 text-right">
+                                  {ref.overage ? (
+                                    <span className="text-amber-600 font-medium text-[10px]">{ref.overage}%</span>
+                                  ) : (
+                                    <span className="text-indigo-200 text-[10px]">—</span>
+                                  )}
+                                </td>
                                 <td className="py-1 text-indigo-400 text-[10px] max-w-[160px] truncate">{ref.notes ?? ""}</td>
                                 <td className="py-1 pl-2 flex gap-1 whitespace-nowrap">
                                   <button
@@ -2246,6 +2310,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                         minValue: ref.minValue ?? "",
                                         maxValue: ref.maxValue ?? "",
                                         unit: ref.unit ?? "mg",
+                                        overage: ref.overage ?? "",
                                         notes: ref.notes ?? "",
                                       });
                                     }}
@@ -2759,7 +2824,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const [pendingFieldChange, setPendingFieldChange] = useState<{ param: string; field: keyof KineticOverride; val: string } | null>(null);
   const hasSavedOverrides = !!initialKineticsOverridesJson;
 
-  const ativoLimits = useMemo<Record<string, { min: string; max: string; unit: string; declared: string }>>(() => {
+  const ativoLimits = useMemo<Record<string, { min: string; max: string; unit: string; declared: string; overage: string }>>(() => {
     if (!ativoLimitsJson) return {};
     try { return JSON.parse(ativoLimitsJson); } catch { return {}; }
   }, [ativoLimitsJson]);

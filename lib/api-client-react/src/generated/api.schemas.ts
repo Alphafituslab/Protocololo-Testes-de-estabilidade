@@ -545,6 +545,8 @@ export interface AtivoReference {
   minValue?: string | null;
   maxValue?: string | null;
   unit: string;
+  /** Overage em % (ex: '10' para 10%). Quantidade extra adicionada na manufatura para garantir o teor mínimo ao final do prazo. */
+  overage?: string | null;
   source?: string | null;
   notes?: string | null;
   createdAt: string;
@@ -555,6 +557,8 @@ export interface AtivoReferenceInput {
   minValue?: string | null;
   maxValue?: string | null;
   unit?: string;
+  /** Overage em % (ex: '10' para 10%) */
+  overage?: string | null;
   source?: string | null;
   notes?: string | null;
 }

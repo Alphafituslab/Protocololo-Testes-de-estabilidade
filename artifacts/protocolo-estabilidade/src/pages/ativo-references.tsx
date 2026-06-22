@@ -33,10 +33,11 @@ type RefForm = {
   minValue: string;
   maxValue: string;
   unit: string;
+  overage: string;
   notes: string;
 };
 
-const emptyForm: RefForm = { parameter: "", minValue: "", maxValue: "", unit: "mg", notes: "" };
+const emptyForm: RefForm = { parameter: "", minValue: "", maxValue: "", unit: "mg", overage: "", notes: "" };
 
 const UNITS = ["mg", "mcg", "UI", "UFC/g", "g", "%"];
 
@@ -76,6 +77,7 @@ export default function AtivoReferencesPage() {
         minValue: form.minValue.trim() || null,
         maxValue: form.maxValue.trim() || null,
         unit: form.unit || "mg",
+        overage: form.overage.trim() || null,
         notes: form.notes.trim() || null,
       };
       if (editingId !== null) {
@@ -99,6 +101,7 @@ export default function AtivoReferencesPage() {
       minValue: ref.minValue ?? "",
       maxValue: ref.maxValue ?? "",
       unit: ref.unit ?? "mg",
+      overage: ref.overage ?? "",
       notes: ref.notes ?? "",
     });
     setError(null);
@@ -190,6 +193,44 @@ export default function AtivoReferencesPage() {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-amber-700">
+                Overage{" "}
+                <span className="text-muted-foreground font-normal">(% extra adicionada na manufatura)</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  max="100"
+                  value={form.overage}
+                  onChange={e => setForm(f => ({ ...f, overage: e.target.value }))}
+                  placeholder="0"
+                  className="border border-amber-300 bg-amber-50 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 w-28 text-right"
+                />
+                <span className="text-sm font-medium text-amber-700">%</span>
+                {form.overage && form.minValue && (() => {
+                  const min = parseFloat(form.minValue.replace(",", "."));
+                  const ov = parseFloat(form.overage.replace(",", "."));
+                  if (!isNaN(min) && !isNaN(ov) && ov > 0) {
+                    const mfg = min * (1 + ov / 100);
+                    return (
+                      <span className="text-xs text-amber-600">
+                        → {mfg % 1 === 0 ? mfg : mfg.toFixed(2)} {form.unit} manufaturado
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Qtd manufaturada = declarada × (1 + overage%). Garante o teor mínimo ao final do prazo de validade.
+              </p>
+            </div>
+          </div>
+
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-foreground">Observações / Referência normativa</label>
             <input
@@ -267,6 +308,7 @@ export default function AtivoReferencesPage() {
                     <th className="text-right px-3 py-2 font-medium">Mín.</th>
                     <th className="text-right px-3 py-2 font-medium">Máx.</th>
                     <th className="text-left px-3 py-2 font-medium">Unidade</th>
+                    <th className="text-right px-3 py-2 font-medium text-amber-600">Overage</th>
                     <th className="text-left px-3 py-2 font-medium">Observações</th>
                     <th className="px-3 py-2"></th>
                   </tr>
@@ -295,6 +337,13 @@ export default function AtivoReferencesPage() {
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-muted-foreground">{ref.unit}</td>
+                      <td className="px-3 py-2.5 text-right">
+                        {ref.overage ? (
+                          <span className="text-amber-600 font-medium font-mono">{ref.overage}%</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2.5 text-muted-foreground text-xs max-w-[200px] truncate">
                         {ref.notes ?? ""}
                       </td>

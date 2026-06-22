@@ -2107,6 +2107,10 @@ components:
           nullable: true
         unit:
           type: string
+        overage:
+          type: string
+          nullable: true
+          description: "Overage em % (ex: '10' para 10%). Quantidade extra adicionada na manufatura para garantir o teor mínimo ao final do prazo."
         source:
           type: string
           nullable: true
@@ -2132,6 +2136,10 @@ components:
           nullable: true
         unit:
           type: string
+        overage:
+          type: string
+          nullable: true
+          description: "Overage em % (ex: '10' para 10%)"
         source:
           type: string
           nullable: true

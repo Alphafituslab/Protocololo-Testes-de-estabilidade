@@ -8,6 +8,7 @@ export const ativoReferencesTable = pgTable("ativo_references", {
   minValue: text("min_value"),
   maxValue: text("max_value"),
   unit: text("unit").notNull().default("mg"),
+  overage: text("overage"),
   source: text("source"),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
