@@ -73,23 +73,40 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
   // ── ANVISA limits per ativo (min/max/unit/declared) ──────────────────────
   type AtivoLimit = { min: string; max: string; unit: string; declared: string; overage?: string };
   const ativoLimitsMap: Record<string, AtivoLimit> = {};
+  const ativoLimitsMapNorm: Record<string, AtivoLimit> = {};   // keyed by lowercase+trimmed
   if (protocol.ativoLimitsJson) {
-    try { Object.assign(ativoLimitsMap, JSON.parse(protocol.ativoLimitsJson)); } catch { /* ignore */ }
+    try {
+      const raw = JSON.parse(protocol.ativoLimitsJson) as Record<string, AtivoLimit>;
+      Object.assign(ativoLimitsMap, raw);
+      for (const [k, v] of Object.entries(raw)) {
+        ativoLimitsMapNorm[k.toLowerCase().trim()] = v;
+      }
+    } catch { /* ignore */ }
   }
+  // Returns ativoLimit for `param` — tries exact key first, then normalized (case/space-insensitive).
+  const getAtivoLimit = (p: string): AtivoLimit | undefined =>
+    ativoLimitsMap[p] ?? ativoLimitsMapNorm[p.toLowerCase().trim()];
 
   // ── T6 values from kinetics overrides (what the user sees in the Cinética tab) ─
   // Structure: { [parameter]: { t0, t3, t6, specMin, specMax, validadePraticada } }
   type KineticOverride = { t0: string; t3: string; t6: string };
   const kineticsT6Map: Record<string, number> = {};
+  const kineticsT6MapNorm: Record<string, number> = {};         // keyed by lowercase+trimmed
   if (protocol.kineticsOverridesJson) {
     try {
       const overrides = JSON.parse(protocol.kineticsOverridesJson) as Record<string, KineticOverride>;
       for (const [param, ov] of Object.entries(overrides)) {
         const t6Num = parseFloat(ov.t6);
-        if (!isNaN(t6Num)) kineticsT6Map[param] = t6Num;
+        if (!isNaN(t6Num)) {
+          kineticsT6Map[param] = t6Num;
+          kineticsT6MapNorm[param.toLowerCase().trim()] = t6Num;
+        }
       }
     } catch { /* ignore */ }
   }
+  // Returns kinetics T6 value — tries exact key first, then normalized.
+  const getKineticsT6 = (p: string): number | undefined =>
+    kineticsT6Map[p] ?? kineticsT6MapNorm[p.toLowerCase().trim()];
 
   const CATEGORY_ORDER: Record<string, number> = {
     fisico_quimica: 0,
@@ -214,13 +231,13 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       // T0 and T3 are generally higher than T6, masking real degradation.
       let ativoMgInfo: string | null = null;
       if (data.category === "teor_ativo") {
-        const lim = ativoLimitsMap[param];
+        const lim = getAtivoLimit(param);
         if (lim?.declared) {
           const declaredNum = parseFloat(lim.declared);
           const t6Entry = t6AvgByParam[param];
           const t6Only = t6Entry && t6Entry.count > 0 ? t6Entry.sum / t6Entry.count : null;
           // Prefer: kinetics saved T6 > T6-only avg > overall avg (last resort)
-          const basePercent = kineticsT6Map[param] ?? t6Only ?? avg;
+          const basePercent = getKineticsT6(param) ?? t6Only ?? avg;
           if (basePercent !== null && !isNaN(declaredNum) && declaredNum > 0) {
             const actualMg = (basePercent / 100) * declaredNum;
             const minParsed = lim.min ? parseFloat(lim.min) : NaN;
@@ -253,7 +270,7 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       // Explains to the reader WHY the manufactured quantity differs from declared.
       let overageInfo: string | null = null;
       if (data.category === "teor_ativo") {
-        const lim = ativoLimitsMap[param];
+        const lim = getAtivoLimit(param);
         if (lim?.overage && lim?.declared) {
           const overagePct = parseFloat(lim.overage);
           const declaredNum2 = parseFloat(lim.declared);
@@ -275,7 +292,7 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       if (data.category === "teor_ativo" && ativoMgInfo) {
         const t6Entry = t6AvgByParam[param];
         const t6Only = t6Entry && t6Entry.count > 0 ? t6Entry.sum / t6Entry.count : null;
-        const t6Pct = kineticsT6Map[param] ?? t6Only ?? avg;
+        const t6Pct = getKineticsT6(param) ?? t6Only ?? avg;
         resultDisplay = t6Pct !== null ? `${t6Pct.toFixed(2)}%` : (avgPercent ?? data.resultText);
       } else if (ativoMgInfo) {
         resultDisplay = avgPercent !== null ? `${avgPercent}%` : data.resultText;
