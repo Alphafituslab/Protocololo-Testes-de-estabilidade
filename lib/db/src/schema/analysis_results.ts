@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { protocolsTable } from "./protocols";
@@ -14,7 +14,7 @@ export const analysisResultsTable = pgTable("analysis_results", {
   parameter: text("parameter").notNull(),
   criterion: text("criterion").notNull(),
   result: text("result").notNull(),
-  numericResult: real("numeric_result"),
+  numericResult: doublePrecision("numeric_result"),
   status: text("status").notNull().default("conforme"),
   observation: text("observation"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -702,7 +702,7 @@ export default function ProtocolReportPage() {
                         <Td center mono>{p.t3 != null ? Number(p.t3).toFixed(2) : "—"}</Td>
                         <Td center mono>{p.t6 != null ? Number(p.t6).toFixed(2) : "—"}</Td>
                         <Td center mono>{p.k != null ? Number(p.k).toFixed(5) : "—"}</Td>
-                        <Td center bold>{estimated != null ? `${Number(estimated).toFixed(1)}` : "—"}</Td>
+                        <Td center bold>{estimated != null ? `${Number(estimated).toFixed(2)}` : "—"}</Td>
                         <Td center>
                           <span className={`text-[8.5px] font-semibold ${ok ? "text-emerald-700" : "text-red-600"}`}>
                             {practiced != null && estimated != null ? (ok ? "✓ Compatível" : "⚠ Excede") : "—"}
@@ -718,7 +718,7 @@ export default function ProtocolReportPage() {
                   <p><span className="text-gray-400">Ativo limitante:</span> <span className="font-semibold text-amber-700">★ {(kineticsData as any).limitingParameter}</span></p>
                 )}
                 {(kineticsData as any)?.estimatedShelfLifeMonths != null && (
-                  <p><span className="text-gray-400">Validade calculada:</span> <span className="font-semibold">{Number((kineticsData as any).estimatedShelfLifeMonths).toFixed(1)} meses</span></p>
+                  <p><span className="text-gray-400">Validade calculada:</span> <span className="font-semibold">{Number((kineticsData as any).estimatedShelfLifeMonths).toFixed(2)} meses</span></p>
                 )}
                 {(kineticsData as any)?.recommendedValidityMonths != null && (
                   <p><span className="text-gray-400">Recomendada:</span> <span className="font-semibold">{(kineticsData as any).recommendedValidityMonths} meses</span></p>

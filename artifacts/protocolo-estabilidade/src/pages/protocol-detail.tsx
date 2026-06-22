@@ -2509,7 +2509,7 @@ function calcKineticOverride(
   // t_val = −ln(ichThreshold / C0) / k
   // Uses 80 (ICH Q1A) as minimum content threshold, NOT the spec range min
   const lnNum = isNaN(ichThreshold) || ichThreshold <= 0 ? NaN : -Math.log(ichThreshold / c0);
-  const shelfLife = !isNaN(lnNum) && lnNum > 0 ? (lnNum / k).toFixed(1) : "";
+  const shelfLife = !isNaN(lnNum) && lnNum > 0 ? (lnNum / k).toFixed(2) : "";
 
   return {
     deltaLn: deltaLn.toFixed(6),
@@ -2564,7 +2564,7 @@ function buildKineticOverride(p: KineticApiParam): KineticOverride {
     ichThreshold: p.minThresholdPercent.toString(),
     specMin,
     specMax,
-    shelfLife: p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(1) : "",
+    shelfLife: p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(2) : "",
     validadePraticada: "",
   };
 }

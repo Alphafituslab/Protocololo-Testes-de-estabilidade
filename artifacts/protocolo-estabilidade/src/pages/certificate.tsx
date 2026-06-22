@@ -1575,7 +1575,7 @@ export default function CertificatePage() {
                               <td className="border border-blue-200 px-2 py-1 text-center">{p.t6 != null ? p.t6.toFixed(2) : "—"}</td>
                               <td className="border border-blue-200 px-2 py-1 text-center font-mono">{p.k != null ? p.k.toFixed(5) : "—"}</td>
                               <td className="border border-blue-200 px-2 py-1 text-center font-semibold">
-                                {p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(1) : "—"}
+                                {p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(2) : "—"}
                               </td>
                             </tr>
                           );
@@ -1589,7 +1589,7 @@ export default function CertificatePage() {
                           <p><span className="text-gray-500">Ativo com maior degradação: </span><span className="font-semibold text-amber-700">★ {limiting}</span></p>
                         )}
                         {estimatedMonths != null && (
-                          <p><span className="text-gray-500">Validade calculada (ICH Q1A): </span><span className="font-semibold">{estimatedMonths.toFixed(1)} meses</span></p>
+                          <p><span className="text-gray-500">Validade calculada (ICH Q1A): </span><span className="font-semibold">{estimatedMonths.toFixed(2)} meses</span></p>
                         )}
                         {recommendedMonths != null && (
                           <p><span className="text-gray-500">Validade recomendada: </span><span className="font-semibold">{recommendedMonths} meses</span></p>
