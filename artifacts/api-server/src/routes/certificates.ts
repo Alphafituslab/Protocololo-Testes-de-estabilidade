@@ -262,6 +262,40 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     }
   }
 
+  // ── Deduplicate teor_ativo params that fuzzy-match the same ANVISA limit entry ──
+  // When analysis_results has both a generic name ("Creatina") and a specific name
+  // ("Creatina monohidratada"), both resolve to the same ativoLimitsJson entry via
+  // fuzzy matching. The generic entry (older results, no kineticsT6) may evaluate as
+  // NC (e.g. 92% × declared_mg < min_mg when min = declared) while the specific entry
+  // (with kineticsT6 saved) is Conforme.
+  //
+  // Rule: skip a teor_ativo param that has NO exact match in ativoLimitsMap when
+  // another param DOES have an exact match to the same limit entry (same declared/min/max).
+  const ativoDedupeSkip = new Set<string>();
+  {
+    // Params that are direct keys in ativoLimitsMap with a filled declared value
+    const exactParams = new Set(
+      Object.keys(avgByParam).filter(
+        p => avgByParam[p].category === "teor_ativo" && !!(ativoLimitsMap[p]?.declared)
+      )
+    );
+    // Build limit-key set for all exact-match params
+    const exactLimKeySet = new Set<string>();
+    for (const ep of exactParams) {
+      const lim = getAtivoLimit(ep);
+      if (lim?.declared) exactLimKeySet.add(`${lim.declared}|${lim.unit ?? ""}|${lim.min ?? ""}|${lim.max ?? ""}`);
+    }
+    // Any non-exact param whose fuzzy-matched limit collides with an exact param → skip
+    for (const [param, data] of Object.entries(avgByParam)) {
+      if (data.category !== "teor_ativo") continue;
+      if (exactParams.has(param)) continue;
+      const lim = getAtivoLimit(param);
+      if (!lim?.declared) continue;
+      const limKey = `${lim.declared}|${lim.unit ?? ""}|${lim.min ?? ""}|${lim.max ?? ""}`;
+      if (exactLimKeySet.has(limKey)) ativoDedupeSkip.add(param);
+    }
+  }
+
   // ── Diagnostic log — helps debug missing mg info in production ─────────
   req.log.info({
     protocolId: params.data.id,
@@ -283,6 +317,7 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
   }, "cert-debug");
 
   const analyses = Object.entries(avgByParam)
+    .filter(([param, data]) => !(data.category === "teor_ativo" && ativoDedupeSkip.has(param)))
     .sort(([, a], [, b]) => (CATEGORY_ORDER[a.category] ?? 9) - (CATEGORY_ORDER[b.category] ?? 9))
     .map(([param, data]) => {
       const avg = data.count > 0 ? data.sum / data.count : null;
