@@ -71,7 +71,7 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
   }
 
   // ── ANVISA limits per ativo (min/max/unit/declared) ──────────────────────
-  type AtivoLimit = { min: string; max: string; unit: string; declared: string };
+  type AtivoLimit = { min: string; max: string; unit: string; declared: string; overage?: string };
   const ativoLimitsMap: Record<string, AtivoLimit> = {};
   if (protocol.ativoLimitsJson) {
     try { Object.assign(ativoLimitsMap, JSON.parse(protocol.ativoLimitsJson)); } catch { /* ignore */ }
@@ -249,6 +249,26 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
         }
       }
 
+      // ── Overage info — shown in certificate whenever overage was applied ──
+      // Explains to the reader WHY the manufactured quantity differs from declared.
+      let overageInfo: string | null = null;
+      if (data.category === "teor_ativo") {
+        const lim = ativoLimitsMap[param];
+        if (lim?.overage && lim?.declared) {
+          const overagePct = parseFloat(lim.overage);
+          const declaredNum2 = parseFloat(lim.declared);
+          if (!isNaN(overagePct) && overagePct > 0 && !isNaN(declaredNum2) && declaredNum2 > 0) {
+            const mfgQty = declaredNum2 * (1 + overagePct / 100);
+            const fmt = (n: number) => n.toFixed(2).replace(".", ",");
+            overageInfo = [
+              `Overage +${fmt(overagePct)}% aplicado na fabricação`,
+              `Qtd. manufaturada: ${fmt(mfgQty)} ${lim.unit} | Declarado: ${fmt(declaredNum2)} ${lim.unit}`,
+              `Justificativa: compensação da degradação ao longo do prazo de validade (ICH Q1A(R2)), garantindo ≥ 80% do valor declarado até o vencimento.`,
+            ].join(" — ");
+          }
+        }
+      }
+
       // ── result: for teor_ativo show T6% (same source as ativoMgInfo) ────
       // For all other categories, show the overall average.
       let resultDisplay = avgPercent ?? data.resultText;
@@ -268,6 +288,7 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
         specification,
         result: resultDisplay,
         ativoMgInfo,
+        overageInfo,
         status: finalStatus === "nao_conforme" ? "Nao Conforme" : finalStatus === "na" ? "N/A" : finalStatus === "aprovado_com_ressalva" ? "Aprovado com Ressalva" : "Conforme",
       };
     });

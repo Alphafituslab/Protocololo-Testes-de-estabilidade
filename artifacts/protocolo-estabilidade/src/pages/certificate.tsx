@@ -349,7 +349,7 @@ export default function CertificatePage() {
 
   const [analyses, setAnalyses] = useState<Array<{
     parameter: string; category: string; method: string; specification: string | null;
-    result: string; status: string; visible: boolean; ativoMgInfo?: string | null;
+    result: string; status: string; visible: boolean; ativoMgInfo?: string | null; overageInfo?: string | null;
   }> | null>(null);
 
   // Persist print preferences whenever they change.
@@ -703,6 +703,7 @@ export default function CertificatePage() {
         // Results tab propagate to the certificate automatically, even after
         // the certificate has been created.
         result: a.result,
+        overageInfo: a.overageInfo ?? null,
         visible: visMap[a.parameter] ?? _savedPrintPrefs?.rowVisibility?.[a.parameter] ?? true,
       }));
     });
@@ -1386,8 +1387,14 @@ export default function CertificatePage() {
                         <td className={`border px-2 py-1.5 text-center font-mono font-medium align-top ${isNC ? "border-red-300 text-red-800" : "border-gray-300"}`}>
                           <CertEditField value={analysis.result} onChange={v => updateAnalysis(analysis.originalIndex, "result", v)} className="text-xs text-center w-16 font-mono" />
                           {analysis.ativoMgInfo && (
-                            <div className="mt-0.5 text-[10px] font-sans font-normal text-indigo-700 whitespace-nowrap leading-tight">
+                            <div className="mt-0.5 text-[10px] font-sans font-normal text-indigo-700 leading-tight">
                               {analysis.ativoMgInfo}
+                            </div>
+                          )}
+                          {analysis.overageInfo && (
+                            <div className="mt-1 text-[9.5px] font-sans font-normal text-amber-700 leading-snug border-t border-amber-200 pt-0.5">
+                              <span className="font-semibold">⚠ Overage:</span>{" "}
+                              {analysis.overageInfo}
                             </div>
                           )}
                         </td>

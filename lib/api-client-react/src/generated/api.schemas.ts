@@ -351,6 +351,8 @@ export interface CertificateAnalysis {
   status: string;
   /** Valor absoluto calculado em mg/mcg para parametros teor_ativo (ex: "510,30 mg | Faixa ANVISA: 450 - 750 mg") */
   ativoMgInfo?: string | null;
+  /** Informacao de overage aplicado para parametros teor_ativo quando overage > 0 (ex: "Overage +8,5% aplicado — Qtd. manufaturada: 86,80 mg | Declarado: 80,00 mg") */
+  overageInfo?: string | null;
 }
 
 export interface Certificate {

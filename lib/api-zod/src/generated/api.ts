@@ -1002,6 +1002,12 @@ export const GetCertificateResponse = zod.object({
         .describe(
           'Valor absoluto calculado em mg\/mcg para parametros teor_ativo (ex: \"510,30 mg | Faixa ANVISA: 450 - 750 mg\")',
         ),
+      overageInfo: zod
+        .string()
+        .nullish()
+        .describe(
+          'Informacao de overage aplicado para parametros teor_ativo quando overage > 0 (ex: \"Overage +8,5% aplicado — Qtd. manufaturada: 86,80 mg | Declarado: 80,00 mg\")',
+        ),
     }),
   ),
   conclusion: zod.string().nullish(),
