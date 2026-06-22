@@ -72,20 +72,97 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
 
   // ── ANVISA limits per ativo (min/max/unit/declared) ──────────────────────
   type AtivoLimit = { min: string; max: string; unit: string; declared: string; overage?: string };
+
+  // Deep normalize for fuzzy matching:
+  //  - removes accents ("Magnésio" → "Magnesio")
+  //  - removes "L-" / "DL-" / "D-" prefixes ("L-triptofano" → "triptofano")
+  //  - strips parenthetical content ("Vitamina B1 (Tiamina)" → "vitamina b1")
+  //  - normalizes dashes/underscores to spaces
+  const deepNorm = (s: string): string =>
+    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\bdl?-\s*/g, "")        // DL- or L- or D- prefix
+      .replace(/\s*\(.*?\)\s*/g, " ")   // (parenthetical)
+      .replace(/[-_]/g, " ")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
   const ativoLimitsMap: Record<string, AtivoLimit> = {};
-  const ativoLimitsMapNorm: Record<string, AtivoLimit> = {};   // keyed by lowercase+trimmed
+  // deep-normalized key → all matching AtivoLimit entries (several keys may collapse to same deep form)
+  const ativoLimitsDeep: Record<string, AtivoLimit[]> = {};
+
   if (protocol.ativoLimitsJson) {
     try {
       const raw = JSON.parse(protocol.ativoLimitsJson) as Record<string, AtivoLimit>;
-      Object.assign(ativoLimitsMap, raw);
       for (const [k, v] of Object.entries(raw)) {
-        ativoLimitsMapNorm[k.toLowerCase().trim()] = v;
+        ativoLimitsMap[k] = v;
+        const d = deepNorm(k);
+        (ativoLimitsDeep[d] = ativoLimitsDeep[d] ?? []).push(v);
       }
     } catch { /* ignore */ }
   }
-  // Returns ativoLimit for `param` — tries exact key first, then normalized (case/space-insensitive).
-  const getAtivoLimit = (p: string): AtivoLimit | undefined =>
-    ativoLimitsMap[p] ?? ativoLimitsMapNorm[p.toLowerCase().trim()];
+
+  // Among candidates, prefer the one with a non-empty declared value.
+  const pickBest = (arr: AtivoLimit[]): AtivoLimit | undefined =>
+    arr.find(v => v.declared) ?? arr[0];
+
+  // Returns ativoLimit for `param`. Matching strategy (first match wins):
+  //  1. Exact key
+  //  2. Deep-normalized exact  (handles accents, L- prefix, parentheses)
+  //  3. One deep-normalized key starts with the other at a word boundary
+  //     ("vitamina k" starts "vitamina k menaquinona 7")
+  //  4. One deep-normalized key contains the other as a whole word
+  //     ("colina" is a word inside "vitamina b8 colina bitartarato")
+  // At each step, prefer entries that have a non-empty declared value.
+  const getAtivoLimit = (p: string): AtivoLimit | undefined => {
+    // 1. Exact
+    const exact = ativoLimitsMap[p];
+    if (exact?.declared) return exact;
+
+    // 2. Deep-normalized exact
+    const pDeep = deepNorm(p);
+    const deepExact = ativoLimitsDeep[pDeep];
+    if (deepExact) {
+      const best = pickBest(deepExact);
+      if (best?.declared) return best;
+    }
+
+    // 3. Prefix match at word boundary (min length 5 to avoid "vitamin" matching many)
+    if (pDeep.length >= 5) {
+      let prefixBest: AtivoLimit | undefined;
+      for (const [kDeep, vArr] of Object.entries(ativoLimitsDeep)) {
+        if (kDeep === pDeep) continue;
+        const shorter = kDeep.length <= pDeep.length ? kDeep : pDeep;
+        const longer  = kDeep.length <= pDeep.length ? pDeep  : kDeep;
+        if (shorter.length < 5) continue;
+        if (longer.startsWith(shorter) && (longer.length === shorter.length || longer[shorter.length] === " ")) {
+          const candidate = pickBest(vArr);
+          if (candidate?.declared && !prefixBest?.declared) prefixBest = candidate;
+          if (!prefixBest) prefixBest = candidate;
+        }
+      }
+      if (prefixBest?.declared) return prefixBest;
+    }
+
+    // 4. Contains match at word boundary (min 6 chars to reduce false positives)
+    if (pDeep.length >= 6) {
+      let containsBest: AtivoLimit | undefined;
+      const wordRe = new RegExp(`(?:^|\\s)${pDeep.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$)`);
+      for (const [kDeep, vArr] of Object.entries(ativoLimitsDeep)) {
+        if (kDeep === pDeep) continue;
+        if (wordRe.test(kDeep)) {
+          const candidate = pickBest(vArr);
+          if (candidate?.declared && !containsBest?.declared) containsBest = candidate;
+          if (!containsBest) containsBest = candidate;
+        }
+      }
+      if (containsBest?.declared) return containsBest;
+    }
+
+    // Fallback: return any match regardless of declared (for faixa display)
+    return exact ?? pickBest(deepExact ?? []);
+  };
 
   // ── T6 values from kinetics overrides (what the user sees in the Cinética tab) ─
   // kineticsOverridesJson is saved in nested format by saveOverridesToDb:
