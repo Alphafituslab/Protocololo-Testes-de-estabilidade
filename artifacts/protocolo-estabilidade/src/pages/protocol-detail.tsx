@@ -1474,7 +1474,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   const latestAtivoLimitsRef = useRef(ativoLimits);
   latestAtivoLimitsRef.current = ativoLimits;
   // Timer for debounced protocol save when ativoLimitsJson changes.
-  const saveAtivoTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const saveAtivoTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const setAtivoLimit = (param: string, field: "min" | "max" | "unit" | "declared" | "overage", value: string) => {
     // 1. Update local state + localStorage immediately (for UI responsiveness).
@@ -1501,6 +1501,13 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
             queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
             queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocolId) });
             queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
+          },
+          onError: () => {
+            toast({
+              variant: "destructive",
+              title: "Erro ao salvar faixa ANVISA",
+              description: "Não foi possível salvar os limites. Verifique sua conexão e tente novamente.",
+            });
           },
         }
       );
@@ -5204,16 +5211,35 @@ export default function ProtocolDetail() {
   // Updates ativoLimitsJson in DB (ResultsTab will see it on next refetch).
   const handleApplyOverage = (param: string, overage: string) => {
     if (!protocol) return;
-    let limits: Record<string, { min: string; max: string; unit: string; declared: string; overage: string }> = {};
+    type LimEntry = { min: string; max: string; unit: string; declared: string; overage: string };
+    const lsKey = `ativo_limits_${numId}`;
+    let fromStorage: Record<string, LimEntry> = {};
+    let fromDb: Record<string, LimEntry> = {};
+    try { const raw = localStorage.getItem(lsKey); if (raw) fromStorage = JSON.parse(raw); } catch { /* ignore */ }
     if (protocol.ativoLimitsJson) {
-      try { limits = JSON.parse(protocol.ativoLimitsJson); } catch { /* ignore */ }
+      try { fromDb = JSON.parse(protocol.ativoLimitsJson); } catch { /* ignore */ }
+    }
+    // Merge: localStorage wins per-field (most recent user edits) over potentially-stale DB cache.
+    const limits: Record<string, LimEntry> = { ...fromDb };
+    for (const [p, sl] of Object.entries(fromStorage)) {
+      const db = fromDb[p];
+      limits[p] = {
+        min: sl.min || db?.min || "",
+        max: sl.max || db?.max || "",
+        unit: sl.unit || db?.unit || "mg",
+        declared: sl.declared || db?.declared || "",
+        overage: sl.overage || db?.overage || "",
+      };
     }
     const existing = limits[param] ?? { min: "", max: "", unit: "mg", declared: "", overage: "" };
     const next = { ...limits, [param]: { ...existing, overage } };
     updateProtocol.mutate(
       { id: protocol.id, data: { ativoLimitsJson: JSON.stringify(next) } },
       {
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocol.id) }),
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocol.id) });
+          queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocol.id) });
+        },
       }
     );
   };
@@ -5240,17 +5266,19 @@ export default function ProtocolDetail() {
       try { fromDb = JSON.parse(protocol.ativoLimitsJson); } catch { /* ignore */ }
     }
 
-    // Merge: localStorage is the base; DB fields take priority per-field.
-    // `declared`/`overage` fall back to localStorage when DB has them empty.
+    // Merge: localStorage wins per-field (it holds the most recent user edits).
+    // DB values fill in only when localStorage has an empty string for that field.
+    // This prevents non-empty DB values like "livre" from overwriting a user's
+    // pending edit that hasn't been flushed to the DB yet.
     const merged = { ...fromStorage };
     for (const [param, dbLim] of Object.entries(fromDb)) {
       const sl = fromStorage[param];
       merged[param] = {
-        min: dbLim.min || sl?.min || "",
-        max: dbLim.max || sl?.max || "",
-        unit: dbLim.unit || sl?.unit || "mg",
-        declared: dbLim.declared || sl?.declared || "",
-        overage: dbLim.overage || sl?.overage || "",
+        min: sl?.min || dbLim.min || "",
+        max: sl?.max || dbLim.max || "",
+        unit: sl?.unit || dbLim.unit || "mg",
+        declared: sl?.declared || dbLim.declared || "",
+        overage: sl?.overage || dbLim.overage || "",
       };
     }
 
