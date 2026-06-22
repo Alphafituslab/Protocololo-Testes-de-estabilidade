@@ -1111,6 +1111,41 @@ export default function CertificatePage() {
         )}
       </div>
 
+      {/* ─── Mini-cabeçalho repetido em cada página do PDF ─────────────────
+           Oculto na tela; torna-se position:fixed no @media print, então
+           aparece no topo de TODAS as páginas impressas.                 */}
+      <div className="cert-page-header">
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: 0 }}>
+          <img
+            src="/logo-alphafitus.png"
+            alt="Alphafitus"
+            style={{ height: "28px", width: "auto", flexShrink: 0 }}
+          />
+          <div style={{ borderLeft: "1px solid #d1d5db", paddingLeft: "8px", minWidth: 0 }}>
+            <p style={{ fontSize: "6.5pt", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", margin: 0 }}>
+              Alphafitus Laboratório Nutracêutico
+            </p>
+            <p style={{ fontSize: "9pt", fontWeight: "bold", textTransform: "uppercase", color: "#1e293b", margin: 0, lineHeight: 1.2 }}>
+              Certificado de Análise
+            </p>
+            <p style={{ fontSize: "7.5pt", fontWeight: 600, color: "#059669", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {getEdit("productName", cert.productName)}
+            </p>
+          </div>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0, paddingLeft: "16px" }}>
+          <p style={{ fontSize: "6pt", textTransform: "uppercase", color: "#9ca3af", margin: 0, fontWeight: 600, letterSpacing: "0.05em" }}>
+            Nº do Certificado de Análise
+          </p>
+          <p style={{ fontSize: "9.5pt", fontWeight: "bold", color: "#1e293b", margin: 0, whiteSpace: "nowrap" }}>
+            {getEdit("certNumber", cert.certNumber)}
+          </p>
+          <p style={{ fontSize: "6.5pt", color: "#6b7280", margin: 0 }}>
+            Data de Emissão: {fmtDate(getEdit("issueDate", cert.issueDate))}
+          </p>
+        </div>
+      </div>
+
       {/* ─── Certificate document ─── */}
       <div
         id="certificate-document"
@@ -2246,6 +2281,11 @@ export default function CertificatePage() {
 
       <style>{`
         /* ══ MARGENS DE PÁGINA ══════════════════════════════════════════════════ */
+        /* Mini-cabeçalho: oculto na tela */
+        .cert-page-header {
+          display: none;
+        }
+
         @page {
           size: A4 portrait;
           /* margin: 0 remove o cabeçalho/rodapé automático do Chrome
@@ -2270,6 +2310,29 @@ export default function CertificatePage() {
              revelar o certificado abaixo.                                        */
           body * { visibility: hidden !important; }
 
+          /* ── 3. Revelar APENAS o certificado, mini-cabeçalho e seus filhos ───── */
+          .cert-page-header,
+          .cert-page-header * { visibility: visible !important; }
+
+          /* Mini-cabeçalho: position:fixed faz com que repita em TODAS as páginas */
+          .cert-page-header {
+            display: flex !important;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 16mm;
+            background: white;
+            border-bottom: 1.5pt solid #374151;
+            padding: 2.5mm 12mm;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 9999;
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
           /* ── 3. Revelar APENAS o certificado e seus filhos ───────────────────── */
           #certificate-document,
           #certificate-document * { visibility: visible !important; }
@@ -2293,6 +2356,9 @@ export default function CertificatePage() {
             max-width: 100% !important;
             margin: 0 !important;
             padding: 9mm 12mm !important;
+            /* Top padding extra: 16mm (mini-cabeçalho fixo) + 4mm (espaço visual) = 20mm
+               acresce aos 9mm normais → total 29mm antes do conteúdo começar.       */
+            padding-top: 29mm !important;
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
