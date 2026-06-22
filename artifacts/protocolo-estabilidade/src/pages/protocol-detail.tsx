@@ -208,8 +208,11 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
   const { lbl, setLabel } = useLabelOverrides();
   const queryClient = useQueryClient();
   const updateProtocol = useUpdateProtocol();
+  const { toast } = useToast();
 
   const [issueDateLocal, setIssueDateLocal] = useState(protocol.issueDate ?? "");
+  const [isDirty, setIsDirty] = useState(false);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
 
   // Environmental conditions — now persisted in the database.
   // We clean up the old localStorage key on mount so stale values are gone.
@@ -222,6 +225,8 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
     try { localStorage.removeItem(`cert_env_${protocol.id}`); } catch { /* ignore */ }
   }, [protocol.id]);
 
+  const markDirty = () => setIsDirty(true);
+
   const saveField = useCallback((field: string, value: string) => {
     updateProtocol.mutate(
       { id: protocol.id, data: { [field]: value } },
@@ -233,6 +238,31 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
       }
     );
   }, [protocol.id, updateProtocol, queryClient]);
+
+  const saveAll = useCallback(() => {
+    const data: Record<string, string> = {
+      samplingTemp,
+      samplingHumidity,
+      receptionTemp,
+      receptionHumidity,
+      ...(issueDateLocal ? { issueDate: issueDateLocal } : {}),
+    };
+    updateProtocol.mutate(
+      { id: protocol.id, data },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocol.id) });
+          queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocol.id) });
+          setIsDirty(false);
+          setSavedAt(new Date());
+          toast({ title: "Salvo com sucesso", description: "Informações do protocolo atualizadas.", duration: 2500 });
+        },
+        onError: () => {
+          toast({ title: "Erro ao salvar", description: "Tente novamente.", variant: "destructive", duration: 3000 });
+        },
+      }
+    );
+  }, [protocol.id, samplingTemp, samplingHumidity, receptionTemp, receptionHumidity, issueDateLocal, updateProtocol, queryClient, toast]);
 
   const fieldsTop: { labelKey: string; def: string; value?: string | null }[] = [
     { labelKey: "certNumber", def: "Número do Certificado de Análise", value: protocol.certNumber },
@@ -284,28 +314,28 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
           <EditableInfoField
             label="Condições ambientais durante amostragem — Temperatura"
             value={samplingTemp}
-            onChange={setSamplingTempRaw}
+            onChange={v => { setSamplingTempRaw(v); markDirty(); }}
             onBlur={() => saveField("samplingTemp", samplingTemp)}
             placeholder="ex: 22,8°C"
           />
           <EditableInfoField
             label="Condições ambientais durante amostragem — Umidade"
             value={samplingHumidity}
-            onChange={setSamplingHumidityRaw}
+            onChange={v => { setSamplingHumidityRaw(v); markDirty(); }}
             onBlur={() => saveField("samplingHumidity", samplingHumidity)}
             placeholder="ex: 60% UR"
           />
           <EditableInfoField
             label="Condições de recebimento da amostra — Temperatura"
             value={receptionTemp}
-            onChange={setReceptionTempRaw}
+            onChange={v => { setReceptionTempRaw(v); markDirty(); }}
             onBlur={() => saveField("receptionTemp", receptionTemp)}
             placeholder="ex: 22,8°C"
           />
           <EditableInfoField
             label="Condições de recebimento da amostra — Umidade"
             value={receptionHumidity}
-            onChange={setReceptionHumidityRaw}
+            onChange={v => { setReceptionHumidityRaw(v); markDirty(); }}
             onBlur={() => saveField("receptionHumidity", receptionHumidity)}
             placeholder="ex: 60% UR"
           />
@@ -329,7 +359,7 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
             <input
               type="date"
               value={issueDateLocal}
-              onChange={e => setIssueDateLocal(e.target.value)}
+              onChange={e => { setIssueDateLocal(e.target.value); markDirty(); }}
               onBlur={() => { if (issueDateLocal) saveField("issueDate", issueDateLocal); }}
               className="text-sm font-medium bg-white border border-primary/30 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/60"
             />
@@ -339,6 +369,39 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
             Pode ser retroativa.
           </p>
         </div>
+      </div>
+
+      {/* Botão Salvar — visível sempre, destaque quando há alterações pendentes */}
+      <div className="flex items-center justify-between rounded-md border border-dashed border-primary/30 bg-primary/5 px-4 py-3">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {updateProtocol.isPending && (
+            <span className="flex items-center gap-1.5 text-primary">
+              <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+              Salvando…
+            </span>
+          )}
+          {!updateProtocol.isPending && savedAt && !isDirty && (
+            <span className="flex items-center gap-1 text-green-700">
+              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+              Salvo às {savedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+          {!updateProtocol.isPending && isDirty && (
+            <span className="text-amber-700 font-medium">● Alterações não salvas</span>
+          )}
+          {!updateProtocol.isPending && !isDirty && !savedAt && (
+            <span>Salvo automaticamente a cada campo</span>
+          )}
+        </div>
+        <Button
+          onClick={saveAll}
+          disabled={updateProtocol.isPending}
+          size="sm"
+          className={isDirty ? "bg-primary text-white hover:bg-primary/90" : ""}
+          variant={isDirty ? "default" : "outline"}
+        >
+          {updateProtocol.isPending ? "Salvando…" : "Salvar"}
+        </Button>
       </div>
     </div>
   );
