@@ -130,6 +130,12 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
   const protocolIsAR = protocol.finalStatus === "aprovado_com_ressalva";
 
   const avgByParam: Record<string, { sum: number; count: number; criterion: string; resultText: string; status: string; category: string }> = {};
+
+  // T6-only accumulator for teor_ativo — kinetics tab uses period=6 exclusively,
+  // so the certificate must use the same source for ANVISA mg calculation and status.
+  // Using a cross-period average inflates the value (T0/T3 are higher than T6).
+  const t6AvgByParam: Record<string, { sum: number; count: number }> = {};
+
   for (const r of allResults) {
     if (!avgByParam[r.parameter]) {
       avgByParam[r.parameter] = { sum: 0, count: 0, criterion: r.criterion, resultText: r.result, status: r.status, category: r.category };
@@ -137,6 +143,12 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     if (r.numericResult != null) {
       avgByParam[r.parameter].sum += r.numericResult;
       avgByParam[r.parameter].count += 1;
+    }
+    // Track T6-only for teor_ativo (same calculation as kinetics.ts)
+    if (r.category === "teor_ativo" && r.period === 6 && r.numericResult != null) {
+      if (!t6AvgByParam[r.parameter]) t6AvgByParam[r.parameter] = { sum: 0, count: 0 };
+      t6AvgByParam[r.parameter].sum += r.numericResult;
+      t6AvgByParam[r.parameter].count += 1;
     }
     // AR is an explicit operator release — it overrides NC at individual result level too
     if (r.status === "aprovado_com_ressalva") {
