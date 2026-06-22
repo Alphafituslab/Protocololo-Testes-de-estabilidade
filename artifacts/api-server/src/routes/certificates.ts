@@ -88,15 +88,25 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     ativoLimitsMap[p] ?? ativoLimitsMapNorm[p.toLowerCase().trim()];
 
   // ── T6 values from kinetics overrides (what the user sees in the Cinética tab) ─
-  // Structure: { [parameter]: { t0, t3, t6, specMin, specMax, validadePraticada } }
-  type KineticOverride = { t0: string; t3: string; t6: string };
+  // kineticsOverridesJson is saved in nested format by saveOverridesToDb:
+  //   { savedAt, params: { [param]: { t6, t0, t3, ... } }, customShelfLife }
+  // Older saves may have used a legacy flat format: { [param]: { t6, ... } }
+  // We support both so old data keeps working.
+  type KineticOverrideEntry = { t0?: string; t3?: string; t6?: string };
+  type KineticsOverridesDB = { savedAt?: string; params?: Record<string, KineticOverrideEntry>; customShelfLife?: string };
   const kineticsT6Map: Record<string, number> = {};
   const kineticsT6MapNorm: Record<string, number> = {};         // keyed by lowercase+trimmed
   if (protocol.kineticsOverridesJson) {
     try {
-      const overrides = JSON.parse(protocol.kineticsOverridesJson) as Record<string, KineticOverride>;
-      for (const [param, ov] of Object.entries(overrides)) {
-        const t6Num = parseFloat(ov.t6);
+      const raw = JSON.parse(protocol.kineticsOverridesJson) as KineticsOverridesDB | Record<string, KineticOverrideEntry>;
+      // Detect nested format: has a "params" object whose values have t0/t3/t6 strings
+      const paramMap: Record<string, KineticOverrideEntry> =
+        (raw as KineticsOverridesDB).params && typeof (raw as KineticsOverridesDB).params === "object"
+          ? (raw as KineticsOverridesDB).params!
+          : (raw as Record<string, KineticOverrideEntry>);
+      for (const [param, ov] of Object.entries(paramMap)) {
+        if (!ov || typeof ov !== "object") continue;
+        const t6Num = parseFloat((ov as KineticOverrideEntry).t6 ?? "");
         if (!isNaN(t6Num)) {
           kineticsT6Map[param] = t6Num;
           kineticsT6MapNorm[param.toLowerCase().trim()] = t6Num;
@@ -174,6 +184,26 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       avgByParam[r.parameter].status = "nao_conforme";
     }
   }
+
+  // ── Diagnostic log — helps debug missing mg info in production ─────────
+  req.log.info({
+    protocolId: params.data.id,
+    ativoLimitsKeys: Object.entries(ativoLimitsMap).map(([k, v]) => ({
+      param: k,
+      declared: v.declared ?? "",
+      min: v.min ?? "",
+      max: v.max ?? "",
+    })),
+    teor_ativo_params: Object.entries(avgByParam)
+      .filter(([, d]) => d.category === "teor_ativo")
+      .map(([p]) => ({
+        param: p,
+        found: !!getAtivoLimit(p),
+        declared: getAtivoLimit(p)?.declared ?? "(not found)",
+        t6Only: (() => { const e = t6AvgByParam[p]; return e && e.count > 0 ? e.sum / e.count : null; })(),
+        kineticsT6: getKineticsT6(p) ?? null,
+      })),
+  }, "cert-debug");
 
   const analyses = Object.entries(avgByParam)
     .sort(([, a], [, b]) => (CATEGORY_ORDER[a.category] ?? 9) - (CATEGORY_ORDER[b.category] ?? 9))

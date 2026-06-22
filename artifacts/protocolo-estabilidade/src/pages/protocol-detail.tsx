@@ -5208,6 +5208,7 @@ export default function ProtocolDetail() {
     if (!protocol) return;
     setIsSyncingCertificate(true);
 
+    // ── 1. Merge ativoLimitsJson (declared quantities) ─────────────────────
     type LimEntry = { min: string; max: string; unit: string; declared: string; overage: string };
     const lsKey = `ativo_limits_${numId}`;
     let fromStorage: Record<string, LimEntry> = {};
@@ -5239,12 +5240,48 @@ export default function ProtocolDetail() {
     // Also write back to localStorage so it stays in sync
     try { localStorage.setItem(lsKey, JSON.stringify(merged)); } catch { /* ignore */ }
 
+    // ── 2. Collect kineticsOverridesJson from localStorage (unsaved overrides) ─
+    // saveOverridesToDb clears localStorage on success, so any remaining data
+    // means the user has unsaved kinetics values (e.g. manual T6 entries).
+    // Convert from localStorage format → DB format so the certificate server
+    // can read them via getKineticsT6(param).
+    type KineticOvEntry = { t0?: string; t3?: string; t6?: string; specMin?: string; specMax?: string; validadePraticada?: string; ichThreshold?: string };
+    type KineticsOvDB = { savedAt?: string; params?: Record<string, KineticOvEntry>; customShelfLife?: string };
+    let kineticsOverridesPayload: string | null = null;
+    try {
+      const kinLsKey = `kinetics_overrides_${numId}`;
+      const kinRaw = localStorage.getItem(kinLsKey);
+      if (kinRaw) {
+        const stored = JSON.parse(kinRaw) as { overrides?: Record<string, KineticOvEntry>; customShelfLife?: string };
+        if (stored.overrides && Object.keys(stored.overrides).length > 0) {
+          const payload: KineticsOvDB = {
+            savedAt: new Date().toISOString(),
+            params: {},
+            customShelfLife: stored.customShelfLife || undefined,
+          };
+          for (const [param, ov] of Object.entries(stored.overrides)) {
+            payload.params![param] = {
+              t0: ov.t0, t3: ov.t3, t6: ov.t6,
+              specMin: ov.specMin, specMax: ov.specMax,
+              validadePraticada: ov.validadePraticada,
+              ichThreshold: ov.ichThreshold,
+            };
+          }
+          kineticsOverridesPayload = JSON.stringify(payload);
+        }
+      }
+    } catch { /* ignore */ }
+
+    const updateData: Record<string, string | null> = { ativoLimitsJson: JSON.stringify(merged) };
+    if (kineticsOverridesPayload) updateData.kineticsOverridesJson = kineticsOverridesPayload;
+
     updateProtocol.mutate(
-      { id: numId, data: { ativoLimitsJson: JSON.stringify(merged) } },
+      { id: numId, data: updateData as Parameters<typeof updateProtocol.mutate>[0]["data"] },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(numId) });
           queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(numId) });
+          queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(numId) });
           setIsSyncingCertificate(false);
           toast({ title: "✓ Sincronizado com sucesso", description: "Todos os valores de teor declarado foram enviados ao certificado." });
         },
