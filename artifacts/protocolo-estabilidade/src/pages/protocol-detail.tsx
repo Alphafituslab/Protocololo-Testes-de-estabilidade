@@ -1565,6 +1565,36 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
         await createRef.mutateAsync({ data: payload });
       }
       queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() });
+
+      // Immediately replicate new bank values to this protocol's ativoLimits
+      // so the kinetics column recalculates without needing a page reload.
+      const param = payload.parameter;
+      setAtivoLimitsState(prev => {
+        const existing = prev[param];
+        if (!existing) return prev; // param not in this protocol — skip
+        const next = {
+          ...prev,
+          [param]: {
+            ...existing,
+            min: payload.minValue ?? "",
+            max: payload.maxValue ?? "",
+            unit: payload.unit ?? "mg",
+          },
+        };
+        try { localStorage.setItem(ATIVO_LIMITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+        updateProtocol.mutate(
+          { id: protocolId, data: { ativoLimitsJson: JSON.stringify(next) } },
+          {
+            onSuccess: () => {
+              queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
+              queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocolId) });
+              queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
+            },
+          }
+        );
+        return next;
+      });
+
       setRefForm(emptyRefForm);
       setRefEditingId(null);
     } finally {
@@ -1938,19 +1968,32 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                   <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">
                     Faixa de Conformidade por Ativo — ANVISA (RDC 269/2005)
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => setRefBankOpen(o => !o)}
-                    className="flex items-center gap-1 text-[10px] font-medium text-indigo-600 hover:text-indigo-800 border border-indigo-300 rounded px-2 py-0.5 bg-white hover:bg-indigo-50 transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
-                    </svg>
-                    {refBankOpen ? "Fechar banco" : "Gerenciar banco"}
-                    {ativoRefs.length > 0 && (
-                      <span className="ml-1 bg-indigo-100 text-indigo-700 rounded-full px-1.5 py-px text-[9px] font-semibold">{ativoRefs.length}</span>
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      title="Atualizar página para recarregar todos os dados"
+                      onClick={() => window.location.reload()}
+                      className="flex items-center gap-1 text-[10px] font-medium text-slate-500 hover:text-slate-700 border border-slate-300 rounded px-2 py-0.5 bg-white hover:bg-slate-50 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Atualizar página
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRefBankOpen(o => !o)}
+                      className="flex items-center gap-1 text-[10px] font-medium text-indigo-600 hover:text-indigo-800 border border-indigo-300 rounded px-2 py-0.5 bg-white hover:bg-indigo-50 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
+                      </svg>
+                      {refBankOpen ? "Fechar banco" : "Gerenciar banco"}
+                      {ativoRefs.length > 0 && (
+                        <span className="ml-1 bg-indigo-100 text-indigo-700 rounded-full px-1.5 py-px text-[9px] font-semibold">{ativoRefs.length}</span>
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="text-xs w-full">
