@@ -2800,7 +2800,7 @@ type KineticsOverridesDB = {
   customShelfLife?: string;
 };
 
-function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths, customParamsJson, initialKineticsOverridesJson, ativoLimitsJson, onApplyOverage }: {
+function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths, customParamsJson, initialKineticsOverridesJson, ativoLimitsJson, onApplyOverage, onSyncCertificate, isSyncingCertificate }: {
   protocolId: number;
   productName: string;
   initialKineticsNotes?: string | null;
@@ -2809,6 +2809,8 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   initialKineticsOverridesJson?: string | null;
   ativoLimitsJson?: string | null;
   onApplyOverage?: (param: string, overage: string) => void;
+  onSyncCertificate?: () => void;
+  isSyncingCertificate?: boolean;
 }) {
   const { data: kinetics, isLoading } = useGetKinetics(protocolId, {
     query: { queryKey: getGetKineticsQueryKey(protocolId), staleTime: 0 },
@@ -3220,6 +3222,22 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
             Restaurar valores calculados
           </Button>
+          {onSyncCertificate && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onSyncCertificate}
+              disabled={isSyncingCertificate}
+              className="gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white"
+            >
+              {isSyncingCertificate ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              )}
+              {isSyncingCertificate ? "Sincronizando…" : "Sincronizar com Certificado"}
+            </Button>
+          )}
         </div>
       </div>
       {isDirty && (
@@ -5183,6 +5201,61 @@ export default function ProtocolDetail() {
     );
   };
 
+  // ── Sync certificate: merge localStorage + DB and persist ─────────────────
+  const [isSyncingCertificate, setIsSyncingCertificate] = useState(false);
+
+  const handleSyncCertificate = () => {
+    if (!protocol) return;
+    setIsSyncingCertificate(true);
+
+    type LimEntry = { min: string; max: string; unit: string; declared: string; overage: string };
+    const lsKey = `ativo_limits_${numId}`;
+    let fromStorage: Record<string, LimEntry> = {};
+    let fromDb: Record<string, LimEntry> = {};
+
+    try {
+      const raw = localStorage.getItem(lsKey);
+      fromStorage = raw ? JSON.parse(raw) : {};
+    } catch { /* ignore */ }
+
+    if (protocol.ativoLimitsJson) {
+      try { fromDb = JSON.parse(protocol.ativoLimitsJson); } catch { /* ignore */ }
+    }
+
+    // Merge: localStorage is the base; DB fields take priority per-field.
+    // `declared`/`overage` fall back to localStorage when DB has them empty.
+    const merged = { ...fromStorage };
+    for (const [param, dbLim] of Object.entries(fromDb)) {
+      const sl = fromStorage[param];
+      merged[param] = {
+        min: dbLim.min || sl?.min || "",
+        max: dbLim.max || sl?.max || "",
+        unit: dbLim.unit || sl?.unit || "mg",
+        declared: dbLim.declared || sl?.declared || "",
+        overage: dbLim.overage || sl?.overage || "",
+      };
+    }
+
+    // Also write back to localStorage so it stays in sync
+    try { localStorage.setItem(lsKey, JSON.stringify(merged)); } catch { /* ignore */ }
+
+    updateProtocol.mutate(
+      { id: numId, data: { ativoLimitsJson: JSON.stringify(merged) } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(numId) });
+          queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(numId) });
+          setIsSyncingCertificate(false);
+          toast({ title: "✓ Sincronizado com sucesso", description: "Todos os valores de teor declarado foram enviados ao certificado." });
+        },
+        onError: () => {
+          setIsSyncingCertificate(false);
+          toast({ variant: "destructive", title: "Erro ao sincronizar", description: "Tente novamente." });
+        },
+      }
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4 animate-pulse">
@@ -5432,6 +5505,8 @@ export default function ProtocolDetail() {
                 initialKineticsOverridesJson={protocol.kineticsOverridesJson}
                 ativoLimitsJson={protocol.ativoLimitsJson}
                 onApplyOverage={handleApplyOverage}
+                onSyncCertificate={handleSyncCertificate}
+                isSyncingCertificate={isSyncingCertificate}
               />
             </CardContent>
           </Card>
