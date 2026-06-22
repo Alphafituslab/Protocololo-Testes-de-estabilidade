@@ -55,6 +55,7 @@ export default function AtivoReferencesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<AtivoReference | null>(null);
+  const [search, setSearch] = useState("");
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -229,6 +230,26 @@ export default function AtivoReferencesPage() {
               {refs.length}
             </span>
           </CardTitle>
+          {/* Search */}
+          <div className="relative mt-2">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar ativo…"
+              className="w-full pl-9 pr-8 py-1.5 text-sm border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-sm leading-none"
+              >✕</button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -251,7 +272,9 @@ export default function AtivoReferencesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {refs.map((ref, i) => (
+                  {refs
+                    .filter(r => !search.trim() || r.parameter.toLowerCase().includes(search.trim().toLowerCase()))
+                    .map((ref, i) => (
                     <tr
                       key={ref.id}
                       className={`border-b last:border-0 transition-colors ${editingId === ref.id ? "bg-indigo-50" : i % 2 === 0 ? "bg-white" : "bg-muted/20"} hover:bg-indigo-50/60`}
