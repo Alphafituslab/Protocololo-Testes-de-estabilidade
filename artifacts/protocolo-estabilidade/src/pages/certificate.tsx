@@ -1342,9 +1342,9 @@ export default function CertificatePage() {
           <table className="w-full text-xs border-collapse table-fixed">
             <colgroup>
               <col className="w-[19%]" />
-              <col className="w-[31%]" />
+              <col className="w-[26%]" />
               <col className="w-[18%]" />
-              <col className="w-[12%]" />
+              <col className="w-[17%]" />
               <col className="w-[15%]" />
               <col className="w-[5%] print:hidden" />
             </colgroup>
@@ -1389,28 +1389,28 @@ export default function CertificatePage() {
                         <td className={`border px-2 py-1.5 font-mono align-top ${isNC ? "border-red-300" : "border-gray-300"}`}>
                           <CertEditField value={analysis.specification ?? ""} onChange={v => updateAnalysis(analysis.originalIndex, "specification", v)} className="text-xs w-full font-mono" />
                         </td>
-                        <td className={`border px-2 py-1.5 text-center font-mono font-medium align-top ${isNC ? "border-red-300 text-red-800" : "border-gray-300"}`}>
-                          <CertEditField value={analysis.result} onChange={v => updateAnalysis(analysis.originalIndex, "result", v)} className="text-xs text-center w-16 font-mono" />
+                        <td className={`border px-2 py-1.5 text-center font-mono font-medium align-top overflow-hidden ${isNC ? "border-red-300 text-red-800" : "border-gray-300"}`}>
+                          <CertEditField value={analysis.result} onChange={v => updateAnalysis(analysis.originalIndex, "result", v)} className="text-xs text-center w-full font-mono" />
                           {analysis.ativoMgValue && (
-                            <div className="mt-1 flex flex-col items-center gap-0">
-                              <span className={`text-xs font-bold tabular-nums leading-snug ${analysis.ativoStatus === "fora" ? "text-red-700" : "text-indigo-700"}`}>
+                            <div className="mt-1 flex flex-col items-center gap-0 w-full">
+                              <span className={`text-xs font-bold break-words w-full leading-snug ${analysis.ativoStatus === "fora" ? "text-red-700" : "text-indigo-700"}`}>
                                 {analysis.ativoMgValue}
                               </span>
                               {analysis.ativoFaixa && (
-                                <span className="text-[9.5px] text-indigo-400 tabular-nums leading-snug">
+                                <span className="text-[9px] text-indigo-400 break-words w-full leading-snug">
                                   faixa: {analysis.ativoFaixa}
                                 </span>
                               )}
                               {analysis.ativoStatus === "dentro" && analysis.ativoFaixa && (
-                                <span className="text-[9.5px] text-green-600 leading-snug">✓ dentro da faixa</span>
+                                <span className="text-[9px] text-green-600 leading-snug">✓ dentro</span>
                               )}
                               {analysis.ativoStatus === "fora" && (
-                                <span className="text-[9.5px] text-red-600 font-semibold leading-snug">⚠ fora da faixa</span>
+                                <span className="text-[9px] text-red-600 font-semibold leading-snug">⚠ fora</span>
                               )}
                             </div>
                           )}
                           {analysis.overageInfo && (
-                            <div className="mt-1 text-[9.5px] font-sans font-normal text-amber-700 leading-snug border-t border-amber-200 pt-0.5">
+                            <div className="mt-1 text-[9px] font-sans font-normal text-amber-700 break-words leading-snug border-t border-amber-200 pt-0.5">
                               <span className="font-semibold">⚠ Overage:</span>{" "}
                               {analysis.overageInfo}
                             </div>
