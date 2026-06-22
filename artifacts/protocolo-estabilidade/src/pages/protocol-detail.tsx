@@ -209,6 +209,8 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
   const queryClient = useQueryClient();
   const updateProtocol = useUpdateProtocol();
 
+  const [issueDateLocal, setIssueDateLocal] = useState(protocol.issueDate ?? "");
+
   // Environmental conditions — now persisted in the database.
   // We clean up the old localStorage key on mount so stale values are gone.
   const [samplingTemp, setSamplingTempRaw] = useState(protocol.samplingTemp ?? "22,8°C");
@@ -312,6 +314,31 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
 
       <div className="grid grid-cols-2 gap-x-8 gap-y-3">
         {fieldsBottom.map(f => <InfoFieldEL key={f.labelKey} {...f} lbl={lbl} setLabel={setLabel} />)}
+      </div>
+
+      {/* Data de Emissão — editável retroativamente */}
+      <div className="rounded-md border border-primary/20 bg-primary/5 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-primary/80 mb-3">
+          Data de Emissão do Laudo
+        </p>
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Data de emissão
+            </label>
+            <input
+              type="date"
+              value={issueDateLocal}
+              onChange={e => setIssueDateLocal(e.target.value)}
+              onBlur={() => { if (issueDateLocal) saveField("issueDate", issueDateLocal); }}
+              className="text-sm font-medium bg-white border border-primary/30 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/60"
+            />
+          </div>
+          <p className="text-[10px] text-muted-foreground leading-snug max-w-xs pb-1">
+            Usada no Certificado de Análise e no Relatório ANVISA.
+            Pode ser retroativa.
+          </p>
+        </div>
       </div>
     </div>
   );
