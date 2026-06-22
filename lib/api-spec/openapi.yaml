@@ -1809,6 +1809,19 @@ components:
           type: string
           nullable: true
           description: 'Valor absoluto calculado em mg/mcg para parametros teor_ativo (ex: "510,30 mg | Faixa ANVISA: 450 - 750 mg")'
+        ativoMgValue:
+          type: string
+          nullable: true
+          description: 'Valor absoluto calculado (ex: "428,99 mg") — exibido em bold no card do certificado'
+        ativoFaixa:
+          type: string
+          nullable: true
+          description: 'Faixa ANVISA formatada (ex: "Livre – 450,00 mg") — linha de faixa no card'
+        ativoStatus:
+          type: string
+          nullable: true
+          enum: [dentro, fora]
+          description: 'Status de conformidade em relacao a faixa mg: "dentro" ou "fora"'
         overageInfo:
           type: string
           nullable: true

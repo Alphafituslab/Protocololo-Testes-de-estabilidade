@@ -342,6 +342,18 @@ export const CertificateAnalysisCategory = {
   embalagem: "embalagem",
 } as const;
 
+/**
+ * Status de conformidade em relacao a faixa mg: "dentro" ou "fora"
+ */
+export type CertificateAnalysisAtivoStatus =
+  | (typeof CertificateAnalysisAtivoStatus)[keyof typeof CertificateAnalysisAtivoStatus]
+  | null;
+
+export const CertificateAnalysisAtivoStatus = {
+  dentro: "dentro",
+  fora: "fora",
+} as const;
+
 export interface CertificateAnalysis {
   parameter: string;
   category: CertificateAnalysisCategory;
@@ -351,6 +363,12 @@ export interface CertificateAnalysis {
   status: string;
   /** Valor absoluto calculado em mg/mcg para parametros teor_ativo (ex: "510,30 mg | Faixa ANVISA: 450 - 750 mg") */
   ativoMgInfo?: string | null;
+  /** Valor absoluto calculado (ex: "428,99 mg") — exibido em bold no card do certificado */
+  ativoMgValue?: string | null;
+  /** Faixa ANVISA formatada (ex: "Livre – 450,00 mg") — linha de faixa no card */
+  ativoFaixa?: string | null;
+  /** Status de conformidade em relacao a faixa mg: "dentro" ou "fora" */
+  ativoStatus?: CertificateAnalysisAtivoStatus;
   /** Informacao de overage aplicado para parametros teor_ativo quando overage > 0 (ex: "Overage +8,5% aplicado — Qtd. manufaturada: 86,80 mg | Declarado: 80,00 mg") */
   overageInfo?: string | null;
 }

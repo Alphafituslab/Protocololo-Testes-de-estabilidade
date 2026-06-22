@@ -349,7 +349,9 @@ export default function CertificatePage() {
 
   const [analyses, setAnalyses] = useState<Array<{
     parameter: string; category: string; method: string; specification: string | null;
-    result: string; status: string; visible: boolean; ativoMgInfo?: string | null; overageInfo?: string | null;
+    result: string; status: string; visible: boolean;
+    ativoMgInfo?: string | null; ativoMgValue?: string | null; ativoFaixa?: string | null; ativoStatus?: string | null;
+    overageInfo?: string | null;
   }> | null>(null);
 
   // Persist print preferences whenever they change.
@@ -704,6 +706,9 @@ export default function CertificatePage() {
         // the certificate has been created.
         result: a.result,
         overageInfo: a.overageInfo ?? null,
+        ativoMgValue: a.ativoMgValue ?? null,
+        ativoFaixa: a.ativoFaixa ?? null,
+        ativoStatus: a.ativoStatus ?? null,
         visible: visMap[a.parameter] ?? _savedPrintPrefs?.rowVisibility?.[a.parameter] ?? true,
       }));
     });
@@ -1386,9 +1391,22 @@ export default function CertificatePage() {
                         </td>
                         <td className={`border px-2 py-1.5 text-center font-mono font-medium align-top ${isNC ? "border-red-300 text-red-800" : "border-gray-300"}`}>
                           <CertEditField value={analysis.result} onChange={v => updateAnalysis(analysis.originalIndex, "result", v)} className="text-xs text-center w-16 font-mono" />
-                          {analysis.ativoMgInfo && (
-                            <div className="mt-0.5 text-[10px] font-sans font-normal text-indigo-700 leading-tight">
-                              {analysis.ativoMgInfo}
+                          {analysis.ativoMgValue && (
+                            <div className="mt-1 flex flex-col items-center gap-0">
+                              <span className={`text-xs font-bold tabular-nums leading-snug ${analysis.ativoStatus === "fora" ? "text-red-700" : "text-indigo-700"}`}>
+                                {analysis.ativoMgValue}
+                              </span>
+                              {analysis.ativoFaixa && (
+                                <span className="text-[9.5px] text-indigo-400 tabular-nums leading-snug">
+                                  faixa: {analysis.ativoFaixa}
+                                </span>
+                              )}
+                              {analysis.ativoStatus === "dentro" && analysis.ativoFaixa && (
+                                <span className="text-[9.5px] text-green-600 leading-snug">✓ dentro da faixa</span>
+                              )}
+                              {analysis.ativoStatus === "fora" && (
+                                <span className="text-[9.5px] text-red-600 font-semibold leading-snug">⚠ fora da faixa</span>
+                              )}
                             </div>
                           )}
                           {analysis.overageInfo && (

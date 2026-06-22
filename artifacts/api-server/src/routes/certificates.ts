@@ -260,6 +260,9 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       // Falling back to the overall avg (T0+T3+T6 mixed) inflates the result because
       // T0 and T3 are generally higher than T6, masking real degradation.
       let ativoMgInfo: string | null = null;
+      let ativoMgValue: string | null = null;
+      let ativoFaixa: string | null = null;
+      let ativoStatus: "dentro" | "fora" | null = null;
       if (data.category === "teor_ativo") {
         const lim = getAtivoLimit(param);
         if (lim?.declared) {
@@ -278,20 +281,29 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
             const maxIsNE = (lim.max ?? "").trim().toUpperCase() === "NE";
             // Format adapts to which bounds are present; "NE" (Não Especificado) → "Livre"
             let faixaStr = "";
+            let faixaLabel: string | null = null;
             if (minNum !== null && maxNum !== null) {
               faixaStr = ` | Faixa ANVISA: ${lim.min} – ${lim.max} ${lim.unit}`;
+              faixaLabel = `${lim.min} – ${lim.max} ${lim.unit}`;
             } else if (minIsNE && maxNum !== null) {
               faixaStr = ` | Faixa ANVISA: Livre – ${lim.max} ${lim.unit}`;
+              faixaLabel = `Livre – ${lim.max} ${lim.unit}`;
             } else if (maxIsNE && minNum !== null) {
               faixaStr = ` | Faixa ANVISA: ${lim.min} – Livre ${lim.unit}`;
+              faixaLabel = `${lim.min} – Livre ${lim.unit}`;
             } else if (minNum !== null) {
               faixaStr = ` | Faixa ANVISA: ≥ ${lim.min} ${lim.unit}`;
+              faixaLabel = `≥ ${lim.min} ${lim.unit}`;
             } else if (maxNum !== null) {
               faixaStr = ` | Faixa ANVISA: ≤ ${lim.max} ${lim.unit}`;
+              faixaLabel = `≤ ${lim.max} ${lim.unit}`;
             } else if (minIsNE || maxIsNE) {
               faixaStr = ` | Faixa ANVISA: Livre ${lim.unit}`;
+              faixaLabel = `Livre ${lim.unit}`;
             }
             ativoMgInfo = `${actualMg.toFixed(2).replace(".", ",")} ${lim.unit} (T6)${faixaStr}`;
+            ativoMgValue = `${actualMg.toFixed(2).replace(".", ",")} ${lim.unit}`;
+            ativoFaixa = faixaLabel;
 
             // Auto-flag NC when mg is outside the configured range — BUT only when
             // the percentage-based check has NOT already confirmed conformance.
@@ -300,10 +312,12 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
             // isWithinCriterion(avg, criterion) already returned true, the parameter
             // is compliant per spec and the mg-range check must not downgrade it.
             const pctCheckResult = avg !== null ? isWithinCriterion(avg, data.criterion) : null;
+            const belowMin = minNum !== null && actualMg < minNum;
+            const aboveMax = maxNum !== null && actualMg > maxNum;
+            const outOfRange = belowMin || aboveMax;
+            ativoStatus = faixaLabel ? (outOfRange ? "fora" : "dentro") : null;
             if (finalStatus !== "aprovado_com_ressalva" && pctCheckResult !== true) {
-              const belowMin = minNum !== null && actualMg < minNum;
-              const aboveMax = maxNum !== null && actualMg > maxNum;
-              if (belowMin || aboveMax) finalStatus = "nao_conforme";
+              if (outOfRange) finalStatus = "nao_conforme";
             }
           }
         }
@@ -348,6 +362,9 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
         specification,
         result: resultDisplay,
         ativoMgInfo,
+        ativoMgValue,
+        ativoFaixa,
+        ativoStatus,
         overageInfo,
         status: finalStatus === "nao_conforme" ? "Nao Conforme" : finalStatus === "na" ? "N/A" : finalStatus === "aprovado_com_ressalva" ? "Aprovado com Ressalva" : "Conforme",
       };

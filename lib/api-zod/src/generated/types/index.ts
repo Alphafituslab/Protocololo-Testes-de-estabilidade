@@ -19,6 +19,7 @@ export * from "./catalogItem";
 export * from "./catalogItemInput";
 export * from "./certificate";
 export * from "./certificateAnalysis";
+export * from "./certificateAnalysisAtivoStatus";
 export * from "./certificateAnalysisCategory";
 export * from "./certificateAnalysisDates";
 export * from "./createAttachmentBody";

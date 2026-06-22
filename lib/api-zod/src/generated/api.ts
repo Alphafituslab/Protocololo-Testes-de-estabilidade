@@ -1002,6 +1002,24 @@ export const GetCertificateResponse = zod.object({
         .describe(
           'Valor absoluto calculado em mg\/mcg para parametros teor_ativo (ex: \"510,30 mg | Faixa ANVISA: 450 - 750 mg\")',
         ),
+      ativoMgValue: zod
+        .string()
+        .nullish()
+        .describe(
+          'Valor absoluto calculado (ex: \"428,99 mg\") — exibido em bold no card do certificado',
+        ),
+      ativoFaixa: zod
+        .string()
+        .nullish()
+        .describe(
+          'Faixa ANVISA formatada (ex: \"Livre – 450,00 mg\") — linha de faixa no card',
+        ),
+      ativoStatus: zod
+        .enum(["dentro", "fora"])
+        .nullish()
+        .describe(
+          'Status de conformidade em relacao a faixa mg: \"dentro\" ou \"fora\"',
+        ),
       overageInfo: zod
         .string()
         .nullish()
