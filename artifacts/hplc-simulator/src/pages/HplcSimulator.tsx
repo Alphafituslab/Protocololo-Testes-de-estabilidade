@@ -33,6 +33,7 @@ interface Peak {
   printSelected?: boolean;  // include in printed report (default = true)
   locked?: boolean;         // if true: peak cannot be moved, edited or deleted
   isGhost?: boolean;        // ghost/phantom peak — overlapping, imperfect shape, no label
+  purityPct?: number;       // % purity of the peak's active compound (0/undefined = not set; 1–100 = explicit purity)
   // Advanced peak shape
   emgTau?: number;          // 0 = Gaussian; >0 = EMG exponential tail time constant (min)
   overload?: number;        // 0–1 — column overload: compresses front, extends tail
@@ -265,7 +266,9 @@ interface PadraoConfig {
   stdPurity: number;       // % — certified purity of the reference standard
   // Sample
   smpPeakName: string;     // label: which peak was used as sample
-  smpArea: number;         // mAU·s — area of the sample peak
+  smpArea: number;         // mAU·s — area of the sample peak (purity-corrected when smpPurity < 100)
+  smpRawArea: number;      // mAU·s — raw captured area before purity correction (0 = not set)
+  smpPurity: number;       // % purity of the analyzed sample (100 = no correction)
   smpDeclaredAmountUg: number; // µg — theoretical/declared amount (for purity %)
   notes: string;
   selectedLotIds: string[];  // operator-selected lots to show in report (empty = show all)
@@ -1245,7 +1248,7 @@ function PeakLabel({ viewBox, rt, name, dragging }: {
 
 // ─── Peak editor ──────────────────────────────────────────────────────────────
 
-const PEAK_NUM_KEYS: (keyof Peak)[] = ["retentionTime", "height", "width", "asymmetry", "manualArea", "amtPerArea", "amount", "peakNoise", "inclination"];
+const PEAK_NUM_KEYS: (keyof Peak)[] = ["retentionTime", "height", "width", "asymmetry", "manualArea", "amtPerArea", "amount", "peakNoise", "inclination", "purityPct"];
 
 function peakToStrings(p: Peak): Record<keyof Peak, string> {
   return Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v)])) as Record<keyof Peak, string>;
@@ -1409,6 +1412,33 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
               })()}
             </div>
           ))}
+
+          {/* ── Pureza do ativo ─────────────────────────────────── */}
+          {(() => {
+            const purityVal = parseFloat(draft.purityPct as string) || 0;
+            return (
+              <div className="space-y-0.5 pt-1">
+                <Label className="text-xs text-muted-foreground">Pureza do ativo (%) — opcional</Label>
+                <Input
+                  type="number" step="0.01" min="0.01" max="100"
+                  placeholder="100 — ex: 99.5"
+                  value={purityVal > 0 ? String(purityVal) : ""}
+                  onChange={e => setDraft(d => ({ ...d, purityPct: e.target.value }))}
+                  className="h-7 text-xs font-mono"
+                />
+                {purityVal > 0 && purityVal < 100 && (
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#d97706", marginTop: 2 }}>
+                    ⚠ {(100 - purityVal).toFixed(2)}% impurezas — a área será corrigida ao capturar na aba Standard
+                  </div>
+                )}
+                {purityVal === 0 && (
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8", marginTop: 2 }}>
+                    Deixe em branco = sem correção (equivale a 100%)
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ── Altura slider ─────────────────────────────────── */}
           <div className="pt-1">
@@ -1864,6 +1894,7 @@ const PADRAO_KEY = "hplc_padrao_config_v1";
 const DEFAULT_PADRAO_CONFIG: PadraoConfig = {
   compoundName: "", stdPeakName: "", stdArea: 0, stdAmountUg: 0, stdPurity: 100,
   smpPeakName: "", smpArea: 0, smpDeclaredAmountUg: 0, notes: "", selectedLotIds: [],
+  smpPurity: 100, smpRawArea: 0,
 };
 function loadPadraoConfig(): PadraoConfig {
   try { return { ...DEFAULT_PADRAO_CONFIG, ...(JSON.parse(localStorage.getItem(PADRAO_KEY) ?? "{}") as Partial<PadraoConfig>) }; }
@@ -7470,13 +7501,37 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                   Analyzed Sample
                 </div>
 
+                {/* ── Pureza da amostra ── */}
+                <div style={ROW}>
+                  <span style={{ ...LBL, color: "#c2410c" }}>Pureza da amostra (%)</span>
+                  <div>
+                    {numInput(padraoConfig.smpPurity, v => {
+                      const clamped = Math.max(0.01, Math.min(100, v || 100));
+                      const newArea = padraoConfig.smpRawArea > 0
+                        ? parseFloat((padraoConfig.smpRawArea * clamped / 100).toFixed(5))
+                        : padraoConfig.smpArea;
+                      updatePadrao({ smpPurity: clamped, smpArea: newArea });
+                    }, { step: "0.01", min: "0.01", max: "100", placeholder: "100.00" })}
+                    {padraoConfig.smpRawArea > 0 && padraoConfig.smpPurity < 99.99 && (
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8", marginTop: 2 }}>
+                        Área bruta: {padraoConfig.smpRawArea.toFixed(5)} mAU·s → ×{(padraoConfig.smpPurity / 100).toFixed(4)} = {(padraoConfig.smpRawArea * padraoConfig.smpPurity / 100).toFixed(5)} mAU·s
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div style={ROW}>
                   <span style={LBL}>Sample Area (mAU·s)</span>
                   <div>
-                    {numInput(padraoConfig.smpArea, v => updatePadrao({ smpArea: v }), { step: "0.001", placeholder: "0.000" })}
+                    {numInput(padraoConfig.smpArea, v => updatePadrao({ smpArea: v, smpRawArea: 0 }), { step: "0.001", placeholder: "0.000" })}
                     {padraoConfig.smpArea <= 0 && <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#dc2626", marginTop: 2 }}>⚠ Required — enter a value &gt; 0</div>}
                     {padraoConfig.stdArea > 0 && padraoConfig.smpArea > 0 && padraoConfig.smpArea / padraoConfig.stdArea > 2 && (
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#d97706", marginTop: 2 }}>⚠ Sample area &gt;2× standard — verify concentrations</div>
+                    )}
+                    {padraoConfig.smpPurity < 99.99 && padraoConfig.smpArea > 0 && (
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#f97316", marginTop: 2 }}>
+                        ✓ Corrigida para {padraoConfig.smpPurity.toFixed(2)}% de pureza
+                      </div>
                     )}
                   </div>
                 </div>
@@ -7487,7 +7542,17 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
 
                 <PeakCapture
                   label="Capture as sample area"
-                  onCapture={p => updatePadrao({ smpArea: parseFloat(getArea(p).toFixed(5)), smpPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}` })}
+                  onCapture={p => {
+                    const rawArea = parseFloat(getArea(p).toFixed(5));
+                    const peakPurity = (p.purityPct && p.purityPct > 0) ? p.purityPct : (padraoConfig.smpPurity || 100);
+                    const correctedArea = parseFloat((rawArea * peakPurity / 100).toFixed(5));
+                    updatePadrao({
+                      smpRawArea: rawArea,
+                      smpArea: correctedArea,
+                      smpPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}`,
+                      ...(p.purityPct && p.purityPct > 0 ? { smpPurity: p.purityPct } : {}),
+                    });
+                  }}
                 />
                 {padraoConfig.smpPeakName && (
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#f97316", marginTop: 4 }}>
