@@ -1837,15 +1837,28 @@ export default function CertificatePage() {
                         <button
                           type="button"
                           disabled={addSig.isPending}
-                          onClick={() => addSig.mutate({
-                            id: Number(id),
-                            data: {
-                              roleLabel: selectedRoleLabel,
-                              displayDate: sigDateChoice === "emissao"
-                                ? `${emissaoStr}, ${sigCustomTime}`
-                                : `${todayDateStr}, ${sigCustomTime}`,
-                            },
-                          })}
+                          onClick={() => {
+                            const chosenIsoDate = sigDateChoice === "emissao"
+                              ? sigCustomEmissaoDate
+                              : new Date().toISOString().split("T")[0];
+                            addSig.mutate({
+                              id: Number(id),
+                              data: {
+                                roleLabel: selectedRoleLabel,
+                                displayDate: sigDateChoice === "emissao"
+                                  ? `${emissaoStr}, ${sigCustomTime}`
+                                  : `${todayDateStr}, ${sigCustomTime}`,
+                              },
+                            }, {
+                              onSuccess: () => {
+                                if (chosenIsoDate) {
+                                  updateProtocol.mutate(
+                                    { id: Number(id), data: { issueDate: chosenIsoDate } },
+                                  );
+                                }
+                              },
+                            });
+                          }}
                           className="flex-1 text-sm px-4 py-2.5 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 font-semibold flex items-center justify-center gap-2 transition-colors"
                         >
                           <ShieldCheck className="h-4 w-4" />
