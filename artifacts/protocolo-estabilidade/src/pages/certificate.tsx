@@ -1335,7 +1335,7 @@ export default function CertificatePage() {
 
         {/* ── MÉTODO DE ANÁLISE ────────────────────────────────────────────── */}
         <div className="cert-analysis-table mb-10 border border-gray-200 rounded-lg overflow-hidden text-sm">
-          <div className="bg-slate-700 px-5 py-1.5">
+          <div className="cert-table-title bg-slate-700 px-5 py-1.5">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Método de Análise</h2>
           </div>
           <div className="px-0 py-0">
@@ -2431,6 +2431,12 @@ export default function CertificatePage() {
             break-inside: auto !important;
             page-break-inside: auto !important;
             overflow: visible !important;
+          }
+
+          /* Título da tabela: nunca fica sozinho no fim da página */
+          .cert-table-title {
+            break-after: avoid;
+            page-break-after: avoid;
           }
 
           /* Cabeçalho da tabela repete em todas as páginas */
