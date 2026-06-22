@@ -1442,14 +1442,34 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   // ── Limites ANVISA por ativo (min/max/unidade/declarado) ─────────────────
   const ATIVO_LIMITS_KEY = `ativo_limits_${protocolId}`;
   const [ativoLimits, setAtivoLimitsState] = useState<Record<string, { min: string; max: string; unit: string; declared: string; overage: string }>>(() => {
+    type LimEntry = { min: string; max: string; unit: string; declared: string; overage: string };
+    let fromDb: Record<string, LimEntry> = {};
+    let fromStorage: Record<string, LimEntry> = {};
     if (initialAtivoLimitsJson) {
-      try { return JSON.parse(initialAtivoLimitsJson); } catch { /* fall through */ }
+      try { fromDb = JSON.parse(initialAtivoLimitsJson); } catch { /* ignore */ }
     }
     try {
       const raw = localStorage.getItem(`ativo_limits_${protocolId}`);
-      return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
+      fromStorage = raw ? JSON.parse(raw) : {};
+    } catch { /* ignore */ }
+    // Merge: localStorage is the base; DB fields take priority per-field.
+    // `declared` and `overage` fall back to localStorage when DB has them empty —
+    // prevents data loss when a previous save succeeded in localStorage but not in DB.
+    const merged = { ...fromStorage };
+    for (const [param, dbLim] of Object.entries(fromDb)) {
+      const sl = fromStorage[param];
+      merged[param] = {
+        min: dbLim.min || sl?.min || "",
+        max: dbLim.max || sl?.max || "",
+        unit: dbLim.unit || sl?.unit || "mg",
+        declared: dbLim.declared || sl?.declared || "",
+        overage: dbLim.overage || sl?.overage || "",
+      };
+    }
+    return merged;
   });
+  // Ref used by the one-shot DB-sync effect below.
+  const didSyncFromStorageRef = useRef(false);
 
   const setAtivoLimit = (param: string, field: "min" | "max" | "unit" | "declared" | "overage", value: string) => {
     setAtivoLimitsState(prev => {
@@ -1537,6 +1557,35 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativoRefs]);
+
+  // One-shot sync: if the merged initial state (localStorage + DB) has `declared`
+  // or `overage` values that weren't in the DB JSON, persist them so the
+  // certificate API (server-side) can see them.
+  useEffect(() => {
+    if (didSyncFromStorageRef.current) return;
+    didSyncFromStorageRef.current = true;
+    if (Object.keys(ativoLimits).length === 0) return;
+    try {
+      const fromDb = initialAtivoLimitsJson ? (JSON.parse(initialAtivoLimitsJson) as Record<string, { declared?: string; overage?: string }>) : {};
+      const needsSync = Object.entries(ativoLimits).some(([param, lim]) => {
+        const dbLim = fromDb[param];
+        return !dbLim || (lim.declared && !dbLim.declared) || (lim.overage && !dbLim.overage);
+      });
+      if (needsSync) {
+        try { localStorage.setItem(ATIVO_LIMITS_KEY, JSON.stringify(ativoLimits)); } catch { /* ignore */ }
+        updateProtocol.mutate(
+          { id: protocolId, data: { ativoLimitsJson: JSON.stringify(ativoLimits) } },
+          {
+            onSuccess: () => {
+              queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
+              queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocolId) });
+            },
+          }
+        );
+      }
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Reference bank management state ───────────────────────────────────────
   type RefForm = { parameter: string; minValue: string; maxValue: string; unit: string; overage: string; notes: string };
@@ -5091,6 +5140,8 @@ export default function ProtocolDetail() {
     setUnlockDialogOpen(true);
   };
 
+  const updateProtocol = useUpdateProtocol();
+
   const deleteProtocol = useDeleteProtocol({
     mutation: {
       onSuccess: () => {
@@ -5113,6 +5164,24 @@ export default function ProtocolDetail() {
       },
     },
   });
+
+  // Called by KineticsTab when the user applies an overage % to a parameter.
+  // Updates ativoLimitsJson in DB (ResultsTab will see it on next refetch).
+  const handleApplyOverage = (param: string, overage: string) => {
+    if (!protocol) return;
+    let limits: Record<string, { min: string; max: string; unit: string; declared: string; overage: string }> = {};
+    if (protocol.ativoLimitsJson) {
+      try { limits = JSON.parse(protocol.ativoLimitsJson); } catch { /* ignore */ }
+    }
+    const existing = limits[param] ?? { min: "", max: "", unit: "mg", declared: "", overage: "" };
+    const next = { ...limits, [param]: { ...existing, overage } };
+    updateProtocol.mutate(
+      { id: protocol.id, data: { ativoLimitsJson: JSON.stringify(next) } },
+      {
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocol.id) }),
+      }
+    );
+  };
 
   if (isLoading) {
     return (
@@ -5362,7 +5431,7 @@ export default function ProtocolDetail() {
                 customParamsJson={protocol.customParamsJson}
                 initialKineticsOverridesJson={protocol.kineticsOverridesJson}
                 ativoLimitsJson={protocol.ativoLimitsJson}
-                onApplyOverage={(param, overage) => setAtivoLimit(param, "overage", overage)}
+                onApplyOverage={handleApplyOverage}
               />
             </CardContent>
           </Card>
