@@ -3369,6 +3369,10 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               <TableHead className="text-right text-xs whitespace-nowrap">Validade Adotada (meses)</TableHead>
               <TableHead className="text-right text-xs whitespace-nowrap">Espec. mín – máx (%)</TableHead>
               <TableHead className="text-right text-xs whitespace-nowrap bg-indigo-50/50">Valor em mg/mcg (T6)</TableHead>
+              <TableHead className="text-right text-xs whitespace-nowrap bg-amber-50/80">
+                Overage Recomendado
+                <span className="block text-[9px] font-normal text-amber-500 normal-case">para ≥ 80% no prazo</span>
+              </TableHead>
               <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
@@ -3447,6 +3451,82 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                           {!isOutOfRange && faixaLabel && (
                             <span className="text-[10px] text-green-600">✓ dentro da faixa</span>
                           )}
+                        </div>
+                      );
+                    })()}
+                  </TableCell>
+                  {/* Overage Recomendado — calcula T0 mínimo para ≥ ichThreshold ao fim da validade adotada */}
+                  <TableCell className="text-right py-2 bg-amber-50/20">
+                    {(() => {
+                      const lim = ativoLimits[p.parameter];
+                      const k = parseFloat(ov.k);
+                      const t0 = parseFloat(ov.t0);
+                      const ichThreshold = parseFloat(ov.ichThreshold) || 80;
+                      const validadeMeses = parseFloat(ov.validadePraticada);
+                      const currentOveragePct = lim?.overage ? parseFloat(lim.overage.replace(",", ".")) : 0;
+                      const declaredNum = lim?.declared ? parseFloat(lim.declared.replace(",", ".")) : NaN;
+
+                      if (isNaN(validadeMeses) || validadeMeses <= 0) {
+                        return <span className="text-[10px] text-muted-foreground">defina a validade adotada</span>;
+                      }
+
+                      if (isNaN(k) || k <= 0) {
+                        return (
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="text-xs text-green-600 font-medium">✓ estável</span>
+                            <span className="text-[10px] text-green-500">sem overage necessário</span>
+                          </div>
+                        );
+                      }
+
+                      // T0 mínimo para C(validadeMeses) ≥ ichThreshold
+                      // C(t) = T0 × e^(−k×t) ≥ ichThreshold  →  T0 ≥ ichThreshold × e^(k×t)
+                      const t0Required = ichThreshold * Math.exp(k * validadeMeses);
+                      const overageRequired = Math.max(0, t0Required - 100);
+                      const mfgQty = !isNaN(declaredNum) && declaredNum > 0
+                        ? declaredNum * (1 + overageRequired / 100) : null;
+
+                      // Projeção com T0 medido atual
+                      const projectedCurrent = !isNaN(t0) && t0 > 0 ? t0 * Math.exp(-k * validadeMeses) : NaN;
+                      const measuredT0Ok = !isNaN(projectedCurrent) && projectedCurrent >= ichThreshold;
+
+                      // Projeção com overage configurado (100 + X%)
+                      const t0WithOverage = 100 + (isNaN(currentOveragePct) ? 0 : currentOveragePct);
+                      const projectedWithOverage = t0WithOverage * Math.exp(-k * validadeMeses);
+                      const configuredOverageOk = currentOveragePct > 0 && projectedWithOverage >= ichThreshold;
+
+                      if (overageRequired === 0 || measuredT0Ok) {
+                        if (currentOveragePct > 0 && configuredOverageOk) {
+                          return (
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className="text-xs text-green-600 font-medium">✓ dentro do padrão</span>
+                              <span className="text-[10px] text-green-500">overage +{currentOveragePct}% suficiente</span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="text-xs text-green-600 font-medium">✓ dentro do padrão</span>
+                            <span className="text-[10px] text-green-500">sem overage necessário</span>
+                          </div>
+                        );
+                      }
+
+                      if (currentOveragePct > 0 && !configuredOverageOk) {
+                        return (
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="text-[10px] text-amber-700">atual +{currentOveragePct}% insuficiente</span>
+                            <span className="text-xs text-amber-800 font-bold">↑ rec.: +{overageRequired.toFixed(1)}%</span>
+                            {mfgQty && <span className="text-[10px] text-muted-foreground">{mfgQty.toFixed(2)} {lim?.unit ?? ""} mfg.</span>}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className="text-xs text-amber-800 font-bold">↑ rec.: +{overageRequired.toFixed(1)}%</span>
+                          {mfgQty && <span className="text-[10px] text-muted-foreground">{mfgQty.toFixed(2)} {lim?.unit ?? ""} mfg.</span>}
+                          <span className="text-[10px] text-amber-600">para ≥{ichThreshold}% em {validadeMeses}m</span>
                         </div>
                       );
                     })()}
