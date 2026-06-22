@@ -1,6 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { seedAtivoReferences } from "./seed";
+import { runAllSeeds } from "./seed";
 
 const rawPort = process.env["PORT"];
 
@@ -23,5 +23,5 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
-  seedAtivoReferences().catch((e) => logger.error({ err: e }, "Seed error"));
+  runAllSeeds().catch((e) => logger.error({ err: e }, "Seed error"));
 });
