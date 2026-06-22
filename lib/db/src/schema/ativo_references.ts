@@ -1,12 +1,12 @@
-import { pgTable, text, serial, timestamp, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const ativoReferencesTable = pgTable("ativo_references", {
   id: serial("id").primaryKey(),
   parameter: text("parameter").notNull(),
-  minValue: numeric("min_value"),
-  maxValue: numeric("max_value"),
+  minValue: text("min_value"),
+  maxValue: text("max_value"),
   unit: text("unit").notNull().default("mg"),
   source: text("source"),
   notes: text("notes"),
