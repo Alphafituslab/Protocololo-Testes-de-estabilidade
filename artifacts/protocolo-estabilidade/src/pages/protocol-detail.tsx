@@ -3045,11 +3045,11 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
           if (!ov || !lim?.declared) return [];
           const t6Num = parseFloat(ov.t6);
           const t0Num = parseFloat(ov.t0);
-          const declaredNum = parseFloat(lim.declared);
+          const declaredNum = parseFloat(lim.declared.replace(",", "."));
           if (isNaN(t6Num) || isNaN(declaredNum)) return [];
           const actualMg = (t6Num / 100) * declaredNum;
-          const minNum = lim.min ? parseFloat(lim.min) : null;
-          const maxNum = lim.max ? parseFloat(lim.max) : null;
+          const minNum = lim.min ? parseFloat(lim.min.replace(",", ".")) : null;
+          const maxNum = lim.max ? parseFloat(lim.max.replace(",", ".")) : null;
           const degradation = !isNaN(t0Num) && t0Num > 0 ? ((t0Num - t6Num) / t0Num) * 100 : null;
           const belowMin = minNum !== null && actualMg < minNum;
           const aboveMax = maxNum !== null && actualMg > maxNum;
@@ -3244,22 +3244,22 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       const lim = ativoLimits[p.parameter];
                       if (!lim?.declared) return <span className="text-xs text-muted-foreground">—</span>;
                       const t6Num = parseFloat(ov.t6);
-                      const declaredNum = parseFloat(lim.declared);
+                      const declaredNum = parseFloat(lim.declared.replace(",", "."));
                       if (isNaN(t6Num) || isNaN(declaredNum)) return <span className="text-xs text-muted-foreground">—</span>;
                       const actualMg = (t6Num / 100) * declaredNum;
-                      const minNum = lim.min ? parseFloat(lim.min) : null;
-                      const maxNum = lim.max ? parseFloat(lim.max) : null;
+                      const minNum = lim.min ? parseFloat(lim.min.replace(",", ".")) : null;
+                      const maxNum = lim.max ? parseFloat(lim.max.replace(",", ".")) : null;
                       const t0Num = parseFloat(ov.t0);
                       const degradation = !isNaN(t0Num) && t0Num > 0 ? ((t0Num - t6Num) / t0Num) * 100 : null;
                       const belowMin = minNum !== null && actualMg < minNum;
                       const aboveMax = maxNum !== null && actualMg > maxNum;
                       const highDegradation = degradation !== null && degradation > 20;
                       const isOutOfRange = belowMin || aboveMax || highDegradation;
-                      // Build range label according to which bounds exist
+                      // Build range label using original stored text to preserve Brazilian comma format
                       const faixaLabel = (() => {
-                        if (minNum !== null && maxNum !== null) return `${minNum} – ${maxNum} ${lim.unit}`;
-                        if (minNum !== null) return `≥ ${minNum} ${lim.unit}`;
-                        if (maxNum !== null) return `≤ ${maxNum} ${lim.unit}`;
+                        if (minNum !== null && maxNum !== null) return `${lim.min} – ${lim.max} ${lim.unit}`;
+                        if (minNum !== null) return `≥ ${lim.min} ${lim.unit}`;
+                        if (maxNum !== null) return `≤ ${lim.max} ${lim.unit}`;
                         return null;
                       })();
                       return (
