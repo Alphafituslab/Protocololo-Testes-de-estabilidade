@@ -1372,12 +1372,47 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
         { id: protocolId, data: { ativoLimitsJson: JSON.stringify(next) } },
         {
           onSuccess: () => {
-            // Sync KineticsTab immediately — it reads ativoLimitsJson from the protocol query
             queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
             queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocolId) });
           },
         }
       );
+
+      // Debounced upsert to global ativo_references bank (1200 ms after last change per ativo)
+      if (field === "min" || field === "max" || field === "unit") {
+        const existing = bankSyncTimersRef.current[param];
+        if (existing) clearTimeout(existing);
+        bankSyncTimersRef.current[param] = setTimeout(() => {
+          delete bankSyncTimersRef.current[param];
+          const limit = next[param];
+          const bankEntry = ativoRefs.find(r => r.parameter === param);
+          if (bankEntry) {
+            updateRef.mutate({
+              id: bankEntry.id,
+              data: {
+                parameter: bankEntry.parameter,
+                minValue: limit.min || null,
+                maxValue: limit.max || null,
+                unit: limit.unit || "mg",
+              },
+            }, {
+              onSuccess: () => queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() }),
+            });
+          } else if (limit.min || limit.max) {
+            createRef.mutate({
+              data: {
+                parameter: param,
+                minValue: limit.min || null,
+                maxValue: limit.max || null,
+                unit: limit.unit || "mg",
+              },
+            }, {
+              onSuccess: () => queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() }),
+            });
+          }
+        }, 1200);
+      }
+
       return next;
     });
   };
@@ -1525,6 +1560,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   const lastRemovedParamRef = useRef<{ param: EditableParam; index: number } | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const undoHandlerRef = useRef<() => void>(() => {});
+  const bankSyncTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   undoHandlerRef.current = () => {
     if (!lastRemovedParamRef.current) return;
     const { param, index } = lastRemovedParamRef.current;
