@@ -1112,37 +1112,46 @@ export default function CertificatePage() {
       </div>
 
       {/* ─── Mini-cabeçalho repetido em cada página do PDF ─────────────────
-           Oculto na tela; torna-se position:fixed no @media print, então
-           aparece no topo de TODAS as páginas impressas.                 */}
+           Na tela: exibido como caixa de pré-visualização com rótulo.
+           No PDF: position:fixed top:-16mm preenche a margem @page (16mm)
+           reservada nas páginas 2+ — invisível na página 1 (@page:first
+           margin-top:0 → top:-16mm está acima do papel).               */}
       <div className="cert-page-header">
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: 0 }}>
-          <img
-            src="/logo-alphafitus.png"
-            alt="Alphafitus"
-            style={{ height: "28px", width: "auto", flexShrink: 0 }}
-          />
-          <div style={{ borderLeft: "1px solid #d1d5db", paddingLeft: "8px", minWidth: 0 }}>
-            <p style={{ fontSize: "6.5pt", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", margin: 0 }}>
-              Alphafitus Laboratório Nutracêutico
+        {/* Rótulo visível apenas na tela — indica que é o cabeçalho das pgs 2+ */}
+        <div className="cert-page-header-label">
+          Pré-visualização · Cabeçalho repetido nas páginas 2, 3…
+        </div>
+        {/* Conteúdo real do cabeçalho (logo + nº certificado) */}
+        <div className="cert-page-header-inner">
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: 0 }}>
+            <img
+              src="/logo-alphafitus.png"
+              alt="Alphafitus"
+              style={{ height: "28px", width: "auto", flexShrink: 0 }}
+            />
+            <div style={{ borderLeft: "1px solid #d1d5db", paddingLeft: "8px", minWidth: 0 }}>
+              <p style={{ fontSize: "6.5pt", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", margin: 0 }}>
+                Alphafitus Laboratório Nutracêutico
+              </p>
+              <p style={{ fontSize: "9pt", fontWeight: "bold", textTransform: "uppercase", color: "#1e293b", margin: 0, lineHeight: 1.2 }}>
+                Certificado de Análise
+              </p>
+              <p style={{ fontSize: "7.5pt", fontWeight: 600, color: "#059669", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {getEdit("productName", cert.productName)}
+              </p>
+            </div>
+          </div>
+          <div style={{ textAlign: "right", flexShrink: 0, paddingLeft: "16px" }}>
+            <p style={{ fontSize: "6pt", textTransform: "uppercase", color: "#9ca3af", margin: 0, fontWeight: 600, letterSpacing: "0.05em" }}>
+              Nº do Certificado de Análise
             </p>
-            <p style={{ fontSize: "9pt", fontWeight: "bold", textTransform: "uppercase", color: "#1e293b", margin: 0, lineHeight: 1.2 }}>
-              Certificado de Análise
+            <p style={{ fontSize: "9.5pt", fontWeight: "bold", color: "#1e293b", margin: 0, whiteSpace: "nowrap" }}>
+              {getEdit("certNumber", cert.certNumber)}
             </p>
-            <p style={{ fontSize: "7.5pt", fontWeight: 600, color: "#059669", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {getEdit("productName", cert.productName)}
+            <p style={{ fontSize: "6.5pt", color: "#6b7280", margin: 0 }}>
+              Data de Emissão: {fmtDate(getEdit("issueDate", cert.issueDate))}
             </p>
           </div>
-        </div>
-        <div style={{ textAlign: "right", flexShrink: 0, paddingLeft: "16px" }}>
-          <p style={{ fontSize: "6pt", textTransform: "uppercase", color: "#9ca3af", margin: 0, fontWeight: 600, letterSpacing: "0.05em" }}>
-            Nº do Certificado de Análise
-          </p>
-          <p style={{ fontSize: "9.5pt", fontWeight: "bold", color: "#1e293b", margin: 0, whiteSpace: "nowrap" }}>
-            {getEdit("certNumber", cert.certNumber)}
-          </p>
-          <p style={{ fontSize: "6.5pt", color: "#6b7280", margin: 0 }}>
-            Data de Emissão: {fmtDate(getEdit("issueDate", cert.issueDate))}
-          </p>
         </div>
       </div>
 
@@ -2281,9 +2290,39 @@ export default function CertificatePage() {
 
       <style>{`
         /* ══ MARGENS DE PÁGINA ══════════════════════════════════════════════════ */
-        /* Mini-cabeçalho: oculto na tela */
+
+        /* Mini-cabeçalho — caixa de pré-visualização na tela */
         .cert-page-header {
-          display: none;
+          display: flex;
+          flex-direction: column;
+          border: 1.5px dashed #94a3b8;
+          border-radius: 6px;
+          margin: 16px auto;
+          max-width: 900px;
+          overflow: hidden;
+          background: white;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+
+        /* Faixa de rótulo (somente tela) */
+        .cert-page-header-label {
+          background: #f1f5f9;
+          border-bottom: 1px dashed #94a3b8;
+          padding: 5px 16px;
+          font-size: 10px;
+          font-weight: 600;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        /* Linha com logo + nº certificado */
+        .cert-page-header-inner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 10px 20px;
+          gap: 12px;
         }
 
         @page {
@@ -2328,20 +2367,43 @@ export default function CertificatePage() {
              papel → invisível. Nas páginas 2+ preenche exatamente a margem. */
           .cert-page-header {
             display: flex !important;
+            flex-direction: row !important;
             position: fixed;
             top: -16mm;
             left: 0;
             right: 0;
             height: 16mm;
             background: white;
-            border-bottom: 1.5pt solid #374151;
-            padding: 2.5mm 12mm;
+            border: none !important;
+            border-bottom: 1.5pt solid #374151 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
             align-items: center;
-            justify-content: space-between;
             z-index: 9999;
             box-sizing: border-box;
+            overflow: visible !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+          }
+
+          /* Rótulo de pré-visualização: oculto na impressão */
+          .cert-page-header-label {
+            display: none !important;
+          }
+
+          /* Linha logo + nº cert ocupa toda a altura do cabeçalho fixo */
+          .cert-page-header-inner {
+            display: flex !important;
+            flex: 1 !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            padding: 2.5mm 12mm !important;
+            gap: 10px !important;
+            height: 16mm !important;
+            box-sizing: border-box !important;
+            visibility: visible !important;
           }
 
           /* ── 3. Revelar APENAS o certificado e seus filhos ───────────────────── */
