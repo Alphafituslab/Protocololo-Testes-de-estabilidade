@@ -256,8 +256,14 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
             }
             ativoMgInfo = `${actualMg.toFixed(2).replace(".", ",")} ${lim.unit} (T6)${faixaStr}`;
 
-            // Automatically flag as Nao Conforme when below minimum (does not override AR)
-            if (finalStatus !== "aprovado_com_ressalva") {
+            // Auto-flag NC when mg is outside the configured range — BUT only when
+            // the percentage-based check has NOT already confirmed conformance.
+            // Rationale: the configured mg limits may be approximate/rounded (e.g.,
+            // max = 9 mcg when the actual calculated max is 9.56 mcg). If
+            // isWithinCriterion(avg, criterion) already returned true, the parameter
+            // is compliant per spec and the mg-range check must not downgrade it.
+            const pctCheckResult = avg !== null ? isWithinCriterion(avg, data.criterion) : null;
+            if (finalStatus !== "aprovado_com_ressalva" && pctCheckResult !== true) {
               const belowMin = minNum !== null && actualMg < minNum;
               const aboveMax = maxNum !== null && actualMg > maxNum;
               if (belowMin || aboveMax) finalStatus = "nao_conforme";
