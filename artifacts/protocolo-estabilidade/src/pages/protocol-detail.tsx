@@ -3055,7 +3055,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
           const aboveMax = maxNum !== null && actualMg > maxNum;
           const highDegradation = degradation !== null && degradation > 20;
           if (!belowMin && !aboveMax && !highDegradation) return [];
-          return [{ param: p.parameter, actualMg, unit: lim.unit, minNum, maxNum, degradation, belowMin, aboveMax, highDegradation }];
+          return [{ param: p.parameter, actualMg, unit: lim.unit, minNum, maxNum, minText: lim.min, maxText: lim.max, degradation, belowMin, aboveMax, highDegradation }];
         }) ?? [];
         if (outOfRange.length === 0) return null;
         return (
@@ -3067,8 +3067,8 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               <div key={item.param} className="space-y-2 border-t border-red-200 pt-3 first:border-0 first:pt-0">
                 <p className="text-xs text-red-700">
                   <strong>{item.param}</strong>: T6 calculado = <strong>{item.actualMg.toFixed(2)} {item.unit}</strong>
-                  {item.belowMin && <span className="ml-2 text-red-600">↓ abaixo do mínimo ANVISA ({item.minNum} {item.unit})</span>}
-                  {item.aboveMax && <span className="ml-2 text-red-600">↑ acima do máximo ANVISA ({item.maxNum} {item.unit})</span>}
+                  {item.belowMin && <span className="ml-2 text-red-600">↓ abaixo do mínimo ANVISA ({item.minText || item.minNum} {item.unit})</span>}
+                  {item.aboveMax && <span className="ml-2 text-red-600">↑ acima do máximo ANVISA ({item.maxText || item.maxNum} {item.unit})</span>}
                   {item.highDegradation && <span className="ml-2 text-amber-700">⚡ degradação {item.degradation?.toFixed(1)}% {">"} 20%</span>}
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
