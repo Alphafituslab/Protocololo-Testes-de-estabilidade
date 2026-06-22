@@ -1453,6 +1453,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   const [refForm, setRefForm] = useState<RefForm>(emptyRefForm);
   const [refSaving, setRefSaving] = useState(false);
   const [pendingDeleteBankRef, setPendingDeleteBankRef] = useState<AtivoReference | null>(null);
+  const [bankSearch, setBankSearch] = useState("");
 
   const createRef = useCreateAtivoReference();
   const updateRef = useUpdateAtivoReference();
@@ -2061,6 +2062,26 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                       <p className="text-[10px] text-indigo-400 italic">Nenhuma entrada cadastrada ainda.</p>
                     ) : (
                       <div className="overflow-x-auto">
+                        {/* Search */}
+                        <div className="relative mb-2">
+                          <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-indigo-400 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                          </svg>
+                          <input
+                            type="text"
+                            value={bankSearch}
+                            onChange={e => setBankSearch(e.target.value)}
+                            placeholder="Buscar ativo…"
+                            className="w-full pl-6 pr-2 py-0.5 text-xs border border-indigo-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white"
+                          />
+                          {bankSearch && (
+                            <button
+                              type="button"
+                              onClick={() => setBankSearch("")}
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-indigo-300 hover:text-indigo-500 text-xs leading-none"
+                            >✕</button>
+                          )}
+                        </div>
                         <table className="text-xs w-full">
                           <thead>
                             <tr className="text-indigo-500 font-medium border-b border-indigo-100">
@@ -2073,7 +2094,9 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                             </tr>
                           </thead>
                           <tbody>
-                            {ativoRefs.map(ref => (
+                            {ativoRefs
+                              .filter(r => !bankSearch.trim() || r.parameter.toLowerCase().includes(bankSearch.trim().toLowerCase()))
+                              .map(ref => (
                               <tr key={ref.id} className="border-t border-indigo-50 hover:bg-indigo-50/40">
                                 <td className="pr-3 py-1 font-medium text-indigo-900 whitespace-nowrap">{ref.parameter}</td>
                                 <td className="pr-2 py-1 text-right text-indigo-700">{ref.minValue ?? "—"}</td>
