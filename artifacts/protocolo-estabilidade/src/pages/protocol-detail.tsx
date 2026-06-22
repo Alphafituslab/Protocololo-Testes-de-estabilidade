@@ -3423,19 +3423,26 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       const declaredNum = parseFloat(lim.declared.replace(",", "."));
                       if (isNaN(t6Num) || isNaN(declaredNum)) return <span className="text-xs text-muted-foreground">—</span>;
                       const actualMg = (t6Num / 100) * declaredNum;
-                      const minNum = lim.min ? parseFloat(lim.min.replace(",", ".")) : null;
-                      const maxNum = lim.max ? parseFloat(lim.max.replace(",", ".")) : null;
+                      const minRaw = parseFloat((lim.min ?? "").replace(",", "."));
+                      const maxRaw = parseFloat((lim.max ?? "").replace(",", "."));
+                      const minNum = isNaN(minRaw) ? null : minRaw;
+                      const maxNum = isNaN(maxRaw) ? null : maxRaw;
+                      const minIsNE = (lim.min ?? "").trim().toUpperCase() === "NE";
+                      const maxIsNE = (lim.max ?? "").trim().toUpperCase() === "NE";
                       const t0Num = parseFloat(ov.t0);
                       const degradation = !isNaN(t0Num) && t0Num > 0 ? ((t0Num - t6Num) / t0Num) * 100 : null;
                       const belowMin = minNum !== null && actualMg < minNum;
                       const aboveMax = maxNum !== null && actualMg > maxNum;
                       const highDegradation = degradation !== null && degradation > 20;
                       const isOutOfRange = belowMin || aboveMax || highDegradation;
-                      // Build range label using original stored text to preserve Brazilian comma format
+                      // Build range label — "NE" (Não Especificado) displays as "Livre"
                       const faixaLabel = (() => {
                         if (minNum !== null && maxNum !== null) return `${lim.min} – ${lim.max} ${lim.unit}`;
+                        if (minIsNE && maxNum !== null) return `Livre – ${lim.max} ${lim.unit}`;
+                        if (maxIsNE && minNum !== null) return `${lim.min} – Livre ${lim.unit}`;
                         if (minNum !== null) return `≥ ${lim.min} ${lim.unit}`;
                         if (maxNum !== null) return `≤ ${lim.max} ${lim.unit}`;
+                        if (minIsNE || maxIsNE) return `Livre ${lim.unit}`;
                         return null;
                       })();
                       return (

@@ -240,19 +240,26 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
           const basePercent = getKineticsT6(param) ?? t6Only ?? avg;
           if (basePercent !== null && !isNaN(declaredNum) && declaredNum > 0) {
             const actualMg = (basePercent / 100) * declaredNum;
-            const minParsed = lim.min ? parseFloat(lim.min) : NaN;
-            const maxParsed = lim.max ? parseFloat(lim.max) : NaN;
+            const minParsed = parseFloat((lim.min ?? "").replace(",", "."));
+            const maxParsed = parseFloat((lim.max ?? "").replace(",", "."));
             const minNum = isNaN(minParsed) ? null : minParsed;
             const maxNum = isNaN(maxParsed) ? null : maxParsed;
-            // Format adapts to which bounds are present:
-            // both: "450 – 750 mg"  |  only min: "≥ 450 mg"  |  only max: "≤ 750 mg"
+            const minIsNE = (lim.min ?? "").trim().toUpperCase() === "NE";
+            const maxIsNE = (lim.max ?? "").trim().toUpperCase() === "NE";
+            // Format adapts to which bounds are present; "NE" (Não Especificado) → "Livre"
             let faixaStr = "";
             if (minNum !== null && maxNum !== null) {
-              faixaStr = ` | Faixa ANVISA: ${minNum} – ${maxNum} ${lim.unit}`;
+              faixaStr = ` | Faixa ANVISA: ${lim.min} – ${lim.max} ${lim.unit}`;
+            } else if (minIsNE && maxNum !== null) {
+              faixaStr = ` | Faixa ANVISA: Livre – ${lim.max} ${lim.unit}`;
+            } else if (maxIsNE && minNum !== null) {
+              faixaStr = ` | Faixa ANVISA: ${lim.min} – Livre ${lim.unit}`;
             } else if (minNum !== null) {
-              faixaStr = ` | Faixa ANVISA: ≥ ${minNum} ${lim.unit}`;
+              faixaStr = ` | Faixa ANVISA: ≥ ${lim.min} ${lim.unit}`;
             } else if (maxNum !== null) {
-              faixaStr = ` | Faixa ANVISA: ≤ ${maxNum} ${lim.unit}`;
+              faixaStr = ` | Faixa ANVISA: ≤ ${lim.max} ${lim.unit}`;
+            } else if (minIsNE || maxIsNE) {
+              faixaStr = ` | Faixa ANVISA: Livre ${lim.unit}`;
             }
             ativoMgInfo = `${actualMg.toFixed(2).replace(".", ",")} ${lim.unit} (T6)${faixaStr}`;
 
