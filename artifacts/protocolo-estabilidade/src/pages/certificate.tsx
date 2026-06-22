@@ -1333,15 +1333,23 @@ export default function CertificatePage() {
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Método de Análise</h2>
           </div>
           <div className="px-0 py-0">
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-xs border-collapse table-fixed">
+            <colgroup>
+              <col className="w-[19%]" />
+              <col className="w-[31%]" />
+              <col className="w-[18%]" />
+              <col className="w-[12%]" />
+              <col className="w-[15%]" />
+              <col className="w-[5%] print:hidden" />
+            </colgroup>
             <thead>
               <tr className="bg-slate-700 text-slate-100">
-                <th className="border border-slate-500 px-2 py-2 text-left font-semibold uppercase tracking-wide w-28">{ef("thAnalise", "Analise")}</th>
+                <th className="border border-slate-500 px-2 py-2 text-left font-semibold uppercase tracking-wide">{ef("thAnalise", "Analise")}</th>
                 <th className="border border-slate-500 px-2 py-2 text-left font-semibold uppercase tracking-wide">{ef("thMetodo", "Metodo")}</th>
-                <th className="border border-slate-500 px-2 py-2 text-left font-semibold uppercase tracking-wide w-28">{ef("thCriterios", "Critérios de Aceitação")}</th>
-                <th className="border border-slate-500 px-2 py-2 text-center font-semibold uppercase tracking-wide w-20">{ef("thResultado", "Resultado")}</th>
-                <th className="border border-slate-500 px-2 py-2 text-center font-semibold uppercase tracking-wide w-24">{ef("thStatus", "Status")}</th>
-                <th className="border border-slate-500 px-2 py-2 text-center font-semibold uppercase tracking-wide w-10 print:hidden">
+                <th className="border border-slate-500 px-2 py-2 text-left font-semibold uppercase tracking-wide">{ef("thCriterios", "Critérios de Aceitação")}</th>
+                <th className="border border-slate-500 px-2 py-2 text-center font-semibold uppercase tracking-wide">{ef("thResultado", "Resultado")}</th>
+                <th className="border border-slate-500 px-2 py-2 text-center font-semibold uppercase tracking-wide">{ef("thStatus", "Status")}</th>
+                <th className="border border-slate-500 px-2 py-2 text-center font-semibold uppercase tracking-wide print:hidden">
                   <span className="text-[9px] text-gray-400 uppercase tracking-wide">PDF</span>
                 </th>
               </tr>
@@ -1369,8 +1377,8 @@ export default function CertificatePage() {
                         ].join(" ")}
                       >
                         <td className={`border px-2 py-1.5 font-medium align-top ${isNC ? "border-red-300 text-red-900" : "border-gray-300"}`}>{analysis.parameter}</td>
-                        <td className={`border px-2 py-1.5 text-gray-600 align-top ${isNC ? "border-red-300" : "border-gray-300"}`}>
-                          <CertEditField value={analysis.method} onChange={v => updateAnalysis(analysis.originalIndex, "method", v)} multiline className="text-xs leading-snug" />
+                        <td className={`border px-2 py-1.5 text-gray-600 align-top break-words ${isNC ? "border-red-300" : "border-gray-300"}`}>
+                          <CertEditField value={analysis.method} onChange={v => updateAnalysis(analysis.originalIndex, "method", v)} multiline className="text-xs leading-snug break-words" />
                         </td>
                         <td className={`border px-2 py-1.5 font-mono align-top ${isNC ? "border-red-300" : "border-gray-300"}`}>
                           <CertEditField value={analysis.specification ?? ""} onChange={v => updateAnalysis(analysis.originalIndex, "specification", v)} className="text-xs w-full font-mono" />
