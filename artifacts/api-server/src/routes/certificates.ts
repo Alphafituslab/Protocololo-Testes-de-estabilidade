@@ -207,15 +207,20 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       }
 
       // ── ANVISA mg/mcg calculation for teor_ativo params ─────────────────
-      // Uses T6 value from kinetics overrides (same value shown in the Cinética tab)
-      // if available; falls back to avg of all analysis results if kinetics not set.
+      // Priority: kinetics T6 (saved overrides) > T6-only avg (period=6) > overall avg.
+      // The kinetics tab uses period=6 exclusively; the certificate must use the SAME
+      // source so that status and mg values are identical in both places.
+      // Falling back to the overall avg (T0+T3+T6 mixed) inflates the result because
+      // T0 and T3 are generally higher than T6, masking real degradation.
       let ativoMgInfo: string | null = null;
       if (data.category === "teor_ativo") {
         const lim = ativoLimitsMap[param];
         if (lim?.declared) {
           const declaredNum = parseFloat(lim.declared);
-          // Prefer T6 from kinetics overrides; fall back to the overall average
-          const basePercent = kineticsT6Map[param] ?? avg;
+          const t6Entry = t6AvgByParam[param];
+          const t6Only = t6Entry && t6Entry.count > 0 ? t6Entry.sum / t6Entry.count : null;
+          // Prefer: kinetics saved T6 > T6-only avg > overall avg (last resort)
+          const basePercent = kineticsT6Map[param] ?? t6Only ?? avg;
           if (basePercent !== null && !isNaN(declaredNum) && declaredNum > 0) {
             const actualMg = (basePercent / 100) * declaredNum;
             const minParsed = lim.min ? parseFloat(lim.min) : NaN;
@@ -232,8 +237,7 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
             } else if (maxNum !== null) {
               faixaStr = ` | Faixa ANVISA: ≤ ${maxNum} ${lim.unit}`;
             }
-            const sourceLabel = kineticsT6Map[param] !== undefined ? " (T6)" : "";
-            ativoMgInfo = `${actualMg.toFixed(2).replace(".", ",")} ${lim.unit}${sourceLabel}${faixaStr}`;
+            ativoMgInfo = `${actualMg.toFixed(2).replace(".", ",")} ${lim.unit} (T6)${faixaStr}`;
 
             // Automatically flag as Nao Conforme when below minimum (does not override AR)
             if (finalStatus !== "aprovado_com_ressalva") {
@@ -245,9 +249,15 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
         }
       }
 
-      // ── result: include mg/mcg value for teor_ativo params ──────────────
+      // ── result: for teor_ativo show T6% (same source as ativoMgInfo) ────
+      // For all other categories, show the overall average.
       let resultDisplay = avgPercent ?? data.resultText;
-      if (ativoMgInfo) {
+      if (data.category === "teor_ativo" && ativoMgInfo) {
+        const t6Entry = t6AvgByParam[param];
+        const t6Only = t6Entry && t6Entry.count > 0 ? t6Entry.sum / t6Entry.count : null;
+        const t6Pct = kineticsT6Map[param] ?? t6Only ?? avg;
+        resultDisplay = t6Pct !== null ? `${t6Pct.toFixed(2)}%` : (avgPercent ?? data.resultText);
+      } else if (ativoMgInfo) {
         resultDisplay = avgPercent !== null ? `${avgPercent}%` : data.resultText;
       }
 
