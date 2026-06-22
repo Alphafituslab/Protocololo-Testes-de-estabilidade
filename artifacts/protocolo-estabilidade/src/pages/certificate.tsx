@@ -2288,10 +2288,18 @@ export default function CertificatePage() {
 
         @page {
           size: A4 portrait;
-          /* margin: 0 remove o cabeçalho/rodapé automático do Chrome
-             (data, URL, número de página) do PDF gerado via Ctrl+P.
-             O certificado gerencia suas próprias margens via padding. */
-          margin: 0;
+          /* margin-top: 16mm reserva espaço para o mini-cabeçalho repetido.
+             Nas páginas 2+ o cert-page-header (top:-16mm) ocupa esse espaço.
+             left/right/bottom: 0 — o certificado gerencia suas margens visuais
+             via padding próprio. */
+          margin: 16mm 0 0 0;
+        }
+
+        /* Página 1: sem margem superior — o mini-cabeçalho fica acima da área
+           visível (top:-16mm com margin-top:0 = acima do papel), invisível.
+           O cabeçalho completo da primeira folha já está no conteúdo. */
+        @page:first {
+          margin-top: 0;
         }
 
         @media print {
@@ -2314,11 +2322,14 @@ export default function CertificatePage() {
           .cert-page-header,
           .cert-page-header * { visibility: visible !important; }
 
-          /* Mini-cabeçalho: position:fixed faz com que repita em TODAS as páginas */
+          /* Mini-cabeçalho: position:fixed com top:-16mm posiciona-o DENTRO da
+             margem reservada pelo @page (margin-top:16mm nas páginas 2+).
+             Na página 1 (@page:first margin-top:0), top:-16mm está acima do
+             papel → invisível. Nas páginas 2+ preenche exatamente a margem. */
           .cert-page-header {
             display: flex !important;
             position: fixed;
-            top: 0;
+            top: -16mm;
             left: 0;
             right: 0;
             height: 16mm;
@@ -2356,9 +2367,6 @@ export default function CertificatePage() {
             max-width: 100% !important;
             margin: 0 !important;
             padding: 9mm 12mm !important;
-            /* Top padding extra: 16mm (mini-cabeçalho fixo) + 4mm (espaço visual) = 20mm
-               acresce aos 9mm normais → total 29mm antes do conteúdo começar.       */
-            padding-top: 29mm !important;
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
