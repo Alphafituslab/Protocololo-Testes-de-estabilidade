@@ -389,8 +389,9 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
             const maxParsed = parseFloat((lim.max ?? "").replace(",", "."));
             const minNum = isNaN(minParsed) ? null : minParsed;
             const maxNum = isNaN(maxParsed) ? null : maxParsed;
-            const minIsNE = (lim.min ?? "").trim().toUpperCase() === "NE";
-            const maxIsNE = (lim.max ?? "").trim().toUpperCase() === "NE";
+            const isNEorLivre = (s: string) => { const u = s.trim().toUpperCase(); return u === "NE" || u === "LIVRE"; };
+            const minIsNE = isNEorLivre(lim.min ?? "");
+            const maxIsNE = isNEorLivre(lim.max ?? "");
             // Format adapts to which bounds are present; "NE" (Não Especificado) → "Livre"
             let faixaStr = "";
             let faixaLabel: string | null = null;

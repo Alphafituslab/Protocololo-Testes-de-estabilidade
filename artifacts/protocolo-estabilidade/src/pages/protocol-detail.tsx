@@ -1484,6 +1484,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
           onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
             queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocolId) });
+            queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
           },
         }
       );
@@ -3494,8 +3495,9 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       const maxRaw = parseFloat((lim.max ?? "").replace(",", "."));
                       const minNum = isNaN(minRaw) ? null : minRaw;
                       const maxNum = isNaN(maxRaw) ? null : maxRaw;
-                      const minIsNE = (lim.min ?? "").trim().toUpperCase() === "NE";
-                      const maxIsNE = (lim.max ?? "").trim().toUpperCase() === "NE";
+                      const isNEorLivre = (s: string) => { const u = s.trim().toUpperCase(); return u === "NE" || u === "LIVRE"; };
+                      const minIsNE = isNEorLivre(lim.min ?? "");
+                      const maxIsNE = isNEorLivre(lim.max ?? "");
                       const t0Num = parseFloat(ov.t0);
                       const degradation = !isNaN(t0Num) && t0Num > 0 ? ((t0Num - t6Num) / t0Num) * 100 : null;
                       const belowMin = minNum !== null && actualMg < minNum;
