@@ -1470,16 +1470,32 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   });
   // Ref used by the one-shot DB-sync effect below.
   const didSyncFromStorageRef = useRef(false);
+  // Ref tracking the latest ativoLimits value for debounced DB saves (avoids stale closures).
+  const latestAtivoLimitsRef = useRef(ativoLimits);
+  latestAtivoLimitsRef.current = ativoLimits;
+  // Timer for debounced protocol save when ativoLimitsJson changes.
+  const saveAtivoTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const setAtivoLimit = (param: string, field: "min" | "max" | "unit" | "declared" | "overage", value: string) => {
+    // 1. Update local state + localStorage immediately (for UI responsiveness).
     setAtivoLimitsState(prev => {
       const next = {
         ...prev,
         [param]: { ...(prev[param] ?? { min: "", max: "", unit: "mg", declared: "", overage: "" }), [field]: value }
       };
       try { localStorage.setItem(ATIVO_LIMITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      // Keep ref in sync so the debounced DB-save picks up the final value.
+      latestAtivoLimitsRef.current = next;
+      return next;
+    });
+
+    // 2. Debounce the protocol DB save (600 ms after last keystroke).
+    //    Moving mutate OUTSIDE setState prevents side effects inside a reducer and
+    //    eliminates the HTTP race condition caused by firing a PUT on every keystroke.
+    clearTimeout(saveAtivoTimerRef.current);
+    saveAtivoTimerRef.current = setTimeout(() => {
       updateProtocol.mutate(
-        { id: protocolId, data: { ativoLimitsJson: JSON.stringify(next) } },
+        { id: protocolId, data: { ativoLimitsJson: JSON.stringify(latestAtivoLimitsRef.current) } },
         {
           onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
@@ -1488,46 +1504,45 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
           },
         }
       );
+    }, 600);
 
-      // Debounced upsert to global ativo_references bank (1200 ms after last change per ativo)
-      if (field === "min" || field === "max" || field === "unit" || field === "overage") {
-        const existing = bankSyncTimersRef.current[param];
-        if (existing) clearTimeout(existing);
-        bankSyncTimersRef.current[param] = setTimeout(() => {
-          delete bankSyncTimersRef.current[param];
-          const limit = next[param];
-          const bankEntry = ativoRefs.find(r => r.parameter === param);
-          if (bankEntry) {
-            updateRef.mutate({
-              id: bankEntry.id,
-              data: {
-                parameter: bankEntry.parameter,
-                minValue: limit.min || null,
-                maxValue: limit.max || null,
-                unit: limit.unit || "mg",
-                overage: limit.overage || null,
-              },
-            }, {
-              onSuccess: () => queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() }),
-            });
-          } else if (limit.min || limit.max || limit.overage) {
-            createRef.mutate({
-              data: {
-                parameter: param,
-                minValue: limit.min || null,
-                maxValue: limit.max || null,
-                unit: limit.unit || "mg",
-                overage: limit.overage || null,
-              },
-            }, {
-              onSuccess: () => queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() }),
-            });
-          }
-        }, 1200);
-      }
-
-      return next;
-    });
+    // 3. Debounced upsert to global ativo_references bank (1200 ms after last change per ativo)
+    if (field === "min" || field === "max" || field === "unit" || field === "overage") {
+      const existing = bankSyncTimersRef.current[param];
+      if (existing) clearTimeout(existing);
+      bankSyncTimersRef.current[param] = setTimeout(() => {
+        delete bankSyncTimersRef.current[param];
+        // Use ref (not captured `next`) to get the value at the time of execution.
+        const limit = latestAtivoLimitsRef.current[param];
+        const bankEntry = ativoRefs.find(r => r.parameter === param);
+        if (bankEntry) {
+          updateRef.mutate({
+            id: bankEntry.id,
+            data: {
+              parameter: bankEntry.parameter,
+              minValue: limit.min || null,
+              maxValue: limit.max || null,
+              unit: limit.unit || "mg",
+              overage: limit.overage || null,
+            },
+          }, {
+            onSuccess: () => queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() }),
+          });
+        } else if (limit.min || limit.max || limit.overage) {
+          createRef.mutate({
+            data: {
+              parameter: param,
+              minValue: limit.min || null,
+              maxValue: limit.max || null,
+              unit: limit.unit || "mg",
+              overage: limit.overage || null,
+            },
+          }, {
+            onSuccess: () => queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() }),
+          });
+        }
+      }, 1200);
+    }
   };
 
   // Auto-populate ativoLimits from reference bank when a parameter has no saved limits
