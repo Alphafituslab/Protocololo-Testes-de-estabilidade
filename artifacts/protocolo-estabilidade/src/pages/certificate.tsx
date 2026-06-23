@@ -2313,17 +2313,18 @@ export default function CertificatePage() {
             font-weight: 800 !important;
           }
 
-          /* ── 5. Posição e margens do documento ────────────────────────────────── */
+          /* ── 5. Margens de página e posição do documento ──────────────────────── */
+          @page {
+            margin: 14mm 12mm 11mm 12mm !important;
+          }
+
           #certificate-document {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
+            position: static !important;
             display: block !important;
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
-            padding: 12mm 12mm 9mm 12mm !important;
+            padding: 0 0 6mm 0 !important;
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
@@ -2362,15 +2363,15 @@ export default function CertificatePage() {
           }
 
           /* ── 5b. Espaço entre seções ─────────────────────────────────────────── */
-          .cert-intro-block > div:not(:first-child) { margin-bottom: 8pt !important; }
-          .cert-section                              { margin-bottom: 8pt !important; }
-          .cert-analysis-table                       { margin-bottom: 10pt !important; }
-          .cert-kinetica-block                       { margin-bottom: 8pt !important; }
+          .cert-intro-block > div:not(:first-child) { margin-bottom: 4pt !important; }
+          .cert-section                              { margin-bottom: 4pt !important; }
+          .cert-analysis-table                       { margin-bottom: 5pt !important; }
+          .cert-kinetica-block                       { margin-bottom: 4pt !important; }
 
           /* ── 5b2. Header do certificado (logo + número) ──────────────────────── */
           .cert-intro-block > div:first-child {
-            padding-bottom: 6pt !important;
-            margin-bottom: 8pt !important;
+            padding-bottom: 5pt !important;
+            margin-bottom: 5pt !important;
           }
 
           /* ── 5b3. Padding interno das barras de título ───────────────────────── */
@@ -2378,14 +2379,14 @@ export default function CertificatePage() {
           .cert-section > div:first-child,
           .cert-analysis-table > div:first-child,
           .cert-kinetica-block > div:first-child {
-            padding: 4pt 9pt !important;
+            padding: 3pt 9pt !important;
           }
 
           /* ── 5b4. Padding interno das áreas de conteúdo ──────────────────────── */
           .cert-intro-block > div:not(:first-child) > div:not(:first-child),
           .cert-section > div:not(:first-child),
           .cert-kinetica-block > div:not(:first-child) {
-            padding: 6pt 9pt !important;
+            padding: 5pt 9pt !important;
           }
 
           /* ── 5c. Cabeçalhos navy: garantir cor no print ──────────────────────── */
