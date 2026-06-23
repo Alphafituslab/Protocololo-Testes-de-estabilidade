@@ -1810,8 +1810,45 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={e => { e.preventDefault(); onSave(stringsToCompound(compound, draft)); setOpen(false); }} className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-1">
+          {/* Compound name */}
+          <div className="col-span-2">
+            <Label className="text-xs text-muted-foreground font-mono">Compound Name</Label>
+            <Input type="text" value={draft.name} onChange={field("name")} className="h-7 text-xs font-mono" />
+          </div>
+
+          {/* ── Certified purity — campo em destaque ── */}
+          <div className="col-span-2" style={{ background: "#fffbeb", border: "2px solid #f59e0b", borderRadius: 6, padding: "10px 12px", marginTop: 2 }}>
+            <Label className="text-xs font-mono font-bold" style={{ color: "#92400e" }}>
+              Certified purity (%) — padrão de referência
+            </Label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+              <Input
+                type="number" step="0.01" min="0" max="100"
+                value={draft.certifiedPurity}
+                onChange={field("certifiedPurity")}
+                className="h-8 text-sm font-mono font-bold"
+                style={{ maxWidth: 120, fontSize: 15, fontWeight: "bold" }}
+              />
+              <span style={{ fontFamily: "Courier New, monospace", fontSize: 13, color: "#92400e", fontWeight: "bold" }}>%</span>
+              <span style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#b45309" }}>
+                (ex: 99.50 · valor do CoA)
+              </span>
+            </div>
+            {(() => {
+              const v = parseFloat(draft.certifiedPurity) || 0;
+              const color = v >= 99 ? "#166534" : v >= 95 ? "#713f12" : "#b91c1c";
+              const bg    = v >= 99 ? "#dcfce7"  : v >= 95 ? "#fef9c3"  : "#fee2e2";
+              const label = v >= 99 ? "Padrão primário (≥ 99%)" : v >= 95 ? "Padrão secundário (95–99%)" : v > 0 ? "Atenção: pureza baixa" : "";
+              return v > 0 ? (
+                <div style={{ marginTop: 5, display: "inline-block", background: bg, color, borderRadius: 4, padding: "2px 8px", fontSize: 10, fontFamily: "Courier New, monospace", fontWeight: "bold" }}>
+                  {label}
+                </div>
+              ) : null;
+            })()}
+          </div>
+
+          {/* Demais campos técnicos */}
           {([
-            ["name",         "Compound Name",            "text",   "col-span-2"],
             ["notes",        "Notes / Formula",          "text",   "col-span-2"],
             ["method",       "Método (.M)",             "text",   "col-span-2"],
             ["wavelength",   "λ Signal (nm)",           "number", ""],
@@ -1822,9 +1859,8 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
             ["units",        "Units",                   "text",   ""],
             ["typicalWidth", "Width σ (min)",           "number", ""],
             ["typicalAsym",  "Asymmetry",               "number", ""],
-            ["specMin",         "Spec Min (ug/ml, 0=N/A)",    "number", ""],
-            ["specMax",         "Spec Max (ug/ml, 0=N/A)",    "number", ""],
-            ["certifiedPurity", "Certified purity (%)",        "number", "col-span-2"],
+            ["specMin",      "Spec Min (ug/ml, 0=N/A)", "number", ""],
+            ["specMax",      "Spec Max (ug/ml, 0=N/A)", "number", ""],
           ] as [keyof ActiveCompound, string, string, string][]).map(([k, label, type, cls]) => (
             <div key={k} className={cls || ""}>
               <Label className="text-xs text-muted-foreground font-mono">{label}</Label>
@@ -1832,6 +1868,7 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
                 onChange={field(k)} className="h-7 text-xs font-mono" />
             </div>
           ))}
+
           <Button type="submit" className="w-full col-span-2 mt-2" size="sm">
             Save Compound
           </Button>
