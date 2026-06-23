@@ -7554,6 +7554,54 @@ ${purityVsDecl !== null && padraoConfig.smpDeclaredAmountUg < foundAmountUg * 10
 <div class="card"><div class="big">${foundAmountUg.toFixed(4)} µg</div><div class="lbl">Amount found (std method)</div></div>
 ${foundAmountFromPurityUg !== null ? `<div class="card"><div class="big">${foundAmountFromPurityUg.toFixed(4)} µg</div><div class="lbl">Found amount — purity basis</div></div>` : ''}
 </div>
+${(() => {
+  if (stdArea <= 0 || smpArea <= 0) return '';
+  const maxA   = Math.max(stdArea, smpArea);
+  const sBar   = ((stdArea / maxA) * 100).toFixed(1);
+  const mBar   = ((smpArea / maxA) * 100).toFixed(1);
+  const rat    = smpArea / stdArea;
+  const rC     = rat >= 0.95 ? '#16a34a' : rat >= 0.80 ? '#d97706' : '#dc2626';
+  const sym    = rat >= 0.95 ? '✓' : rat >= 0.80 ? '~' : '!';
+  const pctF   = (rat * padraoConfig.stdPurity).toFixed(2);
+  const declRow = padraoConfig.smpDeclaredAmountUg > 0
+    ? `<span style="margin-left:12px;color:#6366f1">vs. Declared ${padraoConfig.smpDeclaredAmountUg.toFixed(2)} µg → <strong>${((foundAmountUg / padraoConfig.smpDeclaredAmountUg) * 100).toFixed(1)}%</strong></span>` : '';
+  return `<div style="margin:14px 0 10px;border:1.5px solid #334155;border-radius:6px;overflow:hidden;font-family:'Courier New',monospace">
+<div style="background:#1e293b;padding:7px 14px;display:flex;align-items:center;gap:8px">
+  <span style="font-size:11px;font-weight:bold;color:#e2e8f0;letter-spacing:0.04em">📊 COMPARAÇÃO VISUAL — Padrão × Amostra</span>
+  <span style="margin-left:auto;font-size:10px;font-weight:bold;color:${rC};background:#0f172a;border:1px solid ${rC};border-radius:10px;padding:1px 10px">Ratio ${rat.toFixed(4)}</span>
+</div>
+<table style="width:100%;border-collapse:collapse;font-size:10px">
+<tr>
+<td style="width:42%;padding:10px 12px;border-right:1px solid #e2e8f0;border-bottom:none;vertical-align:top;background:#f8fafc">
+  <div style="font-size:9px;font-weight:bold;color:#1560bd;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px">● Reference Standard</div>
+  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Peak: </span><strong>${padraoConfig.stdPeakName || '—'}</strong></p>
+  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Area: </span><strong style="color:#1560bd">${stdArea.toFixed(3)} mAU·s</strong></p>
+  <div style="height:7px;background:#e2e8f0;border-radius:4px;margin:5px 0;overflow:hidden"><div style="height:100%;width:${sBar}%;background:#1560bd;border-radius:4px"></div></div>
+  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Inj. amt: </span><strong>${padraoConfig.stdAmountUg.toFixed(4)} µg</strong></p>
+  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Purity: </span><strong>${padraoConfig.stdPurity.toFixed(2)} %</strong></p>
+</td>
+<td style="width:16%;padding:10px 4px;border-right:1px solid #e2e8f0;border-bottom:none;text-align:center;vertical-align:middle;background:#fff">
+  <div style="font-size:16px;font-weight:900;color:${rC}">${(rat * 100).toFixed(1)}%</div>
+  <div style="font-size:8px;color:#94a3b8;margin-top:2px;line-height:1.3">Smp/Std<br>area</div>
+  <div style="width:26px;height:26px;border-radius:50%;border:3px solid ${rC};margin:6px auto;text-align:center;line-height:20px">
+    <span style="font-size:13px;color:${rC}">${sym}</span>
+  </div>
+</td>
+<td style="width:42%;padding:10px 12px;border-bottom:none;vertical-align:top;background:#f8fafc">
+  <div style="font-size:9px;font-weight:bold;color:#ea580c;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px">● Analyzed Sample</div>
+  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Peak: </span><strong>${padraoConfig.smpPeakName || '—'}</strong></p>
+  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Area: </span><strong style="color:#ea580c">${smpArea.toFixed(3)} mAU·s</strong></p>
+  <div style="height:7px;background:#e2e8f0;border-radius:4px;margin:5px 0;overflow:hidden"><div style="height:100%;width:${mBar}%;background:#f97316;border-radius:4px"></div></div>
+  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Found: </span><strong style="color:#ea580c">${foundAmountUg.toFixed(4)} µg</strong></p>
+  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Purity: </span><strong style="color:${rC}">${pctF} %</strong></p>
+</td>
+</tr>
+</table>
+<div style="padding:5px 14px;background:#f1f5f9;font-size:9px;color:#64748b;border-top:1px solid #e2e8f0">
+  Amount = (${smpArea.toFixed(3)} ÷ ${stdArea.toFixed(3)}) × ${padraoConfig.stdAmountUg.toFixed(4)} µg × (${padraoConfig.stdPurity.toFixed(2)} ÷ 100) = <strong style="color:#ea580c">${foundAmountUg.toFixed(4)} µg</strong>${declRow}
+</div>
+</div>`;
+})()}
 <table><thead><tr><th>Parameter</th><th>Standard</th><th>Sample</th><th>Ratio (S/A)</th></tr></thead><tbody>
 <tr><td>Compound</td><td>${padraoConfig.compoundName || '—'}</td><td>${padraoConfig.smpPeakName || '—'}</td><td></td></tr>
 <tr><td>Area (mAU·s)</td><td>${stdArea.toFixed(5)}</td><td>${smpArea.toFixed(5)}</td><td>${ratio.toFixed(6)}</td></tr>
