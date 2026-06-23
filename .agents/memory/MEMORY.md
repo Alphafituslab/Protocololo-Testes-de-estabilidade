@@ -7,3 +7,4 @@
 - [Política de dados — nunca apagar](data-deletion-policy.md) — NUNCA deletar dados já cadastrados sem aprovação explícita do usuário; qualquer operação destrutiva exige confirmação antes de executar.
 - [MethodologiaTab JSX — Fragment obrigatório](metodologia-tab-jsx.md) — return usa `<>` Fragment: Seção 1 (space-y-6) e Seção 2 (border-t) são elementos raiz separados; dialogs globais ficam como terceiro filho do Fragment.
 - [setAtivoLimit — debounce obrigatório](ativo-limit-debounce.md) — mutate FORA do setState + debounce 600ms; mutate dentro de setState gera race condition e valores parciais no DB.
+- [Certificado PDF — CSS paged media](cert-pdf-print.md) — position:fixed só renderiza na pág. 1 em Chrome print; usar display:table-header-group/footer-group; @page margin:0 Xmm para suprimir URL/data.

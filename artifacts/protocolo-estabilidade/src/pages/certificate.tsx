@@ -2401,12 +2401,14 @@ export default function CertificatePage() {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          /* Linha interna: flex com logo à esq. e número à dir. */
+          /* Linha interna: flex com logo à esq. e número à dir.
+             Padding lateral mínimo — margens do @page (25mm) já distanciam
+             o conteúdo da borda do papel.                                   */
           .cert-print-running-header-inner {
             display: flex !important;
             align-items: center !important;
             justify-content: space-between !important;
-            padding: 3mm 10mm !important;
+            padding: 2mm 0 !important;
             height: 14mm !important;
             background: #ffffff !important;
             border-bottom: 2pt solid #1e293b !important;
@@ -2436,7 +2438,7 @@ export default function CertificatePage() {
             print-color-adjust: exact !important;
           }
           .cert-print-footer > span:first-child {
-            padding-left: 10mm !important;
+            padding-left: 0 !important;
             text-align: left !important;
             width: 40% !important;
           }
@@ -2445,7 +2447,7 @@ export default function CertificatePage() {
             width: 20% !important;
           }
           .cert-print-footer > span:last-child {
-            padding-right: 10mm !important;
+            padding-right: 0 !important;
             text-align: right !important;
             width: 40% !important;
           }
@@ -2455,13 +2457,13 @@ export default function CertificatePage() {
             content: "Página " counter(page) " de " counter(pages);
           }
 
-          /* ── 5. @page: margem 0 para suprimir URL/data nativos do browser.
-             O cabeçalho e rodapé são gerenciados por table-header-group /
-             table-footer-group, que repetem em cada página sem depender de
-             position:fixed (que é instável no motor de impressão do Chrome). */
+          /* ── 5. @page: margem topo/base = 0 suprime URL/data do browser.
+             Margens laterais = 25mm preservam a estética do documento.
+             Cabeçalho/rodapé via table-header-group/footer-group — repetem
+             automaticamente em cada página, sem position:fixed.             */
           @page {
             size: A4 portrait;
-            margin: 0 !important;
+            margin: 0 25mm !important;
           }
 
           /* ── 5a. #certificate-document como tabela CSS ─────────────────────────
