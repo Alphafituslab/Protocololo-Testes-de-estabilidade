@@ -321,6 +321,17 @@ export default function CertificatePage() {
   const [showSettings, setShowSettings] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
+  // Períodos incluídos no certificado (definido na aba Resultados) — precisa ficar
+  // ANTES dos useState que o referenciam no initializer.
+  const certPeriodsLS: number[] = (() => {
+    try {
+      const raw = localStorage.getItem(`cert_periods_${id}`);
+      if (raw) { const p = JSON.parse(raw); if (Array.isArray(p)) return p; }
+    } catch { /* ignore */ }
+    return [0, 3, 6];
+  })();
+  const certPeriodCount = Math.max(1, certPeriodsLS.length);
+
   // ── Print preferences — persisted per protocol in localStorage ──────────────
   const CERT_PRINT_PREFS_KEY = `cert_print_prefs_${id}`;
   const _savedPrintPrefs = (() => {
@@ -612,16 +623,6 @@ export default function CertificatePage() {
       return raw ? JSON.parse(raw) : {};
     } catch { return {}; }
   })();
-
-  // Períodos incluídos no certificado (definido na aba Resultados)
-  const certPeriodsLS: number[] = (() => {
-    try {
-      const raw = localStorage.getItem(`cert_periods_${id}`);
-      if (raw) { const p = JSON.parse(raw); if (Array.isArray(p)) return p; }
-    } catch { /* ignore */ }
-    return [0, 3, 6];
-  })();
-  const certPeriodCount = Math.max(1, certPeriodsLS.length);
 
   // Helper para datas de análise:
   // Prioridade: aba de resultados (fonte primária) > cert edit manual > banco > vazio
