@@ -882,6 +882,10 @@ export default function CertificatePage() {
             <Printer className="h-4 w-4 mr-2" /> Imprimir / Salvar PDF
           </Button>
         </div>
+        {/* Dica: desativar cabeçalhos/rodapés nativos do Chrome */}
+        <p className="print:hidden text-xs text-slate-400 mt-1 text-right">
+          💡 No diálogo de impressão do Chrome, desmarque <strong>Cabeçalhos e rodapés</strong> para remover a URL e data automáticas.
+        </p>
       </div>
 
       {/* ─── Banner: edições em cache detectadas ─── */}
@@ -2413,17 +2417,17 @@ export default function CertificatePage() {
             content: "Página " counter(page) " de " counter(pages);
           }
 
-          /* ── 5. Suprimir URL e data do browser — margin:0 + padding no documento ─
-             @page com margin > 0 dá espaço para o browser preencher com URL
-             (rodapé nativo) e data/título (cabeçalho nativo).
-             Zerando @page, o browser não tem onde renderizá-los.
-             As margens visuais são criadas pelo padding do #certificate-document:
-               top  : 20mm (cabeçalho fixo 18mm + 2mm folga)
-               sides: 30mm (alinhado ao padding do header/footer fixos)
-               bottom: 15mm (rodapé fixo 13mm + 2mm folga)           ─────────── */
+          /* ── 5. Margens A4 — devem coincidir com altura do header/footer fixos ──
+             Em CSS paged media, position:fixed é relativo à página física.
+             Com margin-top = 18mm (= altura do cabeçalho) e margin-bottom = 13mm
+             (= altura do rodapé), a área de conteúdo começa ABAIXO do cabeçalho
+             em TODAS as páginas, evitando sobreposição.
+             NOTA: para ocultar a URL/data nativa do browser, o usuário deve
+             desmarcar "Cabeçalhos e rodapés" no diálogo de impressão do Chrome.
+             Não é possível suprimir via CSS quando @page margin > 0.           */
           @page {
             size: A4 portrait;
-            margin: 0 !important;
+            margin: 18mm 30mm 13mm 30mm !important;
           }
 
           #certificate-document {
@@ -2432,7 +2436,7 @@ export default function CertificatePage() {
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
-            padding: 20mm 30mm 15mm 30mm !important;
+            padding: 0 0 6mm 0 !important;
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
