@@ -7607,7 +7607,7 @@ ${(() => {
 <tr><td>Area (mAU·s)</td><td>${stdArea.toFixed(5)}</td><td>${smpArea.toFixed(5)}</td><td>${ratio.toFixed(6)}</td></tr>
 <tr><td>Amount injected (µg)</td><td>${padraoConfig.stdAmountUg.toFixed(4)}</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
 <tr><td>Std certified purity (%)</td><td>${padraoConfig.stdPurity.toFixed(2)}</td><td>—</td><td></td></tr>
-<tr><td>Sample purity found (%)</td><td>—</td><td>${purityCalc.toFixed(2)}</td><td></td></tr>
+<tr><td>Pureza da amostra (%)</td><td>—</td><td>${displaySmpPurity.toFixed(2)}</td><td></td></tr>
 ${purityVsDecl !== null && padraoConfig.smpDeclaredAmountUg < foundAmountUg * 100 ? `<tr><td>% Found vs. Declared (µg)</td><td>100.00</td><td>${purityVsDecl.toFixed(2)}</td><td></td></tr>` : ''}
 <tr><td>Amount found (µg)</td><td>—</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
 <tr><td>Amount found (mg)</td><td>—</td><td>${foundAmountMg.toFixed(6)}</td><td></td></tr>
