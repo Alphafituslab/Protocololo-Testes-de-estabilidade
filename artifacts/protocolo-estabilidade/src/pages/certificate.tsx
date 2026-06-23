@@ -2413,9 +2413,17 @@ export default function CertificatePage() {
             content: "Página " counter(page) " de " counter(pages);
           }
 
-          /* ── 5. Margens A4 — espaço para header (top) + footer (bottom) ─────── */
+          /* ── 5. Suprimir URL e data do browser — margin:0 + padding no documento ─
+             @page com margin > 0 dá espaço para o browser preencher com URL
+             (rodapé nativo) e data/título (cabeçalho nativo).
+             Zerando @page, o browser não tem onde renderizá-los.
+             As margens visuais são criadas pelo padding do #certificate-document:
+               top  : 20mm (cabeçalho fixo 18mm + 2mm folga)
+               sides: 30mm (alinhado ao padding do header/footer fixos)
+               bottom: 15mm (rodapé fixo 13mm + 2mm folga)           ─────────── */
           @page {
-            margin: 23mm 30mm 20mm 30mm !important;
+            size: A4 portrait;
+            margin: 0 !important;
           }
 
           #certificate-document {
@@ -2424,7 +2432,7 @@ export default function CertificatePage() {
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
-            padding: 0 0 6mm 0 !important;
+            padding: 20mm 30mm 15mm 30mm !important;
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
