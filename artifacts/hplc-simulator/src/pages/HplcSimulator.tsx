@@ -5785,29 +5785,30 @@ export default function HplcSimulator() {
               <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Analysis Method : " + sample.analysisMethod}</div>
               <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged2}</div>
               <div style={{ whiteSpace: "pre", wordBreak: "break-all" }}>{"              " + fullSignalLine}</div>
-              <Div />
-
-              {/* ── Baseline toggle ──────────────────────────────────────── */}
-              <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <button
-                  onClick={() => setShowBaselines(s => !s)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 5, padding: "3px 10px",
-                    border: `1px solid ${showBaselines ? "#16a34a" : "#94a3b8"}`,
-                    borderRadius: 4, cursor: "pointer",
-                    background: showBaselines ? "#f0fdf4" : "#f8fafc",
-                    color: showBaselines ? "#16a34a" : "#64748b",
-                    fontSize: 9, fontFamily: "Courier New, monospace", fontWeight: "bold",
-                  }}
-                >
-                  {showBaselines ? "▼" : "▶"}&nbsp;Integration Baseline&nbsp;
-                  <span style={{ fontWeight: "normal" }}>{showBaselines ? "ON — corrected area" : "OFF"}</span>
-                </button>
-                {showBaselines && (
-                  <span style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#16a34a" }}>
-                    Green line = integration baseline · area above baseline used for quantification
-                  </span>
-                )}
+              {/* ── Baseline toggle (never prints) ───────────────────────── */}
+              <div className="no-print">
+                <Div />
+                <div className="flex items-center gap-2 mb-1">
+                  <button
+                    onClick={() => setShowBaselines(s => !s)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 5, padding: "3px 10px",
+                      border: `1px solid ${showBaselines ? "#16a34a" : "#94a3b8"}`,
+                      borderRadius: 4, cursor: "pointer",
+                      background: showBaselines ? "#f0fdf4" : "#f8fafc",
+                      color: showBaselines ? "#16a34a" : "#64748b",
+                      fontSize: 9, fontFamily: "Courier New, monospace", fontWeight: "bold",
+                    }}
+                  >
+                    {showBaselines ? "▼" : "▶"}&nbsp;Integration Baseline&nbsp;
+                    <span style={{ fontWeight: "normal" }}>{showBaselines ? "ON — corrected area" : "OFF"}</span>
+                  </button>
+                  {showBaselines && (
+                    <span style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#16a34a" }}>
+                      Green line = integration baseline · area above baseline used for quantification
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Chromatogram chart */}
