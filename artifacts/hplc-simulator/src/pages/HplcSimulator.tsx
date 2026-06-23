@@ -130,17 +130,18 @@ interface CompoundCalibration {
 interface ActiveCompound {
   id: string;
   name: string;
-  wavelength: number;    // nm  — detector wavelength for identification
-  waveTol: number;       // nm  — ±tolerance for wavelength match
-  expectedRT: number;    // min — expected retention time
-  rtTol: number;         // min — ±tolerance for RT match
-  typicalWidth: number;  // sigma (min) — used when adding a new simulated peak
+  wavelength: number;       // nm  — detector wavelength for identification
+  waveTol: number;          // nm  — ±tolerance for wavelength match
+  expectedRT: number;       // min — expected retention time
+  rtTol: number;            // min — ±tolerance for RT match
+  typicalWidth: number;     // sigma (min) — used when adding a new simulated peak
   typicalAsym: number;
-  amtPerArea: number;    // response factor [ug/ml / mAU*s]
-  units: string;         // "ug/ml", "mg/L", etc.
-  specMin: number;       // specification lower limit (0 = N/A)
-  specMax: number;       // specification upper limit (0 = N/A)
-  method: string;        // analytical method file
+  amtPerArea: number;       // response factor [ug/ml / mAU*s]
+  units: string;            // "ug/ml", "mg/L", etc.
+  specMin: number;          // specification lower limit (0 = N/A)
+  specMax: number;          // specification upper limit (0 = N/A)
+  certifiedPurity: number;  // % — certified purity of the reference standard (0 = not set → default 99.5)
+  method: string;           // analytical method file
   notes: string;
 }
 
@@ -896,60 +897,70 @@ const DEFAULT_ACTIVE_COMPOUNDS: ActiveCompound[] = [
     id: uid(), name: "B6", wavelength: 290, waveTol: 8,
     expectedRT: 2.408, rtTol: 0.15, typicalWidth: 0.014, typicalAsym: 1.22,
     amtPerArea: 3.95781e-2, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "B6 TESTE 290.M", notes: "Piridoxina HCl — C₈H₁₁NO₃·HCl  |  λ=290nm, Ref=360nm",
   },
   {
     id: uid(), name: "Cafeína", wavelength: 272, waveTol: 8,
     expectedRT: 3.52, rtTol: 0.20, typicalWidth: 0.030, typicalAsym: 1.10,
     amtPerArea: 0.02145, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "CAFF.M", notes: "Trimetilxantina — C₈H₁₀N₄O₂",
   },
   {
     id: uid(), name: "Vitamina C", wavelength: 245, waveTol: 8,
     expectedRT: 1.85, rtTol: 0.15, typicalWidth: 0.028, typicalAsym: 1.15,
     amtPerArea: 0.04512, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "VIT_C.M", notes: "Ácido ascórbico — C₆H₈O₆",
   },
   {
     id: uid(), name: "Niacinamida", wavelength: 261, waveTol: 8,
     expectedRT: 2.10, rtTol: 0.15, typicalWidth: 0.025, typicalAsym: 1.08,
     amtPerArea: 0.03321, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "B3.M", notes: "Vitamina B3 / nicotinamida — C₆H₆N₂O",
   },
   {
     id: uid(), name: "Riboflavina", wavelength: 265, waveTol: 8,
     expectedRT: 4.20, rtTol: 0.20, typicalWidth: 0.035, typicalAsym: 1.18,
     amtPerArea: 0.01876, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "B2.M", notes: "Vitamina B2 — C₁₇H₂₀N₄O₆",
   },
   {
     id: uid(), name: "Ácido Fólico", wavelength: 282, waveTol: 8,
     expectedRT: 5.50, rtTol: 0.25, typicalWidth: 0.040, typicalAsym: 1.30,
     amtPerArea: 0.02234, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "FOL.M", notes: "Vitamina B9 — C₁₉H₁₉N₇O₆",
   },
   {
     id: uid(), name: "Colecalciferol D3", wavelength: 264, waveTol: 10,
     expectedRT: 8.10, rtTol: 0.30, typicalWidth: 0.045, typicalAsym: 1.15,
     amtPerArea: 0.00985, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "VIT_D3.M", notes: "Vitamina D3 — C₂₇H₄₄O",
   },
   {
     id: uid(), name: "Tiamina", wavelength: 247, waveTol: 8,
     expectedRT: 1.50, rtTol: 0.15, typicalWidth: 0.026, typicalAsym: 1.12,
     amtPerArea: 0.03105, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "B1.M", notes: "Vitamina B1 — C₁₂H₁₇N₄OS",
   },
   {
     id: uid(), name: "Biotina", wavelength: 200, waveTol: 8,
     expectedRT: 3.80, rtTol: 0.20, typicalWidth: 0.032, typicalAsym: 1.20,
     amtPerArea: 0.01543, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "BIOT.M", notes: "Vitamina B7 — C₁₀H₁₆N₂O₃S",
   },
   {
     id: uid(), name: "Pantotenato de Cálcio", wavelength: 210, waveTol: 8,
     expectedRT: 2.70, rtTol: 0.18, typicalWidth: 0.028, typicalAsym: 1.10,
     amtPerArea: 0.02876, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "B5.M", notes: "Vitamina B5 — C₁₈H₃₂CaN₂O₁₀",
   },
 
@@ -963,120 +974,140 @@ const DEFAULT_ACTIVE_COMPOUNDS: ActiveCompound[] = [
     id: uid(), name: "Ácido Aspártico", wavelength: 254, waveTol: 8,
     expectedRT: 3.82, rtTol: 0.20, typicalWidth: 0.030, typicalAsym: 1.12,
     amtPerArea: 0.03215, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "ASP.M", notes: "L-Asp — C₄H₇NO₄ (133.10 g/mol) | AccQ-Tag λ 254 nm | AOAC 994.12",
   },
   {
     id: uid(), name: "Ácido Glutâmico", wavelength: 254, waveTol: 8,
     expectedRT: 5.18, rtTol: 0.20, typicalWidth: 0.032, typicalAsym: 1.10,
     amtPerArea: 0.02987, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "GLU.M", notes: "L-Glu — C₅H₉NO₄ (147.13 g/mol) | AccQ-Tag λ 254 nm | AOAC 994.12",
   },
   {
     id: uid(), name: "Asparagina", wavelength: 254, waveTol: 8,
     expectedRT: 5.83, rtTol: 0.20, typicalWidth: 0.028, typicalAsym: 1.08,
     amtPerArea: 0.03054, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "ASN.M", notes: "L-Asn — C₄H₈N₂O₃ (132.12 g/mol) | AccQ-Tag λ 254 nm | Waters TG",
   },
   {
     id: uid(), name: "Serina", wavelength: 254, waveTol: 8,
     expectedRT: 6.21, rtTol: 0.20, typicalWidth: 0.028, typicalAsym: 1.08,
     amtPerArea: 0.03102, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "SER.M", notes: "L-Ser — C₃H₇NO₃ (105.09 g/mol) | AccQ-Tag λ 254 nm | AOAC 994.12",
   },
   {
     id: uid(), name: "Glutamina", wavelength: 254, waveTol: 8,
     expectedRT: 6.72, rtTol: 0.20, typicalWidth: 0.030, typicalAsym: 1.10,
     amtPerArea: 0.02876, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "GLN.M", notes: "L-Gln — C₅H₁₀N₂O₃ (146.15 g/mol) | AccQ-Tag λ 254 nm | Waters TG",
   },
   {
     id: uid(), name: "Histidina", wavelength: 254, waveTol: 8,
     expectedRT: 7.12, rtTol: 0.22, typicalWidth: 0.030, typicalAsym: 1.15,
     amtPerArea: 0.02765, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "HIS.M", notes: "L-His (essencial) — C₆H₉N₃O₂ (155.16 g/mol) | AccQ-Tag λ 254 nm | AOAC 994.12",
   },
   {
     id: uid(), name: "Glicina", wavelength: 254, waveTol: 8,
     expectedRT: 7.75, rtTol: 0.20, typicalWidth: 0.027, typicalAsym: 1.07,
     amtPerArea: 0.03451, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "GLY.M", notes: "Gly — C₂H₅NO₂ (75.03 g/mol) | AccQ-Tag λ 254 nm | AOAC 994.12",
   },
   {
     id: uid(), name: "Treonina", wavelength: 254, waveTol: 8,
     expectedRT: 8.48, rtTol: 0.22, typicalWidth: 0.028, typicalAsym: 1.08,
     amtPerArea: 0.03312, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "THR.M", notes: "L-Thr (essencial) — C₄H₉NO₃ (119.12 g/mol) | AccQ-Tag λ 254 nm | AOAC 994.12",
   },
   {
     id: uid(), name: "Arginina", wavelength: 254, waveTol: 8,
     expectedRT: 9.22, rtTol: 0.22, typicalWidth: 0.032, typicalAsym: 1.18,
     amtPerArea: 0.02543, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "ARG.M", notes: "L-Arg (cond. essencial) — C₆H₁₄N₄O₂ (174.20 g/mol) | AccQ-Tag λ 254 nm",
   },
   {
     id: uid(), name: "Alanina", wavelength: 254, waveTol: 8,
     expectedRT: 9.83, rtTol: 0.20, typicalWidth: 0.027, typicalAsym: 1.08,
     amtPerArea: 0.03678, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "ALA.M", notes: "L-Ala — C₃H₇NO₂ (89.09 g/mol) | AccQ-Tag λ 254 nm | AOAC 994.12",
   },
   {
     id: uid(), name: "Tirosina", wavelength: 254, waveTol: 8,
     expectedRT: 11.05, rtTol: 0.25, typicalWidth: 0.034, typicalAsym: 1.20,
     amtPerArea: 0.02234, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "TYR.M", notes: "L-Tyr — C₉H₁₁NO₃ (181.19 g/mol) | AccQ-Tag λ 254 nm | AOAC 994.12",
   },
   {
     id: uid(), name: "Metionina", wavelength: 254, waveTol: 8,
     expectedRT: 12.48, rtTol: 0.25, typicalWidth: 0.032, typicalAsym: 1.15,
     amtPerArea: 0.02876, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "MET.M", notes: "L-Met (essencial) — C₅H₁₁NO₂S (149.21 g/mol) | AccQ-Tag λ 254 nm | AOAC 994.12",
   },
   {
     id: uid(), name: "Valina", wavelength: 254, waveTol: 8,
     expectedRT: 13.21, rtTol: 0.25, typicalWidth: 0.030, typicalAsym: 1.10,
     amtPerArea: 0.03124, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "VAL.M", notes: "L-Val (BCAA, essencial) — C₅H₁₁NO₂ (117.15 g/mol) | AccQ-Tag λ 254 nm",
   },
   {
     id: uid(), name: "Fenilalanina", wavelength: 254, waveTol: 8,
     expectedRT: 14.82, rtTol: 0.25, typicalWidth: 0.032, typicalAsym: 1.18,
     amtPerArea: 0.02198, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "PHE.M", notes: "L-Phe (essencial) — C₉H₁₁NO₂ (165.19 g/mol) | AccQ-Tag λ 254 nm | AOAC 994.12",
   },
   {
     id: uid(), name: "Isoleucina", wavelength: 254, waveTol: 8,
     expectedRT: 15.62, rtTol: 0.25, typicalWidth: 0.031, typicalAsym: 1.12,
     amtPerArea: 0.02943, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "ILE.M", notes: "L-Ile (BCAA, essencial) — C₆H₁₃NO₂ (131.17 g/mol) | AccQ-Tag λ 254 nm | AOAC 994.12",
   },
   {
     id: uid(), name: "Leucina", wavelength: 254, waveTol: 8,
     expectedRT: 15.89, rtTol: 0.25, typicalWidth: 0.031, typicalAsym: 1.12,
     amtPerArea: 0.02886, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "LEU.M", notes: "L-Leu (BCAA, essencial) — C₆H₁₃NO₂ (131.17 g/mol) | AccQ-Tag λ 254 nm | AOAC 994.12",
   },
   {
     id: uid(), name: "Lisina", wavelength: 254, waveTol: 8,
     expectedRT: 17.35, rtTol: 0.25, typicalWidth: 0.035, typicalAsym: 1.22,
     amtPerArea: 0.02654, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "LYS.M", notes: "L-Lys (essencial) — C₆H₁₄N₂O₂ (146.19 g/mol) | AccQ-Tag λ 254 nm | AOAC 994.12",
   },
   {
     id: uid(), name: "Triptofano", wavelength: 280, waveTol: 8,
     expectedRT: 18.22, rtTol: 0.30, typicalWidth: 0.038, typicalAsym: 1.20,
     amtPerArea: 0.01876, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "TRP.M", notes: "L-Trp (essencial) — C₁₁H₁₂N₂O₂ (204.23 g/mol) | RP-HPLC λ 280 nm sem derivatização | Ref: Mazzucco et al. 2014",
   },
   {
     id: uid(), name: "Prolina", wavelength: 254, waveTol: 8,
     expectedRT: 20.08, rtTol: 0.30, typicalWidth: 0.040, typicalAsym: 1.25,
     amtPerArea: 0.02112, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "PRO.M", notes: "L-Pro — C₅H₉NO₂ (115.13 g/mol) | AccQ-Tag (FMOC para iminoacid) λ 254 nm | Waters TG 2012",
   },
   {
     id: uid(), name: "Cisteína", wavelength: 254, waveTol: 8,
     expectedRT: 4.52, rtTol: 0.20, typicalWidth: 0.028, typicalAsym: 1.10,
     amtPerArea: 0.02987, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "CYS.M", notes: "L-Cys — C₃H₇NO₂S (121.16 g/mol) | AccQ-Tag como Cys-Cys λ 254 nm | AOAC 994.12",
   },
 
@@ -1091,48 +1122,56 @@ const DEFAULT_ACTIVE_COMPOUNDS: ActiveCompound[] = [
     id: uid(), name: "Sódio (IC)", wavelength: 220, waveTol: 10,
     expectedRT: 3.12, rtTol: 0.20, typicalWidth: 0.065, typicalAsym: 1.15,
     amtPerArea: 0.05234, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "NA_IC.M", notes: "Na⁺ — 22.99 g/mol | IC-Cátion (Metrosep C4) + condutividade suprimida | AN-C-047 Metrohm",
   },
   {
     id: uid(), name: "Potássio (IC)", wavelength: 220, waveTol: 10,
     expectedRT: 5.48, rtTol: 0.22, typicalWidth: 0.070, typicalAsym: 1.18,
     amtPerArea: 0.04312, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "K_IC.M", notes: "K⁺ — 39.10 g/mol | IC-Cátion (Metrosep C4) + condutividade suprimida | AN-C-047 Metrohm",
   },
   {
     id: uid(), name: "Magnésio (IC)", wavelength: 220, waveTol: 10,
     expectedRT: 6.81, rtTol: 0.25, typicalWidth: 0.060, typicalAsym: 1.18,
     amtPerArea: 0.04876, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "MG_IC.M", notes: "Mg²⁺ — 24.31 g/mol | IC-Cátion (Metrosep C4) + condutividade suprimida | AN-C-047 Metrohm",
   },
   {
     id: uid(), name: "Cálcio (IC)", wavelength: 220, waveTol: 10,
     expectedRT: 8.52, rtTol: 0.28, typicalWidth: 0.065, typicalAsym: 1.20,
     amtPerArea: 0.04125, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "CA_IC.M", notes: "Ca²⁺ — 40.08 g/mol | IC-Cátion (Metrosep C4) + condutividade suprimida | AN-C-047 Metrohm",
   },
   {
     id: uid(), name: "Manganês (IC)", wavelength: 520, waveTol: 10,
     expectedRT: 12.10, rtTol: 0.30, typicalWidth: 0.068, typicalAsym: 1.22,
     amtPerArea: 0.02567, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "MN_IC.M", notes: "Mn²⁺ — 54.94 g/mol | IC-Cátion + reagente pós-coluna PAR 520 nm | Metrohm AN-C-047",
   },
   {
     id: uid(), name: "Ferro(II) (IC)", wavelength: 520, waveTol: 10,
     expectedRT: 14.45, rtTol: 0.32, typicalWidth: 0.072, typicalAsym: 1.28,
     amtPerArea: 0.02234, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "FE_IC.M", notes: "Fe²⁺ — 55.85 g/mol | IC + reagente pós-coluna PAR 520 nm | ASTM D6919 / Dionex TN-43",
   },
   {
     id: uid(), name: "Cobre (IC)", wavelength: 520, waveTol: 10,
     expectedRT: 16.18, rtTol: 0.32, typicalWidth: 0.068, typicalAsym: 1.24,
     amtPerArea: 0.02345, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "CU_IC.M", notes: "Cu²⁺ — 63.55 g/mol | IC + reagente pós-coluna PAR 520 nm | Metrohm AN-C-047",
   },
   {
     id: uid(), name: "Zinco (IC)", wavelength: 520, waveTol: 10,
     expectedRT: 17.82, rtTol: 0.35, typicalWidth: 0.075, typicalAsym: 1.25,
     amtPerArea: 0.01985, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "ZN_IC.M", notes: "Zn²⁺ — 65.38 g/mol | IC + reagente pós-coluna PAR 520 nm | Metrohm AN-C-047",
   },
   // Selênio: analisado como selenometionina por RP-HPLC-UV
@@ -1142,6 +1181,7 @@ const DEFAULT_ACTIVE_COMPOUNDS: ActiveCompound[] = [
     id: uid(), name: "Selenometionina", wavelength: 210, waveTol: 8,
     expectedRT: 9.85, rtTol: 0.28, typicalWidth: 0.042, typicalAsym: 1.15,
     amtPerArea: 0.01756, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "SEMET.M", notes: "L-SeMet (Se orgânico) — C₅H₁₁NO₂Se (196.11 g/mol) | RP-HPLC-UV λ 210 nm | Pedrero & Madrid 2009",
   },
   // Cromo: analisado como complexo quelado por RP-HPLC com reagente DPTH
@@ -1150,6 +1190,7 @@ const DEFAULT_ACTIVE_COMPOUNDS: ActiveCompound[] = [
     id: uid(), name: "Cromo(III) (quelação)", wavelength: 540, waveTol: 10,
     expectedRT: 11.02, rtTol: 0.30, typicalWidth: 0.062, typicalAsym: 1.20,
     amtPerArea: 0.01543, units: "ug/ml", specMin: 0, specMax: 0,
+    certifiedPurity: 99.5,
     method: "CR_IC.M", notes: "Cr³⁺ — 52.00 g/mol | Quelação-RP com DPTH + detecção visível 540 nm | Sooksamiti et al. 2013",
   },
 ];
@@ -1733,7 +1774,7 @@ function SmallField({ label, value, onChange, type = "text" }: {
 
 const COMPOUND_NUM_KEYS: (keyof ActiveCompound)[] = [
   "wavelength", "waveTol", "expectedRT", "rtTol", "typicalWidth",
-  "typicalAsym", "amtPerArea", "specMin", "specMax",
+  "typicalAsym", "amtPerArea", "specMin", "specMax", "certifiedPurity",
 ];
 
 function compoundToStrings(c: ActiveCompound): Record<keyof ActiveCompound, string> {
@@ -1781,8 +1822,9 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
             ["units",        "Units",                   "text",   ""],
             ["typicalWidth", "Width σ (min)",           "number", ""],
             ["typicalAsym",  "Asymmetry",               "number", ""],
-            ["specMin",      "Spec Min (ug/ml, 0=N/A)", "number", ""],
-            ["specMax",      "Spec Max (ug/ml, 0=N/A)", "number", ""],
+            ["specMin",         "Spec Min (ug/ml, 0=N/A)",    "number", ""],
+            ["specMax",         "Spec Max (ug/ml, 0=N/A)",    "number", ""],
+            ["certifiedPurity", "Certified purity (%)",        "number", "col-span-2"],
           ] as [keyof ActiveCompound, string, string, string][]).map(([k, label, type, cls]) => (
             <div key={k} className={cls || ""}>
               <Label className="text-xs text-muted-foreground font-mono">{label}</Label>
@@ -3455,6 +3497,7 @@ export default function HplcSimulator() {
       id: uid(), name: "New Compound", wavelength: detector.sigWavelength, waveTol: 8,
       expectedRT: 2.0, rtTol: 0.15, typicalWidth: 0.030, typicalAsym: 1.15,
       amtPerArea: 0.03, units: "ug/ml", specMin: 0, specMax: 0,
+      certifiedPurity: 99.5,
       method: "", notes: "",
     }]);
     markDirty();
@@ -6409,7 +6452,7 @@ export default function HplcSimulator() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10.5 }}>
                   <thead>
                     <tr style={{ borderBottom: "2px solid #333", background: "#f4f4f4" }}>
-                      {["Compound", "λ (nm)", "±λ", "RT (min)", "±RT", "Amt/Area", "Units", "Spec Min", "Spec Max", "Method", "Notes", ""].map(h => (
+                      {["Compound", "λ (nm)", "±λ", "RT (min)", "±RT", "Amt/Area", "Units", "Spec Min", "Spec Max", "Pureza cert. (%)", "Method", "Notes", ""].map(h => (
                         <th key={h} style={{ textAlign: "left", padding: "4px 8px", fontFamily: "Courier New, monospace", fontWeight: "bold", whiteSpace: "nowrap" }}>{h}</th>
                       ))}
                     </tr>
@@ -6444,6 +6487,15 @@ export default function HplcSimulator() {
                           </td>
                           <td style={{ padding: "5px 8px", textAlign: "right", color: c.specMax > 0 ? "#111" : "#bbb" }}>
                             {c.specMax > 0 ? c.specMax.toFixed(1) : "—"}
+                          </td>
+                          <td style={{ padding: "5px 8px", textAlign: "center" }}>
+                            <span style={{
+                              background: (c.certifiedPurity || 99.5) >= 99 ? "#dcfce7" : (c.certifiedPurity || 99.5) >= 95 ? "#fef9c3" : "#fee2e2",
+                              color: (c.certifiedPurity || 99.5) >= 99 ? "#166534" : (c.certifiedPurity || 99.5) >= 95 ? "#713f12" : "#b91c1c",
+                              padding: "1px 6px", borderRadius: 3, fontWeight: "bold", fontSize: 10,
+                            }}>
+                              {(c.certifiedPurity || 99.5).toFixed(2)} %
+                            </span>
                           </td>
                           <td style={{ padding: "5px 8px", color: "#666", fontSize: 10 }}>{c.method}</td>
                           <td style={{ padding: "5px 8px", color: "#888", fontSize: 9.5, maxWidth: 180, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.notes}</td>
@@ -7219,7 +7271,7 @@ export default function HplcSimulator() {
                 stdPeakName: midStd ? `Level ${midStd.level} — cal. ${compound.name}` : compound.name,
                 stdArea: midStd ? parseFloat(midStd.area.toFixed(5)) : smpA,
                 stdAmountUg: midStd ? parseFloat(midStd.amount.toFixed(4)) : parseFloat((compound.amtPerArea * smpA).toFixed(4)),
-                stdPurity: 99.5,
+                stdPurity: compound.certifiedPurity > 0 ? compound.certifiedPurity : 99.5,
                 smpPeakName: matchingPeak.name || `TR ${matchingPeak.retentionTime.toFixed(3)} min`,
                 smpArea: smpA,
                 smpDeclaredAmountUg: 0,
