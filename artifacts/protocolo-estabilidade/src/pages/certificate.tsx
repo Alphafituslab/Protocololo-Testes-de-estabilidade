@@ -1578,9 +1578,13 @@ export default function CertificatePage() {
                 </div>
               </div>
 
+              {/* Print-only header bar — blue box visible in PDF */}
+              <div className="cert-kinetica-print-header hidden print:flex items-center px-4 py-1.5">
+                <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white">Parâmetros Cinéticos e Estimativa de Validade</h2>
+              </div>
+
               {/* Content — hidden on screen when collapsed, but always printed when show=true */}
               <div className={`bg-blue-50/40 p-4 space-y-3 ${!cineticaExpanded ? "hidden print:block" : ""}`}>
-                <p className="font-semibold text-gray-800 uppercase tracking-wide text-[11px] hidden print:block">Parâmetros Cinéticos e Estimativa de Validade</p>
                 {!hasData ? (
                   <p className="text-gray-400 italic">Dados cinéticos insuficientes (requer resultados de teor nos tempos T3 e T6).</p>
                 ) : (
@@ -2392,12 +2396,26 @@ export default function CertificatePage() {
           /* ── 5c. Cabeçalhos navy: garantir cor no print ──────────────────────── */
           .cert-intro-block > div:not(:first-child) > div:first-child,
           .cert-section > div:first-child,
-          .cert-analysis-table > div:first-child,
-          .cert-kinetica-block > div:first-child {
+          .cert-analysis-table > div:first-child {
             background-color: rgb(51, 65, 85) !important;
             color: rgb(226, 232, 240) !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+          }
+
+          /* ── 5c2. Cabeçalho azul da seção cinética ───────────────────────────── */
+          .cert-kinetica-print-header {
+            background-color: rgb(29, 78, 216) !important;
+            color: rgb(255, 255, 255) !important;
+            padding: 3pt 9pt !important;
+            break-after: avoid !important;
+            page-break-after: avoid !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .cert-kinetica-print-header h2 {
+            color: rgb(255, 255, 255) !important;
+            font-size: 8pt !important;
           }
 
           /* ── 5d. Cabeçalho da tabela de análise ─────────────────────────────── */
@@ -2490,10 +2508,10 @@ export default function CertificatePage() {
             page-break-inside: avoid;
           }
 
-          /* Cinética: nunca parte no meio */
+          /* Cinética: PODE quebrar entre linhas (evita pulo de página com espaço vazio) */
           .cert-kinetica-block {
-            break-inside: avoid;
-            page-break-inside: avoid;
+            break-inside: auto !important;
+            page-break-inside: auto !important;
             overflow: visible !important;
           }
 
