@@ -2283,6 +2283,37 @@ export default function CertificatePage() {
           margin: 0;
         }
 
+        /* ══ JUSTIFICAÇÃO GLOBAL — tela + impressão ═════════════════════════════
+           Aplica texto justificado a todas as áreas de conteúdo do certificado.
+           Elementos com alinhamento específico (th, td.text-center, etc.)
+           mantêm suas próprias regras pois têm maior especificidade CSS.      */
+
+        /* Parágrafos e descrições em geral */
+        #certificate-document p,
+        #certificate-document dd,
+        #certificate-document li {
+          text-align: justify;
+          hyphens: auto;
+          -webkit-hyphens: auto;
+          word-break: break-word;
+        }
+
+        /* Áreas de conteúdo das seções (abaixo do header navy) */
+        #certificate-document .cert-section > div:not(:first-child),
+        #certificate-document .cert-intro-block > div:not(:first-child) > div:not(:first-child),
+        #certificate-document .cert-kinetica-block > div:not(:first-child) {
+          text-align: justify;
+          hyphens: auto;
+          -webkit-hyphens: auto;
+        }
+
+        /* Headers de seção: manter esquerda */
+        #certificate-document .cert-section > div:first-child,
+        #certificate-document .cert-analysis-table > div:first-child,
+        #certificate-document .cert-intro-block > div:not(:first-child) > div:first-child {
+          text-align: left;
+        }
+
         @media print {
 
           /* ── 1. Zerar html/body ───────────────────────────────────────────────── */
@@ -2426,6 +2457,29 @@ export default function CertificatePage() {
           .cert-section > div:not(:first-child),
           .cert-kinetica-block > div:not(:first-child) {
             padding: 5pt 9pt !important;
+          }
+
+          /* ── 5b5. Justificação global de texto no print ───────────────────────── */
+          #certificate-document p,
+          #certificate-document dd,
+          #certificate-document li {
+            text-align: justify !important;
+            hyphens: auto !important;
+            -webkit-hyphens: auto !important;
+            word-break: break-word !important;
+          }
+          #certificate-document .cert-section > div:not(:first-child),
+          #certificate-document .cert-intro-block > div:not(:first-child) > div:not(:first-child),
+          #certificate-document .cert-kinetica-block > div:not(:first-child) {
+            text-align: justify !important;
+            hyphens: auto !important;
+            -webkit-hyphens: auto !important;
+          }
+          /* Preservar alinhamento dos headers de seção */
+          #certificate-document .cert-section > div:first-child,
+          #certificate-document .cert-analysis-table > div:first-child,
+          #certificate-document .cert-intro-block > div:not(:first-child) > div:first-child {
+            text-align: left !important;
           }
 
           /* ── 5c. Cabeçalhos navy: garantir cor no print ──────────────────────── */
