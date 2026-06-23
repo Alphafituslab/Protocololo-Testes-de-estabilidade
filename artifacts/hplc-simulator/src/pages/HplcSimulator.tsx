@@ -7617,7 +7617,7 @@ ${foundAmountFromPurityUg !== null ? `<tr><td>Found amount — purity (µg)</td>
 : '<p style="color:#999;margin-top:10px">Insufficient data to calculate the result.</p>'}
 ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
 <table><thead><tr><th>Lot</th><th>Date</th><th>Sample</th><th>Area (mAU·s)</th><th>Conc. (µg/ml)</th><th>Conformance</th></tr></thead><tbody>${lotsRows}</tbody></table>` : ''}
-<footer>Generated on ${new Date().toLocaleString('en-US')} · HPLC Agilent ChemStation Simulator</footer>
+<footer>Generated on ${new Date().toLocaleString('en-US')} · HPLC Agilent ChemStation</footer>
 </body></html>`;
           w.document.write(html);
           w.document.close();
