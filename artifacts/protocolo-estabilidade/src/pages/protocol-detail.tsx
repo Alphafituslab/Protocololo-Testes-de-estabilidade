@@ -2951,6 +2951,12 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const [deleteError, setDeleteError] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [showPassoCalculo, setShowPassoCalculo] = useState(false);
+  const [hiddenPassoSteps, setHiddenPassoSteps] = useState<Set<number>>(new Set());
+  const togglePassoStep = (i: number) => setHiddenPassoSteps(prev => {
+    const next = new Set(prev);
+    if (next.has(i)) next.delete(i); else next.add(i);
+    return next;
+  });
 
   const [manualFields, setManualFields] = useState<Record<string, string[]>>(() => {
     try {
@@ -3817,37 +3823,50 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
         </button>
         {showPassoCalculo && <div className="px-5 pb-5 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-3">
-            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">1. Modelo cinético de 1ª ordem</p>
-            <div className="font-mono bg-white border border-slate-200 rounded px-4 py-3 text-sm text-center">
-              C<sub>t</sub> = C<sub>0</sub> · e<sup>−k·t</sup>
+          {[
+            {
+              label: "1. Modelo cinético de 1ª ordem",
+              formula: <span>C<sub>t</sub> = C<sub>0</sub> · e<sup>−k·t</sup></span>,
+              desc: "Modelo ICH Q1A(R2) — degradação de primeira ordem",
+            },
+            {
+              label: "2. Constante de degradação k",
+              formula: <span>k = −ln(Média<sub>T6</sub> / Média<sub>T3</sub>) / 3</span>,
+              desc: "Calculado a partir do intervalo T3→T6 (meses)",
+            },
+            {
+              label: "3. Tempo de validade — método ICH (80%)",
+              formula: <span>t<sub>validade</sub> = −ln(80 / Média<sub>T0</sub>) / k</span>,
+              desc: "Estimativa até atingir 80% do valor declarado",
+            },
+            {
+              label: "4. Tempo observado — extrapolação T6",
+              formula: <span>t<sub>obs</sub> = −ln(Média<sub>T6</sub> / Média<sub>T0</sub>) / k</span>,
+              desc: "Extrapolação da taxa T3→T6 a partir de T0",
+            },
+          ].map((step, i) => (
+            <div key={i} className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">{step.label}</p>
+                <button
+                  type="button"
+                  onClick={() => togglePassoStep(i)}
+                  className="shrink-0 text-[10px] px-1.5 py-0.5 rounded border border-slate-300 text-slate-400 hover:text-slate-600 hover:border-slate-400 transition-colors"
+                  title={hiddenPassoSteps.has(i) ? "Exibir" : "Ocultar"}
+                >
+                  {hiddenPassoSteps.has(i) ? "exibir" : "ocultar"}
+                </button>
+              </div>
+              {!hiddenPassoSteps.has(i) && (
+                <>
+                  <div className="font-mono bg-white border border-slate-200 rounded px-4 py-3 text-sm text-center">
+                    {step.formula}
+                  </div>
+                  <p className="text-xs text-slate-500">{step.desc}</p>
+                </>
+              )}
             </div>
-            <p className="text-xs text-slate-500">Modelo ICH Q1A(R2) — degradação de primeira ordem</p>
-          </div>
-
-          <div className="space-y-3">
-            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">2. Constante de degradação k</p>
-            <div className="font-mono bg-white border border-slate-200 rounded px-4 py-3 text-sm text-center">
-              k = −ln(Média<sub>T6</sub> / Média<sub>T3</sub>) / 3
-            </div>
-            <p className="text-xs text-slate-500">Calculado a partir do intervalo T3→T6 (meses)</p>
-          </div>
-
-          <div className="space-y-3">
-            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">3. Tempo de validade — método ICH (80%)</p>
-            <div className="font-mono bg-white border border-slate-200 rounded px-4 py-3 text-sm text-center">
-              t<sub>validade</sub> = −ln(80 / Média<sub>T0</sub>) / k
-            </div>
-            <p className="text-xs text-slate-500">Estimativa até atingir 80% do valor declarado</p>
-          </div>
-
-          <div className="space-y-3">
-            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">4. Tempo observado — extrapolação T6</p>
-            <div className="font-mono bg-white border border-slate-200 rounded px-4 py-3 text-sm text-center">
-              t<sub>obs</sub> = −ln(Média<sub>T6</sub> / Média<sub>T0</sub>) / k
-            </div>
-            <p className="text-xs text-slate-500">Extrapolação da taxa T3→T6 a partir de T0</p>
-          </div>
+          ))}
         </div>
         </div>}
       </div>
