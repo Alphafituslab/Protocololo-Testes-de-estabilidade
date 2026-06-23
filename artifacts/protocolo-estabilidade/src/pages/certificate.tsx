@@ -1111,15 +1111,15 @@ export default function CertificatePage() {
         )}
       </div>
 
-      {/* ─── Mini-cabeçalho repetido em cada página do PDF ─────────────────
+      {/* ─── Mini-cabeçalho repetido em TODAS as páginas do PDF ────────────
            Na tela: exibido como caixa de pré-visualização com rótulo.
-           No PDF: position:fixed top:-16mm preenche a margem @page (16mm)
-           reservada nas páginas 2+ — invisível na página 1 (@page:first
-           margin-top:0 → top:-16mm está acima do papel).               */}
+           No PDF: position:fixed top:0 height:16mm ocupa exatamente a
+           margem superior de 16mm reservada pelo @page — repete em todas
+           as páginas. O conteúdo começa abaixo dessa margem sem sobreposição. */}
       <div className="cert-page-header">
         {/* Rótulo visível apenas na tela — indica que é o cabeçalho das pgs 2+ */}
         <div className="cert-page-header-label">
-          Pré-visualização · Cabeçalho repetido nas páginas 2, 3…
+          Pré-visualização · Cabeçalho repetido em todas as páginas
         </div>
         {/* Conteúdo real do cabeçalho (logo + nº certificado) */}
         <div className="cert-page-header-inner">
@@ -2327,18 +2327,13 @@ export default function CertificatePage() {
 
         @page {
           size: A4 portrait;
-          /* margin-top: 16mm reserva espaço para o mini-cabeçalho repetido.
-             Nas páginas 2+ o cert-page-header (top:-16mm) ocupa esse espaço.
+          /* margin-top: 16mm reserva espaço para o mini-cabeçalho em TODAS
+             as páginas (inclusive a primeira).
+             O cert-page-header usa position:fixed top:0 height:16mm para
+             ocupar exatamente essa faixa de margem no topo de cada folha.
              left/right/bottom: 0 — o certificado gerencia suas margens visuais
              via padding próprio. */
           margin: 16mm 0 0 0;
-        }
-
-        /* Página 1: sem margem superior — o mini-cabeçalho fica acima da área
-           visível (top:-16mm com margin-top:0 = acima do papel), invisível.
-           O cabeçalho completo da primeira folha já está no conteúdo. */
-        @page:first {
-          margin-top: 0;
         }
 
         @media print {
@@ -2361,15 +2356,16 @@ export default function CertificatePage() {
           .cert-page-header,
           .cert-page-header * { visibility: visible !important; }
 
-          /* Mini-cabeçalho: position:fixed com top:-16mm posiciona-o DENTRO da
-             margem reservada pelo @page (margin-top:16mm nas páginas 2+).
-             Na página 1 (@page:first margin-top:0), top:-16mm está acima do
-             papel → invisível. Nas páginas 2+ preenche exatamente a margem. */
+          /* Mini-cabeçalho: position:fixed top:0 ocupa os primeiros 16mm do
+             papel (a faixa de margem reservada pelo @page margin-top:16mm).
+             O #certificate-document começa em top:0 da área de CONTEÚDO,
+             que já está abaixo dos 16mm de margem — sem sobreposição.
+             Repete em TODAS as páginas incluindo a primeira. */
           .cert-page-header {
             display: flex !important;
             flex-direction: row !important;
             position: fixed;
-            top: -16mm;
+            top: 0mm;
             left: 0;
             right: 0;
             height: 16mm;
