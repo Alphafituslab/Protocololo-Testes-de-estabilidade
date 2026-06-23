@@ -7831,6 +7831,120 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
               </div>
             </div>
 
+            {/* ─ Visual Comparison — Standard vs Sample ─ */}
+            {(padraoConfig.stdArea > 0 || padraoConfig.smpArea > 0) && (() => {
+              const sA = padraoConfig.stdArea;
+              const mA = padraoConfig.smpArea;
+              const maxA = Math.max(sA, mA, 1);
+              const stdBar = sA > 0 ? (sA / maxA) * 100 : 0;
+              const smpBar = mA > 0 ? (mA / maxA) * 100 : 0;
+              const ratioOk  = sA > 0 && mA > 0;
+              const rat = ratioOk ? mA / sA : null;
+              const ratColor = rat === null ? "#94a3b8" : rat >= 0.95 ? "#16a34a" : rat >= 0.80 ? "#d97706" : "#dc2626";
+              const pctFound = ratioOk ? rat! * padraoConfig.stdPurity : null;
+              return (
+                <div style={{ marginBottom: 18, border: "1.5px solid #e2e8f0", borderRadius: 8, overflow: "hidden", fontFamily: "Courier New, monospace" }}>
+                  {/* Header */}
+                  <div style={{ background: "#1e293b", padding: "7px 16px", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: "bold", color: "#e2e8f0", letterSpacing: "0.04em" }}>📊 COMPARAÇÃO VISUAL — Padrão × Amostra</span>
+                    {rat !== null && (
+                      <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: "bold", color: ratColor, background: "#0f172a", border: `1px solid ${ratColor}`, borderRadius: 10, padding: "1px 10px" }}>
+                        Ratio {rat.toFixed(4)}
+                      </span>
+                    )}
+                  </div>
+                  {/* Body */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 72px 1fr", background: "#f8fafc" }}>
+                    {/* LEFT — Standard */}
+                    <div style={{ padding: "12px 14px", borderRight: "1px solid #e2e8f0" }}>
+                      <div style={{ fontSize: 9, fontWeight: "bold", color: "#1560bd", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                        ● Reference Standard
+                      </div>
+                      <div style={{ fontSize: 10, color: "#334155", marginBottom: 2 }}>
+                        <span style={{ color: "#94a3b8" }}>Peak: </span>
+                        <span style={{ fontWeight: 600 }}>{padraoConfig.stdPeakName || <span style={{ color: "#fca5a5" }}>— não capturado —</span>}</span>
+                      </div>
+                      <div style={{ fontSize: 10, color: "#334155", marginBottom: 2 }}>
+                        <span style={{ color: "#94a3b8" }}>Area: </span>
+                        <span style={{ fontWeight: 600, color: "#1560bd" }}>
+                          {sA > 0 ? `${sA.toFixed(3)} mAU·s` : <span style={{ color: "#fca5a5" }}>—</span>}
+                        </span>
+                      </div>
+                      {/* Area bar */}
+                      <div style={{ height: 8, background: "#e2e8f0", borderRadius: 4, marginBottom: 6, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${stdBar}%`, background: "#1560bd", borderRadius: 4, transition: "width 0.3s" }} />
+                      </div>
+                      <div style={{ fontSize: 10, color: "#334155", marginBottom: 1 }}>
+                        <span style={{ color: "#94a3b8" }}>Inj. amt: </span>
+                        <span style={{ fontWeight: 600 }}>{padraoConfig.stdAmountUg > 0 ? `${padraoConfig.stdAmountUg.toFixed(4)} µg` : <span style={{ color: "#fca5a5" }}>—</span>}</span>
+                      </div>
+                      <div style={{ fontSize: 10, color: "#334155" }}>
+                        <span style={{ color: "#94a3b8" }}>Purity: </span>
+                        <span style={{ fontWeight: 600 }}>{padraoConfig.stdPurity.toFixed(2)} %</span>
+                      </div>
+                    </div>
+                    {/* CENTER — Ratio */}
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 0", borderRight: "1px solid #e2e8f0", background: "#fff" }}>
+                      {rat !== null ? (
+                        <>
+                          <div style={{ fontSize: 14, fontWeight: 900, color: ratColor, lineHeight: 1 }}>{(rat * 100).toFixed(1)}%</div>
+                          <div style={{ fontSize: 8, color: "#94a3b8", marginTop: 2, textAlign: "center", lineHeight: 1.3 }}>Smp/Std<br/>area</div>
+                          <div style={{ width: 28, height: 28, borderRadius: "50%", border: `3px solid ${ratColor}`, marginTop: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <span style={{ fontSize: 12, color: ratColor }}>{rat >= 0.95 ? "✓" : rat >= 0.80 ? "~" : "!"}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ fontSize: 9, color: "#cbd5e1", textAlign: "center", lineHeight: 1.4 }}>aguard.<br/>dados</div>
+                      )}
+                    </div>
+                    {/* RIGHT — Sample */}
+                    <div style={{ padding: "12px 14px" }}>
+                      <div style={{ fontSize: 9, fontWeight: "bold", color: "#ea580c", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                        ● Analyzed Sample
+                      </div>
+                      <div style={{ fontSize: 10, color: "#334155", marginBottom: 2 }}>
+                        <span style={{ color: "#94a3b8" }}>Peak: </span>
+                        <span style={{ fontWeight: 600 }}>{padraoConfig.smpPeakName || <span style={{ color: "#fca5a5" }}>— não capturado —</span>}</span>
+                      </div>
+                      <div style={{ fontSize: 10, color: "#334155", marginBottom: 2 }}>
+                        <span style={{ color: "#94a3b8" }}>Area: </span>
+                        <span style={{ fontWeight: 600, color: "#ea580c" }}>
+                          {mA > 0 ? `${mA.toFixed(3)} mAU·s` : <span style={{ color: "#fca5a5" }}>—</span>}
+                        </span>
+                      </div>
+                      {/* Area bar */}
+                      <div style={{ height: 8, background: "#e2e8f0", borderRadius: 4, marginBottom: 6, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${smpBar}%`, background: "#f97316", borderRadius: 4, transition: "width 0.3s" }} />
+                      </div>
+                      <div style={{ fontSize: 10, color: "#334155", marginBottom: 1 }}>
+                        <span style={{ color: "#94a3b8" }}>Found: </span>
+                        <span style={{ fontWeight: 600, color: ratioOk ? "#ea580c" : "#94a3b8" }}>
+                          {ratioOk ? `${foundAmountUg.toFixed(4)} µg` : <span style={{ color: "#fca5a5" }}>—</span>}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 10, color: "#334155" }}>
+                        <span style={{ color: "#94a3b8" }}>Purity: </span>
+                        <span style={{ fontWeight: 600, color: pctFound !== null ? ratColor : "#94a3b8" }}>
+                          {pctFound !== null ? `${pctFound.toFixed(2)} %` : <span style={{ color: "#fca5a5" }}>—</span>}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Footer — formula hint */}
+                  {ratioOk && (
+                    <div style={{ padding: "5px 14px", background: "#f1f5f9", fontSize: 9, color: "#64748b", borderTop: "1px solid #e2e8f0" }}>
+                      Amount = ({mA.toFixed(3)} ÷ {sA.toFixed(3)}) × {padraoConfig.stdAmountUg.toFixed(4)} µg × ({padraoConfig.stdPurity.toFixed(2)} ÷ 100) = <strong style={{ color: "#ea580c" }}>{foundAmountUg.toFixed(4)} µg</strong>
+                      {padraoConfig.smpDeclaredAmountUg > 0 && (
+                        <span style={{ marginLeft: 12, color: "#6366f1" }}>
+                          vs. Declared {padraoConfig.smpDeclaredAmountUg.toFixed(2)} µg → <strong>{((foundAmountUg / padraoConfig.smpDeclaredAmountUg) * 100).toFixed(1)}%</strong>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* ─ Results ─ */}
             <div style={{ ...CARD, marginBottom: 18 }}>
               <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#1e293b", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
