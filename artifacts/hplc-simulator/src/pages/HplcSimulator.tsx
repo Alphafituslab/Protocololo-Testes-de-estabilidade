@@ -7562,7 +7562,7 @@ ${(() => {
   const rat    = smpArea / stdArea;
   const rC     = rat >= 0.95 ? '#16a34a' : rat >= 0.80 ? '#d97706' : '#dc2626';
   const sym    = rat >= 0.95 ? '✓' : rat >= 0.80 ? '~' : '!';
-  const pctF   = (rat * padraoConfig.stdPurity).toFixed(2);
+  const pctF   = displaySmpPurity.toFixed(2);
   const declRow = padraoConfig.smpDeclaredAmountUg > 0
     ? `<span style="margin-left:12px;color:#6366f1">vs. Declared ${padraoConfig.smpDeclaredAmountUg.toFixed(2)} µg → <strong>${((foundAmountUg / padraoConfig.smpDeclaredAmountUg) * 100).toFixed(1)}%</strong></span>` : '';
   return `<div style="margin:14px 0 10px;border:1.5px solid #334155;border-radius:6px;overflow:hidden;font-family:'Courier New',monospace">
@@ -8124,7 +8124,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                       <div style={{ fontSize: 10, color: "#334155" }}>
                         <span style={{ color: "#94a3b8" }}>Purity: </span>
                         <span style={{ fontWeight: 600, color: pctFound !== null ? ratColor : "#94a3b8" }}>
-                          {pctFound !== null ? `${pctFound.toFixed(2)} %` : <span style={{ color: "#fca5a5" }}>—</span>}
+                          {pctFound !== null ? `${displaySmpPurity.toFixed(2)} %` : <span style={{ color: "#fca5a5" }}>—</span>}
                         </span>
                       </div>
                     </div>
