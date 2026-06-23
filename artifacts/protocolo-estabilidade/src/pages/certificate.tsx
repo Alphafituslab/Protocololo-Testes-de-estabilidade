@@ -326,7 +326,7 @@ export default function CertificatePage() {
   const _savedPrintPrefs = (() => {
     try {
       const raw = localStorage.getItem(CERT_PRINT_PREFS_KEY);
-      return raw ? (JSON.parse(raw) as { includePhotos?: boolean; includeHistory?: boolean; show?: Partial<ShowSections>; rowVisibility?: Record<string, boolean> }) : null;
+      return raw ? (JSON.parse(raw) as { includePhotos?: boolean; includeHistory?: boolean; show?: Partial<ShowSections>; rowVisibility?: Record<string, boolean>; datePeriodsVisible?: number[] }) : null;
     } catch { return null; }
   })();
 
@@ -345,6 +345,17 @@ export default function CertificatePage() {
     referencias: true,
     ...(_savedPrintPrefs?.show ?? {}),
   }));
+
+  // Which period dates to show in "Datas das Análises por Período".
+  // Defaults to certPeriodsLS (same as the analyses columns) but can be customised independently.
+  const [certDatePeriods, setCertDatePeriods] = useState<number[]>(() =>
+    _savedPrintPrefs?.datePeriodsVisible ?? certPeriodsLS
+  );
+
+  const toggleDatePeriod = (p: number) =>
+    setCertDatePeriods(prev =>
+      prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p].sort((a, b) => a - b)
+    );
 
   const [includePhotos, setIncludePhotos] = useState(() => _savedPrintPrefs?.includePhotos ?? true);
   const [photosExpanded, setPhotosExpanded] = useState(false);
@@ -371,14 +382,14 @@ export default function CertificatePage() {
         const existing = (() => {
           try { return JSON.parse(localStorage.getItem(CERT_PRINT_PREFS_KEY) ?? "{}"); } catch { return {}; }
         })();
-        localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ ...existing, includePhotos, includeHistory, show }));
+        localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ ...existing, includePhotos, includeHistory, show, datePeriodsVisible: certDatePeriods }));
         return;
       }
       const rowVisibility: Record<string, boolean> = {};
       for (const a of analyses) rowVisibility[a.parameter] = a.visible;
-      localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ includePhotos, includeHistory, show, rowVisibility }));
+      localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ includePhotos, includeHistory, show, rowVisibility, datePeriodsVisible: certDatePeriods }));
     } catch { /* ignore */ }
-  }, [includePhotos, includeHistory, show, analyses, CERT_PRINT_PREFS_KEY]);
+  }, [includePhotos, includeHistory, show, analyses, certDatePeriods, CERT_PRINT_PREFS_KEY]);
 
   // ── Notify user when print preferences were restored from localStorage ──────
   const DEFAULT_SHOW: ShowSections = {
@@ -1117,6 +1128,25 @@ export default function CertificatePage() {
             </div>
           </div>
           <div className="space-y-2 border-t pt-4">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Datas das Análises por Período</p>
+            <p className="text-xs text-gray-400">Escolha quais datas aparecem na seção "Datas das Análises por Período" do certificado.</p>
+            <div className="flex gap-3">
+              {([0, 3, 6] as const).filter(p => certPeriodsLS.includes(p)).map(p => {
+                const labels: Record<number, string> = { 0: "T0 — Início", 3: "T3 — 3 Meses", 6: "T6 — 6 Meses" };
+                return (
+                  <label key={p} className="flex items-center gap-2 cursor-pointer select-none p-2 rounded-md border border-gray-100 hover:bg-gray-50">
+                    <input type="checkbox" checked={certDatePeriods.includes(p)} onChange={() => toggleDatePeriod(p)} className="w-4 h-4 accent-primary" />
+                    <span className="text-sm text-gray-700 font-medium">{labels[p]}</span>
+                  </label>
+                );
+              })}
+              {certPeriodsLS.length === 0 && (
+                <p className="text-xs text-gray-400 italic">Nenhum período selecionado na aba Resultados.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2 border-t pt-4">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Linhas de análise visíveis</p>
               <button onClick={toggleAllRows} className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 text-gray-600">
@@ -1489,38 +1519,42 @@ export default function CertificatePage() {
           </div>
 
           {/* ── Sub-cabeçalho: Datas ── */}
-          <div className="bg-slate-50 border-b border-gray-300 px-5 py-2">
-            <span className="text-[9px] font-semibold tracking-wide text-slate-500">Datas das Análises por Período</span>
-          </div>
-          <div
-            className="divide-x divide-gray-300"
-            style={{ display: "grid", gridTemplateColumns: `repeat(${certPeriodCount}, 1fr)` }}
-          >
-            {certPeriodsLS.includes(0) && (
-              <div className="p-4">
-                <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">T0 — Início do Estudo</p>
-                <p className="font-semibold text-slate-800 text-sm">
-                  <CertEditField value={getAnalysisDate("analysisDateT0", cert.analysisDates?.t0, 0)} onChange={v => setCertEdit("analysisDateT0", v)} className="w-full" />
-                </p>
+          {certDatePeriods.length > 0 && (
+            <>
+              <div className="bg-slate-50 border-b border-gray-300 px-5 py-2">
+                <span className="text-[9px] font-semibold tracking-wide text-slate-500">Datas das Análises por Período</span>
               </div>
-            )}
-            {certPeriodsLS.includes(3) && (
-              <div className="p-4">
-                <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">T3 — 3 Meses</p>
-                <p className="font-semibold text-slate-800 text-sm">
-                  <CertEditField value={getAnalysisDate("analysisDateT3", cert.analysisDates?.t3, 3)} onChange={v => setCertEdit("analysisDateT3", v)} className="w-full" />
-                </p>
+              <div
+                className="divide-x divide-gray-300"
+                style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, certDatePeriods.length)}, 1fr)` }}
+              >
+                {certDatePeriods.includes(0) && (
+                  <div className="p-4">
+                    <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">T0 — Início do Estudo</p>
+                    <p className="font-semibold text-slate-800 text-sm">
+                      <CertEditField value={getAnalysisDate("analysisDateT0", cert.analysisDates?.t0, 0)} onChange={v => setCertEdit("analysisDateT0", v)} className="w-full" />
+                    </p>
+                  </div>
+                )}
+                {certDatePeriods.includes(3) && (
+                  <div className="p-4">
+                    <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">T3 — 3 Meses</p>
+                    <p className="font-semibold text-slate-800 text-sm">
+                      <CertEditField value={getAnalysisDate("analysisDateT3", cert.analysisDates?.t3, 3)} onChange={v => setCertEdit("analysisDateT3", v)} className="w-full" />
+                    </p>
+                  </div>
+                )}
+                {certDatePeriods.includes(6) && (
+                  <div className="p-4">
+                    <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">T6 — 6 Meses</p>
+                    <p className="font-semibold text-slate-800 text-sm">
+                      <CertEditField value={getAnalysisDate("analysisDateT6", cert.analysisDates?.t6, 6)} onChange={v => setCertEdit("analysisDateT6", v)} className="w-full" />
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
-            {certPeriodsLS.includes(6) && (
-              <div className="p-4">
-                <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">T6 — 6 Meses</p>
-                <p className="font-semibold text-slate-800 text-sm">
-                  <CertEditField value={getAnalysisDate("analysisDateT6", cert.analysisDates?.t6, 6)} onChange={v => setCertEdit("analysisDateT6", v)} className="w-full" />
-                </p>
-              </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
         )}
 
