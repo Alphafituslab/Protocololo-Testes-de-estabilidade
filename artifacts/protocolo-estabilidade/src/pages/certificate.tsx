@@ -1111,50 +1111,6 @@ export default function CertificatePage() {
         )}
       </div>
 
-      {/* ─── Mini-cabeçalho repetido em TODAS as páginas do PDF ────────────
-           Na tela: exibido como caixa de pré-visualização com rótulo.
-           No PDF: position:fixed top:0 height:16mm ocupa exatamente a
-           margem superior de 16mm reservada pelo @page — repete em todas
-           as páginas. O conteúdo começa abaixo dessa margem sem sobreposição. */}
-      <div className="cert-page-header">
-        {/* Rótulo visível apenas na tela — indica que é o cabeçalho das pgs 2+ */}
-        <div className="cert-page-header-label">
-          Pré-visualização · Cabeçalho repetido em todas as páginas
-        </div>
-        {/* Conteúdo real do cabeçalho (logo + nº certificado) */}
-        <div className="cert-page-header-inner">
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: 0 }}>
-            <img
-              src="/logo-alphafitus.png"
-              alt="Alphafitus"
-              style={{ height: "28px", width: "auto", flexShrink: 0 }}
-            />
-            <div style={{ borderLeft: "1px solid #d1d5db", paddingLeft: "8px", minWidth: 0 }}>
-              <p style={{ fontSize: "6.5pt", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", margin: 0 }}>
-                Alphafitus Laboratório Nutracêutico
-              </p>
-              <p style={{ fontSize: "9pt", fontWeight: "bold", textTransform: "uppercase", color: "#1e293b", margin: 0, lineHeight: 1.2 }}>
-                Certificado de Análise
-              </p>
-              <p style={{ fontSize: "7.5pt", fontWeight: 600, color: "#059669", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {getEdit("productName", cert.productName)}
-              </p>
-            </div>
-          </div>
-          <div style={{ textAlign: "right", flexShrink: 0, paddingLeft: "16px" }}>
-            <p style={{ fontSize: "6pt", textTransform: "uppercase", color: "#9ca3af", margin: 0, fontWeight: 600, letterSpacing: "0.05em" }}>
-              Nº do Certificado de Análise
-            </p>
-            <p style={{ fontSize: "9.5pt", fontWeight: "bold", color: "#1e293b", margin: 0, whiteSpace: "nowrap" }}>
-              {getEdit("certNumber", cert.certNumber)}
-            </p>
-            <p style={{ fontSize: "6.5pt", color: "#6b7280", margin: 0 }}>
-              Data de Emissão: {fmtDate(getEdit("issueDate", cert.issueDate))}
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* ─── Certificate document ─── */}
       <div
         id="certificate-document"
@@ -2291,40 +2247,6 @@ export default function CertificatePage() {
       <style>{`
         /* ══ MARGENS DE PÁGINA ══════════════════════════════════════════════════ */
 
-        /* Mini-cabeçalho — caixa de pré-visualização na tela */
-        .cert-page-header {
-          display: flex;
-          flex-direction: column;
-          border: 1.5px dashed #94a3b8;
-          border-radius: 6px;
-          margin: 16px auto;
-          max-width: 900px;
-          overflow: hidden;
-          background: white;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-        }
-
-        /* Faixa de rótulo (somente tela) */
-        .cert-page-header-label {
-          background: #f1f5f9;
-          border-bottom: 1px dashed #94a3b8;
-          padding: 5px 16px;
-          font-size: 10px;
-          font-weight: 600;
-          color: #64748b;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        /* Linha com logo + nº certificado */
-        .cert-page-header-inner {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 10px 20px;
-          gap: 12px;
-        }
-
         @page {
           size: A4 portrait;
           /* margin: 0 suprime o cabeçalho/rodapé nativos do browser
@@ -2349,8 +2271,7 @@ export default function CertificatePage() {
           #certificate-document,
           #certificate-document * { visibility: visible !important; }
 
-          /* ── Mini-cabeçalho de pré-visualização: OCULTO na impressão ─────────── */
-          .cert-page-header { display: none !important; }
+          /* cert-page-header foi removido do JSX — regra mantida como guarda */
 
           /* ── 3. Ocultar chrome do app ─────────────────────────────────────────── */
           .print\:hidden { display: none !important; }
