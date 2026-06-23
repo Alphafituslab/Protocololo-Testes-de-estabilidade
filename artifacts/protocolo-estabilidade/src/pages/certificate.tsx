@@ -2353,13 +2353,29 @@ export default function CertificatePage() {
 
         @media print {
 
-          /* ── 1. Zerar html/body ───────────────────────────────────────────────── */
+          /* ── 1. Zerar html/body e containers de layout ───────────────────────── */
           html, body {
             margin: 0 !important;
             padding: 0 !important;
             overflow: visible !important;
             height: auto !important;
+            width: 100% !important;
             background: white !important;
+          }
+          /* Os containers com overflow:hidden/auto colapsam a largura disponível
+             para elementos display:table. Zerá-los garante que width:100% resolva
+             contra a área de conteúdo real da @page (160mm com margens de 25mm). */
+          #root,
+          #root > div,
+          #root main,
+          #root main > div {
+            overflow: visible !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
           }
 
           /* ── 2. Esconder tudo; revelar só o certificado ───────────────────────── */
@@ -2473,12 +2489,16 @@ export default function CertificatePage() {
              Conteúdo interno dos filhos block é preservado.                    */
           #certificate-document {
             display: table !important;
-            table-layout: fixed !important;
+            table-layout: auto !important;
             border-collapse: separate !important;
             border-spacing: 0 !important;
             position: static !important;
-            width: 100% !important;
-            max-width: 100% !important;
+            /* 160mm = A4 (210mm) − 2 × 25mm de margem lateral (@page margin: 0 25mm).
+               Usar largura física explícita em vez de 100% para evitar resolução
+               contra containers de overflow colapsados pela hierarquia de layout. */
+            width: 160mm !important;
+            min-width: 160mm !important;
+            max-width: 160mm !important;
             margin: 0 !important;
             padding: 0 !important;
             box-shadow: none !important;
