@@ -7525,6 +7525,80 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
               </button>
             </div>
 
+            {/* ── Quick Setup Guide — aparece quando há campos obrigatórios faltando ── */}
+            {validatePadrao(padraoConfig).some(a => a.severity === "error") && (
+              <div style={{ background: "#f0f9ff", border: "1px solid #7dd3fc", borderRadius: 8, padding: "14px 18px", marginBottom: 16 }}>
+                <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#0369a1", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                  📋 Como preencher — Guia rápido
+                  <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, background: "#fef2f2", color: "#991b1b", padding: "1px 7px", borderRadius: 10, border: "1px solid #fca5a5", marginLeft: 8 }}>
+                    {validatePadrao(padraoConfig).filter(a => a.severity === "error").length} campo(s) obrigatório(s) faltando
+                  </span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+                  {/* Campo 1 — Standard Area */}
+                  <div style={{ background: padraoConfig.stdArea > 0 ? "#f0fdf4" : "#fff7ed", border: `1px solid ${padraoConfig.stdArea > 0 ? "#86efac" : "#fdba74"}`, borderRadius: 6, padding: "10px 12px" }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: padraoConfig.stdArea > 0 ? "#166534" : "#c2410c", marginBottom: 4 }}>
+                      {padraoConfig.stdArea > 0 ? "✅" : "❌"} Standard Area
+                    </div>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#475569", lineHeight: 1.5 }}>
+                      {padraoConfig.stdArea > 0
+                        ? `✓ Preenchida: ${padraoConfig.stdArea.toFixed(3)} mAU·s`
+                        : <>
+                            <strong>1.</strong> Injetar o padrão no cromatógrafo<br />
+                            <strong>2.</strong> Na aba Analysis, abrir o cromatograma do padrão<br />
+                            <strong>3.</strong> Clicar em <strong>"Capture as standard area"</strong><br />
+                            <strong>ou:</strong> digitar a área manualmente no campo azul →
+                          </>
+                      }
+                    </div>
+                  </div>
+                  {/* Campo 2 — Standard Amount */}
+                  <div style={{ background: padraoConfig.stdAmountUg > 0 ? "#f0fdf4" : "#fff7ed", border: `1px solid ${padraoConfig.stdAmountUg > 0 ? "#86efac" : "#fdba74"}`, borderRadius: 6, padding: "10px 12px" }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: padraoConfig.stdAmountUg > 0 ? "#166534" : "#c2410c", marginBottom: 4 }}>
+                      {padraoConfig.stdAmountUg > 0 ? "✅" : "❌"} Injected amount (µg)
+                    </div>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#475569", lineHeight: 1.5 }}>
+                      {padraoConfig.stdAmountUg > 0
+                        ? `✓ Preenchida: ${padraoConfig.stdAmountUg.toFixed(4)} µg`
+                        : <>
+                            Retirar do <strong>Certificado de Análise</strong> do padrão de referência:<br />
+                            • Concentração (mg/mL) × Volume injetado (µL) = µg<br />
+                            <strong>Ex:</strong> 1 mg/mL × 50 µL = <strong>50 µg</strong><br />
+                            Digitar no campo azul "Injected amount (µg)" →
+                          </>
+                      }
+                    </div>
+                  </div>
+                  {/* Campo 3 — Sample Area */}
+                  <div style={{ background: padraoConfig.smpArea > 0 ? "#f0fdf4" : "#fff7ed", border: `1px solid ${padraoConfig.smpArea > 0 ? "#86efac" : "#fdba74"}`, borderRadius: 6, padding: "10px 12px" }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: padraoConfig.smpArea > 0 ? "#166534" : "#c2410c", marginBottom: 4 }}>
+                      {padraoConfig.smpArea > 0 ? "✅" : "❌"} Sample Area
+                    </div>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#475569", lineHeight: 1.5 }}>
+                      {padraoConfig.smpArea > 0
+                        ? `✓ Preenchida: ${padraoConfig.smpArea.toFixed(3)} mAU·s`
+                        : <>
+                            <strong>1.</strong> Injetar a amostra no cromatógrafo<br />
+                            <strong>2.</strong> Na aba Analysis, abrir o cromatograma da amostra<br />
+                            <strong>3.</strong> Clicar em <strong>"Capture as sample area"</strong><br />
+                            <strong>ou:</strong> digitar a área manualmente no campo laranja →
+                          </>
+                      }
+                    </div>
+                  </div>
+                </div>
+                {peakList.length > 0 && (
+                  <div style={{ background: "#eef2ff", border: "1px solid #a5b4fc", borderRadius: 5, padding: "8px 12px", fontFamily: "Courier New, monospace", fontSize: 10, color: "#3730a3" }}>
+                    ⚡ <strong>Atalho:</strong> há {peakList.length} pico(s) no cromatograma atual. Clique em{" "}
+                    <strong onClick={autoFillPadrao} style={{ cursor: "pointer", textDecoration: "underline", color: "#4f46e5" }}>
+                      "Auto-fill from chromatogram"
+                    </strong>{" "}
+                    no card azul para preencher Standard Area, Compound e Pureza automaticamente.
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Changelog panel */}
             {padraoHistoryOpen && padraoChangelog.length > 0 && (
               <div style={{ ...CARD, marginBottom: 16, background: "#fffbeb", border: "1px solid #fde68a" }}>
