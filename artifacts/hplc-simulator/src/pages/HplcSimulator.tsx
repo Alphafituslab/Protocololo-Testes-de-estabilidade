@@ -6115,8 +6115,19 @@ export default function HplcSimulator() {
               <Div />
 
               {/* External Standard Report — only print-selected peaks */}
-              <div style={{ marginTop: 16 }}>
+              <div style={{ marginTop: 16, position: "relative" }}>
                 <SectionTitle title="Report — External Standard" />
+                {/* Botão fora do quadro — no-print, nunca aparece no PDF */}
+                {padraoExtHasData && (
+                  <button
+                    onClick={() => setShowExtStdNote(v => !v)}
+                    title={showExtStdNote ? "Ocultar nota do padrão externo" : "Mostrar nota do padrão externo"}
+                    className="no-print"
+                    style={{ position: "absolute", top: 0, right: 0, background: "none", border: "1px solid #d1d5db", borderRadius: 4, padding: "1px 7px", cursor: "pointer", fontSize: 9, color: "#9ca3af", fontFamily: "Courier New, monospace", display: "flex", alignItems: "center", gap: 3 }}
+                  >
+                    👁
+                  </button>
+                )}
                 <div style={{ marginTop: 6 }}>
                   <div>{"    Sorted By             :      " + calib.sortedBy}</div>
                   <div>{"    Calib. Data Modified :       " + calib.calibDataModified}</div>
@@ -6131,21 +6142,9 @@ export default function HplcSimulator() {
                   <div style={{ whiteSpace: "pre" }}>{"    RetTime Type      Area     Amt/Area    Amount   Grp    Name"}</div>
                   <div style={{ whiteSpace: "pre" }}>{"     [min]          [mAU*s]               [ug/ml]"}</div>
                   <div style={{ whiteSpace: "pre" }}>{"    -------|------|----------|----------|----------|--|------------------"}</div>
-                  {padraoExtHasData && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      {showExtStdNote && (
-                        <div style={{ whiteSpace: "pre", fontSize: 9, color: "#6b7280", fontStyle: "italic" }}>
-                          {`    [External standard: ${padraoConfig.compoundName} — ${padraoConfig.stdPeakName} — ${padraoConfig.stdAmountUg.toFixed(4)} µg — purity ${padraoConfig.stdPurity.toFixed(2)}%]`}
-                        </div>
-                      )}
-                      <button
-                        onClick={() => setShowExtStdNote(v => !v)}
-                        title={showExtStdNote ? "Ocultar nota (não aparece na impressão/PDF)" : "Mostrar nota do padrão externo"}
-                        className="no-print"
-                        style={{ flexShrink: 0, background: "none", border: "1px solid #d1d5db", borderRadius: 4, padding: "1px 6px", cursor: "pointer", fontSize: 9, color: showExtStdNote ? "#6b7280" : "#dc2626", fontFamily: "Courier New, monospace", display: "flex", alignItems: "center", gap: 3 }}
-                      >
-                        {showExtStdNote ? "👁 ocultar" : "👁 mostrar nota"}
-                      </button>
+                  {padraoExtHasData && showExtStdNote && (
+                    <div style={{ whiteSpace: "pre", fontSize: 9, color: "#6b7280", fontStyle: "italic" }}>
+                      {`    [External standard: ${padraoConfig.compoundName} — ${padraoConfig.stdPeakName} — ${padraoConfig.stdAmountUg.toFixed(4)} µg — purity ${padraoConfig.stdPurity.toFixed(2)}%]`}
                     </div>
                   )}
                   {peakStats.filter(p => p.printSelected !== false).map(p => {
