@@ -1118,6 +1118,22 @@ export default function CertificatePage() {
         className="bg-white text-gray-900 border border-gray-300 shadow-lg rounded-sm p-10 font-sans text-sm leading-relaxed"
         data-testid="certificate-document"
       >
+        {/* ── CABEÇALHO FIXO: repetido em TODAS as páginas impressas ─────────── */}
+        <div className="cert-print-running-header hidden">
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <img src="/logo-alphafitus.png" alt="Alphafitus" style={{ height: 26, width: "auto", flexShrink: 0 }} />
+            <div style={{ borderLeft: "1px solid #94a3b8", paddingLeft: 8 }}>
+              <div style={{ fontSize: "5.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#64748b", lineHeight: 1.2 }}>Alphafitus Laboratório Nutracêutico</div>
+              <div style={{ fontSize: "8pt", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em", color: "#1e293b", lineHeight: 1.3 }}>{displayTitle}</div>
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: "5.5pt", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", lineHeight: 1.2 }}>Certificado Nº</div>
+            <div style={{ fontSize: "8pt", fontWeight: 800, color: "#1e293b", lineHeight: 1.3 }}>{String(getEdit("certNumber", cert.certNumber) ?? "—")}</div>
+            <div style={{ fontSize: "5.5pt", color: "#64748b", lineHeight: 1.2 }}>{String(getEdit("issueDate", fmtDate(cert.issueDate)) ?? "")}</div>
+          </div>
+        </div>
+
         {/* ── BLOCO INTRODUTÓRIO — Header + Empresa + Produto + Plano ───────
              Agrupados num único div para nunca quebrar a página dentro deles  */}
         <div className="cert-intro-block">
@@ -2217,6 +2233,13 @@ export default function CertificatePage() {
             Nenhuma imagem selecionada no painel acima. O anexo fotográfico não será incluído no PDF.
           </div>
         )}
+
+        {/* ── RODAPÉ FIXO: repetido em TODAS as páginas impressas ─────────────── */}
+        <div className="cert-print-footer hidden">
+          <span style={{ fontSize: "6pt", color: "#94a3b8" }}>{String(getEdit("companyName", cert.companyName) ?? "Alphafitus")}</span>
+          <span className="cert-page-counter" style={{ fontSize: "6.5pt", color: "#475569", fontWeight: 600 }} />
+          <span style={{ fontSize: "6pt", color: "#94a3b8" }}>Nº {String(getEdit("certNumber", cert.certNumber) ?? "")} — {String(getEdit("issueDate", fmtDate(cert.issueDate)) ?? "")}</span>
+        </div>
       </div>
 
       {/* Lightbox overlay — opens when a photo thumbnail is clicked */}
@@ -2283,43 +2306,55 @@ export default function CertificatePage() {
           #root aside    { display: none !important; }
           #root header   { display: none !important; }
 
-          /* ── 4. Cabeçalho grande (pg 1) — VISÍVEL na impressão ───────────────── */
+          /* ── 4. Cabeçalho da 1ª página — OCULTO na impressão (header fixo substitui) */
           .cert-doc-firstpage-header {
+            display: none !important;
+          }
+
+          /* ── 4b. Cabeçalho fixo: repete em TODAS as páginas ──────────────────── */
+          .cert-print-running-header {
             display: flex !important;
-            visibility: visible !important;
-            padding-bottom: 12pt !important;
-            margin-bottom: 14pt !important;
-            border-bottom: 3pt solid #1e293b !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            height: 18mm !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            padding: 0 30mm !important;
+            background: #ffffff !important;
+            border-bottom: 2pt solid #1e293b !important;
+            z-index: 9999 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
 
-          /* Logo maior e mais imponente no PDF */
-          .cert-doc-firstpage-header img[alt="Alphafitus"] {
-            height: 72px !important;
-            width: auto !important;
+          /* ── 4c. Rodapé fixo: repete em TODAS as páginas ─────────────────────── */
+          .cert-print-footer {
+            display: flex !important;
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            height: 13mm !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            padding: 0 30mm !important;
+            background: #ffffff !important;
+            border-top: 1pt solid #e2e8f0 !important;
+            z-index: 9999 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
 
-          /* Título do certificado em destaque */
-          .cert-doc-firstpage-header h1 {
-            font-size: 16pt !important;
-            font-weight: 900 !important;
-            letter-spacing: 0.06em !important;
+          /* Numeração: "Página X de Y" — injeta via CSS counter */
+          .cert-page-counter::after {
+            content: "Página " counter(page) " de " counter(pages);
           }
 
-          /* Nome do produto em verde, maior */
-          .cert-doc-firstpage-header .text-emerald-700 {
-            font-size: 10pt !important;
-            font-weight: 700 !important;
-          }
-
-          /* Linha Nº Certificado e Data */
-          .cert-doc-firstpage-header .text-base {
-            font-size: 11pt !important;
-            font-weight: 800 !important;
-          }
-
-          /* ── 5. Margens de página e posição do documento ──────────────────────── */
+          /* ── 5. Margens A4 — espaço para header (top) + footer (bottom) ─────── */
           @page {
-            margin: 14mm 12mm 11mm 12mm !important;
+            margin: 23mm 30mm 20mm 30mm !important;
           }
 
           #certificate-document {

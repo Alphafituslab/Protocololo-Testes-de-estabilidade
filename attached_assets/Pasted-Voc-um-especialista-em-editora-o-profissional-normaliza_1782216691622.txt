@@ -1,0 +1,85 @@
+Você é um especialista em editoração profissional, normalização documental, formatação técnica e organização de documentos corporativos.
+
+Analise e reestruture completamente o PDF fornecido, preservando integralmente seu conteúdo, mas melhorando a apresentação visual, a organização e a legibilidade, seguindo rigorosamente os critérios abaixo.
+
+CONFIGURAÇÃO DA PÁGINA
+Formato do papel: A4 (21,0 cm x 29,7 cm)
+Orientação: Retrato
+Margem superior: 2,5 cm
+Margem inferior: 2,5 cm
+Margem esquerda: 3,0 cm
+Margem direita: 3,0 cm
+CABEÇALHO
+O cabeçalho presente na primeira página deve ser replicado automaticamente em TODAS as páginas do documento.
+Manter exatamente a mesma estrutura visual, alinhamento e identidade do cabeçalho original.
+Garantir que o cabeçalho fique uniforme em todas as páginas.
+Caso o documento possua logotipo, código do documento, versão ou data, manter essas informações padronizadas em todas as páginas.
+RODAPÉ
+Inserir numeração de páginas.
+
+Utilizar preferencialmente o formato:
+
+Página X de Y
+
+Manter alinhamento uniforme em todas as páginas.
+ORGANIZAÇÃO GERAL
+Corrigir desalinhamentos.
+Corrigir espaçamentos irregulares.
+Padronizar fontes, tamanhos e estilos.
+Padronizar títulos e subtítulos.
+Melhorar a hierarquia visual dos conteúdos.
+Eliminar espaços em branco desnecessários.
+Evitar excesso de informação concentrada em uma única página.
+Distribuir o conteúdo de forma equilibrada.
+Garantir aparência profissional, limpa e organizada.
+TABELAS
+
+As tabelas devem receber tratamento prioritário.
+
+IMPORTANTE:
+
+Nunca quebrar uma linha da tabela entre páginas.
+Nunca permitir que uma célula fique dividida entre duas páginas.
+Nunca deixar metade das informações da tabela em uma página e a outra metade na página seguinte.
+Nunca deixar apenas o cabeçalho da tabela no final de uma página.
+Caso não exista espaço suficiente, mover a tabela inteira para a próxima página.
+Quando a tabela ocupar mais de uma página, repetir automaticamente o cabeçalho da tabela na continuação.
+Preservar todas as bordas e formatações.
+Garantir alinhamento perfeito entre linhas e colunas.
+Garantir que todas as informações permaneçam visíveis e legíveis.
+QUEBRAS DE PÁGINA
+
+Aplicar quebras de página inteligentes.
+
+Não deixar títulos isolados no final da página.
+Não iniciar seções sem espaço suficiente para o conteúdo subsequente.
+Manter títulos acompanhados de pelo menos parte significativa do texto relacionado.
+Evitar páginas visualmente desequilibradas.
+Garantir continuidade lógica e visual entre as páginas.
+IMAGENS, GRÁFICOS E ELEMENTOS VISUAIS
+Alinhar corretamente todos os elementos visuais.
+Evitar imagens cortadas.
+Evitar gráficos divididos entre páginas.
+Manter espaçamento uniforme ao redor dos elementos.
+Garantir aparência profissional e organizada.
+LEGIBILIDADE
+Priorizar leitura fácil e rápida.
+Melhorar espaçamento entre seções.
+Manter consistência visual em todo o documento.
+Garantir que o documento seja adequado para impressão, auditorias, inspeções regulatórias e arquivamento.
+RESULTADO FINAL ESPERADO
+
+O documento final deve apresentar:
+
+✓ Formato A4 padronizado
+✓ Margens corretas
+✓ Cabeçalho repetido em todas as páginas
+✓ Numeração de páginas
+✓ Tabelas sem cortes ou fragmentações
+✓ Quebras de página inteligentes
+✓ Estrutura visual profissional
+✓ Excelente legibilidade
+✓ Aparência compatível com documentos técnicos, corporativos e regulatórios
+✓ Documento pronto para impressão e apresentação formal
+
+Antes de finalizar, revise todo o documento para garantir que nenhuma tabela, gráfico, figura ou bloco de informação tenha sido cortado, fragmentado ou deslocado de forma inadequada.
