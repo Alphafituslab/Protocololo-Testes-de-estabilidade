@@ -270,3 +270,14 @@
   .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after,
   .border.active-elevate-2:not(.no-active-interaction-elevate)::after { inset: -1px; }
 }
+
+/* ── Standard tab: flash de navegação ao clicar em valores de resultado ── */
+@keyframes padraoFieldFlash {
+  0%   { background: transparent; box-shadow: none; }
+  20%  { background: #fef9c3; box-shadow: 0 0 0 3px #fde047; border-radius: 5px; }
+  60%  { background: #fef9c3; box-shadow: 0 0 0 3px #fde047; border-radius: 5px; }
+  100% { background: transparent; box-shadow: none; }
+}
+.padrao-field-flash {
+  animation: padraoFieldFlash 1.4s ease;
+}

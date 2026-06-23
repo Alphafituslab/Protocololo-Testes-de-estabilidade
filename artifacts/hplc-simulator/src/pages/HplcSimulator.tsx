@@ -7652,7 +7652,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                   </button>
                 </div>
 
-                <div style={ROW}>
+                <div id="padrao-row-compound" style={ROW}>
                   <span style={LBL}>Compound</span>
                   <input
                     type="text"
@@ -7662,17 +7662,17 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                     style={INP}
                   />
                 </div>
-                <div style={ROW}>
+                <div id="padrao-row-stdArea" style={ROW}>
                   <span style={LBL}>Standard Area (mAU·s)</span>
                   {numInput(padraoConfig.stdArea, v => updatePadraoProtected({ stdArea: v }), { step: "0.001", placeholder: "0.000" })}
                   {padraoConfig.stdArea <= 0 && <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#dc2626", marginTop: 2 }}>⚠ Required — enter a value &gt; 0</div>}
                 </div>
-                <div style={ROW}>
+                <div id="padrao-row-stdAmountUg" style={ROW}>
                   <span style={LBL}>Injected amount (µg)</span>
                   {numInput(padraoConfig.stdAmountUg, v => updatePadraoProtected({ stdAmountUg: v }), { step: "0.001", placeholder: "µg" })}
                   {padraoConfig.stdAmountUg <= 0 && <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#dc2626", marginTop: 2 }}>⚠ Required — enter a value &gt; 0</div>}
                 </div>
-                <div style={ROW}>
+                <div id="padrao-row-stdPurity" style={ROW}>
                   <span style={LBL}>Certified purity (%)</span>
                   {numInput(padraoConfig.stdPurity, v => updatePadraoProtected({ stdPurity: v }), { step: "0.01", placeholder: "100.00" })}
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#059669", marginTop: 2, background: "#ecfdf5", border: "1px solid #6ee7b7", borderRadius: 3, padding: "2px 5px" }}>
@@ -7712,7 +7712,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                 </div>
 
                 {/* ── Pureza da amostra ── */}
-                <div style={ROW}>
+                <div id="padrao-row-smpPurity" style={ROW}>
                   <span style={{ ...LBL, color: "#c2410c" }}>Pureza da amostra (%)</span>
                   <div>
                     {numInput(padraoConfig.smpPurity, v => {
@@ -7730,7 +7730,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                   </div>
                 </div>
 
-                <div style={ROW}>
+                <div id="padrao-row-smpArea" style={ROW}>
                   <span style={LBL}>Sample Area (mAU·s)</span>
                   <div>
                     {numInput(padraoConfig.smpArea, v => updatePadrao({ smpArea: v, smpRawArea: 0 }), { step: "0.001", placeholder: "0.000" })}
@@ -7745,7 +7745,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                     )}
                   </div>
                 </div>
-                <div style={ROW}>
+                <div id="padrao-row-smpDeclared" style={ROW}>
                   <span style={{ ...LBL, fontSize: 10 }}>Declared/theoretical amount (µg)</span>
                   {numInput(padraoConfig.smpDeclaredAmountUg, v => updatePadrao({ smpDeclaredAmountUg: v }), { step: "0.001", placeholder: "optional — for % vs declared" })}
                 </div>
