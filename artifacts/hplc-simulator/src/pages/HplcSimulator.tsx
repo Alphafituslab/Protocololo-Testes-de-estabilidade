@@ -7157,7 +7157,24 @@ export default function HplcSimulator() {
 
         const foundAmountUg   = ratio * padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100);
         const foundAmountMg   = foundAmountUg / 1000;
-        const purityVsStd     = ratio * padraoConfig.stdPurity;
+
+        // purityCalc: what the external-standard method derives from the area ratio
+        const purityCalc      = ratio * padraoConfig.stdPurity;
+
+        // hasSmpPurity: user explicitly entered a sample purity (anything < 99.99 is intentional)
+        const hasSmpPurity    = padraoConfig.smpPurity > 0 && padraoConfig.smpPurity < 99.99;
+
+        // displaySmpPurity: show the entered value when the user set it; else the calculated one
+        const displaySmpPurity = hasSmpPurity ? padraoConfig.smpPurity : purityCalc;
+
+        // When both smpPurity and declared amount are known, derive found amount directly from purity
+        const foundAmountFromPurityUg: number | null =
+          hasSmpPurity && padraoConfig.smpDeclaredAmountUg > 0
+            ? padraoConfig.smpDeclaredAmountUg * (padraoConfig.smpPurity / 100)
+            : null;
+        const foundAmountFromPurityMg: number | null =
+          foundAmountFromPurityUg !== null ? foundAmountFromPurityUg / 1000 : null;
+
         const purityVsDecl    = padraoConfig.smpDeclaredAmountUg > 0
           ? (foundAmountUg / padraoConfig.smpDeclaredAmountUg) * 100
           : null;
@@ -7205,9 +7222,7 @@ export default function HplcSimulator() {
                 stdPurity: 99.5,
                 smpPeakName: matchingPeak.name || `TR ${matchingPeak.retentionTime.toFixed(3)} min`,
                 smpArea: smpA,
-                smpDeclaredAmountUg: compound.amtPerArea > 0 && smpA > 0
-                  ? parseFloat((compound.amtPerArea * smpA * 1000).toFixed(4))
-                  : 0,
+                smpDeclaredAmountUg: 0,
               });
               return;
             }
@@ -7251,22 +7266,25 @@ footer{font-size:9px;color:#999;margin-top:20px;border-top:1px solid #e2e8f0;pad
 <p><strong>Compound:</strong> ${padraoConfig.compoundName || '—'} &nbsp;&nbsp; <strong>Method:</strong> External Standard (single point)</p>
 <p><strong>Sample:</strong> ${sample.sampleName} &nbsp;&nbsp; <strong>Operator:</strong> ${sample.acqOperator} &nbsp;&nbsp; <strong>Date:</strong> ${sample.injectionDate}</p>
 ${hasData ? `<h2>Results</h2><div class="cards">
-<div class="card"><div class="big ${purityVsStd >= 98 ? 'ok' : purityVsStd >= 90 ? 'warn' : 'bad'}">${purityVsStd.toFixed(2)}%</div><div class="lbl">Purity vs. Standard (area)</div></div>
+<div class="card"><div class="big ${displaySmpPurity >= 98 ? 'ok' : displaySmpPurity >= 90 ? 'warn' : 'bad'}">${displaySmpPurity.toFixed(2)}%</div><div class="lbl">${hasSmpPurity ? 'Pureza da amostra (digitada)' : 'Purity vs. Standard (area)'}</div></div>
 ${purityVsDecl !== null ? `<div class="card"><div class="big ${purityVsDecl >= 98 ? 'ok' : purityVsDecl >= 90 ? 'warn' : 'bad'}">${purityVsDecl.toFixed(2)}%</div><div class="lbl">Purity vs. Declared</div></div>` : ''}
 <div class="card"><div class="big ${relativeTeor >= 98 ? 'ok' : relativeTeor >= 90 ? 'warn' : 'bad'}">${relativeTeor.toFixed(2)}%</div><div class="lbl">% Active vs. Standard (µg)</div></div>
-<div class="card"><div class="big">${foundAmountUg.toFixed(4)} µg</div><div class="lbl">Amount found</div></div>
+<div class="card"><div class="big">${foundAmountUg.toFixed(4)} µg</div><div class="lbl">Amount found (std method)</div></div>
+${foundAmountFromPurityUg !== null ? `<div class="card"><div class="big">${foundAmountFromPurityUg.toFixed(4)} µg</div><div class="lbl">Found amount — purity basis</div></div>` : ''}
 </div>
 <table><thead><tr><th>Parameter</th><th>Standard</th><th>Sample</th><th>Ratio (S/A)</th></tr></thead><tbody>
 <tr><td>Compound</td><td>${padraoConfig.compoundName || '—'}</td><td>${padraoConfig.smpPeakName || '—'}</td><td></td></tr>
 <tr><td>Area (mAU·s)</td><td>${stdArea.toFixed(5)}</td><td>${smpArea.toFixed(5)}</td><td>${ratio.toFixed(6)}</td></tr>
 <tr><td>Amount injected (µg)</td><td>${padraoConfig.stdAmountUg.toFixed(4)}</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
-<tr><td>Certified / found purity (%)</td><td>${padraoConfig.stdPurity.toFixed(2)}</td><td>${purityVsStd.toFixed(2)}</td><td></td></tr>
+<tr><td>Certified / found purity (%)</td><td>${padraoConfig.stdPurity.toFixed(2)}</td><td>${displaySmpPurity.toFixed(2)}${hasSmpPurity ? ' ★' : ''}</td><td></td></tr>
+${hasSmpPurity ? `<tr><td>Purity via area ratio (%)</td><td>—</td><td>${purityCalc.toFixed(2)}</td><td></td></tr>` : ''}
 <tr><td>% Active vs. Standard (µg)</td><td>100.00</td><td>${relativeTeor.toFixed(2)}</td><td></td></tr>
 ${purityVsDecl !== null ? `<tr><td>Purity vs. declared (%)</td><td>—</td><td>${purityVsDecl.toFixed(2)}</td><td></td></tr>` : ''}
 <tr><td>Amount found (µg)</td><td>—</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
 <tr><td>Amount found (mg)</td><td>—</td><td>${foundAmountMg.toFixed(6)}</td><td></td></tr>
+${foundAmountFromPurityUg !== null ? `<tr><td>Found amount — purity (µg)</td><td>—</td><td>${foundAmountFromPurityUg.toFixed(4)}</td><td></td></tr><tr><td>Found amount — purity (mg)</td><td>—</td><td>${foundAmountFromPurityMg!.toFixed(6)}</td><td></td></tr>` : ''}
 </tbody></table>
-<p style="font-size:10px;color:#64748b;margin-top:8px">Formula: Amount (µg) = (Sample Area ÷ Standard Area) × Standard Amount (µg) × (Purity ÷ 100)</p>`
+<p style="font-size:10px;color:#64748b;margin-top:8px">Formula: Amount (µg) = (Smp Area ÷ Std Area) × Std Amount (µg) × (Std Purity ÷ 100)${hasSmpPurity ? ' | ★ Purity entered by operator' : ''}${foundAmountFromPurityUg !== null ? ' | Found (purity) = Declared × (Purity/100)' : ''}</p>`
 : '<p style="color:#999;margin-top:10px">Insufficient data to calculate the result.</p>'}
 ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
 <table><thead><tr><th>Lot</th><th>Date</th><th>Sample</th><th>Area (mAU·s)</th><th>Conc. (µg/ml)</th><th>Conformance</th></tr></thead><tbody>${lotsRows}</tbody></table>` : ''}
@@ -7614,22 +7632,30 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                   {/* Summary cards */}
                   <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
                     <ResultCell
-                      value={`${purityVsStd.toFixed(2)} %`}
-                      label="Purity vs. Standard (area)"
-                      color={purityVsStd >= 98 ? "#16a34a" : purityVsStd >= 90 ? "#d97706" : "#dc2626"}
+                      value={`${displaySmpPurity.toFixed(2)} %`}
+                      label={hasSmpPurity ? "Pureza da amostra (digitada)" : "Purity vs. Standard (area)"}
+                      color={displaySmpPurity >= 98 ? "#16a34a" : displaySmpPurity >= 90 ? "#d97706" : "#dc2626"}
                       big
                       trace={buildCalcTrace(
-                        "Purity vs. Standard (area)", `${purityVsStd.toFixed(2)} %`, "external_standard",
-                        "Purity (%) = (SampleArea / StandardArea) × StandardPurity",
-                        [
-                          { label: "Sample Area", value: `${smpArea.toFixed(5)} mAU·s`, source: "Standard tab" },
-                          { label: "Standard Area", value: `${stdArea.toFixed(5)} mAU·s`, source: "Standard tab" },
-                          { label: "Standard Purity", value: `${padraoConfig.stdPurity.toFixed(2)} %`, source: "Standard tab" },
-                          { label: "Ratio (Smp/Std)", value: ratio.toFixed(6), source: "Calculated" },
-                        ],
+                        hasSmpPurity ? "Pureza da amostra (digitada)" : "Purity vs. Standard (area)",
+                        `${displaySmpPurity.toFixed(2)} %`, "external_standard",
+                        hasSmpPurity
+                          ? "Pureza digitada diretamente pelo operador"
+                          : "Purity (%) = (SampleArea / StandardArea) × StandardPurity",
+                        hasSmpPurity
+                          ? [
+                              { label: "Entered sample purity", value: `${padraoConfig.smpPurity.toFixed(2)} %`, source: "Standard tab" },
+                              { label: "Calculated purity (area ratio)", value: `${purityCalc.toFixed(2)} %`, source: "Calculated" },
+                            ]
+                          : [
+                              { label: "Sample Area", value: `${smpArea.toFixed(5)} mAU·s`, source: "Standard tab" },
+                              { label: "Standard Area", value: `${stdArea.toFixed(5)} mAU·s`, source: "Standard tab" },
+                              { label: "Standard Purity", value: `${padraoConfig.stdPurity.toFixed(2)} %`, source: "Standard tab" },
+                              { label: "Ratio (Smp/Std)", value: ratio.toFixed(6), source: "Calculated" },
+                            ],
                         "Standard",
                         { compoundName: padraoConfig.compoundName, standardRef: padraoConfig.stdPeakName,
-                          warningText: purityVsStd < 90 ? "Result below 90% — verify standard and sample peaks" : undefined }
+                          warningText: displaySmpPurity < 90 ? "Result below 90% — verify standard and sample peaks" : undefined }
                       )}
                     />
                     {purityVsDecl !== null && (
@@ -7686,10 +7712,15 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                         { label: "Peak (reference)", std: padraoConfig.stdPeakName || "—", smp: padraoConfig.smpPeakName || "—", ratio: "" },
                         { label: "Area (mAU·s)", std: stdArea.toFixed(5), smp: smpArea.toFixed(5), ratio: ratio.toFixed(6) },
                         { label: "Injected amount (µg)", std: padraoConfig.stdAmountUg.toFixed(4), smp: foundAmountUg.toFixed(4), ratio: ratio.toFixed(6) },
-                        { label: "Certified / found purity (%)", std: padraoConfig.stdPurity.toFixed(2), smp: purityVsStd.toFixed(2), ratio: "" },
+                        { label: "Certified / found purity (%)", std: padraoConfig.stdPurity.toFixed(2), smp: displaySmpPurity.toFixed(2), ratio: "" },
+                        ...(hasSmpPurity ? [{ label: "Purity via área ratio (%)", std: "—", smp: purityCalc.toFixed(2), ratio: "" }] : []),
                         ...(purityVsDecl !== null ? [{ label: "Purity vs. declared (%)", std: "—", smp: purityVsDecl.toFixed(2), ratio: "" }] : []),
                         { label: "Found amount (µg)", std: "—", smp: foundAmountUg.toFixed(4), ratio: "" },
                         { label: "Found amount (mg)", std: "—", smp: foundAmountMg.toFixed(6), ratio: "" },
+                        ...(foundAmountFromPurityUg !== null ? [
+                          { label: "Found amount — purity (µg)", std: "—", smp: foundAmountFromPurityUg.toFixed(4), ratio: "" },
+                          { label: "Found amount — purity (mg)", std: "—", smp: foundAmountFromPurityMg!.toFixed(6), ratio: "" },
+                        ] : []),
                         ...(padraoConfig.stdAmountUg > 0 ? [{ label: "% Active vs. Standard (µg)", std: "100.00", smp: relativeTeor.toFixed(2), ratio: "" }] : []),
                       ].map((row, i) => (
                         <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
@@ -7707,7 +7738,9 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                     <strong>Applied formula:</strong>
                     {"  "}Amount (µg) = (Sample Area / Standard Area) × Standard Amount (µg) × (Standard Purity / 100)
                     {"  |  "}
-                    Purity (%) = (Sample Area / Standard Area) × Standard Purity (%)
+                    {hasSmpPurity
+                      ? <>Purity (%) = <strong style={{ color: "#f97316" }}>digitada pelo operador</strong>{" | "}Purity ratio = (Smp Area / Std Area) × Std Purity (%){foundAmountFromPurityUg !== null ? " | Found (purity) = Declared (µg) × (Purity / 100)" : ""}</>
+                      : "Purity (%) = (Sample Area / Standard Area) × Standard Purity (%)"}
                   </div>
                 </>
               )}
