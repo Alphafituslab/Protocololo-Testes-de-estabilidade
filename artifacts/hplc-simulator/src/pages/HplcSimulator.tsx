@@ -7469,18 +7469,31 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
           )
         );
 
-        const ResultCell = ({ value, label, color, big, trace }: { value: string; label: string; color?: string; big?: boolean; trace?: CalcTrace }) => (
+        const scrollToField = (id: string) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.remove("padrao-field-flash");
+          void el.offsetWidth;
+          el.classList.add("padrao-field-flash");
+          el.addEventListener("animationend", () => el.classList.remove("padrao-field-flash"), { once: true });
+        };
+
+        const ResultCell = ({ value, label, color, big, trace, fieldId }: { value: string; label: string; color?: string; big?: boolean; trace?: CalcTrace; fieldId?: string }) => (
           <div
             style={{
               background: "#fff", borderRadius: 6, padding: "10px 14px",
               border: `2px solid ${color ?? "#e2e8f0"}`, minWidth: 140,
-              cursor: trace ? "context-menu" : "default",
+              cursor: fieldId ? "pointer" : trace ? "context-menu" : "default",
+              transition: "box-shadow 0.15s",
             }}
+            onClick={fieldId ? () => scrollToField(fieldId) : undefined}
             onContextMenu={trace ? (e) => { e.preventDefault(); setCalcTraceDialog(trace); } : undefined}
-            title={trace ? "Right-click: Ver origem do cálculo" : undefined}
+            title={fieldId ? "Clique para ir ao campo de entrada" : trace ? "Right-click: Ver origem do cálculo" : undefined}
           >
             <div style={{ fontFamily: "Courier New, monospace", fontSize: big ? 22 : 18, fontWeight: "bold", color: color ?? "#1e293b" }}>
               {value}{trace && <span style={{ fontSize: 9, color: "#94a3b8", marginLeft: 5, fontWeight: "normal" }}>⎇</span>}
+              {fieldId && <span style={{ fontSize: 9, color: "#94a3b8", marginLeft: 5, fontWeight: "normal" }}>↑</span>}
             </div>
             <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b", marginTop: 2 }}>
               {label}
@@ -7833,6 +7846,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                       label={hasSmpPurity ? "Pureza da amostra (digitada)" : "Purity vs. Standard (area)"}
                       color={displaySmpPurity >= 98 ? "#16a34a" : displaySmpPurity >= 90 ? "#d97706" : "#dc2626"}
                       big
+                      fieldId={hasSmpPurity ? "padrao-row-smpPurity" : "padrao-row-smpArea"}
                       trace={buildCalcTrace(
                         hasSmpPurity ? "Pureza da amostra (digitada)" : "Purity vs. Standard (area)",
                         `${displaySmpPurity.toFixed(2)} %`, "external_standard",
@@ -7860,9 +7874,11 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                         value={`${purityVsDecl.toFixed(2)} %`}
                         label="Purity vs. Declared"
                         color={purityVsDecl >= 98 ? "#16a34a" : purityVsDecl >= 90 ? "#d97706" : "#dc2626"}
+                        fieldId="padrao-row-smpDeclared"
                       />
                     )}
                     <ResultCell value={`${foundAmountUg.toFixed(4)} µg`} label="Found amount (µg)"
+                      fieldId="padrao-row-smpArea"
                       trace={buildCalcTrace(
                         "Found Amount", `${foundAmountUg.toFixed(4)} µg`, "external_standard",
                         "Amount (µg) = (SampleArea / StandardArea) × StandardAmount × (Purity / 100)",
@@ -7877,6 +7893,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                       )}
                     />
                     <ResultCell value={`${foundAmountMg.toFixed(6)} mg`} label="Found amount (mg)"
+                      fieldId="padrao-row-smpArea"
                       trace={buildCalcTrace(
                         "Found Amount (mg)", `${foundAmountMg.toFixed(6)} mg`, "external_standard",
                         "Amount (mg) = FoundAmount (µg) / 1000",
@@ -7889,6 +7906,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                         value={`${purityVsDecl.toFixed(2)} %`}
                         label="% Found vs. Declared (µg)"
                         color={purityVsDecl >= 98 ? "#16a34a" : purityVsDecl >= 90 ? "#d97706" : "#dc2626"}
+                        fieldId="padrao-row-smpDeclared"
                       />
                     )}
                   </div>
@@ -7904,28 +7922,36 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                       </tr>
                     </thead>
                     <tbody>
-                      {[
-                        { label: "Compound", std: padraoConfig.compoundName || "—", smp: padraoConfig.smpPeakName || "—", ratio: "" },
-                        { label: "Peak (reference)", std: padraoConfig.stdPeakName || "—", smp: padraoConfig.smpPeakName || "—", ratio: "" },
-                        { label: "Area (mAU·s)", std: stdArea.toFixed(5), smp: smpArea.toFixed(5), ratio: ratio.toFixed(6) },
-                        { label: "Injected amount (µg)", std: padraoConfig.stdAmountUg.toFixed(4), smp: foundAmountUg.toFixed(4), ratio: ratio.toFixed(6) },
-                        { label: "Certified / found purity (%)", std: padraoConfig.stdPurity.toFixed(2), smp: displaySmpPurity.toFixed(2), ratio: "" },
-                        ...(hasSmpPurity ? [{ label: "Purity via área ratio (%)", std: "—", smp: purityCalc.toFixed(2), ratio: "" }] : []),
-                        ...(purityVsDecl !== null ? [{ label: "Purity vs. declared (%)", std: "—", smp: purityVsDecl.toFixed(2), ratio: "" }] : []),
-                        { label: "Found amount (µg)", std: "—", smp: foundAmountUg.toFixed(4), ratio: "" },
-                        { label: "Found amount (mg)", std: "—", smp: foundAmountMg.toFixed(6), ratio: "" },
+                      {([
+                        { label: "Compound", std: padraoConfig.compoundName || "—", smp: padraoConfig.smpPeakName || "—", ratio: "", stdFieldId: "padrao-row-compound", smpFieldId: "padrao-row-compound" },
+                        { label: "Peak (reference)", std: padraoConfig.stdPeakName || "—", smp: padraoConfig.smpPeakName || "—", ratio: "", stdFieldId: "padrao-row-compound", smpFieldId: "padrao-row-compound" },
+                        { label: "Area (mAU·s)", std: stdArea.toFixed(5), smp: smpArea.toFixed(5), ratio: ratio.toFixed(6), stdFieldId: "padrao-row-stdArea", smpFieldId: "padrao-row-smpArea" },
+                        { label: "Injected amount (µg)", std: padraoConfig.stdAmountUg.toFixed(4), smp: foundAmountUg.toFixed(4), ratio: ratio.toFixed(6), stdFieldId: "padrao-row-stdAmountUg", smpFieldId: "padrao-row-smpArea" },
+                        { label: "Certified / found purity (%)", std: padraoConfig.stdPurity.toFixed(2), smp: displaySmpPurity.toFixed(2), ratio: "", stdFieldId: "padrao-row-stdPurity", smpFieldId: "padrao-row-smpPurity" },
+                        ...(hasSmpPurity ? [{ label: "Purity via área ratio (%)", std: "—", smp: purityCalc.toFixed(2), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpArea" }] : []),
+                        ...(purityVsDecl !== null ? [{ label: "Purity vs. declared (%)", std: "—", smp: purityVsDecl.toFixed(2), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpDeclared" }] : []),
+                        { label: "Found amount (µg)", std: "—", smp: foundAmountUg.toFixed(4), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpArea" },
+                        { label: "Found amount (mg)", std: "—", smp: foundAmountMg.toFixed(6), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpArea" },
                         ...(foundAmountFromPurityUg !== null ? [
-                          { label: "Found amount — purity (µg)", std: "—", smp: foundAmountFromPurityUg.toFixed(4), ratio: "" },
-                          { label: "Found amount — purity (mg)", std: "—", smp: foundAmountFromPurityMg!.toFixed(6), ratio: "" },
+                          { label: "Found amount — purity (µg)", std: "—", smp: foundAmountFromPurityUg.toFixed(4), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpPurity" },
+                          { label: "Found amount — purity (mg)", std: "—", smp: foundAmountFromPurityMg!.toFixed(6), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpPurity" },
                         ] : []),
                         ...(purityVsDecl !== null && padraoConfig.smpDeclaredAmountUg < foundAmountUg * 100
-                          ? [{ label: "% Found vs. Declared (µg)", std: "100.00", smp: purityVsDecl.toFixed(2), ratio: "" }]
+                          ? [{ label: "% Found vs. Declared (µg)", std: "100.00", smp: purityVsDecl.toFixed(2), ratio: "", stdFieldId: "padrao-row-smpDeclared", smpFieldId: "padrao-row-smpDeclared" }]
                           : []),
-                      ].map((row, i) => (
+                      ] as { label: string; std: string; smp: string; ratio: string; stdFieldId?: string; smpFieldId?: string }[]).map((row, i) => (
                         <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                           <td style={{ padding: "5px 10px", color: "#334155" }}>{row.label}</td>
-                          <td style={{ padding: "5px 10px", textAlign: "right", color: "#1560bd" }}>{row.std}</td>
-                          <td style={{ padding: "5px 10px", textAlign: "right", color: "#f97316", fontWeight: row.label.startsWith("Pureza") || row.label.startsWith("Teor") ? 700 : 400 }}>{row.smp}</td>
+                          <td
+                            onClick={row.stdFieldId ? () => scrollToField(row.stdFieldId!) : undefined}
+                            title={row.stdFieldId ? "Clique para ir ao campo de entrada" : undefined}
+                            style={{ padding: "5px 10px", textAlign: "right", color: "#1560bd", cursor: row.stdFieldId ? "pointer" : "default" }}
+                          >{row.std}{row.stdFieldId && row.std !== "—" && <span style={{ fontSize: 8, color: "#94a3b8", marginLeft: 3 }}>↑</span>}</td>
+                          <td
+                            onClick={row.smpFieldId ? () => scrollToField(row.smpFieldId!) : undefined}
+                            title={row.smpFieldId ? "Clique para ir ao campo de entrada" : undefined}
+                            style={{ padding: "5px 10px", textAlign: "right", color: "#f97316", fontWeight: row.label.startsWith("Pureza") || row.label.startsWith("Teor") ? 700 : 400, cursor: row.smpFieldId ? "pointer" : "default" }}
+                          >{row.smp}{row.smpFieldId && row.smp !== "—" && <span style={{ fontSize: 8, color: "#94a3b8", marginLeft: 3 }}>↑</span>}</td>
                           <td style={{ padding: "5px 10px", textAlign: "right", color: "#64748b" }}>{row.ratio}</td>
                         </tr>
                       ))}
