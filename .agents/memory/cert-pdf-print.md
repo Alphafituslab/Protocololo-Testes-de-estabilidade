@@ -1,51 +1,34 @@
 ---
 name: Certificado PDF — CSS paged media
-description: Regras críticas para impressão do certificado — cabeçalho/rodapé em todas as páginas, margens, largura da tabela.
+description: Regras críticas para impressão do certificado — layout, margens A4, armadilhas do Chrome print.
 ---
 
-## Regra principal
+## Regra de ouro: display:block no #certificate-document
 
-`position: fixed` em Chrome print renderiza **SOMENTE na página 1**. Nunca usar para repetir cabeçalho/rodapé em páginas 2+.
-
-## Mecanismo correto: display:table-header-group / table-footer-group
+`display:block` é o ÚNICO valor correto para `#certificate-document` em print. Nunca usar `display:table`.
 
 ```css
-#certificate-document { display: table !important; table-layout: auto; }
-.cert-print-running-header { display: table-header-group !important; }
-.cert-print-footer         { display: table-footer-group !important; }
-```
-
-O browser repete automaticamente o header-group no topo e o footer-group no rodapé de cada página impressa.
-
-**Requisito JSX**: o `cert-print-running-header` precisa ter um único filho wrapper (`.cert-print-running-header-inner`) — sem ele, dois filhos diretos viram duas linhas de tabela separadas em vez de uma linha com layout flex.
-
-## BUG CRÍTICO: largura da tabela colapsada pelos containers de layout
-
-`display:table; width:100%` resolve `100%` contra o bloco contêiner. Em Chrome print, os containers de layout do app (`main.overflow-hidden`, `div.overflow-auto.p-6`) reportam largura próxima a zero ao motor de impressão. Resultado: texto empilhado verticalmente por caractere.
-
-**Solução**: usar largura física explícita + zerar overflow dos containers pai:
-
-```css
-@media print {
-  #root, #root > div, #root main, #root main > div {
-    overflow: visible !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  #certificate-document {
-    /* 160mm = A4 (210mm) - 2×25mm margens @page */
-    width: 160mm !important;
-    min-width: 160mm !important;
-    max-width: 160mm !important;
-  }
+#certificate-document {
+  display: block !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 ```
 
-`display:block` NÃO é afetado por este bug — blocos preenchem a largura disponível de forma diferente (block formatting context). Só `display:table` é afetado.
+## Por que display:table falha (3 tentativas, 3 falhas)
 
-## @page: padrão correto
+Tentativa 1 — `display:table; width:100%`: colapsou para ~0px. Os containers `main.overflow-hidden` e `div.overflow-auto.p-6` do layout fazem `width:100%` de uma tabela resolver contra width≈0 no Chrome print.
+
+Tentativa 2 — `display:table; width:160mm`: a largura ficou correta (160mm), mas o corpo da tabela (anonymous table-row-groups) ficou em branco. Só o `table-header-group` renderizava.
+
+Tentativa 3 — `display:table; width:160mm` + `height:auto; min-height:0` nos containers pai: o colapso de altura dos containers fez o corpo da tabela desaparecer completamente (só o table-header-group mostrava porque é especial no modelo de tabela).
+
+`display:block` NÃO sofre nenhum destes problemas — blocos preenchem a largura disponível via block formatting context, independente de containers pai com overflow.
+
+## @page: padrão correto — NUNCA usar !important
 
 ```css
 @page {
@@ -54,18 +37,16 @@ O browser repete automaticamente o header-group no topo e o footer-group no roda
 }
 ```
 
-- Conteúdo: 160mm de largura (210mm A4 − 2×25mm)
-- 15mm topo / 10mm base → espaço para o browser colocar URL/data nativos
+- **`!important` em `@page {}` é CSS INVÁLIDO** — Chrome descarta silenciosamente a regra INTEIRA, incluindo `size: A4`. O PDF sai com tamanho/margens aleatórios.
+- 15mm topo / 10mm base / 25mm laterais → conteúdo útil = 160mm wide (A4 210mm − 2×25mm).
 
-❌ NUNCA usar `!important` dentro de `@page {}` — é CSS INVÁLIDO.
-   Chrome ignora **toda** a regra @page silenciosamente: `size: A4` e `margin`
-   são descartados. O PDF sai com tamanho/margens aleatórios.
+## Cabeçalho mini (cert-print-running-header)
 
-❌ NUNCA usar `@page { margin: 0 }` puro — elimina margens laterais.
+Atualmente `display: none` em print (oculto). O `display:table-header-group` foi abandonado.
+Se necessário voltar a cabeçalho repetido em todas as páginas, precisa de uma abordagem alternativa (NÃO display:table).
 
-## CSS counters
+## Cabeçalho da 1ª página
 
-`counter(page)` funciona em table-footer-group (página atual).
-`counter(pages)` pode não funcionar fora de @page margin boxes — testar por protocolo.
+`cert-doc-firstpage-header` com `display: flex !important` mostra o cabeçalho grande (logo + título + número) na primeira página normalmente.
 
-**Why:** Cada bug descoberto aqui custou múltiplas tentativas. Os dois problemas independentes (margin laterais e largura da tabela) ocorrem simultaneamente e precisam ser corrigidos juntos.
+**Why:** `display:table` foi a causa de TODOS os problemas de impressão desta sessão. O sistema de layout do app (flex com overflow:hidden/auto) é incompatível com `display:table; width:100%` no Chrome's paged media engine.

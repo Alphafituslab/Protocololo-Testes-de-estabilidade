@@ -2353,29 +2353,13 @@ export default function CertificatePage() {
 
         @media print {
 
-          /* ── 1. Zerar html/body e containers de layout ───────────────────────── */
+          /* ── 1. Zerar html/body ───────────────────────────────────────────────── */
           html, body {
             margin: 0 !important;
             padding: 0 !important;
             overflow: visible !important;
             height: auto !important;
-            width: 100% !important;
             background: white !important;
-          }
-          /* Os containers com overflow:hidden/auto colapsam a largura disponível
-             para elementos display:table. Zerá-los garante que width:100% resolva
-             contra a área de conteúdo real da @page (160mm com margens de 25mm). */
-          #root,
-          #root > div,
-          #root main,
-          #root main > div {
-            overflow: visible !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            height: auto !important;
-            min-height: 0 !important;
           }
 
           /* ── 2. Esconder tudo; revelar só o certificado ───────────────────────── */
@@ -2406,71 +2390,15 @@ export default function CertificatePage() {
             width: auto !important;
           }
 
-          /* ── 4b. Cabeçalho compacto: table-header-group → repete em CADA página ─
-             MECANISMO: #certificate-document tem display:table; este elemento é
-             um table-header-group → o browser o imprime automaticamente no topo
-             de cada folha sem necessidade de position:fixed.                    */
+          /* ── 4b. Cabeçalho mini: oculto em impressão (display:block não suporta
+             table-header-group; o cabeçalho grande da 1ª página é suficiente) */
           .cert-print-running-header {
-            display: table-header-group !important;
-            background: #ffffff !important;
-            border-bottom: 2pt solid #1e293b !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          /* Linha interna: flex com logo à esq. e número à dir.
-             Padding lateral mínimo — margens do @page (25mm) já distanciam
-             o conteúdo da borda do papel.                                   */
-          .cert-print-running-header-inner {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            padding: 2mm 0 !important;
-            height: 14mm !important;
-            background: #ffffff !important;
-            border-bottom: 2pt solid #1e293b !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+            display: none !important;
           }
 
-          /* ── 4c. Rodapé: table-footer-group → repete em CADA página ────────────
-             Mesmo mecanismo do cabeçalho. Três colunas: empresa | pág. | data.  */
+          /* ── 4c. Rodapé: oculto (display:block; sem table-footer-group) ──── */
           .cert-print-footer {
-            display: table-footer-group !important;
-            background: #ffffff !important;
-            border-top: 1pt solid #e2e8f0 !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-
-          /* Rodapé: três colunas via table-cell (empresa | pág. | data) */
-          .cert-print-footer > span {
-            display: table-cell !important;
-            vertical-align: middle !important;
-            height: 10mm !important;
-            padding-top: 0 !important;
-            padding-bottom: 0 !important;
-            background: #ffffff !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          .cert-print-footer > span:first-child {
-            padding-left: 0 !important;
-            text-align: left !important;
-            width: 40% !important;
-          }
-          .cert-print-footer > span:nth-child(2) {
-            text-align: center !important;
-            width: 20% !important;
-          }
-          .cert-print-footer > span:last-child {
-            padding-right: 0 !important;
-            text-align: right !important;
-            width: 40% !important;
-          }
-
-          /* Numeração: "Página X de Y" via CSS counters (funcionam em table-footer-group) */
-          .cert-page-counter::after {
-            content: "Página " counter(page) " de " counter(pages);
+            display: none !important;
           }
 
           /* ── 5. @page: NUNCA usar !important dentro de @page (CSS inválido →
@@ -2482,23 +2410,15 @@ export default function CertificatePage() {
             margin: 15mm 25mm 10mm 25mm;
           }
 
-          /* ── 5a. #certificate-document como tabela CSS ─────────────────────────
-             display:table permite que cert-print-running-header seja
-             table-header-group (repete no topo de CADA página) e
-             cert-print-footer seja table-footer-group (repete no rodapé).
-             Conteúdo interno dos filhos block é preservado.                    */
+          /* ── 5a. #certificate-document: display block ────────────────────────
+             display:block garante que o conteúdo preencha a largura total
+             da @page (160mm = A4 210mm − 2×25mm margens) sem colapso.
+             display:table foi abandonado — colapsava o corpo em Chrome print. */
           #certificate-document {
-            display: table !important;
-            table-layout: auto !important;
-            border-collapse: separate !important;
-            border-spacing: 0 !important;
+            display: block !important;
             position: static !important;
-            /* 160mm = A4 (210mm) − 2 × 25mm de margem lateral (@page margin: 0 25mm).
-               Usar largura física explícita em vez de 100% para evitar resolução
-               contra containers de overflow colapsados pela hierarquia de layout. */
-            width: 160mm !important;
-            min-width: 160mm !important;
-            max-width: 160mm !important;
+            width: 100% !important;
+            max-width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
             box-shadow: none !important;
