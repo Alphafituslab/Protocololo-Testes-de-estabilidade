@@ -2327,17 +2327,15 @@ export default function CertificatePage() {
 
         @page {
           size: A4 portrait;
-          /* margin: 0 elimina a área de margem do browser, o que suprime
-             o cabeçalho nativo do browser (data + título da página) que
-             normalmente é impresso na margem superior.
-             O espaço visual do cabeçalho fixo (16mm) é compensado pelo
-             padding-top do #certificate-document abaixo. */
+          /* margin: 0 suprime o cabeçalho/rodapé nativos do browser
+             (data, título, URL). Margens visuais são geradas pelo
+             padding do #certificate-document. */
           margin: 0;
         }
 
         @media print {
 
-          /* ── 1. Zerar html/body para eliminar margens do app ─────────────────── */
+          /* ── 1. Zerar html/body ───────────────────────────────────────────────── */
           html, body {
             margin: 0 !important;
             padding: 0 !important;
@@ -2346,84 +2344,54 @@ export default function CertificatePage() {
             background: white !important;
           }
 
-          /* ── 2. Ocultar todo o conteúdo por visibilidade ──────────────────────
-             Usamos visibility (não display) para manter o layout intacto e só
-             revelar o certificado abaixo.                                        */
+          /* ── 2. Esconder tudo; revelar só o certificado ───────────────────────── */
           body * { visibility: hidden !important; }
-
-          /* ── 3. Revelar APENAS o certificado, mini-cabeçalho e seus filhos ───── */
-          .cert-page-header,
-          .cert-page-header * { visibility: visible !important; }
-
-          /* Mini-cabeçalho: position:fixed top:0 ocupa os primeiros 16mm do
-             papel (a faixa de margem reservada pelo @page margin-top:16mm).
-             O #certificate-document começa em top:0 da área de CONTEÚDO,
-             que já está abaixo dos 16mm de margem — sem sobreposição.
-             Repete em TODAS as páginas incluindo a primeira. */
-          .cert-page-header {
-            display: flex !important;
-            flex-direction: row !important;
-            position: fixed;
-            top: 0mm;
-            left: 0;
-            right: 0;
-            height: 16mm;
-            background: white;
-            border: none !important;
-            border-bottom: 1.5pt solid #374151 !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            align-items: center;
-            z-index: 9999;
-            box-sizing: border-box;
-            overflow: visible !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-
-          /* Rótulo de pré-visualização: oculto na impressão */
-          .cert-page-header-label {
-            display: none !important;
-          }
-
-          /* Linha logo + nº cert ocupa toda a altura do cabeçalho fixo */
-          .cert-page-header-inner {
-            display: flex !important;
-            flex: 1 !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            padding: 2.5mm 12mm !important;
-            gap: 10px !important;
-            height: 16mm !important;
-            box-sizing: border-box !important;
-            visibility: visible !important;
-          }
-
-          /* ── 3. Revelar APENAS o certificado e seus filhos ───────────────────── */
           #certificate-document,
           #certificate-document * { visibility: visible !important; }
 
-          /* ── 4. Ocultar o chrome do app (sidebar, header, toolbar, painéis) ─── */
-          .print\:hidden         { display: none !important; }
-          #root aside            { display: none !important; }
-          #root header           { display: none !important; }
+          /* ── Mini-cabeçalho de pré-visualização: OCULTO na impressão ─────────── */
+          .cert-page-header { display: none !important; }
 
-          /* ── 4a. Cabeçalho grande da pg 1 — oculto na impressão ──────────────
-             O mini-cabeçalho fixo (cert-page-header) repete em TODAS as páginas
-             (inclusive a 1ª) com logo, título, nº certificado e data de emissão.
-             Esconder o cabeçalho grande evita duplicação na página 1.            */
-          .cert-doc-firstpage-header { display: none !important; }
+          /* ── 3. Ocultar chrome do app ─────────────────────────────────────────── */
+          .print\:hidden { display: none !important; }
+          #root aside    { display: none !important; }
+          #root header   { display: none !important; }
 
-          /* ── 4b. Compensar espaço do cabeçalho oculto na pg 1 ───────────────── */
-          .cert-intro-block { padding-top: 4pt !important; }
+          /* ── 4. Cabeçalho grande (pg 1) — VISÍVEL na impressão ───────────────── */
+          .cert-doc-firstpage-header {
+            display: flex !important;
+            visibility: visible !important;
+            padding-bottom: 12pt !important;
+            margin-bottom: 14pt !important;
+            border-bottom: 3pt solid #1e293b !important;
+          }
 
-          /* ── 5. Ancorar o certificado — preenche toda a folha A4 ───────────────
-             Com @page { margin: 0 }, a folha começa em y=0. O cabeçalho fixo
-             ocupa y=0→16mm. padding-top:28mm = 16mm (header) + 12mm (gap visual)
-             garante que o conteúdo da pg 1 comece bem abaixo do cabeçalho.
-             Páginas 2+ não têm padding extra — o conteúdo flui continuamente.  */
+          /* Logo maior e mais imponente no PDF */
+          .cert-doc-firstpage-header img[alt="Alphafitus"] {
+            height: 72px !important;
+            width: auto !important;
+          }
+
+          /* Título do certificado em destaque */
+          .cert-doc-firstpage-header h1 {
+            font-size: 16pt !important;
+            font-weight: 900 !important;
+            letter-spacing: 0.06em !important;
+          }
+
+          /* Nome do produto em verde, maior */
+          .cert-doc-firstpage-header .text-emerald-700 {
+            font-size: 10pt !important;
+            font-weight: 700 !important;
+          }
+
+          /* Linha Nº Certificado e Data */
+          .cert-doc-firstpage-header .text-base {
+            font-size: 11pt !important;
+            font-weight: 800 !important;
+          }
+
+          /* ── 5. Posição e margens do documento ────────────────────────────────── */
           #certificate-document {
             position: absolute !important;
             top: 0 !important;
@@ -2433,7 +2401,7 @@ export default function CertificatePage() {
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
-            padding: 28mm 12mm 9mm 12mm !important;
+            padding: 12mm 12mm 9mm 12mm !important;
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
@@ -2560,10 +2528,10 @@ export default function CertificatePage() {
             overflow: visible !important;
           }
 
-          /* Seções curtas: nunca partem no meio */
+          /* Seções: PODEM quebrar entre páginas para evitar espaços em branco */
           .cert-section {
-            break-inside: avoid;
-            page-break-inside: avoid;
+            break-inside: auto !important;
+            page-break-inside: auto !important;
             overflow: visible !important;
           }
 
