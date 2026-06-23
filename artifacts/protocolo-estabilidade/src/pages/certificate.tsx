@@ -2327,13 +2327,12 @@ export default function CertificatePage() {
 
         @page {
           size: A4 portrait;
-          /* margin-top: 16mm reserva espaço para o mini-cabeçalho em TODAS
-             as páginas (inclusive a primeira).
-             O cert-page-header usa position:fixed top:0 height:16mm para
-             ocupar exatamente essa faixa de margem no topo de cada folha.
-             left/right/bottom: 0 — o certificado gerencia suas margens visuais
-             via padding próprio. */
-          margin: 16mm 0 0 0;
+          /* margin: 0 elimina a área de margem do browser, o que suprime
+             o cabeçalho nativo do browser (data + título da página) que
+             normalmente é impresso na margem superior.
+             O espaço visual do cabeçalho fixo (16mm) é compensado pelo
+             padding-top do #certificate-document abaixo. */
+          margin: 0;
         }
 
         @media print {
@@ -2421,9 +2420,10 @@ export default function CertificatePage() {
           .cert-intro-block { padding-top: 4pt !important; }
 
           /* ── 5. Ancorar o certificado — preenche toda a folha A4 ───────────────
-             Com @page { margin: 0 }, não há margem de página — o certificado
-             ocupa 100% da área física. Usamos padding próprio para as margens
-             visuais do documento (equivalente às margens ABNT: 20mm × 15mm).  */
+             Com @page { margin: 0 }, a folha começa em y=0. O cabeçalho fixo
+             ocupa y=0→16mm. padding-top:28mm = 16mm (header) + 12mm (gap visual)
+             garante que o conteúdo da pg 1 comece bem abaixo do cabeçalho.
+             Páginas 2+ não têm padding extra — o conteúdo flui continuamente.  */
           #certificate-document {
             position: absolute !important;
             top: 0 !important;
@@ -2433,7 +2433,7 @@ export default function CertificatePage() {
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
-            padding: 9mm 12mm !important;
+            padding: 28mm 12mm 9mm 12mm !important;
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
