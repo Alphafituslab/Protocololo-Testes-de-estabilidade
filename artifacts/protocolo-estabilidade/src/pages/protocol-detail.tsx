@@ -2950,6 +2950,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showPassoCalculo, setShowPassoCalculo] = useState(false);
 
   const [manualFields, setManualFields] = useState<Record<string, string[]>>(() => {
     try {
@@ -3805,9 +3806,16 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       </AlertDialog>
 
       {/* Step-by-step formula breakdown */}
-      <div className="rounded-md bg-slate-50 border border-slate-200 p-5 text-sm text-slate-700 space-y-4">
-        <p className="font-semibold text-slate-800 text-sm">Passo a Passo do Cálculo — conforme planilha Excel</p>
-
+      <div className="rounded-md bg-slate-50 border border-slate-200 text-sm text-slate-700">
+        <button
+          type="button"
+          onClick={() => setShowPassoCalculo(v => !v)}
+          className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-slate-100 transition-colors rounded-md"
+        >
+          <p className="font-semibold text-slate-800 text-sm">Passo a Passo do Cálculo — conforme planilha Excel</p>
+          <span className="text-slate-400 text-xs ml-2 shrink-0">{showPassoCalculo ? "▲ ocultar" : "▼ exibir"}</span>
+        </button>
+        {showPassoCalculo && <div className="px-5 pb-5 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-3">
             <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">1. Modelo cinético de 1ª ordem</p>
@@ -3841,6 +3849,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
             <p className="text-xs text-slate-500">Extrapolação da taxa T3→T6 a partir de T0</p>
           </div>
         </div>
+        </div>}
       </div>
 
       <div className="rounded-md border border-slate-200 bg-white p-4 space-y-2">
