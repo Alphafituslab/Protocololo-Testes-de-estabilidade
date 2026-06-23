@@ -1525,13 +1525,13 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
                   <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#1d4ed8" }}>
                     {asymVal < 0.99 ? "← front." : asymVal > 1.01 ? "→ tail." : "symm."}
                   </span>
-                  <input type="number" step="0.05" min="0.1" max="10.0" value={asymVal}
+                  <input type="number" step="0.01" min="0.1" max="10.0" value={asymVal}
                 onChange={e => setDraft(d => ({ ...d, asymmetry: e.target.value }))}
                 style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 70, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
               />
                 </div>
             </div>
-            <input type="range" min="0.1" max="10.0" step="0.05"
+            <input type="range" min="0.1" max="10.0" step="0.01"
               value={asymVal}
               onChange={e => setDraft(d => ({ ...d, asymmetry: e.target.value }))}
               className="w-full h-2 accent-blue-600" />
