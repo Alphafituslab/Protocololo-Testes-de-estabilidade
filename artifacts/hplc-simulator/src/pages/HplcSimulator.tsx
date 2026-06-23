@@ -7711,8 +7711,17 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                   onCapture={p => updatePadrao({ stdArea: parseFloat(getArea(p).toFixed(5)), stdPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}` })}
                 />
                 {padraoConfig.stdPeakName && (
-                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1560bd", marginTop: 4 }}>
-                    ✓ Peak captured: {padraoConfig.stdPeakName}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1560bd" }}>
+                      ✓ Peak captured: {padraoConfig.stdPeakName}
+                    </div>
+                    <button
+                      onClick={() => setPage("chromatogram")}
+                      title="Ir ao cromatograma onde esta área foi capturada"
+                      style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "1px 7px", border: "1px solid #1560bd", borderRadius: 4, background: "#eff6ff", cursor: "pointer", color: "#1560bd", whiteSpace: "nowrap" }}
+                    >
+                      📊 ver no cromatograma
+                    </button>
                   </div>
                 )}
                 {peakList.length > 0 && (
@@ -7796,8 +7805,17 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                   }}
                 />
                 {padraoConfig.smpPeakName && (
-                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#f97316", marginTop: 4 }}>
-                    ✓ Peak captured: {padraoConfig.smpPeakName}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#f97316" }}>
+                      ✓ Peak captured: {padraoConfig.smpPeakName}
+                    </div>
+                    <button
+                      onClick={() => setPage("chromatogram")}
+                      title="Ir ao cromatograma onde esta área foi capturada"
+                      style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "1px 7px", border: "1px solid #f97316", borderRadius: 4, background: "#fff7ed", cursor: "pointer", color: "#ea580c", whiteSpace: "nowrap" }}
+                    >
+                      📊 ver no cromatograma
+                    </button>
                   </div>
                 )}
 
