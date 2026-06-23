@@ -7581,7 +7581,7 @@ ${(() => {
   <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Purity: </span><strong>${padraoConfig.stdPurity.toFixed(2)} %</strong></p>
 </td>
 <td style="width:16%;padding:10px 4px;border-right:1px solid #e2e8f0;border-bottom:none;text-align:center;vertical-align:middle;background:#fff">
-  <div style="font-size:16px;font-weight:900;color:${rC}">${(rat * 100).toFixed(1)}%</div>
+  <div style="font-size:16px;font-weight:900;color:${rC}">${(rat * 100).toFixed(2)}%</div>
   <div style="font-size:8px;color:#94a3b8;margin-top:2px;line-height:1.3">Smp/Std<br>area</div>
   <div style="width:26px;height:26px;border-radius:50%;border:3px solid ${rC};margin:6px auto;text-align:center;line-height:20px">
     <span style="font-size:13px;color:${rC}">${sym}</span>
@@ -8086,7 +8086,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 0", borderRight: "1px solid #e2e8f0", background: "#fff" }}>
                       {rat !== null ? (
                         <>
-                          <div style={{ fontSize: 14, fontWeight: 900, color: ratColor, lineHeight: 1 }}>{(rat * 100).toFixed(1)}%</div>
+                          <div style={{ fontSize: 14, fontWeight: 900, color: ratColor, lineHeight: 1 }}>{(rat * 100).toFixed(2)}%</div>
                           <div style={{ fontSize: 8, color: "#94a3b8", marginTop: 2, textAlign: "center", lineHeight: 1.3 }}>Smp/Std<br/>area</div>
                           <div style={{ width: 28, height: 28, borderRadius: "50%", border: `3px solid ${ratColor}`, marginTop: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <span style={{ fontSize: 12, color: ratColor }}>{rat >= 0.95 ? "✓" : rat >= 0.80 ? "~" : "!"}</span>
