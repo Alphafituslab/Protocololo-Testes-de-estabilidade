@@ -2314,6 +2314,36 @@ export default function CertificatePage() {
           text-align: left;
         }
 
+        /* ══ TIPOGRAFIA — padronização de espaçamento, legibilidade e recuos ═══ */
+
+        /* Espaçamento entre linhas padrão para leitura técnica */
+        #certificate-document p,
+        #certificate-document dd,
+        #certificate-document li {
+          line-height: 1.5;
+          margin-bottom: 0.38em;
+          orphans: 3;
+          widows: 3;
+          overflow-wrap: break-word;
+          word-spacing: 0.01em;
+        }
+
+        /* Parágrafos consecutivos: pequeno espaço entre eles */
+        #certificate-document p + p {
+          margin-top: 0.35em;
+        }
+
+        /* Áreas de conteúdo: espaçamento interno consistente */
+        #certificate-document .cert-section > div:not(:first-child),
+        #certificate-document .cert-intro-block > div:not(:first-child) > div:not(:first-child) {
+          line-height: 1.5;
+        }
+
+        /* Evitar palavras isoladas no fim de linha */
+        #certificate-document p {
+          word-wrap: break-word;
+        }
+
         @media print {
 
           /* ── 1. Zerar html/body ───────────────────────────────────────────────── */
@@ -2480,6 +2510,26 @@ export default function CertificatePage() {
           #certificate-document .cert-analysis-table > div:first-child,
           #certificate-document .cert-intro-block > div:not(:first-child) > div:first-child {
             text-align: left !important;
+          }
+
+          /* ── 5b6. Tipografia no print ────────────────────────────────────────── */
+          #certificate-document p,
+          #certificate-document dd,
+          #certificate-document li {
+            line-height: 1.45 !important;
+            margin-bottom: 3pt !important;
+            orphans: 3 !important;
+            widows: 3 !important;
+            overflow-wrap: break-word !important;
+            word-spacing: 0.01em !important;
+          }
+          #certificate-document p + p {
+            margin-top: 2.5pt !important;
+          }
+          #certificate-document .cert-section > div:not(:first-child),
+          #certificate-document .cert-intro-block > div:not(:first-child) > div:not(:first-child),
+          #certificate-document .cert-kinetica-block > div:not(:first-child) {
+            line-height: 1.45 !important;
           }
 
           /* ── 5c. Cabeçalhos navy: garantir cor no print ──────────────────────── */
