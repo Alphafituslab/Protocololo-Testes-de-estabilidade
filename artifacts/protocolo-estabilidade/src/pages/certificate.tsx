@@ -2371,9 +2371,27 @@ export default function CertificatePage() {
           #root aside    { display: none !important; }
           #root header   { display: none !important; }
 
-          /* ── 4. Cabeçalho da 1ª página — OCULTO na impressão (header fixo substitui) */
+          /* ── 4. Cabeçalho da 1ª página — VISÍVEL na impressão; cobre o mini-header fixo
+             na pág. 1 (que tem margin-top:0 via @page :first, logo o mini-header fica
+             sob o cabeçalho grande com z-index maior).                              */
           .cert-doc-firstpage-header {
-            display: none !important;
+            display: flex !important;
+            position: relative !important;
+            z-index: 10000 !important;
+            background: white !important;
+            width: 100% !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+            border-bottom: 1.5pt solid rgb(31, 41, 55) !important;
+            padding-bottom: 6pt !important;
+            margin-bottom: 8pt !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          /* Logo do cabeçalho grande: tamanho adequado para impressão A4 */
+          .cert-doc-firstpage-header img {
+            height: 14mm !important;
+            width: auto !important;
           }
 
           /* ── 4b. Cabeçalho fixo: repete em TODAS as páginas ──────────────────── */
@@ -2428,6 +2446,13 @@ export default function CertificatePage() {
           @page {
             size: A4 portrait;
             margin: 18mm 30mm 13mm 30mm !important;
+          }
+
+          /* Página 1: sem margem superior → cabeçalho grande ocupa esse espaço.
+             O mini-header fixo (top:0; height:18mm) fica coberto pelo
+             cert-doc-firstpage-header que tem z-index:10000 e background:white.   */
+          @page :first {
+            margin-top: 0 !important;
           }
 
           #certificate-document {
