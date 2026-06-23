@@ -1394,7 +1394,8 @@ export default function CertificatePage() {
         </div>
 
         {/* ── PLANO DE TESTE DE ESTABILIDADE ─────────────────────────────── */}
-        {show.planoTeste && <div className="mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
+        {show.planoTeste && (
+        <div className="mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
           <div className="bg-slate-700 px-5 py-1.5">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Plano de Teste de Estabilidade</h2>
           </div>
@@ -1455,7 +1456,8 @@ export default function CertificatePage() {
               </div>
             )}
           </div>
-        </div>}
+        </div>
+        )}
 
         {/* ── CONDIÇÕES AMBIENTAIS ─────────────────────────────────────────── */}
         {show.condicoesAmbientais && (
