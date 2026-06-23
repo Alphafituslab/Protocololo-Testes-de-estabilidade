@@ -1462,7 +1462,7 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
           <div className="pt-1">
             <div className="flex justify-between items-center mb-1">
               <Label className="text-xs text-muted-foreground">Width σ (min)</Label>
-              <input type="number" step="0.005" min="0.005" max="5.0" value={widthVal}
+              <input type="number" step="any" min="0.001" max="5.0" value={widthVal}
                 onChange={e => setDraft(d => ({ ...d, width: e.target.value }))}
                 style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8", fontWeight: 600, width: 70, border: "1px solid #bfdbfe", borderRadius: 3, padding: "0 3px", textAlign: "right", background: "#f0f9ff" }}
               />
@@ -4818,7 +4818,7 @@ export default function HplcSimulator() {
                               ];
                               setCompoundCalibrations(prev => {
                                 const existing = prev[calibCompound.id] ?? getCC(calibCompound.id);
-                                const newStds = b6Points.map(pt => ({ id: uid(), amount: pt.amount, area: pt.area }));
+                                const newStds = b6Points.map((pt, i) => ({ id: uid(), level: i + 1, amount: pt.amount, area: pt.area }));
                                 const updated = {
                                   ...prev,
                                   [calibCompound.id]: {
@@ -7511,7 +7511,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                         ? parseFloat((padraoConfig.smpRawArea * clamped / 100).toFixed(5))
                         : padraoConfig.smpArea;
                       updatePadrao({ smpPurity: clamped, smpArea: newArea });
-                    }, { step: "0.01", min: "0.01", max: "100", placeholder: "100.00" })}
+                    }, { step: "0.01", min: 0.01, placeholder: "100.00" })}
                     {padraoConfig.smpRawArea > 0 && padraoConfig.smpPurity < 99.99 && (
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8", marginTop: 2 }}>
                         Área bruta: {padraoConfig.smpRawArea.toFixed(5)} mAU·s → ×{(padraoConfig.smpPurity / 100).toFixed(4)} = {(padraoConfig.smpRawArea * padraoConfig.smpPurity / 100).toFixed(5)} mAU·s
@@ -7987,7 +7987,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                   ["em_andamento", "In Progress", "#1d4ed8", "#dbeafe"],
                   ["aprovado",     "Approved",    "#16a34a", "#dcfce7"],
                   ["reprovado",    "Rejected",    "#dc2626", "#fee2e2"],
-                , "emgTau", "overload", "flatTop"] as const).map(([val, label, color, bg]) => (
+                ] as const).map(([val, label, color, bg]) => (
                   <button
                     key={val}
                     onClick={() => setFinalizeStatus(val)}
