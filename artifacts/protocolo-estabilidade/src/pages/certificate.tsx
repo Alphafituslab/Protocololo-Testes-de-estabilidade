@@ -1165,8 +1165,8 @@ export default function CertificatePage() {
              Agrupados num único div para nunca quebrar a página dentro deles  */}
         <div className="cert-intro-block">
 
-        {/* Header */}
-        <div className="flex items-start justify-between border-b-2 border-gray-800 pb-8 mb-10 gap-4">
+        {/* Header — visível na tela; oculto na impressão (mini-cabeçalho fixo substitui) */}
+        <div className="cert-doc-firstpage-header flex items-start justify-between border-b-2 border-gray-800 pb-8 mb-10 gap-4">
           {/* Logo + título */}
           <div className="flex items-start gap-5 flex-1 min-w-0">
             <img
@@ -2410,6 +2410,15 @@ export default function CertificatePage() {
           .print\:hidden         { display: none !important; }
           #root aside            { display: none !important; }
           #root header           { display: none !important; }
+
+          /* ── 4a. Cabeçalho grande da pg 1 — oculto na impressão ──────────────
+             O mini-cabeçalho fixo (cert-page-header) repete em TODAS as páginas
+             (inclusive a 1ª) com logo, título, nº certificado e data de emissão.
+             Esconder o cabeçalho grande evita duplicação na página 1.            */
+          .cert-doc-firstpage-header { display: none !important; }
+
+          /* ── 4b. Compensar espaço do cabeçalho oculto na pg 1 ───────────────── */
+          .cert-intro-block { padding-top: 4pt !important; }
 
           /* ── 5. Ancorar o certificado — preenche toda a folha A4 ───────────────
              Com @page { margin: 0 }, não há margem de página — o certificado
