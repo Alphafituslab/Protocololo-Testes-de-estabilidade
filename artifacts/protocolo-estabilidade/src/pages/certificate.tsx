@@ -1175,42 +1175,42 @@ export default function CertificatePage() {
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Identificação do Produto</h2>
           </div>
           <div className="px-5 py-5">
-            <table className="w-full text-xs border-collapse">
+            <table className="w-full text-sm border-collapse">
               <colgroup>
                 <col style={{ width: "22%" }} />
                 <col style={{ width: "78%" }} />
               </colgroup>
               <tbody>
                 <tr>
-                  <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_productName", "Produto:", { className: "text-gray-500 font-medium text-xs" })}</td>
-                  <td className="font-medium align-top pb-1 text-justify">{ef("productName", cert.productName, { multiline: true, className: "w-full font-medium text-xs text-justify bg-transparent resize-none" })}</td>
+                  <td className="text-gray-500 align-top pr-4 pb-2 font-medium whitespace-nowrap">{ef("lbl_productName", "Produto:", { className: "text-gray-500 font-medium text-sm" })}</td>
+                  <td className="font-medium align-top pb-2" style={{ textAlign: "justify" }}>{ef("productName", cert.productName, { multiline: true, className: "w-full font-medium text-sm bg-transparent resize-none" })}</td>
                 </tr>
                 <tr>
-                  <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_presentation", "Tipo do Produto:", { className: "text-gray-500 font-medium text-xs" })}</td>
-                  <td className="align-top pb-1 text-justify">{ef("presentation", cert.presentation)}</td>
+                  <td className="text-gray-500 align-top pr-4 pb-2 font-medium whitespace-nowrap">{ef("lbl_presentation", "Tipo do Produto:", { className: "text-gray-500 font-medium text-sm" })}</td>
+                  <td className="align-top pb-2" style={{ textAlign: "justify" }}>{ef("presentation", cert.presentation)}</td>
                 </tr>
                 {!!getEdit("packagingType", cert.packagingType) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_packagingType", "Tipo de Pote:", { className: "text-gray-500 font-medium text-xs" })}</td>
-                    <td className="align-top pb-1 text-justify">{ef("packagingType", cert.packagingType)}</td>
+                    <td className="text-gray-500 align-top pr-4 pb-2 font-medium whitespace-nowrap">{ef("lbl_packagingType", "Tipo de Pote:", { className: "text-gray-500 font-medium text-sm" })}</td>
+                    <td className="align-top pb-2" style={{ textAlign: "justify" }}>{ef("packagingType", cert.packagingType)}</td>
                   </tr>
                 )}
                 {!!getEdit("activeIngredients", cert.activeIngredients) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_activeIngredients", "Ingredientes Ativos:", { className: "text-gray-500 font-medium text-xs" })}</td>
-                    <td className="align-top pb-1 text-justify">{ef("activeIngredients", cert.activeIngredients, { multiline: true })}</td>
+                    <td className="text-gray-500 align-top pr-4 pb-2 font-medium whitespace-nowrap">{ef("lbl_activeIngredients", "Ingredientes Ativos:", { className: "text-gray-500 font-medium text-sm" })}</td>
+                    <td className="align-top pb-2" style={{ textAlign: "justify" }}>{ef("activeIngredients", cert.activeIngredients, { multiline: true })}</td>
                   </tr>
                 )}
                 {!!getEdit("excipients", cert.excipients) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_excipients", "Excipientes:", { className: "text-gray-500 font-medium text-xs" })}</td>
-                    <td className="align-top pb-1 text-justify">{ef("excipients", cert.excipients, { multiline: true })}</td>
+                    <td className="text-gray-500 align-top pr-4 pb-2 font-medium whitespace-nowrap">{ef("lbl_excipients", "Excipientes:", { className: "text-gray-500 font-medium text-sm" })}</td>
+                    <td className="align-top pb-2" style={{ textAlign: "justify" }}>{ef("excipients", cert.excipients, { multiline: true })}</td>
                   </tr>
                 )}
                 {!!getEdit("capsuleComposition", cert.capsuleComposition) && (
                   <tr>
-                    <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_capsuleComposition", "Composição da Cápsula:", { className: "text-gray-500 font-medium text-xs" })}</td>
-                    <td className="align-top pb-1 text-justify">{ef("capsuleComposition", cert.capsuleComposition, { multiline: true })}</td>
+                    <td className="text-gray-500 align-top pr-4 pb-2 font-medium whitespace-nowrap">{ef("lbl_capsuleComposition", "Composição da Cápsula:", { className: "text-gray-500 font-medium text-sm" })}</td>
+                    <td className="align-top pb-2" style={{ textAlign: "justify" }}>{ef("capsuleComposition", cert.capsuleComposition, { multiline: true })}</td>
                   </tr>
                 )}
                 <tr>
@@ -1454,7 +1454,7 @@ export default function CertificatePage() {
             <div className="bg-slate-700 px-5 py-1.5">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Observações sobre os Lotes</h2>
             </div>
-            <div className="px-5 py-5 text-gray-700 space-y-3 text-sm" style={{ textAlign: "justify" }}>
+            <div className="px-5 py-5 text-gray-700 space-y-3 text-base leading-relaxed" style={{ textAlign: "justify" }}>
               <p>{ef("textoLotes1", "Os lotes piloto foram produzidos em datas distintas, sob condições equivalentes de fabricação, visando assegurar a independência entre os lotes, a rastreabilidade do estudo e a minimização do risco de desvios operacionais ou interferências de processo.", { multiline: true })}</p>
               <p>{ef("textoLotes2", "Alimento está sendo testado em embalagem equivalente e sistema de fechamento nos quais será comercializado.", { multiline: true })}</p>
               <p>{ef("textoLotes3", "Os resultados apresentados neste certificado referem-se à média dos valores obtidos nos lotes piloto avaliados.", { multiline: true })}</p>
@@ -1468,7 +1468,7 @@ export default function CertificatePage() {
             <div className="bg-slate-700 px-5 py-1.5">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Informações Adicionais</h2>
             </div>
-            <div className="px-5 py-5 text-gray-700 space-y-2 text-sm" style={{ textAlign: "justify" }}>
+            <div className="px-5 py-5 text-gray-700 space-y-3 text-base leading-relaxed" style={{ textAlign: "justify" }}>
               <p>{ef("infoAdicionais1", "Este documento deve ser reproduzido integralmente. A reproducao parcial somente e permitida mediante autorizacao formal e escrita do laboratorio.", { multiline: true })}</p>
               <p>{ef("infoAdicionais2", "Os resultados apresentados referem-se exclusivamente as amostras recebidas e foram obtidos e reportados de acordo com as condicoes analiticas estabelecidas e metodologias aplicaveis.", { multiline: true })}</p>
               <p>{ef("infoAdicionais3", "NA = Nao se aplica   ND = Nao detectado   LQ = Limite de quantificacao   AR = Aprovado com Ressalva", { multiline: true })}</p>
