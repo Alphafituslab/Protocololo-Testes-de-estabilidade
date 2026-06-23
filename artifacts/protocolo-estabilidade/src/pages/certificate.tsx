@@ -1124,17 +1124,20 @@ export default function CertificatePage() {
       >
         {/* ── CABEÇALHO FIXO: repetido em TODAS as páginas impressas ─────────── */}
         <div className="cert-print-running-header hidden">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <img src="/logo-alphafitus.png" alt="Alphafitus" style={{ height: 26, width: "auto", flexShrink: 0 }} />
-            <div style={{ borderLeft: "1px solid #94a3b8", paddingLeft: 8 }}>
-              <div style={{ fontSize: "5.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#64748b", lineHeight: 1.2 }}>Alphafitus Laboratório Nutracêutico</div>
-              <div style={{ fontSize: "8pt", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em", color: "#1e293b", lineHeight: 1.3 }}>{displayTitle}</div>
+          {/* cert-print-running-header-inner: filho único → garante UMA linha na tabela */}
+          <div className="cert-print-running-header-inner">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <img src="/logo-alphafitus.png" alt="Alphafitus" style={{ height: 26, width: "auto", flexShrink: 0 }} />
+              <div style={{ borderLeft: "1px solid #94a3b8", paddingLeft: 8 }}>
+                <div style={{ fontSize: "5.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#64748b", lineHeight: 1.2 }}>Alphafitus Laboratório Nutracêutico</div>
+                <div style={{ fontSize: "8pt", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em", color: "#1e293b", lineHeight: 1.3 }}>{displayTitle}</div>
+              </div>
             </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: "5.5pt", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", lineHeight: 1.2 }}>Certificado Nº</div>
-            <div style={{ fontSize: "8pt", fontWeight: 800, color: "#1e293b", lineHeight: 1.3 }}>{String(getEdit("certNumber", cert.certNumber) ?? "—")}</div>
-            <div style={{ fontSize: "5.5pt", color: "#64748b", lineHeight: 1.2 }}>{String(getEdit("issueDate", fmtDate(cert.issueDate)) ?? "")}</div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: "5.5pt", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", lineHeight: 1.2 }}>Certificado Nº</div>
+              <div style={{ fontSize: "8pt", fontWeight: 800, color: "#1e293b", lineHeight: 1.3 }}>{String(getEdit("certNumber", cert.certNumber) ?? "—")}</div>
+              <div style={{ fontSize: "5.5pt", color: "#64748b", lineHeight: 1.2 }}>{String(getEdit("issueDate", fmtDate(cert.issueDate)) ?? "")}</div>
+            </div>
           </div>
         </div>
 
@@ -2371,97 +2374,111 @@ export default function CertificatePage() {
           #root aside    { display: none !important; }
           #root header   { display: none !important; }
 
-          /* ── 4. Cabeçalho da 1ª página — VISÍVEL na impressão; cobre o mini-header fixo
-             na pág. 1 (que tem margin-top:0 via @page :first, logo o mini-header fica
-             sob o cabeçalho grande com z-index maior).                              */
+          /* ── 4. Cabeçalho da 1ª página ────────────────────────────────────────── */
           .cert-doc-firstpage-header {
             display: flex !important;
-            position: relative !important;
-            z-index: 10000 !important;
             background: white !important;
             width: 100% !important;
-            margin-top: 0 !important;
-            padding-top: 0 !important;
-            border-bottom: 1.5pt solid rgb(31, 41, 55) !important;
             padding-bottom: 6pt !important;
             margin-bottom: 8pt !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          /* Logo do cabeçalho grande: tamanho adequado para impressão A4 */
+          /* Logo do cabeçalho grande */
           .cert-doc-firstpage-header img {
             height: 14mm !important;
             width: auto !important;
           }
 
-          /* ── 4b. Cabeçalho fixo: repete em TODAS as páginas ──────────────────── */
+          /* ── 4b. Cabeçalho compacto: table-header-group → repete em CADA página ─
+             MECANISMO: #certificate-document tem display:table; este elemento é
+             um table-header-group → o browser o imprime automaticamente no topo
+             de cada folha sem necessidade de position:fixed.                    */
           .cert-print-running-header {
-            display: flex !important;
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            height: 18mm !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            padding: 0 30mm !important;
+            display: table-header-group !important;
             background: #ffffff !important;
             border-bottom: 2pt solid #1e293b !important;
-            z-index: 9999 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-
-          /* ── 4c. Rodapé fixo: repete em TODAS as páginas ─────────────────────── */
-          .cert-print-footer {
+          /* Linha interna: flex com logo à esq. e número à dir. */
+          .cert-print-running-header-inner {
             display: flex !important;
-            position: fixed !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            height: 13mm !important;
             align-items: center !important;
             justify-content: space-between !important;
-            padding: 0 30mm !important;
+            padding: 3mm 10mm !important;
+            height: 14mm !important;
             background: #ffffff !important;
-            border-top: 1pt solid #e2e8f0 !important;
-            z-index: 9999 !important;
+            border-bottom: 2pt solid #1e293b !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
 
-          /* Numeração: "Página X de Y" — injeta via CSS counter */
+          /* ── 4c. Rodapé: table-footer-group → repete em CADA página ────────────
+             Mesmo mecanismo do cabeçalho. Três colunas: empresa | pág. | data.  */
+          .cert-print-footer {
+            display: table-footer-group !important;
+            background: #ffffff !important;
+            border-top: 1pt solid #e2e8f0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          /* Rodapé: três colunas via table-cell (empresa | pág. | data) */
+          .cert-print-footer > span {
+            display: table-cell !important;
+            vertical-align: middle !important;
+            height: 10mm !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .cert-print-footer > span:first-child {
+            padding-left: 10mm !important;
+            text-align: left !important;
+            width: 40% !important;
+          }
+          .cert-print-footer > span:nth-child(2) {
+            text-align: center !important;
+            width: 20% !important;
+          }
+          .cert-print-footer > span:last-child {
+            padding-right: 10mm !important;
+            text-align: right !important;
+            width: 40% !important;
+          }
+
+          /* Numeração: "Página X de Y" via CSS counters (funcionam em table-footer-group) */
           .cert-page-counter::after {
             content: "Página " counter(page) " de " counter(pages);
           }
 
-          /* ── 5. Margens A4 — devem coincidir com altura do header/footer fixos ──
-             Em CSS paged media, position:fixed é relativo à página física.
-             Com margin-top = 18mm (= altura do cabeçalho) e margin-bottom = 13mm
-             (= altura do rodapé), a área de conteúdo começa ABAIXO do cabeçalho
-             em TODAS as páginas, evitando sobreposição.
-             NOTA: para ocultar a URL/data nativa do browser, o usuário deve
-             desmarcar "Cabeçalhos e rodapés" no diálogo de impressão do Chrome.
-             Não é possível suprimir via CSS quando @page margin > 0.           */
+          /* ── 5. @page: margem 0 para suprimir URL/data nativos do browser.
+             O cabeçalho e rodapé são gerenciados por table-header-group /
+             table-footer-group, que repetem em cada página sem depender de
+             position:fixed (que é instável no motor de impressão do Chrome). */
           @page {
             size: A4 portrait;
-            margin: 18mm 30mm 13mm 30mm !important;
+            margin: 0 !important;
           }
 
-          /* Página 1: sem margem superior → cabeçalho grande ocupa esse espaço.
-             O mini-header fixo (top:0; height:18mm) fica coberto pelo
-             cert-doc-firstpage-header que tem z-index:10000 e background:white.   */
-          @page :first {
-            margin-top: 0 !important;
-          }
-
+          /* ── 5a. #certificate-document como tabela CSS ─────────────────────────
+             display:table permite que cert-print-running-header seja
+             table-header-group (repete no topo de CADA página) e
+             cert-print-footer seja table-footer-group (repete no rodapé).
+             Conteúdo interno dos filhos block é preservado.                    */
           #certificate-document {
+            display: table !important;
+            table-layout: fixed !important;
+            border-collapse: separate !important;
+            border-spacing: 0 !important;
             position: static !important;
-            display: block !important;
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
-            padding: 0 0 6mm 0 !important;
+            padding: 0 !important;
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
