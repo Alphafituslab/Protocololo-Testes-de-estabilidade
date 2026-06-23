@@ -7354,8 +7354,8 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
         const ResultCell = ({ value, label, color, big, trace }: { value: string; label: string; color?: string; big?: boolean; trace?: CalcTrace }) => (
           <div
             style={{
-              background: color ?? "#f8fafc", borderRadius: 6, padding: "10px 14px",
-              border: `1.5px solid ${color ? color + "80" : "#e2e8f0"}`, minWidth: 140,
+              background: "#fff", borderRadius: 6, padding: "10px 14px",
+              border: `2px solid ${color ?? "#e2e8f0"}`, minWidth: 140,
               cursor: trace ? "context-menu" : "default",
             }}
             onContextMenu={trace ? (e) => { e.preventDefault(); setCalcTraceDialog(trace); } : undefined}
