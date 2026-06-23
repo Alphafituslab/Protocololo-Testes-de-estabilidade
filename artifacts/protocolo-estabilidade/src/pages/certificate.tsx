@@ -2,6 +2,8 @@ import { useParams, Link } from "wouter";
 import { fmtDate, addMonthsToIso } from "@/lib/utils";
 import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey, useListSignatures, useAddSignature, useDeleteSignature, getListSignaturesQueryKey, useUpdateProtocol, useListProtocolBibliographicReferences, getListProtocolBibliographicReferencesQueryKey, type BibliographicReference } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, History, Lock, Unlock, Save, ShieldCheck, PenLine, Trash2, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
@@ -526,6 +528,38 @@ export default function CertificatePage() {
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const { unlock } = useUnlock();
 
+  // ── Status override (Nao Conforme → Conforme / AR) ──────────────────────
+  const [pendingStatus, setPendingStatus] = useState<{
+    rowIndex: number;
+    parameter: string;
+    step: "password" | "choose";
+    pw: string;
+    pwError: string;
+    loading: boolean;
+  } | null>(null);
+
+  const openStatusOverride = (rowIndex: number, parameter: string) => {
+    setPendingStatus({ rowIndex, parameter, step: "password", pw: "", pwError: "", loading: false });
+  };
+  const cancelStatusOverride = () => setPendingStatus(null);
+
+  const confirmStatusPw = async () => {
+    if (!pendingStatus) return;
+    setPendingStatus(s => s ? { ...s, loading: true, pwError: "" } : s);
+    const res = await unlock(pendingStatus.pw);
+    if (res.ok) {
+      setPendingStatus(s => s ? { ...s, step: "choose", loading: false } : s);
+    } else {
+      setPendingStatus(s => s ? { ...s, pwError: res.error ?? "Senha incorreta.", loading: false, pw: "" } : s);
+    }
+  };
+
+  const applyStatusOverride = (newStatus: string) => {
+    if (!pendingStatus) return;
+    updateAnalysis(pendingStatus.rowIndex, "status", newStatus);
+    setPendingStatus(null);
+  };
+
   const setCertEdit = (key: string, val: string) => {
     setCertEditsState(prev => {
       const next = { ...prev, [key]: val };
@@ -677,7 +711,7 @@ export default function CertificatePage() {
   // Priority: cert_overrides.method > param_methods > API default.
   useEffect(() => {
     if (!cert) return;
-    type FieldOverride = { method?: string; specification?: string; result?: string };
+    type FieldOverride = { method?: string; specification?: string; result?: string; status?: string };
     let saved: Record<string, FieldOverride> = {};
     // paramCitations: full citation text chosen in Results tab (for Método column)
     // paramMethods: shortName (fallback if no citation stored yet)
@@ -716,6 +750,7 @@ export default function CertificatePage() {
         // Results tab propagate to the certificate automatically, even after
         // the certificate has been created.
         result: a.result,
+        status: saved[a.parameter]?.status ?? a.status,
         overageInfo: a.overageInfo ?? null,
         ativoMgValue: a.ativoMgValue ?? null,
         ativoFaixa: a.ativoFaixa ?? null,
@@ -772,7 +807,7 @@ export default function CertificatePage() {
   const getDescription = (param: string) =>
     photoDescriptions[param] !== undefined ? photoDescriptions[param] : getParamDescription(param);
 
-  const updateAnalysis = (i: number, field: "method" | "specification" | "result", val: string) => {
+  const updateAnalysis = (i: number, field: "method" | "specification" | "result" | "status", val: string) => {
     setAnalyses(prev => {
       if (!prev) return prev;
       const next = [...prev];
@@ -852,6 +887,77 @@ export default function CertificatePage() {
         description="Digite a senha mestra para liberar a edição dos campos do certificado."
         submitLabel="Desbloquear"
       />
+
+      {/* ─── Dialog: Override de status ─── */}
+      <Dialog open={!!pendingStatus} onOpenChange={open => { if (!open) cancelStatusOverride(); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {pendingStatus?.step === "password"
+                ? "Confirmar alteração de status"
+                : `Alterar status — ${pendingStatus?.parameter}`}
+            </DialogTitle>
+          </DialogHeader>
+
+          {pendingStatus?.step === "password" && (
+            <div className="space-y-3 py-1">
+              <p className="text-sm text-muted-foreground">
+                Digite a senha mestra para alterar o status de{" "}
+                <span className="font-semibold text-red-700">Nao Conforme</span>.
+              </p>
+              <Input
+                type="password"
+                placeholder="Senha mestra"
+                value={pendingStatus.pw}
+                onChange={e => setPendingStatus(s => s ? { ...s, pw: e.target.value, pwError: "" } : s)}
+                onKeyDown={e => { if (e.key === "Enter") confirmStatusPw(); }}
+                autoFocus
+              />
+              {pendingStatus.pwError && (
+                <p className="text-xs text-red-600">{pendingStatus.pwError}</p>
+              )}
+            </div>
+          )}
+
+          {pendingStatus?.step === "choose" && (
+            <div className="space-y-2 py-1">
+              <p className="text-sm text-muted-foreground">Escolha o novo status para este parâmetro:</p>
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="outline"
+                  className="justify-start border-green-300 text-green-800 hover:bg-green-50"
+                  onClick={() => applyStatusOverride("Conforme")}
+                >
+                  ✓ Conforme
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start border-amber-300 text-amber-800 hover:bg-amber-50"
+                  onClick={() => applyStatusOverride("Aprovado com Ressalva")}
+                >
+                  ⚠ Aprovado com Ressalva
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            {pendingStatus?.step === "password" && (
+              <>
+                <Button variant="ghost" onClick={cancelStatusOverride} disabled={pendingStatus.loading}>
+                  Cancelar
+                </Button>
+                <Button onClick={confirmStatusPw} disabled={pendingStatus.loading || !pendingStatus.pw}>
+                  {pendingStatus.loading ? "Verificando…" : "Confirmar"}
+                </Button>
+              </>
+            )}
+            {pendingStatus?.step === "choose" && (
+              <Button variant="ghost" onClick={cancelStatusOverride}>Cancelar</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── Toolbar ─── */}
       <div className="flex items-center justify-between print:hidden">
@@ -1469,6 +1575,16 @@ export default function CertificatePage() {
                             {isNC && <span className="inline-block w-2 h-2 rounded-full bg-red-600 shrink-0" />}
                             {analysis.status}
                           </span>
+                          {isNC && (
+                            <button
+                              type="button"
+                              onClick={() => openStatusOverride(analysis.originalIndex, analysis.parameter)}
+                              className="print:hidden mt-1 block w-full text-[10px] text-red-700 underline underline-offset-2 hover:text-red-900 transition-colors"
+                              title="Alterar status com senha"
+                            >
+                              ✎ alterar
+                            </button>
+                          )}
                         </td>
                         <td className={`border px-2 py-1.5 text-center align-middle print:hidden ${isNC ? "border-red-300" : "border-gray-300"}`}>
                           <input type="checkbox" checked={analysis.visible} onChange={() => toggleRowVisibility(analysis.originalIndex)} className="w-4 h-4 accent-primary cursor-pointer" />
