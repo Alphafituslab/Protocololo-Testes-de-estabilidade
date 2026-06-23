@@ -48,11 +48,18 @@ O browser repete automaticamente o header-group no topo e o footer-group no roda
 ## @page: padrão correto
 
 ```css
-@page { margin: 0 25mm !important; }
+@page {
+  size: A4 portrait;
+  margin: 15mm 25mm 10mm 25mm;
+}
 ```
 
-- `margin-top/bottom: 0` → suprime URL/data nativos do browser
-- `margin-left/right: 25mm` → margens laterais do documento
+- Conteúdo: 160mm de largura (210mm A4 − 2×25mm)
+- 15mm topo / 10mm base → espaço para o browser colocar URL/data nativos
+
+❌ NUNCA usar `!important` dentro de `@page {}` — é CSS INVÁLIDO.
+   Chrome ignora **toda** a regra @page silenciosamente: `size: A4` e `margin`
+   são descartados. O PDF sai com tamanho/margens aleatórios.
 
 ❌ NUNCA usar `@page { margin: 0 }` puro — elimina margens laterais.
 

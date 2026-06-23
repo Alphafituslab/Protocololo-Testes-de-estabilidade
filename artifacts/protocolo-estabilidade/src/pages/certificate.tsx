@@ -2473,13 +2473,13 @@ export default function CertificatePage() {
             content: "Página " counter(page) " de " counter(pages);
           }
 
-          /* ── 5. @page: margem topo/base = 0 suprime URL/data do browser.
-             Margens laterais = 25mm preservam a estética do documento.
-             Cabeçalho/rodapé via table-header-group/footer-group — repetem
-             automaticamente em cada página, sem position:fixed.             */
+          /* ── 5. @page: NUNCA usar !important dentro de @page (CSS inválido →
+             browser ignora a regra inteira, inclusive size: A4).
+             Margens: 15mm topo/base (espaço para header/footer físico do browser)
+                      25mm laterais (estética do documento técnico).            */
           @page {
             size: A4 portrait;
-            margin: 0 25mm !important;
+            margin: 15mm 25mm 10mm 25mm;
           }
 
           /* ── 5a. #certificate-document como tabela CSS ─────────────────────────
