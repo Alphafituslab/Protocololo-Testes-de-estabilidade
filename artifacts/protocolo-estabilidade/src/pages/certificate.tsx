@@ -556,6 +556,16 @@ export default function CertificatePage() {
     } catch { return {}; }
   })();
 
+  // Períodos incluídos no certificado (definido na aba Resultados)
+  const certPeriodsLS: number[] = (() => {
+    try {
+      const raw = localStorage.getItem(`cert_periods_${id}`);
+      if (raw) { const p = JSON.parse(raw); if (Array.isArray(p)) return p; }
+    } catch { /* ignore */ }
+    return [0, 3, 6];
+  })();
+  const certPeriodCount = Math.max(1, certPeriodsLS.length);
+
   // Helper para datas de análise:
   // Prioridade: aba de resultados (fonte primária) > cert edit manual > banco > vazio
   const getAnalysisDate = (key: string, apiDate: string | null | undefined, period: number): string => {
@@ -825,7 +835,7 @@ export default function CertificatePage() {
   const effectiveIsRepproved = isRepproved || hasNonConforming;
 
   const visiblePhotoEntries = includePhotos
-    ? allPhotoEntries.filter(e => activePhotoKeys.has(e.key))
+    ? allPhotoEntries.filter(e => activePhotoKeys.has(e.key) && certPeriodsLS.includes(e.period))
     : [];
 
   const totalSelectedImages = visiblePhotoEntries.reduce((s, e) => s + e.images.length, 0);
@@ -1306,25 +1316,34 @@ export default function CertificatePage() {
           <div className="bg-slate-50 border-b border-gray-300 px-5 py-2">
             <span className="text-[9px] font-semibold tracking-wide text-slate-500">Datas das Análises por Período</span>
           </div>
-          <div className="grid grid-cols-3 divide-x divide-gray-300">
-            <div className="p-4">
-              <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">T0 — Início do Estudo</p>
-              <p className="font-semibold text-slate-800 text-sm">
-                <CertEditField value={getAnalysisDate("analysisDateT0", cert.analysisDates?.t0, 0)} onChange={v => setCertEdit("analysisDateT0", v)} className="w-full" />
-              </p>
-            </div>
-            <div className="p-4">
-              <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">T3 — 3 Meses</p>
-              <p className="font-semibold text-slate-800 text-sm">
-                <CertEditField value={getAnalysisDate("analysisDateT3", cert.analysisDates?.t3, 3)} onChange={v => setCertEdit("analysisDateT3", v)} className="w-full" />
-              </p>
-            </div>
-            <div className="p-4">
-              <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">T6 — 6 Meses</p>
-              <p className="font-semibold text-slate-800 text-sm">
-                <CertEditField value={getAnalysisDate("analysisDateT6", cert.analysisDates?.t6, 6)} onChange={v => setCertEdit("analysisDateT6", v)} className="w-full" />
-              </p>
-            </div>
+          <div
+            className="divide-x divide-gray-300"
+            style={{ display: "grid", gridTemplateColumns: `repeat(${certPeriodCount}, 1fr)` }}
+          >
+            {certPeriodsLS.includes(0) && (
+              <div className="p-4">
+                <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">T0 — Início do Estudo</p>
+                <p className="font-semibold text-slate-800 text-sm">
+                  <CertEditField value={getAnalysisDate("analysisDateT0", cert.analysisDates?.t0, 0)} onChange={v => setCertEdit("analysisDateT0", v)} className="w-full" />
+                </p>
+              </div>
+            )}
+            {certPeriodsLS.includes(3) && (
+              <div className="p-4">
+                <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">T3 — 3 Meses</p>
+                <p className="font-semibold text-slate-800 text-sm">
+                  <CertEditField value={getAnalysisDate("analysisDateT3", cert.analysisDates?.t3, 3)} onChange={v => setCertEdit("analysisDateT3", v)} className="w-full" />
+                </p>
+              </div>
+            )}
+            {certPeriodsLS.includes(6) && (
+              <div className="p-4">
+                <p className="text-[9px] font-semibold tracking-wide text-slate-500 mb-2">T6 — 6 Meses</p>
+                <p className="font-semibold text-slate-800 text-sm">
+                  <CertEditField value={getAnalysisDate("analysisDateT6", cert.analysisDates?.t6, 6)} onChange={v => setCertEdit("analysisDateT6", v)} className="w-full" />
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

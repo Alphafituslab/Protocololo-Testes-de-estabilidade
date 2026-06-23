@@ -772,7 +772,7 @@ function InlineCell({
   lotId: number;
   period: number;
   param: { parameter: string; category: string; criterion: string };
-  result: { result: string; status: string; observation?: string | null } | undefined;
+  result: { id?: number; result: string; status: string; observation?: string | null } | undefined;
   protocolId: number;
   lots: { id: number; lotNumber: string }[];
   periodDate?: string;
@@ -784,6 +784,18 @@ function InlineCell({
   );
   const [observation, setObservation] = useState(result?.observation ?? "");
   const queryClient = useQueryClient();
+  const [delConfirm, setDelConfirm] = useState(false);
+  const deleteResult = useDeleteResult({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
+        queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
+        queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
+        setEditing(false);
+        setDelConfirm(false);
+      },
+    },
+  });
 
   // Pede senha antes de reeditar resultado já salvo
   const [pwdOpen, setPwdOpen] = useState(false);
@@ -983,7 +995,7 @@ function InlineCell({
             )}
           </div>
         )}
-        <div className="flex gap-0.5 justify-center">
+        <div className="flex gap-0.5 justify-center flex-wrap">
           <button
             type="button"
             onClick={save}
@@ -994,11 +1006,39 @@ function InlineCell({
           </button>
           <button
             type="button"
-            onClick={() => setEditing(false)}
+            onClick={() => { setEditing(false); setDelConfirm(false); }}
             className="text-[9px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80"
           >
             ✕
           </button>
+          {result?.id && !delConfirm && (
+            <button
+              type="button"
+              onClick={() => setDelConfirm(true)}
+              className="text-[9px] px-2 py-0.5 rounded bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+            >
+              Excluir
+            </button>
+          )}
+          {delConfirm && (
+            <>
+              <button
+                type="button"
+                onClick={() => { if (result?.id) deleteResult.mutate({ id: protocolId, resultId: result.id }); }}
+                disabled={deleteResult.isPending}
+                className="text-[9px] px-2 py-0.5 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteResult.isPending ? "..." : "Confirmar excluir"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDelConfirm(false)}
+                className="text-[9px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80"
+              >
+                Não
+              </button>
+            </>
+          )}
         </div>
         {value.trim() && (
           <button
@@ -1726,6 +1766,23 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [PERIOD_DATES_KEY]);
 
+  // ── Períodos incluídos no certificado (localStorage) ──────────────────────
+  const CERT_PERIODS_KEY = `cert_periods_${protocolId}`;
+  const [certPeriods, setCertPeriodsState] = useState<number[]>(() => {
+    try {
+      const raw = localStorage.getItem(`cert_periods_${protocolId}`);
+      if (raw) { const p = JSON.parse(raw); if (Array.isArray(p)) return p; }
+    } catch { /* ignore */ }
+    return [0, 3, 6];
+  });
+  const toggleCertPeriod = (p: number) => {
+    setCertPeriodsState(prev => {
+      const next = prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p].sort((a, b) => a - b);
+      try { localStorage.setItem(CERT_PERIODS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
   const setParamMethod = (paramName: string, shortName: string | null, citation: string | null = null) => {
     setParamMethods((prev) => {
       const next = { ...prev };
@@ -2016,6 +2073,25 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                 onChange={e => setPeriodDate(period, e.target.value)}
                 className="border border-blue-300 rounded px-1.5 py-0.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Períodos no certificado ───────────────────────────────────────────── */}
+      <div className="rounded border border-indigo-200 bg-indigo-50 p-2">
+        <p className="text-[11px] font-semibold text-indigo-700 mb-0.5 uppercase tracking-wide">Períodos no Certificado de Análise</p>
+        <p className="text-[10px] text-indigo-500 mb-1.5">Selecione quais períodos serão exibidos nas datas e no apêndice de fotos do PDF:</p>
+        <div className="flex gap-4">
+          {PERIODS.map((p) => (
+            <label key={p} className="flex items-center gap-1.5 text-xs text-indigo-800 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={certPeriods.includes(p)}
+                onChange={() => toggleCertPeriod(p)}
+                className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer"
+              />
+              <span className="font-bold">T{p}m</span>
             </label>
           ))}
         </div>
