@@ -193,9 +193,10 @@ function CertEditField({
           }
         }}
         onInput={handleInput}
+        style={{ textAlign: "inherit", hyphens: "auto" }}
         className={`${BASE} ${multiline ? "whitespace-pre-wrap break-words" : "whitespace-nowrap overflow-hidden"} ${className}`}
       />
-      <span className={`hidden print:${multiline ? "block" : "inline"} whitespace-pre-wrap break-words`}>{value}</span>
+      <span style={{ textAlign: "inherit", hyphens: "auto" }} className={`hidden print:${multiline ? "block" : "inline"} whitespace-pre-wrap break-words`}>{value}</span>
     </span>
   );
 }
@@ -1454,10 +1455,10 @@ export default function CertificatePage() {
             <div className="bg-slate-700 px-5 py-1.5">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Observações sobre os Lotes</h2>
             </div>
-            <div className="px-5 py-5 text-gray-700 space-y-3 text-base leading-relaxed" style={{ textAlign: "justify" }}>
-              <p>{ef("textoLotes1", "Os lotes piloto foram produzidos em datas distintas, sob condições equivalentes de fabricação, visando assegurar a independência entre os lotes, a rastreabilidade do estudo e a minimização do risco de desvios operacionais ou interferências de processo.", { multiline: true })}</p>
-              <p>{ef("textoLotes2", "Alimento está sendo testado em embalagem equivalente e sistema de fechamento nos quais será comercializado.", { multiline: true })}</p>
-              <p>{ef("textoLotes3", "Os resultados apresentados neste certificado referem-se à média dos valores obtidos nos lotes piloto avaliados.", { multiline: true })}</p>
+            <div className="px-5 py-5 text-gray-700 space-y-3 text-base leading-relaxed" style={{ textAlign: "justify", hyphens: "auto" }}>
+              <p style={{ textAlign: "justify", hyphens: "auto" }}>{ef("textoLotes1", "Os lotes piloto foram produzidos em datas distintas, sob condições equivalentes de fabricação, visando assegurar a independência entre os lotes, a rastreabilidade do estudo e a minimização do risco de desvios operacionais ou interferências de processo.", { multiline: true })}</p>
+              <p style={{ textAlign: "justify", hyphens: "auto" }}>{ef("textoLotes2", "Alimento está sendo testado em embalagem equivalente e sistema de fechamento nos quais será comercializado.", { multiline: true })}</p>
+              <p style={{ textAlign: "justify", hyphens: "auto" }}>{ef("textoLotes3", "Os resultados apresentados neste certificado referem-se à média dos valores obtidos nos lotes piloto avaliados.", { multiline: true })}</p>
             </div>
           </div>
         )}
@@ -1468,10 +1469,10 @@ export default function CertificatePage() {
             <div className="bg-slate-700 px-5 py-1.5">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Informações Adicionais</h2>
             </div>
-            <div className="px-5 py-5 text-gray-700 space-y-3 text-base leading-relaxed" style={{ textAlign: "justify" }}>
-              <p>{ef("infoAdicionais1", "Este documento deve ser reproduzido integralmente. A reproducao parcial somente e permitida mediante autorizacao formal e escrita do laboratorio.", { multiline: true })}</p>
-              <p>{ef("infoAdicionais2", "Os resultados apresentados referem-se exclusivamente as amostras recebidas e foram obtidos e reportados de acordo com as condicoes analiticas estabelecidas e metodologias aplicaveis.", { multiline: true })}</p>
-              <p>{ef("infoAdicionais3", "NA = Nao se aplica   ND = Nao detectado   LQ = Limite de quantificacao   AR = Aprovado com Ressalva", { multiline: true })}</p>
+            <div className="px-5 py-5 text-gray-700 space-y-3 text-base leading-relaxed" style={{ textAlign: "justify", hyphens: "auto" }}>
+              <p style={{ textAlign: "justify", hyphens: "auto" }}>{ef("infoAdicionais1", "Este documento deve ser reproduzido integralmente. A reproducao parcial somente e permitida mediante autorizacao formal e escrita do laboratorio.", { multiline: true })}</p>
+              <p style={{ textAlign: "justify", hyphens: "auto" }}>{ef("infoAdicionais2", "Os resultados apresentados referem-se exclusivamente as amostras recebidas e foram obtidos e reportados de acordo com as condicoes analiticas estabelecidas e metodologias aplicaveis.", { multiline: true })}</p>
+              <p style={{ textAlign: "justify", hyphens: "auto" }}>{ef("infoAdicionais3", "NA = Nao se aplica   ND = Nao detectado   LQ = Limite de quantificacao   AR = Aprovado com Ressalva", { multiline: true })}</p>
             </div>
           </div>
         )}
@@ -1482,7 +1483,7 @@ export default function CertificatePage() {
             <div className="bg-slate-700 px-5 py-1.5">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Conclusão</h2>
             </div>
-            <div className="px-5 py-5 text-base font-medium" style={{ textAlign: "justify", overflowWrap: "anywhere", wordBreak: "break-word" }}>
+            <div className="px-5 py-5 text-base font-medium" style={{ textAlign: "justify", hyphens: "auto", overflowWrap: "anywhere", wordBreak: "break-word" }}>
               {ef("conclusion", cert.conclusion, { multiline: true, className: "w-full text-base font-medium" })}
             </div>
           </div>
