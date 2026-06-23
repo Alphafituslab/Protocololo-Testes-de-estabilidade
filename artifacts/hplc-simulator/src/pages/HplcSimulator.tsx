@@ -2711,6 +2711,7 @@ export default function HplcSimulator() {
   const [showControls, setShowControls] = useState(true);
   const [showStdPeak, setShowStdPeak] = useState(false);
   const [showBaselines, setShowBaselines] = useState(false);
+  const [showExtStdNote, setShowExtStdNote] = useState(true);
   const [formulas, setFormulas] = useState<Formula[]>(() => loadFormulas());
   const [lots, setLots] = useState<Lot[]>(() => loadLots());
   const [selectedFormulaId, setSelectedFormulaId] = useState<string | null>(null);
@@ -6131,8 +6132,20 @@ export default function HplcSimulator() {
                   <div style={{ whiteSpace: "pre" }}>{"     [min]          [mAU*s]               [ug/ml]"}</div>
                   <div style={{ whiteSpace: "pre" }}>{"    -------|------|----------|----------|----------|--|------------------"}</div>
                   {padraoExtHasData && (
-                    <div style={{ whiteSpace: "pre", fontSize: 9, color: "#6b7280", fontStyle: "italic" }}>
-                      {`    [External standard: ${padraoConfig.compoundName} — ${padraoConfig.stdPeakName} — ${padraoConfig.stdAmountUg.toFixed(4)} µg — purity ${padraoConfig.stdPurity.toFixed(2)}%]`}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      {showExtStdNote && (
+                        <div style={{ whiteSpace: "pre", fontSize: 9, color: "#6b7280", fontStyle: "italic" }}>
+                          {`    [External standard: ${padraoConfig.compoundName} — ${padraoConfig.stdPeakName} — ${padraoConfig.stdAmountUg.toFixed(4)} µg — purity ${padraoConfig.stdPurity.toFixed(2)}%]`}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => setShowExtStdNote(v => !v)}
+                        title={showExtStdNote ? "Ocultar nota (não aparece na impressão/PDF)" : "Mostrar nota do padrão externo"}
+                        className="no-print"
+                        style={{ flexShrink: 0, background: "none", border: "1px solid #d1d5db", borderRadius: 4, padding: "1px 6px", cursor: "pointer", fontSize: 9, color: showExtStdNote ? "#6b7280" : "#dc2626", fontFamily: "Courier New, monospace", display: "flex", alignItems: "center", gap: 3 }}
+                      >
+                        {showExtStdNote ? "👁 ocultar" : "👁 mostrar nota"}
+                      </button>
                     </div>
                   )}
                   {peakStats.filter(p => p.printSelected !== false).map(p => {
