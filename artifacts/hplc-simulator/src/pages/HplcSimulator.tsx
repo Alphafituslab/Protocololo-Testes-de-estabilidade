@@ -286,6 +286,16 @@ interface PadraoConfig {
     changedBy: string;
   }
 
+  // ─── Standards Library (presets) ─────────────────────────────────────────────────
+  interface PadraoPreset {
+    id: string;
+    name: string;
+    compoundName: string;
+    stdArea: number;
+    stdAmountUg: number;
+    stdPurity: number;
+  }
+
   // ─── Calc-trace types (rastreabilidade) ──────────────────────────────────────────
 
   type CalcMethod = "external_standard" | "calibration_curve" | "response_factor" | "unknown";
@@ -1983,6 +1993,15 @@ function savePadraoConfig(c: PadraoConfig) {
   try { localStorage.setItem(PADRAO_KEY, JSON.stringify(c)); } catch { /* ignore */ }
 }
 
+const PADRAO_PRESETS_KEY = "hplc_padrao_presets_v1";
+function loadPadraoPresets(): PadraoPreset[] {
+  try { return JSON.parse(localStorage.getItem(PADRAO_PRESETS_KEY) ?? "[]") as PadraoPreset[]; }
+  catch { return []; }
+}
+function savePadraoPresets(p: PadraoPreset[]) {
+  try { localStorage.setItem(PADRAO_PRESETS_KEY, JSON.stringify(p)); } catch { /* noop */ }
+}
+
 const PADRAO_LOG_KEY = "hplc_padrao_changelog_v1";
   const PADRAO_LOCKED_KEY = "hplc_padrao_locked_v1";
   function loadPadraoChangelog(): PadraoChangeLog[] {
@@ -2804,6 +2823,8 @@ export default function HplcSimulator() {
   const [padraoLocked, setPadraoLocked] = useState<boolean>(() => loadPadraoLocked());
   const [padraoChangelog, setPadraoChangelog] = useState<PadraoChangeLog[]>(() => loadPadraoChangelog());
   const [padraoHistoryOpen, setPadraoHistoryOpen] = useState(false);
+  const [padraoPresets, setPadraoPresets] = useState<PadraoPreset[]>(() => loadPadraoPresets());
+  const [padraoPresetSaveName, setPadraoPresetSaveName] = useState("");
   const [calcTraceDialog, setCalcTraceDialog] = useState<CalcTrace | null>(null);
   const PROTECTED_FIELDS: (keyof PadraoConfig)[] = ["stdArea", "stdAmountUg", "stdPurity", "compoundName"];
   const updatePadrao = useCallback((patch: Partial<PadraoConfig>, opts?: { changedBy?: string }) => {
@@ -5428,6 +5449,73 @@ export default function HplcSimulator() {
                   </div>
                 </ControlBox>
               </>
+            )}
+
+            {page === "padrao" && (
+              <ControlBox title="📚 Standards Library">
+                <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6, lineHeight: 1.5 }}>
+                  Save reference standard configs to reuse quickly. Click <b>Load</b> to restore any preset.
+                </div>
+                {/* Save current config as a new preset */}
+                <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                  <input
+                    type="text"
+                    placeholder={padraoConfig.compoundName || "Preset name…"}
+                    value={padraoPresetSaveName}
+                    onChange={e => setPadraoPresetSaveName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key !== "Enter") return;
+                      const name = padraoPresetSaveName.trim() || padraoConfig.compoundName || "Standard";
+                      const preset: PadraoPreset = { id: uid(), name, compoundName: padraoConfig.compoundName, stdArea: padraoConfig.stdArea, stdAmountUg: padraoConfig.stdAmountUg, stdPurity: padraoConfig.stdPurity };
+                      const next = [...padraoPresets, preset];
+                      setPadraoPresets(next); savePadraoPresets(next); setPadraoPresetSaveName("");
+                    }}
+                    style={{ flex: 1, fontFamily: "Courier New, monospace", fontSize: 9, padding: "3px 6px", border: "1px solid #cbd5e1", borderRadius: 4 }}
+                  />
+                  <button
+                    onClick={() => {
+                      const name = padraoPresetSaveName.trim() || padraoConfig.compoundName || "Standard";
+                      const preset: PadraoPreset = { id: uid(), name, compoundName: padraoConfig.compoundName, stdArea: padraoConfig.stdArea, stdAmountUg: padraoConfig.stdAmountUg, stdPurity: padraoConfig.stdPurity };
+                      const next = [...padraoPresets, preset];
+                      setPadraoPresets(next); savePadraoPresets(next); setPadraoPresetSaveName("");
+                    }}
+                    style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "3px 8px", border: "1px solid #3b82f6", borderRadius: 4, background: "#eff6ff", cursor: "pointer", color: "#1d4ed8", fontWeight: "bold", whiteSpace: "nowrap" }}
+                  >
+                    + Save
+                  </button>
+                </div>
+                {/* Preset list */}
+                {padraoPresets.length === 0 ? (
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", textAlign: "center", padding: "8px 0" }}>
+                    No standards saved yet.<br />Fill in the Reference Standard and click "+ Save".
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {padraoPresets.map(p => (
+                      <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 6px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 4 }}>
+                        <div style={{ flex: 1, fontFamily: "Courier New, monospace", fontSize: 9, color: "#1e293b", overflow: "hidden", minWidth: 0 }}>
+                          <div style={{ fontWeight: "bold", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p.name}>{p.name}</div>
+                          <div style={{ color: "#94a3b8", fontSize: 8 }}>{p.compoundName || "—"} · {p.stdPurity}%</div>
+                        </div>
+                        <button
+                          onClick={() => updatePadraoProtected({ compoundName: p.compoundName, stdArea: p.stdArea, stdAmountUg: p.stdAmountUg, stdPurity: p.stdPurity })}
+                          title="Load this standard into the Reference Standard card"
+                          style={{ fontFamily: "Courier New, monospace", fontSize: 8, padding: "2px 6px", border: "1px solid #3b82f6", borderRadius: 3, background: "#eff6ff", cursor: "pointer", color: "#1d4ed8", flexShrink: 0 }}
+                        >
+                          Load
+                        </button>
+                        <button
+                          onClick={() => { const next = padraoPresets.filter(x => x.id !== p.id); setPadraoPresets(next); savePadraoPresets(next); }}
+                          title="Delete this preset"
+                          style={{ fontFamily: "Courier New, monospace", fontSize: 8, padding: "2px 5px", border: "1px solid #fca5a5", borderRadius: 3, background: "#fff1f2", cursor: "pointer", color: "#dc2626", flexShrink: 0 }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ControlBox>
             )}
           </div>
         )}
