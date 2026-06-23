@@ -539,6 +539,8 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     notes: "Os resultados obtidos nos tempos T0, T3 e T6 (40 °C / 75% UR) demonstraram estabilidade do componente, com variações atribuídas exclusivamente à variabilidade analítica.",
     kineticsNotes: protocol.kineticsNotes ?? null,
     ressalva: protocol.ressalva ?? null,
+    certEditsJson: protocol.certEditsJson ?? null,
+    certAnalysesOverridesJson: protocol.certAnalysesOverridesJson ?? null,
   });
 });
 

@@ -527,8 +527,16 @@ export default function CertificatePage() {
   });
 
   const [certLocked, setCertLockedState] = useState<boolean>(() => {
-    try { return localStorage.getItem(`cert_locked_${id}`) === "1"; } catch { return false; }
+    try {
+      const v = localStorage.getItem(`cert_locked_${id}`);
+      return v !== "0"; // locked by default; only unlocked when explicitly set to "0"
+    } catch { return true; }
   });
+
+  // ── Auto-save to DB refs ──────────────────────────────────────────────────
+  const certEditsDbSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const analysesDbSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [certSaveStatus, setCertSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const { unlock } = useUnlock();
 
@@ -616,25 +624,22 @@ export default function CertificatePage() {
   };
 
   const saveCert = () => {
-    // Final safety net: purge corrupted title before locking
     if (isBadCertTitle(certCustomTitle)) {
       setCertCustomTitleState("");
       try { localStorage.removeItem(CERT_TITLE_KEY); } catch { /* ignore */ }
     }
-    // Use functional update to read the LATEST certEdits state rather than the
-    // closure-captured value. When the user edits a field and immediately clicks
-    // Save, React batches both state updates — the functional form guarantees
-    // we see all pending setCertEdit calls before persisting to localStorage.
     setCertEditsState(current => {
       try {
         localStorage.setItem(CERT_LOCKED_KEY, "1");
         localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(current));
       } catch { /* ignore */ }
-      // Persist issueDate to the database so it survives localStorage clears
-      // and is reflected immediately in the report without depending on localStorage.
-      if (current["issueDate"] && id) {
-        updateProtocol.mutate({ id: Number(id), data: { issueDate: current["issueDate"] } });
-      }
+      // Save EVERYTHING to DB immediately on explicit save
+      const extra: Record<string, string> = {};
+      if (current["issueDate"]) extra.issueDate = current["issueDate"];
+      updateProtocol.mutate(
+        { id: Number(id), data: { certEditsJson: JSON.stringify(current), ...extra } },
+        { onSuccess: () => setCertSaveStatus("saved") }
+      );
       return current;
     });
     setCertLockedState(true);
@@ -708,13 +713,29 @@ export default function CertificatePage() {
     query: { enabled: !!id, queryKey: getGetKineticsQueryKey(Number(id)), staleTime: 0, refetchOnWindowFocus: true },
   });
 
-  // Sync analyses from API + localStorage every time cert (re)loads.
+  // Sync analyses from API + DB/localStorage every time cert (re)loads.
   // Runs on mount and whenever cert refetches (e.g. after navigating back from
   // the Results tab). Preserves: visibility toggles (via map), manual cert
   // edits (via cert_overrides), and methodology selections (via param_methods).
   // Priority: cert_overrides.method > param_methods > API default.
+  // DB is the authoritative source; localStorage is the working copy.
   useEffect(() => {
     if (!cert) return;
+
+    // ── Hydrate certEdits from DB if localStorage is empty ─────────────────
+    if (cert.certEditsJson) {
+      try {
+        const dbEdits = JSON.parse(cert.certEditsJson) as Record<string, string>;
+        if (Object.keys(dbEdits).length > 0) {
+          const localEdits = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}") as Record<string, string>;
+          if (Object.keys(localEdits).length === 0) {
+            setCertEditsState(dbEdits);
+            try { localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(dbEdits)); } catch { /* ignore */ }
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
     type FieldOverride = { method?: string; specification?: string; result?: string; status?: string };
     let saved: Record<string, FieldOverride> = {};
     // paramCitations: full citation text chosen in Results tab (for Método column)
@@ -723,7 +744,13 @@ export default function CertificatePage() {
     let paramMethods: Record<string, string> = {};
     try {
       const raw = localStorage.getItem(`cert_overrides_${id}`);
-      if (raw) saved = JSON.parse(raw);
+      if (raw) {
+        saved = JSON.parse(raw);
+      } else if (cert.certAnalysesOverridesJson) {
+        // No localStorage — load from DB (source of truth)
+        saved = JSON.parse(cert.certAnalysesOverridesJson);
+        try { localStorage.setItem(`cert_overrides_${id}`, cert.certAnalysesOverridesJson); } catch { /* ignore */ }
+      }
       // Full citation text (primary source for Método column)
       const citRaw = localStorage.getItem(`param_methods_citations_${id}`);
       if (citRaw) paramCitations = JSON.parse(citRaw);
@@ -763,6 +790,21 @@ export default function CertificatePage() {
       }));
     });
   }, [cert, id]);
+
+  // Auto-save certEdits to DB (debounced 1.5s) whenever any field changes
+  useEffect(() => {
+    if (!id || Object.keys(certEdits).length === 0) return;
+    setCertSaveStatus("saving");
+    if (certEditsDbSaveTimerRef.current) clearTimeout(certEditsDbSaveTimerRef.current);
+    certEditsDbSaveTimerRef.current = setTimeout(() => {
+      updateProtocol.mutate(
+        { id: Number(id), data: { certEditsJson: JSON.stringify(certEdits) } },
+        { onSuccess: () => setCertSaveStatus("saved"), onError: () => setCertSaveStatus("idle") }
+      );
+    }, 1500);
+    return () => { if (certEditsDbSaveTimerRef.current) clearTimeout(certEditsDbSaveTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [certEdits, id]);
 
   const allPhotoEntries = useMemo(() => {
     if (!lotsRaw.length) return [] as PhotoEntry[];
@@ -811,12 +853,23 @@ export default function CertificatePage() {
   const getDescription = (param: string) =>
     photoDescriptions[param] !== undefined ? photoDescriptions[param] : getParamDescription(param);
 
+  const scheduleAnalysesDbSave = (overrides: Record<string, Record<string, string>>) => {
+    if (!id) return;
+    setCertSaveStatus("saving");
+    if (analysesDbSaveTimerRef.current) clearTimeout(analysesDbSaveTimerRef.current);
+    analysesDbSaveTimerRef.current = setTimeout(() => {
+      updateProtocol.mutate(
+        { id: Number(id), data: { certAnalysesOverridesJson: JSON.stringify(overrides) } },
+        { onSuccess: () => setCertSaveStatus("saved"), onError: () => setCertSaveStatus("idle") }
+      );
+    }, 1500);
+  };
+
   const updateAnalysis = (i: number, field: "method" | "specification" | "result" | "status", val: string) => {
     setAnalyses(prev => {
       if (!prev) return prev;
       const next = [...prev];
       next[i] = { ...next[i], [field]: val };
-      // Persist ALL field edits so they survive page refreshes
       try {
         const key = `cert_overrides_${id}`;
         const savedRaw = localStorage.getItem(key) ?? "{}";
@@ -824,6 +877,7 @@ export default function CertificatePage() {
         const param = next[i].parameter;
         saved[param] = { ...saved[param], [field]: val };
         localStorage.setItem(key, JSON.stringify(saved));
+        scheduleAnalysesDbSave(saved);
       } catch { /* ignore */ }
       return next;
     });
@@ -971,9 +1025,19 @@ export default function CertificatePage() {
           </Button>
         </Link>
         <div className="flex gap-2 items-center">
+          {certSaveStatus === "saving" && (
+            <span className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded px-2 py-1 font-medium animate-pulse">
+              ☁ Salvando no servidor…
+            </span>
+          )}
+          {certSaveStatus === "saved" && (
+            <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-1 font-medium">
+              ✓ Salvo no servidor
+            </span>
+          )}
           {!certLocked ? (
             <>
-              <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-1 font-medium">
+              <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 font-medium">
                 ✎ Modo edição — clique em qualquer campo para corrigir
               </span>
               <Button variant="default" size="sm" onClick={saveCert} className="bg-emerald-600 hover:bg-emerald-700 text-white">
@@ -1008,16 +1072,17 @@ export default function CertificatePage() {
         </p>
       </div>
 
-      {/* ─── Banner: edições em cache detectadas ─── */}
+      {/* ─── Banner: edições salvas detectadas ─── */}
       {Object.keys(certEdits).length > 0 && !certLocked && (
         <div className="print:hidden flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
           <span>
-            <strong>⚠ Atenção:</strong> Este certificado possui <strong>{Object.keys(certEdits).length}</strong> campo(s) com edições manuais salvas localmente.
-            Se os dados estiverem incorretos, clique em <strong>Restaurar</strong> para recarregar os valores originais do banco de dados.
+            <strong>✎ Modo edição:</strong> Este certificado possui <strong>{Object.keys(certEdits).length}</strong> campo(s) com edições salvas no servidor.
+            As alterações são preservadas mesmo após fechar o navegador.
+            Se os dados estiverem incorretos, clique em <strong>Restaurar</strong> para recarregar os valores originais.
           </span>
           <button
             type="button"
-            onClick={() => { if (window.confirm("Restaurar todos os campos do certificado para os valores originais do banco de dados?\n\nAs edições manuais salvas localmente serão perdidas.")) clearCertEdits(); }}
+            onClick={() => { if (window.confirm("Restaurar todos os campos do certificado para os valores originais do banco de dados?\n\nTodas as edições serão perdidas permanentemente.")) clearCertEdits(); }}
             className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded border border-amber-400 bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors"
           >
             ↺ Restaurar campos originais

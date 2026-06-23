@@ -1422,6 +1422,14 @@ components:
         issueDate:
           type: string
           nullable: true
+        certEditsJson:
+          type: string
+          nullable: true
+          description: JSON blob with certificate text field overrides (persisted to DB)
+        certAnalysesOverridesJson:
+          type: string
+          nullable: true
+          description: JSON blob with per-parameter analyses overrides (method/spec/status)
 
     ProtocolStats:
       type: object
@@ -1779,6 +1787,14 @@ components:
             t6:
               type: string
               nullable: true
+        certEditsJson:
+          type: string
+          nullable: true
+          description: Saved certificate text-field overrides (JSON blob)
+        certAnalysesOverridesJson:
+          type: string
+          nullable: true
+          description: Saved per-parameter analyses overrides (JSON blob)
       required:
         - certNumber
         - issueDate

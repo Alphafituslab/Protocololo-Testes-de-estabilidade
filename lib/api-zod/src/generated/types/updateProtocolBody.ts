@@ -48,4 +48,8 @@ export interface UpdateProtocolBody {
   kineticsOverridesJson?: string | null;
   ativoLimitsJson?: string | null;
   issueDate?: string | null;
+  /** JSON blob with certificate text field overrides (persisted to DB) */
+  certEditsJson?: string | null;
+  /** JSON blob with per-parameter analyses overrides (method/spec/status) */
+  certAnalysesOverridesJson?: string | null;
 }

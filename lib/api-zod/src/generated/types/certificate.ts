@@ -51,4 +51,8 @@ export interface Certificate {
   /** Condições de coleta/recebimento — umidade */
   receptionHumidity?: string | null;
   analysisDates?: CertificateAnalysisDates;
+  /** Saved certificate text-field overrides (JSON blob) */
+  certEditsJson?: string | null;
+  /** Saved per-parameter analyses overrides (JSON blob) */
+  certAnalysesOverridesJson?: string | null;
 }

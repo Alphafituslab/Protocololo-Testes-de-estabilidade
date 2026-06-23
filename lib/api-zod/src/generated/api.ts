@@ -614,6 +614,18 @@ export const UpdateProtocolBody = zod.object({
   kineticsOverridesJson: zod.string().nullish(),
   ativoLimitsJson: zod.string().nullish(),
   issueDate: zod.string().nullish(),
+  certEditsJson: zod
+    .string()
+    .nullish()
+    .describe(
+      "JSON blob with certificate text field overrides (persisted to DB)",
+    ),
+  certAnalysesOverridesJson: zod
+    .string()
+    .nullish()
+    .describe(
+      "JSON blob with per-parameter analyses overrides (method\/spec\/status)",
+    ),
 });
 
 export const UpdateProtocolResponse = zod.object({
@@ -1073,6 +1085,14 @@ export const GetCertificateResponse = zod.object({
       t6: zod.string().nullish(),
     })
     .nullish(),
+  certEditsJson: zod
+    .string()
+    .nullish()
+    .describe("Saved certificate text-field overrides (JSON blob)"),
+  certAnalysesOverridesJson: zod
+    .string()
+    .nullish()
+    .describe("Saved per-parameter analyses overrides (JSON blob)"),
 });
 
 /**

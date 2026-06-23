@@ -242,6 +242,10 @@ export interface UpdateProtocolBody {
   kineticsOverridesJson?: string | null;
   ativoLimitsJson?: string | null;
   issueDate?: string | null;
+  /** JSON blob with certificate text field overrides (persisted to DB) */
+  certEditsJson?: string | null;
+  /** JSON blob with per-parameter analyses overrides (method/spec/status) */
+  certAnalysesOverridesJson?: string | null;
 }
 
 export interface ProtocolStats {
@@ -416,6 +420,10 @@ export interface Certificate {
   /** Condições de coleta/recebimento — umidade */
   receptionHumidity?: string | null;
   analysisDates?: CertificateAnalysisDates;
+  /** Saved certificate text-field overrides (JSON blob) */
+  certEditsJson?: string | null;
+  /** Saved per-parameter analyses overrides (JSON blob) */
+  certAnalysesOverridesJson?: string | null;
 }
 
 export interface Methodology {
