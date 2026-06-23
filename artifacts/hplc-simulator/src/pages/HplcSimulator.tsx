@@ -3095,6 +3095,28 @@ export default function HplcSimulator() {
   );
   const totalAmount = peakStats.reduce((s, p) => s + p.calcAmount, 0);
 
+  // ── External Standard Result — computed globally, used in Report tab + Peaks table ──
+  const padraoExtHasData   = padraoConfig.stdArea > 0 && padraoConfig.smpArea > 0 && padraoConfig.stdAmountUg > 0;
+  const padraoExtRatio     = padraoExtHasData ? padraoConfig.smpArea / padraoConfig.stdArea : 0;
+  const padraoFoundUg      = padraoExtRatio * padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100);
+  const padraoFoundMg      = padraoFoundUg / 1000;
+  const padraoFoundPurity  = padraoExtHasData
+    ? (padraoConfig.smpPurity > 0 && padraoConfig.smpPurity < 99.99
+        ? padraoConfig.smpPurity
+        : padraoExtRatio * padraoConfig.stdPurity)
+    : 0;
+  // RT extracted from smpPeakName (e.g. "TR 2.408 min" → 2.408) or fallback to matching peak
+  const padraoSmpRT = (() => {
+    const m = padraoConfig.smpPeakName.match(/(\d+\.\d+)/);
+    return m ? parseFloat(m[1]) : 0;
+  })();
+  const isPadraoSamplePeak = (p: { name?: string; retentionTime: number }) =>
+    padraoExtHasData && (
+      (p.name && p.name === padraoConfig.compoundName) ||
+      (p.name && p.name === padraoConfig.smpPeakName) ||
+      (padraoSmpRT > 0 && Math.abs(p.retentionTime - padraoSmpRT) < 0.05)
+    );
+
   const yMaxAuto = useMemo(() => {
     const max = Math.max(...chromatogram.map(d => d.signal), 10);
     const computed = Math.ceil(max * 1.15 / 50) * 50;
@@ -6071,25 +6093,33 @@ export default function HplcSimulator() {
                   <div style={{ whiteSpace: "pre" }}>{"    RetTime Type      Area     Amt/Area    Amount   Grp    Name"}</div>
                   <div style={{ whiteSpace: "pre" }}>{"     [min]          [mAU*s]               [ug/ml]"}</div>
                   <div style={{ whiteSpace: "pre" }}>{"    -------|------|----------|----------|----------|--|------------------"}</div>
+                  {padraoExtHasData && (
+                    <div style={{ whiteSpace: "pre", fontSize: 9, color: "#6b7280", fontStyle: "italic" }}>
+                      {`    [External standard: ${padraoConfig.compoundName} — ${padraoConfig.stdPeakName} — ${padraoConfig.stdAmountUg.toFixed(4)} µg — purity ${padraoConfig.stdPurity.toFixed(2)}%]`}
+                    </div>
+                  )}
                   {peakStats.filter(p => p.printSelected !== false).map(p => {
                     const area = p.displayArea;
-                    const amtPerArea = p.amtPerArea > 0 ? p.amtPerArea : (area > 0 && p.calcAmount > 0 ? p.calcAmount / area : 0);
+                    const isSmpPeak = isPadraoSamplePeak(p);
+                    const effectiveAmt = isSmpPeak ? padraoFoundUg : p.calcAmount;
+                    const amtPerArea = p.amtPerArea > 0 ? p.amtPerArea : (area > 0 && effectiveAmt > 0 ? effectiveAmt / area : 0);
                     const rt = p.retentionTime.toFixed(3).padStart(7);
                     const type = p.peakType.padEnd(6);
                     const areaStr = fmtArea(area).padStart(10);
                     const aptStr = amtPerArea > 0 ? fmtSci2(amtPerArea, -2).padStart(10) : "".padStart(10);
-                    const amtStr = p.calcAmount > 0 ? p.calcAmount.toFixed(5).padStart(10) : "".padStart(10);
+                    const amtStr = effectiveAmt > 0 ? effectiveAmt.toFixed(5).padStart(10) : "".padStart(10);
                     const grpStr = (p.grp || "").padEnd(2);
+                    const purStr = isSmpPeak ? `  [${padraoFoundPurity.toFixed(2)}%]` : "";
                     return (
-                      <div key={p.id} style={{ whiteSpace: "pre" }}>
-                        {"    " + rt + " " + type + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + p.name}
+                      <div key={p.id} style={{ whiteSpace: "pre", color: isSmpPeak ? "#ea580c" : undefined, fontWeight: isSmpPeak ? "bold" : undefined }}>
+                        {"    " + rt + " " + type + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + p.name + purStr}
                       </div>
                     );
                   })}
                   <div style={{ whiteSpace: "pre" }}>{""}</div>
                   <div style={{ whiteSpace: "pre" }}>
                     {"    Totals :                                                                             " +
-                      peakStats.filter(p => p.printSelected !== false).reduce((s, p) => s + p.calcAmount, 0).toFixed(5)}
+                      peakStats.filter(p => p.printSelected !== false).reduce((s, p) => s + (isPadraoSamplePeak(p) ? padraoFoundUg : p.calcAmount), 0).toFixed(5)}
                   </div>
                   <div style={{ whiteSpace: "pre" }}>{""}</div>
                   <div style={{ whiteSpace: "pre" }}>{""}</div>
@@ -7609,6 +7639,11 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                   <span style={{ ...LBL, fontSize: 10 }}>Declared/theoretical amount (µg)</span>
                   {numInput(padraoConfig.smpDeclaredAmountUg, v => updatePadrao({ smpDeclaredAmountUg: v }), { step: "0.001", placeholder: "optional — for % vs declared" })}
                 </div>
+                {padraoConfig.smpDeclaredAmountUg > 0 && padraoFoundUg > 0 && padraoConfig.smpDeclaredAmountUg > padraoFoundUg * 100 && (
+                  <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 4, padding: "6px 10px", fontSize: 10, color: "#dc2626", fontFamily: "Courier New, monospace", marginTop: 4 }}>
+                    ⚠ Declared amount ({padraoConfig.smpDeclaredAmountUg.toFixed(2)} µg) parece muito alto em relação ao encontrado ({padraoFoundUg.toFixed(2)} µg). Verifique se o valor está correto — pode ser dado residual de uma entrada anterior.
+                  </div>
+                )}
 
                 <PeakCapture
                   label="Capture as sample area"
@@ -7819,6 +7854,33 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
               </div>
             </div>
 
+            {/* ─ ChemStation-style External Standard Integration Result ─ */}
+            {padraoExtHasData && (
+              <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 6, padding: "12px 16px", marginBottom: 18, fontFamily: "Courier New, monospace" }}>
+                <div style={{ fontSize: 11, fontWeight: "bold", color: "#166534", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>✓</span> External Standard — Integration Result
+                  <span style={{ fontWeight: "normal", fontSize: 9, color: "#6b7280", marginLeft: 4 }}>
+                    Ref: {padraoConfig.stdPeakName} · {padraoConfig.compoundName}
+                  </span>
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <div style={{ whiteSpace: "pre", fontSize: 10, color: "#64748b" }}>{"  RetTime  Type     Area(mAU·s)    Found(µg)    Found(mg)    Purity(%)   Name"}</div>
+                  <div style={{ whiteSpace: "pre", fontSize: 10, color: "#64748b" }}>{"  --------|------|--------------|------------|------------|-----------|--------------------"}</div>
+                  <div style={{ whiteSpace: "pre", fontSize: 10, color: "#1560bd" }}>
+                    {`  ${String(padraoConfig.stdPeakName.match(/\d+\.\d+/)?.[0] ?? "std").padStart(7)}  STD  ${padraoConfig.stdArea.toFixed(5).padStart(14)} ${padraoConfig.stdAmountUg.toFixed(4).padStart(12)} ${(padraoConfig.stdAmountUg / 1000).toFixed(6).padStart(12)} ${padraoConfig.stdPurity.toFixed(2).padStart(11)}   ${padraoConfig.compoundName} [standard]`}
+                  </div>
+                  <div style={{ whiteSpace: "pre", fontSize: 11, fontWeight: "bold", color: "#ea580c" }}>
+                    {`  ${String(padraoSmpRT > 0 ? padraoSmpRT.toFixed(3) : "?.???").padStart(7)}  MM   ${padraoConfig.smpArea.toFixed(5).padStart(14)} ${padraoFoundUg.toFixed(4).padStart(12)} ${padraoFoundMg.toFixed(6).padStart(12)} ${padraoFoundPurity.toFixed(2).padStart(11)}   ${padraoConfig.compoundName} [sample]`}
+                  </div>
+                </div>
+                <div style={{ marginTop: 8, fontSize: 9, color: "#6b7280", borderTop: "1px solid #bbf7d0", paddingTop: 6 }}>
+                  {"Formula: Amount(µg) = (SmpArea ÷ StdArea) × StdAmount × (StdPurity ÷ 100)" +
+                    (padraoConfig.smpPurity > 0 && padraoConfig.smpPurity < 99.99 ? " · Purity entered by operator" : "") +
+                    (padraoConfig.smpRawArea > 0 ? ` · Raw area: ${padraoConfig.smpRawArea.toFixed(5)} mAU·s → corrected: ${padraoConfig.smpArea.toFixed(5)}` : "")}
+                </div>
+              </div>
+            )}
+
             {/* ─ Lot selector + analyzed lots table ─ */}
             {relevantLots.length > 0 && (
               <>
@@ -7943,7 +8005,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 10.5 }}>
                   <thead>
                     <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                      {["Peak", "RT (min)", "Height (mAU)", "Area (mAU·s)", "Manual Area", "Capture as"].map(h => (
+                      {["Peak", "RT (min)", "Height (mAU)", "Area (mAU·s)", "Manual Area", "Found (µg)", "Purity (%)", "Capture as"].map(h => (
                         <th key={h} style={{ padding: "5px 8px", textAlign: h === "Peak" ? "left" : "right", color: "#475569", fontWeight: 700 }}>{h}</th>
                       ))}
                     </tr>
@@ -7966,14 +8028,47 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                           <td style={{ padding: "4px 8px", textAlign: "right", color: p.manualArea > 0 ? "#7c3aed" : "#94a3b8" }}>
                             {p.manualArea > 0 ? p.manualArea.toFixed(5) : "—"}
                           </td>
+                          {/* Found amount (µg) — shown when this peak is the [Sample] peak */}
+                          <td style={{ padding: "4px 8px", textAlign: "right" }}>
+                            {isSmp && padraoExtHasData
+                              ? <span style={{ fontWeight: "bold", color: "#f97316" }}>{padraoFoundUg.toFixed(4)}</span>
+                              : isStd && padraoExtHasData
+                                ? <span style={{ color: "#1560bd" }}>{padraoConfig.stdAmountUg.toFixed(4)}</span>
+                                : <span style={{ color: "#cbd5e1" }}>—</span>}
+                          </td>
+                          {/* Purity (%) */}
+                          <td style={{ padding: "4px 8px", textAlign: "right" }}>
+                            {isSmp && padraoExtHasData
+                              ? <span style={{ fontWeight: "bold", color: padraoFoundPurity >= 98 ? "#16a34a" : padraoFoundPurity >= 90 ? "#d97706" : "#dc2626" }}>{padraoFoundPurity.toFixed(2)} %</span>
+                              : isStd
+                                ? <span style={{ color: "#1560bd" }}>{padraoConfig.stdPurity.toFixed(2)} %</span>
+                                : <span style={{ color: "#cbd5e1" }}>—</span>}
+                          </td>
                           <td style={{ padding: "4px 8px", textAlign: "right" }}>
                             <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
                               <button
-                                onClick={() => updatePadrao({ stdArea: parseFloat(area.toFixed(5)), stdPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}` })}
+                                onClick={() => {
+                                  const stdArea = parseFloat(area.toFixed(5));
+                                  updatePadrao({
+                                    stdArea,
+                                    stdPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}`,
+                                    ...(p.purityPct && p.purityPct > 0 && p.purityPct < 100 ? { stdPurity: p.purityPct } : {}),
+                                  });
+                                }}
                                 style={{ fontSize: 9.5, padding: "2px 6px", border: "1px solid #93c5fd", borderRadius: 3, background: "#eff6ff", cursor: "pointer", color: "#1d4ed8" }}
                               >Standard</button>
                               <button
-                                onClick={() => updatePadrao({ smpArea: parseFloat(area.toFixed(5)), smpPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}` })}
+                                onClick={() => {
+                                  const rawArea = parseFloat(area.toFixed(5));
+                                  const purPct = p.purityPct && p.purityPct > 0 ? p.purityPct : (padraoConfig.smpPurity > 0 ? padraoConfig.smpPurity : 100);
+                                  const corrected = parseFloat((rawArea * (purPct / 100)).toFixed(5));
+                                  updatePadrao({
+                                    smpRawArea: rawArea,
+                                    smpArea: corrected,
+                                    smpPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}`,
+                                    smpPurity: purPct,
+                                  });
+                                }}
                                 style={{ fontSize: 9.5, padding: "2px 6px", border: "1px solid #fed7aa", borderRadius: 3, background: "#fff7ed", cursor: "pointer", color: "#c2410c" }}
                               >Sample</button>
                             </div>
