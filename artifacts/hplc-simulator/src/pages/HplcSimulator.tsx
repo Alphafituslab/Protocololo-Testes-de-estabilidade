@@ -2002,6 +2002,31 @@ function savePadraoPresets(p: PadraoPreset[]) {
   try { localStorage.setItem(PADRAO_PRESETS_KEY, JSON.stringify(p)); } catch { /* noop */ }
 }
 
+const PADRAO_TEMPLATES: Omit<PadraoPreset, "id">[] = [
+  { name: "Vitamina D3",        compoundName: "Colecalciferol",              stdPurity: 99.5, stdArea: 0, stdAmountUg: 0 },
+  { name: "Vitamina C",         compoundName: "Ácido Ascórbico",             stdPurity: 99.7, stdArea: 0, stdAmountUg: 0 },
+  { name: "Vitamina A",         compoundName: "Acetato de Retinol",          stdPurity: 99.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Vitamina E",         compoundName: "Acetato de Tocoferol",        stdPurity: 99.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Vitamina K2",        compoundName: "Menaquinona-7 (MK-7)",        stdPurity: 98.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Vitamina B1",        compoundName: "Cloridrato de Tiamina",       stdPurity: 99.5, stdArea: 0, stdAmountUg: 0 },
+  { name: "Vitamina B2",        compoundName: "Riboflavina",                 stdPurity: 99.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Vitamina B3",        compoundName: "Niacinamida",                 stdPurity: 99.5, stdArea: 0, stdAmountUg: 0 },
+  { name: "Vitamina B5",        compoundName: "Ácido Pantotênico",           stdPurity: 99.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Vitamina B6",        compoundName: "Cloridrato de Piridoxina",    stdPurity: 99.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Vitamina B7 (Biotina)",compoundName: "D-Biotina",                 stdPurity: 99.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Vitamina B9",        compoundName: "Ácido Fólico",                stdPurity: 99.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Vitamina B12",       compoundName: "Cianocobalamina",             stdPurity: 98.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Cálcio",             compoundName: "Carbonato de Cálcio",         stdPurity: 99.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Magnésio",           compoundName: "Óxido de Magnésio",           stdPurity: 99.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Zinco",              compoundName: "Sulfato de Zinco",            stdPurity: 99.5, stdArea: 0, stdAmountUg: 0 },
+  { name: "Ferro",              compoundName: "Sulfato Ferroso",             stdPurity: 99.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Coenzima Q10",       compoundName: "Ubiquinona-10",               stdPurity: 99.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Ômega-3 EPA",        compoundName: "Ácido Eicosapentaenoico",     stdPurity: 99.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Ômega-3 DHA",        compoundName: "Ácido Docosahexaenoico",      stdPurity: 99.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Luteína",            compoundName: "Luteína",                     stdPurity: 98.0, stdArea: 0, stdAmountUg: 0 },
+  { name: "Resveratrol",        compoundName: "trans-Resveratrol",           stdPurity: 99.0, stdArea: 0, stdAmountUg: 0 },
+];
+
 const PADRAO_LOG_KEY = "hplc_padrao_changelog_v1";
   const PADRAO_LOCKED_KEY = "hplc_padrao_locked_v1";
   function loadPadraoChangelog(): PadraoChangeLog[] {
@@ -2825,6 +2850,7 @@ export default function HplcSimulator() {
   const [padraoHistoryOpen, setPadraoHistoryOpen] = useState(false);
   const [padraoPresets, setPadraoPresets] = useState<PadraoPreset[]>(() => loadPadraoPresets());
   const [padraoPresetSaveName, setPadraoPresetSaveName] = useState("");
+  const [padraoTemplatesOpen, setPadraoTemplatesOpen] = useState(false);
   const [calcTraceDialog, setCalcTraceDialog] = useState<CalcTrace | null>(null);
   const PROTECTED_FIELDS: (keyof PadraoConfig)[] = ["stdArea", "stdAmountUg", "stdPurity", "compoundName"];
   const updatePadrao = useCallback((patch: Partial<PadraoConfig>, opts?: { changedBy?: string }) => {
@@ -5484,7 +5510,7 @@ export default function HplcSimulator() {
                     + Save
                   </button>
                 </div>
-                {/* Preset list */}
+                {/* Saved presets list */}
                 {padraoPresets.length === 0 ? (
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", textAlign: "center", padding: "8px 0" }}>
                     No standards saved yet.<br />Fill in the Reference Standard and click "+ Save".
@@ -5515,6 +5541,42 @@ export default function HplcSimulator() {
                     ))}
                   </div>
                 )}
+
+                {/* ── Pre-registered templates ── */}
+                <div style={{ borderTop: "1px solid #e2e8f0", marginTop: 10, paddingTop: 8 }}>
+                  <button
+                    onClick={() => setPadraoTemplatesOpen(v => !v)}
+                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: "Courier New, monospace", fontSize: 9, fontWeight: "bold", color: "#475569", background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: padraoTemplatesOpen ? 6 : 0 }}
+                  >
+                    <span>🧪 Padrões de Referência</span>
+                    <span style={{ fontSize: 8 }}>{padraoTemplatesOpen ? "▲" : "▼"}</span>
+                  </button>
+                  {padraoTemplatesOpen && (
+                    <>
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#94a3b8", marginBottom: 5, lineHeight: 1.4 }}>
+                        Clique <b>Load</b> para preencher o Composto e a Pureza.<br />
+                        Área e Quantidade devem ser inseridas manualmente.
+                      </div>
+                      <div className="space-y-1">
+                        {PADRAO_TEMPLATES.map((t, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 6px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 4 }}>
+                            <div style={{ flex: 1, fontFamily: "Courier New, monospace", fontSize: 9, color: "#1e293b", overflow: "hidden", minWidth: 0 }}>
+                              <div style={{ fontWeight: "bold", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={t.name}>{t.name}</div>
+                              <div style={{ color: "#6b7280", fontSize: 8 }}>{t.compoundName} · {t.stdPurity}%</div>
+                            </div>
+                            <button
+                              onClick={() => updatePadraoProtected({ compoundName: t.compoundName, stdPurity: t.stdPurity })}
+                              title="Carrega nome e pureza do padrão"
+                              style={{ fontFamily: "Courier New, monospace", fontSize: 8, padding: "2px 6px", border: "1px solid #16a34a", borderRadius: 3, background: "#dcfce7", cursor: "pointer", color: "#15803d", flexShrink: 0 }}
+                            >
+                              Load
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
               </ControlBox>
             )}
           </div>
@@ -7482,7 +7544,7 @@ th,td{padding:5px 9px;border:1px solid #d1d5db}th{background:#f1f5f9;font-weight
 .big{font-size:19px;font-weight:bold}.lbl{font-size:9px;color:#64748b;margin-top:1px}
 .ok{color:#16a34a}.warn{color:#d97706}.bad{color:#dc2626}
 footer{font-size:9px;color:#999;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:6px}
-@media print{@page{margin:1.5cm}}</style></head><body>
+@media print{@page{margin:0 !important}}</style></head><body style="padding:1.5cm">
 <h1>Result — External Standard Quantification</h1>
 <p><strong>Compound:</strong> ${padraoConfig.compoundName || '—'} &nbsp;&nbsp; <strong>Method:</strong> External Standard (single point)</p>
 <p><strong>Sample:</strong> ${sample.sampleName} &nbsp;&nbsp; <strong>Operator:</strong> ${sample.acqOperator} &nbsp;&nbsp; <strong>Date:</strong> ${sample.injectionDate}</p>

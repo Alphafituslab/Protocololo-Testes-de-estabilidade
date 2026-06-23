@@ -202,8 +202,9 @@
 }
 
 @media print {
+    @page { margin: 0 !important; }
     .no-print { display: none !important; }
-    body { background: white !important; }
+    body { background: white !important; margin: 0 !important; }
     .print-break { page-break-before: always; }
 
     /* ── Ocultar barras de rolagem no PDF ── */
