@@ -204,6 +204,7 @@ function CertEditField({
 }
 
 type ShowSections = {
+  planoTeste: boolean;
   condicoesAmbientais: boolean;
   textoLotes: boolean;
   infoAdicionais: boolean;
@@ -215,6 +216,7 @@ type ShowSections = {
 };
 
 const SECTION_LABELS: { key: keyof ShowSections; label: string; onlyWhenAR?: boolean }[] = [
+  { key: "planoTeste", label: "Plano de Teste de Estabilidade" },
   { key: "condicoesAmbientais", label: "Condições Ambientais" },
   { key: "textoLotes", label: "Texto Lotes Piloto" },
   { key: "infoAdicionais", label: "Informações Adicionais" },
@@ -332,6 +334,7 @@ export default function CertificatePage() {
   const _restoredFromStorage = useRef(_savedPrintPrefs !== null);
 
   const [show, setShow] = useState<ShowSections>(() => ({
+    planoTeste: true,
     condicoesAmbientais: true,
     textoLotes: true,
     infoAdicionais: true,
@@ -379,6 +382,7 @@ export default function CertificatePage() {
 
   // ── Notify user when print preferences were restored from localStorage ──────
   const DEFAULT_SHOW: ShowSections = {
+    planoTeste: true,
     condicoesAmbientais: true,
     textoLotes: true,
     infoAdicionais: true,
@@ -1390,7 +1394,7 @@ export default function CertificatePage() {
         </div>
 
         {/* ── PLANO DE TESTE DE ESTABILIDADE ─────────────────────────────── */}
-        <div className="mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
+        {show.planoTeste && <div className="mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
           <div className="bg-slate-700 px-5 py-1.5">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Plano de Teste de Estabilidade</h2>
           </div>
@@ -1451,7 +1455,7 @@ export default function CertificatePage() {
               </div>
             )}
           </div>
-        </div>
+        </div>}
 
         {/* ── CONDIÇÕES AMBIENTAIS ─────────────────────────────────────────── */}
         {show.condicoesAmbientais && (
