@@ -7298,7 +7298,8 @@ export default function HplcSimulator() {
           ? (foundAmountUg / padraoConfig.smpDeclaredAmountUg) * 100
           : null;
         const hasData = stdArea > 0 && smpArea > 0 && padraoConfig.stdAmountUg > 0;
-        const relativeTeor = padraoConfig.stdAmountUg > 0 ? (foundAmountUg / padraoConfig.stdAmountUg) * 100 : 0;
+        // relativeTeor removido — comparar found com std amount não tem sentido farmacêutico
+        // O % correto é purityVsDecl (found vs. declared), exibido somente quando declared > 0
 
         // All lots matching the selected compound
         const relevantLots = lots.filter(lot =>
@@ -7386,8 +7387,7 @@ footer{font-size:9px;color:#999;margin-top:20px;border-top:1px solid #e2e8f0;pad
 <p><strong>Sample:</strong> ${sample.sampleName} &nbsp;&nbsp; <strong>Operator:</strong> ${sample.acqOperator} &nbsp;&nbsp; <strong>Date:</strong> ${sample.injectionDate}</p>
 ${hasData ? `<h2>Results</h2><div class="cards">
 <div class="card"><div class="big ${displaySmpPurity >= 98 ? 'ok' : displaySmpPurity >= 90 ? 'warn' : 'bad'}">${displaySmpPurity.toFixed(2)}%</div><div class="lbl">${hasSmpPurity ? 'Pureza da amostra (digitada)' : 'Purity vs. Standard (area)'}</div></div>
-${purityVsDecl !== null ? `<div class="card"><div class="big ${purityVsDecl >= 98 ? 'ok' : purityVsDecl >= 90 ? 'warn' : 'bad'}">${purityVsDecl.toFixed(2)}%</div><div class="lbl">Purity vs. Declared</div></div>` : ''}
-<div class="card"><div class="big ${relativeTeor >= 98 ? 'ok' : relativeTeor >= 90 ? 'warn' : 'bad'}">${relativeTeor.toFixed(2)}%</div><div class="lbl">% Active vs. Standard (µg)</div></div>
+${purityVsDecl !== null && padraoConfig.smpDeclaredAmountUg < foundAmountUg * 100 ? `<div class="card"><div class="big ${purityVsDecl >= 98 ? 'ok' : purityVsDecl >= 90 ? 'warn' : 'bad'}">${purityVsDecl.toFixed(2)}%</div><div class="lbl">% Found vs. Declared (µg)</div></div>` : ''}
 <div class="card"><div class="big">${foundAmountUg.toFixed(4)} µg</div><div class="lbl">Amount found (std method)</div></div>
 ${foundAmountFromPurityUg !== null ? `<div class="card"><div class="big">${foundAmountFromPurityUg.toFixed(4)} µg</div><div class="lbl">Found amount — purity basis</div></div>` : ''}
 </div>
@@ -7397,8 +7397,7 @@ ${foundAmountFromPurityUg !== null ? `<div class="card"><div class="big">${found
 <tr><td>Amount injected (µg)</td><td>${padraoConfig.stdAmountUg.toFixed(4)}</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
 <tr><td>Certified / found purity (%)</td><td>${padraoConfig.stdPurity.toFixed(2)}</td><td>${displaySmpPurity.toFixed(2)}${hasSmpPurity ? ' ★' : ''}</td><td></td></tr>
 ${hasSmpPurity ? `<tr><td>Purity via area ratio (%)</td><td>—</td><td>${purityCalc.toFixed(2)}</td><td></td></tr>` : ''}
-<tr><td>% Active vs. Standard (µg)</td><td>100.00</td><td>${relativeTeor.toFixed(2)}</td><td></td></tr>
-${purityVsDecl !== null ? `<tr><td>Purity vs. declared (%)</td><td>—</td><td>${purityVsDecl.toFixed(2)}</td><td></td></tr>` : ''}
+${purityVsDecl !== null && padraoConfig.smpDeclaredAmountUg < foundAmountUg * 100 ? `<tr><td>% Found vs. Declared (µg)</td><td>100.00</td><td>${purityVsDecl.toFixed(2)}</td><td></td></tr>` : ''}
 <tr><td>Amount found (µg)</td><td>—</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
 <tr><td>Amount found (mg)</td><td>—</td><td>${foundAmountMg.toFixed(6)}</td><td></td></tr>
 ${foundAmountFromPurityUg !== null ? `<tr><td>Found amount — purity (µg)</td><td>—</td><td>${foundAmountFromPurityUg.toFixed(4)}</td><td></td></tr><tr><td>Found amount — purity (mg)</td><td>—</td><td>${foundAmountFromPurityMg!.toFixed(6)}</td><td></td></tr>` : ''}
@@ -7811,11 +7810,11 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                         "Standard"
                       )}
                     />
-                    {padraoConfig.stdAmountUg > 0 && (
+                    {purityVsDecl !== null && padraoConfig.smpDeclaredAmountUg < foundAmountUg * 100 && (
                       <ResultCell
-                        value={`${relativeTeor.toFixed(2)} %`}
-                        label="% Active vs. Standard (µg)"
-                        color={relativeTeor >= 98 ? "#16a34a" : relativeTeor >= 90 ? "#d97706" : "#dc2626"}
+                        value={`${purityVsDecl.toFixed(2)} %`}
+                        label="% Found vs. Declared (µg)"
+                        color={purityVsDecl >= 98 ? "#16a34a" : purityVsDecl >= 90 ? "#d97706" : "#dc2626"}
                       />
                     )}
                   </div>
@@ -7845,7 +7844,9 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                           { label: "Found amount — purity (µg)", std: "—", smp: foundAmountFromPurityUg.toFixed(4), ratio: "" },
                           { label: "Found amount — purity (mg)", std: "—", smp: foundAmountFromPurityMg!.toFixed(6), ratio: "" },
                         ] : []),
-                        ...(padraoConfig.stdAmountUg > 0 ? [{ label: "% Active vs. Standard (µg)", std: "100.00", smp: relativeTeor.toFixed(2), ratio: "" }] : []),
+                        ...(purityVsDecl !== null && padraoConfig.smpDeclaredAmountUg < foundAmountUg * 100
+                          ? [{ label: "% Found vs. Declared (µg)", std: "100.00", smp: purityVsDecl.toFixed(2), ratio: "" }]
+                          : []),
                       ].map((row, i) => (
                         <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                           <td style={{ padding: "5px 10px", color: "#334155" }}>{row.label}</td>
