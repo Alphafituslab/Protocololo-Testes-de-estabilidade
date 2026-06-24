@@ -8133,10 +8133,14 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                   <div>
                     {numInput(padraoConfig.smpPurity, v => {
                       const clamped = Math.max(0.01, v || 100);
-                      const newArea = padraoConfig.smpRawArea > 0
-                        ? parseFloat((padraoConfig.smpRawArea * clamped / 100).toFixed(5))
+                      // Use smpRawArea if already saved; otherwise treat current smpArea as raw baseline
+                      const rawArea = padraoConfig.smpRawArea > 0
+                        ? padraoConfig.smpRawArea
                         : padraoConfig.smpArea;
-                      updatePadrao({ smpPurity: clamped, smpArea: newArea });
+                      const newArea = rawArea > 0
+                        ? parseFloat((rawArea * clamped / 100).toFixed(5))
+                        : padraoConfig.smpArea;
+                      updatePadrao({ smpPurity: clamped, smpArea: newArea, smpRawArea: rawArea });
                     }, { step: "0.01", min: 0.01, placeholder: "100.00" })}
                     {padraoConfig.smpRawArea > 0 && Math.abs(padraoConfig.smpPurity - 100) > 0.01 && (
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8", marginTop: 2 }}>
