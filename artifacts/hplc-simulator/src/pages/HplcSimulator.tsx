@@ -274,6 +274,11 @@ interface PadraoConfig {
   smpDeclaredAmountUg: number; // µg — theoretical/declared amount (for purity %)
   notes: string;
   selectedLotIds: string[];  // operator-selected lots to show in report (empty = show all)
+  // ANVISA conformance
+  anvisaLabelAmountMg: number; // mg — declared amount on label (for % found)
+  anvisaMinMg: number;         // mg — ANVISA acceptance range lower limit
+  anvisaMaxMg: number;         // mg — ANVISA acceptance range upper limit
+  anvisaNorm: string;          // e.g. "IN 28/2018"
 }
 
 // ─── Padrao protection + audit types ────────────────────────────────────────────
@@ -2029,6 +2034,7 @@ const DEFAULT_PADRAO_CONFIG: PadraoConfig = {
   compoundName: "", stdPeakName: "", stdArea: 0, stdAmountUg: 0, stdPurity: 100,
   smpPeakName: "", smpArea: 0, smpDeclaredAmountUg: 0, notes: "", selectedLotIds: [],
   smpPurity: 100, smpRawArea: 0,
+  anvisaLabelAmountMg: 0, anvisaMinMg: 0, anvisaMaxMg: 0, anvisaNorm: "IN 28/2018",
 };
 function loadPadraoConfig(): PadraoConfig {
   try { return { ...DEFAULT_PADRAO_CONFIG, ...(JSON.parse(localStorage.getItem(PADRAO_KEY) ?? "{}") as Partial<PadraoConfig>) }; }
@@ -8419,6 +8425,198 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                       <>
                         {!inSpecMin && <span style={{ color: "#dc2626", fontWeight: "bold" }}>✗ abaixo do mínimo ({specMinMg} mg)</span>}
                         {!inSpecMax && <span style={{ color: "#dc2626", fontWeight: "bold" }}>✗ acima do máximo ({specMaxMg} mg)</span>}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ─ Conformidade ANVISA ─ */}
+            {(() => {
+              const labelMg    = padraoConfig.anvisaLabelAmountMg;
+              const minMg      = padraoConfig.anvisaMinMg;
+              const maxMg      = padraoConfig.anvisaMaxMg;
+              const norm       = padraoConfig.anvisaNorm || "IN 28/2018";
+              const foundMgAnv = foundAmountMg; // from padraoConfig computed above
+              const hasFound   = foundAmountMg > 0;
+              const pctLabel   = labelMg > 0 && hasFound ? (foundMgAnv / labelMg) * 100 : null;
+              const inMin      = minMg > 0 ? foundMgAnv >= minMg : null;
+              const inMax      = maxMg > 0 ? foundMgAnv <= maxMg : null;
+              const inRange    = (inMin !== null || inMax !== null)
+                ? (inMin !== false && inMax !== false)
+                : null;
+              const rangeColor = inRange === null ? "#64748b" : inRange ? "#16a34a" : "#dc2626";
+              return (
+                <div style={{ marginBottom: 18, border: "2px solid #0ea5e9", borderRadius: 8, overflow: "hidden", fontFamily: "Courier New, monospace" }}>
+                  {/* Header */}
+                  <div style={{ background: "#0369a1", padding: "7px 16px", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: "bold", color: "#fff", letterSpacing: "0.04em" }}>
+                      🇧🇷 CONFORMIDADE ANVISA
+                    </span>
+                    <span style={{ fontSize: 9, color: "#bae6fd", marginLeft: 4 }}>{norm}</span>
+                    {inRange !== null && (
+                      <span style={{
+                        marginLeft: "auto", fontSize: 10, fontWeight: "bold",
+                        color: inRange ? "#16a34a" : "#dc2626",
+                        background: inRange ? "#dcfce7" : "#fef2f2",
+                        border: `1px solid ${inRange ? "#86efac" : "#fca5a5"}`,
+                        borderRadius: 10, padding: "1px 10px",
+                      }}>
+                        {inRange ? "✓ dentro da faixa" : "✗ fora da faixa"}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Input row */}
+                  <div style={{ background: "#f0f9ff", padding: "10px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1.4fr", gap: "8px 16px", borderBottom: "1px solid #bae6fd" }}>
+                    <div>
+                      <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Qtd. declarada no rótulo (mg)</div>
+                      <input
+                        type="number" min="0" step="0.01"
+                        placeholder="ex: 500.00"
+                        value={labelMg > 0 ? labelMg : ""}
+                        onChange={e => updatePadrao({ anvisaLabelAmountMg: parseFloat(e.target.value) || 0 })}
+                        style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Faixa mín ANVISA (mg)</div>
+                      <input
+                        type="number" min="0" step="0.01"
+                        placeholder="ex: 13.50"
+                        value={minMg > 0 ? minMg : ""}
+                        onChange={e => updatePadrao({ anvisaMinMg: parseFloat(e.target.value) || 0 })}
+                        style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Faixa máx ANVISA (mg)</div>
+                      <input
+                        type="number" min="0" step="0.01"
+                        placeholder="ex: 1916.02"
+                        value={maxMg > 0 ? maxMg : ""}
+                        onChange={e => updatePadrao({ anvisaMaxMg: parseFloat(e.target.value) || 0 })}
+                        style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Norma de referência</div>
+                      <input
+                        type="text"
+                        placeholder="ex: IN 28/2018"
+                        value={norm}
+                        onChange={e => updatePadrao({ anvisaNorm: e.target.value })}
+                        style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Result display */}
+                  <div style={{ background: "#fff", padding: "12px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px 20px" }}>
+                    {/* Encontrado */}
+                    <div>
+                      <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>
+                        Encontrado na análise
+                      </div>
+                      {hasFound ? (
+                        <div style={{ fontSize: 18, fontWeight: 900, color: "#0c4a6e" }}>
+                          {foundMgAnv.toFixed(2)} mg
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 11, color: "#94a3b8", fontStyle: "italic" }}>aguardando análise</div>
+                      )}
+                      {labelMg > 0 && hasFound && (
+                        <div style={{ fontSize: 9, color: "#64748b", marginTop: 2 }}>
+                          rótulo: {labelMg.toFixed(2)} mg
+                        </div>
+                      )}
+                    </div>
+
+                    {/* % vs rótulo */}
+                    <div>
+                      <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>
+                        % vs declarado no rótulo
+                      </div>
+                      {pctLabel !== null ? (
+                        <>
+                          <div style={{ fontSize: 18, fontWeight: 900, color: pctLabel >= 80 && pctLabel <= 120 ? "#16a34a" : "#dc2626" }}>
+                            {pctLabel.toFixed(1)}%
+                          </div>
+                          <div style={{ fontSize: 9, color: "#64748b", marginTop: 2 }}>
+                            {pctLabel >= 100 ? `+${(pctLabel - 100).toFixed(1)}% overage` : `-${(100 - pctLabel).toFixed(1)}% déficit`}
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ fontSize: 11, color: "#94a3b8", fontStyle: "italic" }}>
+                          {labelMg > 0 ? "aguardando análise" : "informe a qtd. do rótulo"}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Faixa ANVISA */}
+                    <div>
+                      <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>
+                        Faixa de aceitação ANVISA
+                      </div>
+                      {(minMg > 0 || maxMg > 0) ? (
+                        <>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "#0c4a6e", marginBottom: 4 }}>
+                            {minMg > 0 ? `${minMg.toFixed(2)} mg` : "—"} – {maxMg > 0 ? `${maxMg.toFixed(2)} mg` : "—"}
+                          </div>
+                          <div style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>{norm}</div>
+                          {hasFound && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                              {inMin !== null && (
+                                <span style={{ fontSize: 9, fontWeight: "bold", color: inMin ? "#16a34a" : "#dc2626" }}>
+                                  {inMin ? "✓" : "✗"} {inMin ? `acima do mín. (${minMg.toFixed(2)} mg)` : `abaixo do mín. (${minMg.toFixed(2)} mg)`}
+                                </span>
+                              )}
+                              {inMax !== null && (
+                                <span style={{ fontSize: 9, fontWeight: "bold", color: inMax ? "#16a34a" : "#dc2626" }}>
+                                  {inMax ? "✓" : "✗"} {inMax ? `abaixo do máx. (${maxMg.toFixed(2)} mg)` : `acima do máx. (${maxMg.toFixed(2)} mg)`}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div style={{ fontSize: 10, color: "#94a3b8", fontStyle: "italic", marginTop: 2 }}>
+                          informe a faixa mín. e máx.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Status footer */}
+                  <div style={{
+                    background: inRange === null ? "#f1f5f9" : inRange ? "#dcfce7" : "#fef2f2",
+                    padding: "7px 16px", borderTop: "1px solid #bae6fd",
+                    display: "flex", alignItems: "center", gap: 10, fontSize: 10,
+                    fontFamily: "Courier New, monospace",
+                  }}>
+                    {inRange === null ? (
+                      <span style={{ color: "#64748b" }}>
+                        ℹ Preencha os campos acima para avaliar a conformidade com a norma ANVISA
+                      </span>
+                    ) : inRange ? (
+                      <>
+                        <span style={{ fontWeight: "bold", color: "#16a34a", fontSize: 12 }}>✓ CONFORME — dentro da faixa {norm}</span>
+                        {hasFound && minMg > 0 && maxMg > 0 && (
+                          <span style={{ color: "#15803d", marginLeft: 8 }}>
+                            {foundMgAnv.toFixed(2)} mg está entre {minMg.toFixed(2)} e {maxMg.toFixed(2)} mg
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ fontWeight: "bold", color: "#dc2626", fontSize: 12 }}>✗ NÃO CONFORME — fora da faixa {norm}</span>
+                        {inMin === false && (
+                          <span style={{ color: "#dc2626" }}>encontrado {foundMgAnv.toFixed(2)} mg &lt; mín {minMg.toFixed(2)} mg</span>
+                        )}
+                        {inMax === false && (
+                          <span style={{ color: "#dc2626" }}>encontrado {foundMgAnv.toFixed(2)} mg &gt; máx {maxMg.toFixed(2)} mg</span>
+                        )}
                       </>
                     )}
                   </div>
