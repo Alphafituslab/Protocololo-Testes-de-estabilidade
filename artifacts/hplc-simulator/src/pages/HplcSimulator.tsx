@@ -1350,8 +1350,31 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, open]);
 
-  const field = (key: keyof Peak) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setDraft(d => ({ ...d, [key]: e.target.value }));
+  const field = (key: keyof Peak) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (key === "amount") {
+      // Back-calculate purityPct and manualArea from the typed amount
+      setDraft(d => {
+        const livePeak = stringsToPeak(peak, d);
+        const computed = computeArea(livePeak);
+        const amt = parseFloat(val) || 0;
+        const rf = parseFloat(d.amtPerArea as string) || 0;
+        if (amt > 0 && rf > 0 && computed > 0) {
+          const newPurity = (amt / (computed * rf)) * 100;
+          const newManualArea = amt / rf;
+          return {
+            ...d,
+            amount: val,
+            purityPct: String(parseFloat(newPurity.toFixed(4))),
+            manualArea: String(parseFloat(newManualArea.toFixed(5))),
+          };
+        }
+        return { ...d, [key]: val };
+      });
+    } else {
+      setDraft(d => ({ ...d, [key]: val }));
+    }
+  };
 
   // ── Drag-to-move via the title bar ──────────────────────────────────────────
   const handleDragStart = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1474,7 +1497,28 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
                   type="number" step="0.01" min="0.01"
                   placeholder="100 — ex: 99.5 ou 105 (overage)"
                   value={purityVal > 0 ? String(purityVal) : ""}
-                  onChange={e => setDraft(d => ({ ...d, purityPct: e.target.value }))}
+                  onChange={e => {
+                    const newPurity = parseFloat(e.target.value) || 0;
+                    setDraft(d => {
+                      const livePeak = stringsToPeak(peak, d);
+                      const computed = computeArea(livePeak);
+                      // purity 100 or blank → manualArea = 0 (use computed)
+                      const newManualArea = newPurity > 0 && newPurity !== 100
+                        ? parseFloat((computed * newPurity / 100).toFixed(5))
+                        : 0;
+                      // Back-calculate displayed amount
+                      const rf = parseFloat(d.amtPerArea as string) || 0;
+                      const newAmount = rf > 0
+                        ? parseFloat(((newPurity > 0 ? newManualArea || computed : computed) * rf).toFixed(5))
+                        : parseFloat(d.amount as string) || 0;
+                      return {
+                        ...d,
+                        purityPct: e.target.value,
+                        manualArea: String(newManualArea),
+                        amount: String(newAmount),
+                      };
+                    });
+                  }}
                   className="h-7 text-xs font-mono"
                 />
                 {purityVal > 0 && purityVal < 100 && (
@@ -8160,6 +8204,111 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                       )}
                     </div>
                   )}
+                </div>
+              );
+            })()}
+
+            {/* ─ Análise de Overage — apenas visual, não imprime ─ */}
+            {padraoFoundUg > 0 && (() => {
+              const declaredUg = padraoConfig.smpDeclaredAmountUg;
+              const foundMg    = padraoFoundMg;
+              const foundUg    = padraoFoundUg;
+              const recovery   = declaredUg > 0 ? (foundUg / declaredUg) * 100 : padraoFoundPurity;
+              // Look up specMin/specMax from active compound bank (values are in mg for this panel)
+              const matchedComp  = activeCompounds.find(c =>
+                padraoConfig.compoundName && c.name.toLowerCase().includes(padraoConfig.compoundName.toLowerCase())
+              );
+              const specMinMg = matchedComp && matchedComp.specMin > 0 ? matchedComp.specMin : 0;
+              const specMaxMg = matchedComp && matchedComp.specMax > 0 ? matchedComp.specMax : 0;
+              const hasSpec   = specMinMg > 0 || specMaxMg > 0;
+              const inSpecMin = specMinMg > 0 ? foundMg >= specMinMg : true;
+              const inSpecMax = specMaxMg > 0 ? foundMg <= specMaxMg : true;
+              const inSpec    = hasSpec ? inSpecMin && inSpecMax : null;
+              const overagePct = declaredUg > 0 ? recovery - 100 : 0;
+              const recovColor = recovery >= 98 ? "#16a34a" : recovery >= 80 ? "#d97706" : "#dc2626";
+              return (
+                <div className="no-print" style={{ marginBottom: 18, border: "2px solid #6366f1", borderRadius: 8, overflow: "hidden", fontFamily: "Courier New, monospace" }}>
+                  {/* Header */}
+                  <div style={{ background: "#4f46e5", padding: "7px 16px", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: "bold", color: "#fff", letterSpacing: "0.04em" }}>
+                      ⚗ ANÁLISE DE OVERAGE — apenas para cálculo (não imprime)
+                    </span>
+                    {padraoConfig.compoundName && (
+                      <span style={{ marginLeft: "auto", fontSize: 10, color: "#c7d2fe", fontWeight: 600 }}>
+                        {padraoConfig.compoundName}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ background: "#f5f3ff", padding: "12px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px 20px" }}>
+                    {/* Quantidade encontrada */}
+                    <div>
+                      <div style={{ fontSize: 8.5, color: "#6366f1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>Encontrado</div>
+                      <div style={{ fontSize: 16, fontWeight: 900, color: "#1e1b4b" }}>{foundMg >= 1 ? `${foundMg.toFixed(3)} mg` : `${foundUg.toFixed(3)} µg`}</div>
+                      {declaredUg > 0 && (
+                        <div style={{ fontSize: 9, color: "#64748b", marginTop: 2 }}>
+                          declarado: {declaredUg >= 1000 ? `${(declaredUg/1000).toFixed(3)} mg` : `${declaredUg.toFixed(3)} µg`}
+                        </div>
+                      )}
+                    </div>
+                    {/* Recovery / Teor */}
+                    <div>
+                      <div style={{ fontSize: 8.5, color: "#6366f1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>Teor (recovery)</div>
+                      <div style={{ fontSize: 16, fontWeight: 900, color: recovColor }}>{recovery.toFixed(2)}%</div>
+                      {declaredUg > 0 && (
+                        <div style={{ fontSize: 9, marginTop: 2, color: overagePct >= 0 ? "#16a34a" : "#dc2626", fontWeight: "bold" }}>
+                          {overagePct >= 0
+                            ? `+${overagePct.toFixed(2)}% overage`
+                            : `${overagePct.toFixed(2)}% déficit`}
+                        </div>
+                      )}
+                    </div>
+                    {/* Faixa de especificação */}
+                    <div>
+                      <div style={{ fontSize: 8.5, color: "#6366f1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>Faixa (especificação)</div>
+                      {hasSpec ? (
+                        <>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#1e1b4b" }}>
+                            {specMinMg > 0 ? `${specMinMg} mg` : "—"} – {specMaxMg > 0 ? `${specMaxMg} mg` : "—"}
+                          </div>
+                          <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 2 }}>
+                            <span style={{ fontSize: 9, color: inSpecMin ? "#16a34a" : "#dc2626", fontWeight: "bold" }}>
+                              {inSpecMin ? "✓" : "✗"} {inSpecMin ? "acima do mínimo" : "abaixo do mínimo"}
+                            </span>
+                            {specMaxMg > 0 && (
+                              <span style={{ fontSize: 9, color: inSpecMax ? "#16a34a" : "#dc2626", fontWeight: "bold" }}>
+                                {inSpecMax ? "✓" : "✗"} {inSpecMax ? "abaixo do máximo" : "acima do máximo"}
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ fontSize: 10, color: "#94a3b8", fontStyle: "italic", marginTop: 2 }}>
+                          Configure specMin/specMax no banco de compostos
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Status final */}
+                  <div style={{ background: inSpec === null ? "#f1f5f9" : inSpec ? "#dcfce7" : "#fef2f2", padding: "6px 16px", borderTop: "1px solid #e0e7ff", display: "flex", alignItems: "center", gap: 10, fontSize: 10 }}>
+                    {inSpec === null ? (
+                      <span style={{ color: "#64748b" }}>ℹ Defina specMin/specMax no composto para avaliação de conformidade</span>
+                    ) : inSpec ? (
+                      <>
+                        <span style={{ color: "#16a34a", fontWeight: "bold" }}>✓ dentro da faixa</span>
+                        <span style={{ color: "#16a34a", fontWeight: "bold" }}>✓ dentro do padrão</span>
+                        {declaredUg > 0 && overagePct >= 0
+                          ? <span style={{ color: "#16a34a" }}>sem overage adicional necessário</span>
+                          : declaredUg > 0
+                          ? <span style={{ color: "#d97706", fontWeight: "bold" }}>⚠ overage necessário: +{Math.abs(overagePct).toFixed(2)}%</span>
+                          : null}
+                      </>
+                    ) : (
+                      <>
+                        {!inSpecMin && <span style={{ color: "#dc2626", fontWeight: "bold" }}>✗ abaixo do mínimo ({specMinMg} mg)</span>}
+                        {!inSpecMax && <span style={{ color: "#dc2626", fontWeight: "bold" }}>✗ acima do máximo ({specMaxMg} mg)</span>}
+                      </>
+                    )}
+                  </div>
                 </div>
               );
             })()}
