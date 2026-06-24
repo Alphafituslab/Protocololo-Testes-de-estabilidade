@@ -8814,6 +8814,184 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                       </div>
                     </div>
                   </div>
+                  {/* Mini chromatogram — Gaussian peaks proportional to area */}
+                  {(() => {
+                    const W = 400, H = 130;
+                    const PAD = { top: 22, right: 16, bottom: 24, left: 36 };
+                    const plotW = W - PAD.left - PAD.right;
+                    const plotH = H - PAD.top - PAD.bottom;
+                    const sigma = 0.09; // normalized half-width (0-1 scale)
+                    const stdMu = 0.27; // std peak center (normalized x)
+                    const smpMu = 0.73; // smp peak center (normalized x)
+                    const maxA  = Math.max(sA, mA, 1);
+                    const stdHn = sA / maxA; // normalized height 0-1
+                    const smpHn = mA / maxA;
+
+                    const gauss = (x: number, mu: number, hn: number) =>
+                      hn * Math.exp(-0.5 * ((x - mu) / sigma) ** 2);
+
+                    const N = 300;
+                    const xs = Array.from({ length: N + 1 }, (_, i) => i / N);
+
+                    // Polyline points for each peak and fill polygon
+                    const toSvgX = (t: number) => PAD.left + t * plotW;
+                    const toSvgY = (v: number) => PAD.top + plotH - v * plotH * 0.92;
+                    const baseY  = toSvgY(0);
+
+                    // Build fill polygon: top = gaussian curve; bottom = baseline
+                    const buildFill = (mu: number, hn: number) => {
+                      const pts: string[] = [];
+                      const intPts = xs.filter(x => Math.abs(x - mu) < sigma * 3.5);
+                      if (intPts.length === 0) return "";
+                      // left baseline
+                      pts.push(`${toSvgX(intPts[0])},${baseY}`);
+                      // curve
+                      intPts.forEach(x => pts.push(`${toSvgX(x).toFixed(1)},${toSvgY(gauss(x, mu, hn)).toFixed(1)}`));
+                      // right baseline
+                      pts.push(`${toSvgX(intPts[intPts.length - 1])},${baseY}`);
+                      return pts.join(" ");
+                    };
+
+                    const buildLine = (mu: number, hn: number) =>
+                      xs.filter(x => Math.abs(x - mu) < sigma * 4)
+                        .map(x => `${toSvgX(x).toFixed(1)},${toSvgY(gauss(x, mu, hn)).toFixed(1)}`)
+                        .join(" ");
+
+                    const stdFill = buildFill(stdMu, stdHn);
+                    const smpFill = buildFill(smpMu, smpHn);
+                    const stdLine = buildLine(stdMu, stdHn);
+                    const smpLine = buildLine(smpMu, smpHn);
+
+                    // Label positions (apex)
+                    const stdApexY = toSvgY(stdHn) - 5;
+                    const smpApexY = toSvgY(smpHn) - 5;
+
+                    // Integration lines (at ±2σ from mu)
+                    const intBound = (mu: number, side: -1 | 1) => toSvgX(mu + side * sigma * 2);
+                    const intY  = (mu: number, hn: number, side: -1 | 1) => toSvgY(gauss(mu + side * sigma * 2, mu, hn));
+
+                    return (
+                      <div style={{ borderTop: "1px solid #e2e8f0", background: "#0f172a", padding: "8px 0 4px" }}>
+                        <div style={{ fontSize: 8.5, fontFamily: "Courier New, monospace", color: "#94a3b8", textAlign: "center", marginBottom: 2, letterSpacing: "0.06em" }}>
+                          CROMATOGRAMA — visualização proporcional às áreas
+                        </div>
+                        <svg
+                          viewBox={`0 0 ${W} ${H}`}
+                          style={{ width: "100%", height: H, display: "block" }}
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          {/* Grid lines */}
+                          {[0.25, 0.5, 0.75, 1].map(v => (
+                            <line key={v}
+                              x1={PAD.left} y1={toSvgY(v)} x2={PAD.left + plotW} y2={toSvgY(v)}
+                              stroke="#1e293b" strokeWidth={0.5} strokeDasharray="4 3" />
+                          ))}
+
+                          {/* Baseline */}
+                          <line x1={PAD.left} y1={baseY} x2={PAD.left + plotW} y2={baseY} stroke="#334155" strokeWidth={1} />
+
+                          {/* Standard fill + stroke (blue) */}
+                          {stdFill && <polygon points={stdFill} fill="#1560bd" fillOpacity={0.18} stroke="none" />}
+                          {stdLine && <polyline points={stdLine} fill="none" stroke="#1560bd" strokeWidth={1.5} />}
+
+                          {/* Sample fill + stroke (orange) */}
+                          {smpFill && <polygon points={smpFill} fill="#f97316" fillOpacity={0.22} stroke="none" />}
+                          {smpLine && <polyline points={smpLine} fill="none" stroke="#f97316" strokeWidth={2} />}
+
+                          {/* Standard integration lines */}
+                          {sA > 0 && (<>
+                            <line x1={intBound(stdMu,-1)} y1={intY(stdMu,stdHn,-1)} x2={intBound(stdMu,-1)} y2={baseY}
+                              stroke="#1560bd" strokeWidth={1} strokeDasharray="3 2" opacity={0.7}/>
+                            <line x1={intBound(stdMu, 1)} y1={intY(stdMu,stdHn, 1)} x2={intBound(stdMu, 1)} y2={baseY}
+                              stroke="#1560bd" strokeWidth={1} strokeDasharray="3 2" opacity={0.7}/>
+                          </>)}
+
+                          {/* Sample integration lines */}
+                          {mA > 0 && (<>
+                            <line x1={intBound(smpMu,-1)} y1={intY(smpMu,smpHn,-1)} x2={intBound(smpMu,-1)} y2={baseY}
+                              stroke="#f97316" strokeWidth={1} strokeDasharray="3 2" opacity={0.7}/>
+                            <line x1={intBound(smpMu, 1)} y1={intY(smpMu,smpHn, 1)} x2={intBound(smpMu, 1)} y2={baseY}
+                              stroke="#f97316" strokeWidth={1} strokeDasharray="3 2" opacity={0.7}/>
+                          </>)}
+
+                          {/* Standard label */}
+                          {sA > 0 && (
+                            <g style={{ cursor: "default" }}>
+                              <title>Reference Standard — Area: {sA.toFixed(5)} mAU·s</title>
+                              <text x={toSvgX(stdMu)} y={stdApexY}
+                                textAnchor="middle" fontSize={8} fill="#60a5fa" fontFamily="Courier New, monospace" fontWeight="bold">
+                                {sA.toFixed(3)} mAU·s
+                              </text>
+                              <text x={toSvgX(stdMu)} y={stdApexY + 9}
+                                textAnchor="middle" fontSize={7} fill="#93c5fd" fontFamily="Courier New, monospace">
+                                PADRÃO
+                              </text>
+                            </g>
+                          )}
+
+                          {/* Sample label — hover-sensitive group */}
+                          {mA > 0 && (() => {
+                            const px = toSvgX(smpMu);
+                            const py = smpApexY;
+                            return (
+                              <g style={{ cursor: "crosshair" }}>
+                                <title>Amostra Analisada — Area: {mA.toFixed(5)} mAU·s{sA > 0 ? ` | Ratio: ${(mA/sA).toFixed(5)}` : ""}</title>
+                                {/* Invisible hit area */}
+                                <rect x={px - 40} y={py - 8} width={80} height={plotH + 10} fill="transparent" />
+                                <text x={px} y={py}
+                                  textAnchor="middle" fontSize={9} fill="#fb923c" fontFamily="Courier New, monospace" fontWeight="bold">
+                                  {mA.toFixed(3)} mAU·s
+                                </text>
+                                <text x={px} y={py + 10}
+                                  textAnchor="middle" fontSize={7} fill="#fdba74" fontFamily="Courier New, monospace">
+                                  AMOSTRA
+                                </text>
+                                {/* Vertical dotted line at apex */}
+                                <line x1={px} y1={toSvgY(smpHn) + 2} x2={px} y2={baseY}
+                                  stroke="#f97316" strokeWidth={0.8} strokeDasharray="2 3" opacity={0.45} />
+                              </g>
+                            );
+                          })()}
+
+                          {/* Y-axis ticks */}
+                          {[0, 0.5, 1].map(v => (
+                            <g key={v}>
+                              <line x1={PAD.left - 4} y1={toSvgY(v)} x2={PAD.left} y2={toSvgY(v)} stroke="#475569" strokeWidth={0.8}/>
+                              <text x={PAD.left - 6} y={toSvgY(v) + 3} textAnchor="end" fontSize={7} fill="#64748b" fontFamily="Courier New, monospace">
+                                {v === 0 ? "0" : v === 0.5 ? "50%" : "100%"}
+                              </text>
+                            </g>
+                          ))}
+
+                          {/* X-axis labels */}
+                          <text x={toSvgX(stdMu)} y={H - 6} textAnchor="middle" fontSize={7.5} fill="#1560bd" fontFamily="Courier New, monospace">Std</text>
+                          <text x={toSvgX(smpMu)} y={H - 6} textAnchor="middle" fontSize={7.5} fill="#f97316" fontFamily="Courier New, monospace">Smp</text>
+                        </svg>
+
+                        {/* Live match indicator */}
+                        {sA > 0 && mA > 0 && (() => {
+                          const sessPeakArea = (() => {
+                            const mp = peaks.find(p => padraoConfig.smpPeakName &&
+                              (p.name === padraoConfig.smpPeakName || p.name === padraoConfig.compoundName));
+                            if (!mp) return null;
+                            return mp.manualArea > 0 ? mp.manualArea : computeArea(mp);
+                          })();
+                          if (!sessPeakArea) return null;
+                          const diff = Math.abs(sessPeakArea - mA);
+                          const pct  = (diff / sessPeakArea) * 100;
+                          const ok   = pct < 0.1;
+                          return (
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, padding: "3px 14px 5px", color: ok ? "#86efac" : "#fbbf24", display: "flex", alignItems: "center", gap: 6 }}>
+                              {ok
+                                ? <span>✓ Sample Area coincide com o pico "{padraoConfig.smpPeakName}" no cromatograma ({sessPeakArea.toFixed(3)} mAU·s)</span>
+                                : <span>⚠ Pico "{padraoConfig.smpPeakName}" no cromatograma = {sessPeakArea.toFixed(3)} mAU·s | digitado = {mA.toFixed(3)} mAU·s (Δ {pct.toFixed(1)}%)</span>}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    );
+                  })()}
+
                   {/* Footer — formula hint */}
                   {ratioOk && (
                     <div style={{ padding: "5px 14px", background: "#f1f5f9", fontSize: 9, color: "#64748b", borderTop: "1px solid #e2e8f0" }}>
