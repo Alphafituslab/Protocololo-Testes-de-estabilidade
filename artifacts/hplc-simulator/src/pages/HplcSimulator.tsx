@@ -292,6 +292,24 @@ interface PadraoConfig {
   certTitle: string;     // Título do Certificado (default: "Certificado de Análise")
 }
 
+// ─── Saved Analyses (Standard PDF records) ───────────────────────────────────────
+interface SavedAnalysis {
+  id: string;
+  savedAt: string;          // ISO date string
+  certTitle: string;
+  productName: string;
+  productLot: string;
+  compoundName: string;
+  foundAmountMg: number;
+  purity: number;           // %
+  inSpec: boolean | null;   // ANVISA conformance
+  sampleName: string;
+  operator: string;
+  injDate: string;
+  chromSvgData: string;     // serialized SVG string for re-display
+  config: PadraoConfig;     // full config snapshot to regenerate PDF
+}
+
 // ─── Padrao protection + audit types ────────────────────────────────────────────
 
   interface PadraoChangeLog {
@@ -2058,6 +2076,15 @@ function savePadraoConfig(c: PadraoConfig) {
   try { localStorage.setItem(PADRAO_KEY, JSON.stringify(c)); } catch { /* ignore */ }
 }
 
+const SAVED_ANALYSES_KEY = "hplc_saved_analyses_v1";
+function loadSavedAnalyses(): SavedAnalysis[] {
+  try { return JSON.parse(localStorage.getItem(SAVED_ANALYSES_KEY) ?? "[]") as SavedAnalysis[]; }
+  catch { return []; }
+}
+function persistSavedAnalyses(list: SavedAnalysis[]) {
+  try { localStorage.setItem(SAVED_ANALYSES_KEY, JSON.stringify(list)); } catch { /* ignore */ }
+}
+
 const PADRAO_PRESETS_KEY = "hplc_padrao_presets_v1";
 function loadPadraoPresets(): PadraoPreset[] {
   try { return JSON.parse(localStorage.getItem(PADRAO_PRESETS_KEY) ?? "[]") as PadraoPreset[]; }
@@ -2929,6 +2956,82 @@ export default function HplcSimulator() {
   const [padraoPresetSaveName, setPadraoPresetSaveName] = useState("");
   const [padraoTemplatesOpen, setPadraoTemplatesOpen] = useState(false);
   const [calcTraceDialog, setCalcTraceDialog] = useState<CalcTrace | null>(null);
+  const [savedAnalyses, setSavedAnalyses] = useState<SavedAnalysis[]>(() => loadSavedAnalyses());
+  const [analiseSubTab, setAnaliseSubTab] = useState<"sessions" | "pdfs">("sessions");
+  const [analysisSearch, setAnalysisSearch] = useState("");
+  const [saveConfirmId, setSaveConfirmId] = useState<string | null>(null);
+
+  const openSavedPdf = useCallback((saved: SavedAnalysis) => {
+    const cfg = saved.config;
+    const stdArea = cfg.stdArea;
+    const smpArea = cfg.smpArea;
+    const ratio   = stdArea > 0 ? smpArea / stdArea : 0;
+    const foundUg = ratio * cfg.stdAmountUg * (cfg.stdPurity / 100);
+    const foundMg = foundUg / 1000;
+    const purityCalc = ratio * cfg.stdPurity;
+    const hasSmpPurity = cfg.smpPurity > 0 && Math.abs(cfg.smpPurity - 100) > 0.01;
+    const dispPurity = hasSmpPurity ? cfg.smpPurity : purityCalc;
+    const purityVsDecl = cfg.smpDeclaredAmountUg > 0 ? (foundUg / cfg.smpDeclaredAmountUg) * 100 : null;
+    const foundMgAnv = cfg.anvisaFoundMgOverride > 0 ? cfg.anvisaFoundMgOverride : foundMg;
+    const inMin = cfg.anvisaMinMg > 0 ? foundMgAnv >= cfg.anvisaMinMg : null;
+    const inMax = cfg.anvisaMaxMg > 0 ? foundMgAnv <= cfg.anvisaMaxMg : null;
+    const inRange = (inMin !== null || inMax !== null) ? (inMin !== false && inMax !== false) : null;
+    const dateStr = saved.savedAt ? new Date(saved.savedAt).toLocaleDateString("pt-BR") : "";
+    const chromImg = saved.chromSvgData
+      ? `<img src="data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(saved.chromSvgData)))}" style="width:100%;max-height:220px;object-fit:contain;margin:8px 0;" />`
+      : "";
+    const w = window.open("", "_blank", "width=960,height=900");
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${saved.certTitle}</title>
+<style>
+  body{font-family:"Courier New",monospace;font-size:11px;margin:0;padding:0;background:#fff;color:#1e293b}
+  @media print{body{margin:0}@page{margin:10mm 12mm;size:A4 portrait}}
+  h1{font-size:14px;text-align:center;margin:0 0 2px}
+  .sub{font-size:10px;text-align:center;color:#555;margin-bottom:8px}
+  table{width:100%;border-collapse:collapse;font-size:10px}
+  th,td{border:1px solid #ccc;padding:3px 6px}
+  th{background:#e2e8f0;text-align:left}
+  .badge-ok{background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px;font-weight:bold}
+  .badge-no{background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-weight:bold}
+  .section{font-weight:bold;border-top:2px solid #1e3a5f;margin:10px 0 4px;padding-top:4px;color:#1e3a5f;font-size:11px}
+  .row2{display:flex;gap:16px;margin-bottom:4px}
+  .lbl{color:#64748b;min-width:120px;display:inline-block}
+</style></head><body>
+<h1>${saved.certTitle}</h1>
+<div class="sub">External Standard Method — Alphafitus HPLC Simulator</div>
+<hr/>
+<div class="section">Identificação</div>
+<div class="row2"><span><span class="lbl">Produto:</span>${saved.productName || "—"}</span><span><span class="lbl">Lote:</span>${saved.productLot || "—"}</span></div>
+<div class="row2"><span><span class="lbl">Composto:</span>${saved.compoundName || "—"}</span><span><span class="lbl">Emissão:</span>${dateStr}</span></div>
+<div class="row2"><span><span class="lbl">Amostra:</span>${saved.sampleName || "—"}</span><span><span class="lbl">Operador:</span>${saved.operator || "—"}</span></div>
+<div class="row2"><span><span class="lbl">Data injeção:</span>${saved.injDate || "—"}</span></div>
+<div class="section">Cromatograma</div>
+${chromImg}
+<div class="section">Resultados</div>
+<table>
+<tr><th>Parâmetro</th><th>Padrão</th><th>Amostra</th><th>Resultado</th></tr>
+<tr><td>Área (mAU·s)</td><td>${stdArea.toFixed(3)}</td><td>${smpArea.toFixed(3)}</td><td>—</td></tr>
+<tr><td>Razão de Área</td><td>1.000</td><td>${ratio.toFixed(4)}</td><td>—</td></tr>
+<tr><td>Teor encontrado (mg)</td><td>${(cfg.stdAmountUg / 1000).toFixed(4)}</td><td>${foundMg.toFixed(4)}</td><td>—</td></tr>
+<tr><td>Pureza calculada (%)</td><td>${cfg.stdPurity.toFixed(2)}</td><td>${dispPurity.toFixed(2)}</td><td>—</td></tr>
+${purityVsDecl !== null ? `<tr><td>Teor vs. Declarado (%)</td><td>—</td><td>${purityVsDecl.toFixed(2)}</td><td>${purityVsDecl >= 80 ? '<span class="badge-ok">CONFORME</span>' : '<span class="badge-no">NÃO CONFORME</span>'}</td></tr>` : ""}
+</table>
+${inRange !== null ? `<div class="section">ANVISA — Conformidade</div>
+<table><tr><th>Faixa (mg)</th><th>Encontrado (mg)</th><th>Status</th></tr>
+<tr><td>${cfg.anvisaMinMg > 0 ? cfg.anvisaMinMg.toFixed(3) : "—"} – ${cfg.anvisaMaxMg > 0 ? cfg.anvisaMaxMg.toFixed(3) : "—"}</td><td>${foundMgAnv.toFixed(4)}</td><td>${inRange ? '<span class="badge-ok">DENTRO DA FAIXA</span>' : '<span class="badge-no">FORA DA FAIXA</span>'}</td></tr>
+</table>` : ""}
+<div class="section">Parâmetros do Método</div>
+<table>
+<tr><th>Padrão — Qtd. (µg)</th><td>${cfg.stdAmountUg.toFixed(3)}</td><th>Padrão — Pureza (%)</th><td>${cfg.stdPurity.toFixed(2)}</td></tr>
+${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.toFixed(1)}</td><th></th><td></td></tr>` : ""}
+</table>
+<br/><hr/>
+<div style="font-size:9px;color:#888;text-align:center">Alphafitus HPLC Simulator · Registro salvo em ${dateStr} · ${saved.certTitle}</div>
+<script>window.onload=()=>{window.print();}</script>
+</body></html>`);
+    w.document.close();
+  }, []);
+
   const PROTECTED_FIELDS: (keyof PadraoConfig)[] = ["stdArea", "stdAmountUg", "stdPurity", "compoundName"];
   const updatePadrao = useCallback((patch: Partial<PadraoConfig>, opts?: { changedBy?: string }) => {
     setPadraoConfig(prev => {
@@ -5522,9 +5625,91 @@ export default function HplcSimulator() {
               const session = analysisSessions.find(s => s.id === currentSessionId) ?? null;
               const sessionFormula = session ? formulas.find(f => f.id === session.formulaId) ?? null : null;
               const std = sessionFormula ? formulaStandards.find(s => s.formulaId === sessionFormula.id) ?? null : null;
+              const filteredSaved = savedAnalyses.filter(a => {
+                const q = analysisSearch.trim().toLowerCase();
+                if (!q) return true;
+                return (a.productName || "").toLowerCase().includes(q) ||
+                  (a.certTitle || "").toLowerCase().includes(q) ||
+                  (a.productLot || "").toLowerCase().includes(q) ||
+                  (a.compoundName || "").toLowerCase().includes(q);
+              }).sort((a, b) => b.savedAt.localeCompare(a.savedAt));
               return (
                 <>
-                  <ControlBox title="Analysis Sessions">
+                  {/* Sub-tab switcher */}
+                  <div style={{ display: "flex", gap: 0, marginBottom: 12, borderBottom: "2px solid #e2e8f0" }}>
+                    {([["sessions", "🔬 Sessions"], ["pdfs", `📄 PDFs Salvos${savedAnalyses.length > 0 ? ` (${savedAnalyses.length})` : ""}`]] as const).map(([tab, label]) => (
+                      <button key={tab} onClick={() => setAnaliseSubTab(tab)} style={{
+                        fontFamily: "Courier New, monospace", fontSize: 10, padding: "4px 12px", border: "none",
+                        borderBottom: analiseSubTab === tab ? "2px solid #1e3a5f" : "2px solid transparent",
+                        background: "none", cursor: "pointer", fontWeight: analiseSubTab === tab ? "bold" : "normal",
+                        color: analiseSubTab === tab ? "#1e3a5f" : "#64748b", marginBottom: -2,
+                      }}>{label}</button>
+                    ))}
+                  </div>
+
+                  {analiseSubTab === "pdfs" && (
+                    <ControlBox title="PDFs Salvos">
+                      <div style={{ marginBottom: 8 }}>
+                        <input
+                          type="text"
+                          value={analysisSearch}
+                          onChange={e => setAnalysisSearch(e.target.value)}
+                          placeholder="Buscar por produto, certificado ou lote…"
+                          style={{ width: "100%", boxSizing: "border-box", fontFamily: "Courier New, monospace", fontSize: 10, padding: "4px 8px", border: "1px solid #cbd5e1", borderRadius: 4, outline: "none" }}
+                        />
+                      </div>
+                      {filteredSaved.length === 0 ? (
+                        <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#aaa", textAlign: "center", padding: "12px 0" }}>
+                          {analysisSearch ? "Nenhum resultado encontrado." : "Nenhuma análise salva ainda. Use o botão 💾 na aba Standard."}
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {filteredSaved.map(a => {
+                            const date = a.savedAt ? new Date(a.savedAt).toLocaleDateString("pt-BR") : "—";
+                            const badge = a.inSpec === true ? { bg: "#dcfce7", color: "#166534", txt: "✓ Conforme" }
+                              : a.inSpec === false ? { bg: "#fee2e2", color: "#991b1b", txt: "✗ Não Conforme" }
+                              : { bg: "#f1f5f9", color: "#64748b", txt: "Sem faixa" };
+                            return (
+                              <div key={a.id} style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "7px 10px", background: "#f8fafc" }}>
+                                <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, fontWeight: "bold", color: "#1e293b", marginBottom: 2 }}>
+                                  {a.certTitle || "Certificado de Análise"}
+                                </div>
+                                <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#475569", marginBottom: 4 }}>
+                                  {a.productName && <span>{a.productName}</span>}
+                                  {a.productLot && <span> · Lote: {a.productLot}</span>}
+                                  {a.compoundName && <span> · {a.compoundName}</span>}
+                                  <span style={{ marginLeft: 6, color: "#94a3b8" }}>{date}</span>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                  <span style={{ background: badge.bg, color: badge.color, fontFamily: "Courier New, monospace", fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: "bold" }}>
+                                    {badge.txt}
+                                  </span>
+                                  {a.foundAmountMg > 0 && (
+                                    <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#475569" }}>
+                                      {a.foundAmountMg.toFixed(4)} mg
+                                    </span>
+                                  )}
+                                  <button onClick={() => openSavedPdf(a)} style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 8px", border: "1px solid #1e3a5f", borderRadius: 3, background: "#1e3a5f", color: "#fff", cursor: "pointer", marginLeft: "auto" }}>
+                                    📄 Ver PDF
+                                  </button>
+                                  <button onClick={() => {
+                                    if (!confirm("Remover este registro?")) return;
+                                    const upd = savedAnalyses.filter(x => x.id !== a.id);
+                                    setSavedAnalyses(upd);
+                                    persistSavedAnalyses(upd);
+                                  }} style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 6px", border: "1px solid #fca5a5", borderRadius: 3, background: "#fff", color: "#dc2626", cursor: "pointer" }} title="Remover">
+                                    🗑
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </ControlBox>
+                  )}
+
+                  {analiseSubTab === "sessions" && <ControlBox title="Analysis Sessions">
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6, lineHeight: 1.5 }}>
                       Each session registers up to 5 independent injections with overlay chromatograms and assay (%) calculation.
                     </div>
@@ -5567,9 +5752,9 @@ export default function HplcSimulator() {
                         );
                       })}
                     </div>
-                  </ControlBox>
+                  </ControlBox>}
 
-                  {session && sessionFormula && (
+                  {session && sessionFormula && analiseSubTab === "sessions" && (
                     <>
                       <ControlBox title={`Runs — ${session.name}`}>
                         <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6 }}>
@@ -7071,6 +7256,135 @@ export default function HplcSimulator() {
             const std = sessionFormula ? formulaStandards.find(s => s.formulaId === sessionFormula.id) ?? null : null;
             const compounds = sessionFormula?.activeCompounds ?? [];
 
+            // ── PDFs Salvos sub-tab ──────────────────────────────────────
+            if (analiseSubTab === "pdfs") {
+              const filteredSaved = savedAnalyses.filter(a => {
+                const q = analysisSearch.trim().toLowerCase();
+                if (!q) return true;
+                return (a.productName || "").toLowerCase().includes(q) ||
+                  (a.certTitle || "").toLowerCase().includes(q) ||
+                  (a.productLot || "").toLowerCase().includes(q) ||
+                  (a.compoundName || "").toLowerCase().includes(q);
+              }).sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+
+              if (filteredSaved.length === 0) {
+                return (
+                  <div style={{ textAlign: "center", color: "#aaa", padding: "60px 0" }}>
+                    <div style={{ fontSize: 36, marginBottom: 12 }}>📄</div>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 13, fontWeight: "bold", marginBottom: 6, color: "#64748b" }}>
+                      {analysisSearch ? "Nenhuma análise encontrada" : "Nenhuma análise salva ainda"}
+                    </div>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#bbb", maxWidth: 360, margin: "0 auto" }}>
+                      {analysisSearch
+                        ? `Não há resultados para "${analysisSearch}". Limpe a busca no painel à esquerda.`
+                        : "Na aba Standard, preencha os campos de identificação e clique em 💾 Salvar para registrar uma análise aqui."}
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#1e3a5f", borderBottom: "2px solid #e2e8f0", paddingBottom: 6, marginBottom: 2 }}>
+                    📄 PDFs Salvos — {filteredSaved.length} {filteredSaved.length === 1 ? "análise" : "análises"}
+                  </div>
+                  {filteredSaved.map(a => {
+                    const date = a.savedAt ? new Date(a.savedAt).toLocaleString("pt-BR") : "—";
+                    const cfg = a.config;
+                    const stdArea = cfg.stdArea;
+                    const smpArea = cfg.smpArea;
+                    const ratio   = stdArea > 0 ? smpArea / stdArea : 0;
+                    const foundUg = ratio * cfg.stdAmountUg * (cfg.stdPurity / 100);
+                    const foundMg = foundUg / 1000;
+                    const hasSmpPurity = cfg.smpPurity > 0 && Math.abs(cfg.smpPurity - 100) > 0.01;
+                    const purityCalc = ratio * cfg.stdPurity;
+                    const dispPurity = hasSmpPurity ? cfg.smpPurity : purityCalc;
+                    const purityVsDecl = cfg.smpDeclaredAmountUg > 0 ? (foundUg / cfg.smpDeclaredAmountUg) * 100 : null;
+                    const badge = a.inSpec === true ? { bg: "#dcfce7", color: "#166534", txt: "✓ Dentro da faixa ANVISA" }
+                      : a.inSpec === false ? { bg: "#fee2e2", color: "#991b1b", txt: "✗ Fora da faixa ANVISA" }
+                      : { bg: "#f1f5f9", color: "#64748b", txt: "Sem faixa ANVISA" };
+
+                    return (
+                      <div key={a.id} style={{ border: "1px solid #e2e8f0", borderRadius: 10, overflow: "hidden", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                        {/* Header */}
+                        <div style={{ background: "#1e3a5f", padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                          <div>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#fff" }}>
+                              {a.certTitle || "Certificado de Análise"}
+                            </div>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
+                              {date}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <button onClick={() => openSavedPdf(a)} style={{
+                              fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 14px",
+                              border: "none", borderRadius: 5, background: "#3b82f6", color: "#fff",
+                              cursor: "pointer", fontWeight: "bold",
+                            }}>📄 Abrir PDF</button>
+                            <button onClick={() => {
+                              if (!confirm(`Remover "${a.certTitle || "este registro"}"?`)) return;
+                              const upd = savedAnalyses.filter(x => x.id !== a.id);
+                              setSavedAnalyses(upd);
+                              persistSavedAnalyses(upd);
+                            }} style={{
+                              fontFamily: "Courier New, monospace", fontSize: 10, padding: "4px 10px",
+                              border: "1px solid #f87171", borderRadius: 5, background: "transparent", color: "#fca5a5",
+                              cursor: "pointer",
+                            }} title="Remover">🗑 Remover</button>
+                          </div>
+                        </div>
+                        {/* Body */}
+                        <div style={{ padding: "12px 16px", display: "flex", gap: 16, flexWrap: "wrap" }}>
+                          {/* Identification block */}
+                          <div style={{ flex: "1 1 200px", display: "flex", flexDirection: "column", gap: 4 }}>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8", fontWeight: "bold", marginBottom: 2 }}>IDENTIFICAÇÃO</div>
+                            {a.productName && <div style={{ fontFamily: "Courier New, monospace", fontSize: 10 }}><span style={{ color: "#64748b" }}>Produto: </span>{a.productName}</div>}
+                            {a.productLot && <div style={{ fontFamily: "Courier New, monospace", fontSize: 10 }}><span style={{ color: "#64748b" }}>Lote: </span>{a.productLot}</div>}
+                            {a.compoundName && <div style={{ fontFamily: "Courier New, monospace", fontSize: 10 }}><span style={{ color: "#64748b" }}>Composto: </span>{a.compoundName}</div>}
+                            {a.sampleName && <div style={{ fontFamily: "Courier New, monospace", fontSize: 10 }}><span style={{ color: "#64748b" }}>Amostra: </span>{a.sampleName}</div>}
+                            {a.operator && <div style={{ fontFamily: "Courier New, monospace", fontSize: 10 }}><span style={{ color: "#64748b" }}>Operador: </span>{a.operator}</div>}
+                            {a.injDate && <div style={{ fontFamily: "Courier New, monospace", fontSize: 10 }}><span style={{ color: "#64748b" }}>Data injeção: </span>{a.injDate}</div>}
+                          </div>
+                          {/* Results block */}
+                          <div style={{ flex: "1 1 180px", display: "flex", flexDirection: "column", gap: 4 }}>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8", fontWeight: "bold", marginBottom: 2 }}>RESULTADOS</div>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10 }}><span style={{ color: "#64748b" }}>Teor encontrado: </span>{foundMg.toFixed(4)} mg</div>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10 }}><span style={{ color: "#64748b" }}>Pureza calculada: </span>{dispPurity.toFixed(2)} %</div>
+                            {purityVsDecl !== null && (
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 10 }}>
+                                <span style={{ color: "#64748b" }}>Teor vs. Declarado: </span>
+                                <span style={{ color: purityVsDecl >= 80 ? "#166534" : "#991b1b", fontWeight: "bold" }}>{purityVsDecl.toFixed(2)} %</span>
+                              </div>
+                            )}
+                            <div style={{ marginTop: 4 }}>
+                              <span style={{ background: badge.bg, color: badge.color, fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 8px", borderRadius: 4, fontWeight: "bold" }}>
+                                {badge.txt}
+                              </span>
+                            </div>
+                          </div>
+                          {/* Chromatogram thumbnail */}
+                          {a.chromSvgData && (
+                            <div style={{ flex: "2 1 260px" }}>
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8", fontWeight: "bold", marginBottom: 4 }}>CROMATOGRAMA</div>
+                              <div style={{ border: "1px solid #e2e8f0", borderRadius: 6, overflow: "hidden", background: "#f8fafc", padding: 4 }}>
+                                <img
+                                  src={`data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(a.chromSvgData)))}`}
+                                  alt="Cromatograma"
+                                  style={{ width: "100%", maxHeight: 160, objectFit: "contain" }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            }
+
+            // ── Sessions sub-tab ─────────────────────────────────────────
             if (!session || !sessionFormula) {
               return (
                 <div style={{ textAlign: "center", color: "#aaa", padding: "60px 0" }}>
@@ -8300,24 +8614,58 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                 </span>
               </div>
               {/* Botão Salvar */}
-              <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <button
                   onClick={() => {
-                    // 1. Salva o cromatograma como SVG
+                    // 1. Captura SVG do cromatograma ao vivo
                     const svgEl = document.getElementById("padrao-chrom-svg-live");
-                    if (svgEl) {
-                      const svgData = new XMLSerializer().serializeToString(svgEl);
-                      const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+                    const chromSvgData = svgEl ? new XMLSerializer().serializeToString(svgEl) : "";
+
+                    // 2. Computa inSpec (ANVISA)
+                    const _foundMgAnv = padraoConfig.anvisaFoundMgOverride > 0 ? padraoConfig.anvisaFoundMgOverride : foundAmountMg;
+                    const _inMin = padraoConfig.anvisaMinMg > 0 ? _foundMgAnv >= padraoConfig.anvisaMinMg : null;
+                    const _inMax = padraoConfig.anvisaMaxMg > 0 ? _foundMgAnv <= padraoConfig.anvisaMaxMg : null;
+                    const _inSpec: boolean | null = (_inMin !== null || _inMax !== null) ? (_inMin !== false && _inMax !== false) : null;
+
+                    // 3. Cria registro
+                    const record: SavedAnalysis = {
+                      id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+                      savedAt: new Date().toISOString(),
+                      certTitle: padraoConfig.certTitle || "Certificado de Análise",
+                      productName: padraoConfig.productName || "",
+                      productLot: padraoConfig.productLot || "",
+                      compoundName: padraoConfig.compoundName || "",
+                      foundAmountMg,
+                      purity: displaySmpPurity,
+                      inSpec: _inSpec,
+                      sampleName: sample.sampleName || "",
+                      operator: sample.acqOperator || "",
+                      injDate: sample.injectionDate || "",
+                      chromSvgData,
+                      config: { ...padraoConfig },
+                    };
+
+                    // 4. Persiste
+                    const updated = [record, ...savedAnalyses];
+                    setSavedAnalyses(updated);
+                    persistSavedAnalyses(updated);
+                    setSaveConfirmId(record.id);
+                    setTimeout(() => setSaveConfirmId(prev => prev === record.id ? null : prev), 3000);
+
+                    // 5. Navega para aba Análise > PDFs Salvos
+                    setAnaliseSubTab("pdfs");
+                    setPage("analise");
+
+                    // 6. Download SVG e PDF
+                    if (chromSvgData) {
+                      const blob = new Blob([chromSvgData], { type: "image/svg+xml;charset=utf-8" });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
                       const safeName = (padraoConfig.productName || padraoConfig.compoundName || "cromatograma").replace(/[^a-z0-9_\-]/gi, "_");
                       const safeLot  = (padraoConfig.productLot || "sem-lote").replace(/[^a-z0-9_\-]/gi, "_");
-                      a.href = url;
-                      a.download = `cromatograma_${safeName}_${safeLot}.svg`;
-                      a.click();
+                      a.href = url; a.download = `cromatograma_${safeName}_${safeLot}.svg`; a.click();
                       URL.revokeObjectURL(url);
                     }
-                    // 2. Gera o PDF
                     handlePrintPadrao();
                   }}
                   style={{
@@ -8325,13 +8673,20 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                     border: "2px solid #1e3a5f", borderRadius: 5, background: "#1e3a5f",
                     cursor: "pointer", color: "#fff", fontWeight: "bold", display: "flex", alignItems: "center", gap: 6,
                   }}
-                  title="Salva o cromatograma (.svg) e abre o PDF para impressão/download"
+                  title="Salva na aba Análise, baixa o cromatograma (.svg) e abre o PDF"
                 >
                   💾 Salvar (Cromatograma + PDF)
                 </button>
-                <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8" }}>
-                  Salva o cromatograma como .svg e gera o PDF do Standard
-                </span>
+                {saveConfirmId && (
+                  <span style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#16a34a", fontWeight: "bold" }}>
+                    ✓ Salvo na aba Análise!
+                  </span>
+                )}
+                {!saveConfirmId && (
+                  <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8" }}>
+                    Salva o registro na aba Análise › PDFs Salvos
+                  </span>
+                )}
               </div>
             </div>
 
