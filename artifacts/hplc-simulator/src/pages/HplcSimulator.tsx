@@ -6536,10 +6536,9 @@ export default function HplcSimulator() {
                     const aptStr = amtPerArea > 0 ? fmtSci2(amtPerArea, -2).padStart(10) : "".padStart(10);
                     const amtStr = effectiveAmt > 0 ? effectiveAmt.toFixed(5).padStart(10) : "".padStart(10);
                     const grpStr = (p.grp || "").padEnd(2);
-                    const purStr = isSmpPeak ? `  [${padraoFoundPurity.toFixed(2)}%]` : "";
                     return (
                       <div key={p.id} style={{ whiteSpace: "pre" }}>
-                        {"    " + rt + " " + type + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + p.name + purStr}
+                        {"    " + rt + " " + type + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + p.name}
                       </div>
                     );
                   })}
