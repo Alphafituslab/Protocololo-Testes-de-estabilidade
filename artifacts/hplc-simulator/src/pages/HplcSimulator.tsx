@@ -6718,6 +6718,56 @@ export default function HplcSimulator() {
                                   <circle cx={xs(s.amount)} cy={ys(s.area)} r={5} fill="#111" stroke="white" strokeWidth={1.5} />
                                 </g>
                               ))}
+                              {/* Sample point from Padrão tab — orange diamond + purity label */}
+                              {(() => {
+                                const nameMatch = padraoConfig.compoundName && (
+                                  compound.name.toLowerCase().includes(padraoConfig.compoundName.toLowerCase()) ||
+                                  padraoConfig.compoundName.toLowerCase().includes(compound.name.toLowerCase())
+                                );
+                                if (!nameMatch) return null;
+                                if (padraoConfig.smpArea <= 0 || padraoConfig.stdArea <= 0) return null;
+                                const smpFoundUg = (padraoConfig.smpArea / padraoConfig.stdArea) * padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100);
+                                if (smpFoundUg <= 0) return null;
+                                const cx = xs(Math.min(smpFoundUg, compCalibXMax));
+                                const cy = ys(Math.min(padraoConfig.smpArea, compCalibYMax));
+                                const hasPurity = padraoConfig.smpPurity > 0 && Math.abs(padraoConfig.smpPurity - 100) > 0.01;
+                                const purityLabel = hasPurity ? `${padraoConfig.smpPurity.toFixed(2)}%` : `${((padraoConfig.smpArea / padraoConfig.stdArea) * padraoConfig.stdPurity).toFixed(2)}%`;
+                                const isAbove = cy > mT + 18;
+                                // Diamond shape
+                                const d = 6;
+                                const diamond = `M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`;
+                                return (
+                                  <g key="smp-pt">
+                                    {/* Guide lines to axes */}
+                                    <line x1={cx} y1={mT} x2={cx} y2={cy} stroke="#ea580c" strokeDasharray="3 2" strokeWidth={0.9} opacity={0.5} />
+                                    <line x1={mL} y1={cy} x2={cx} y2={cy} stroke="#ea580c" strokeDasharray="3 2" strokeWidth={0.9} opacity={0.5} />
+                                    {/* Diamond */}
+                                    <path d={diamond} fill="#ea580c" stroke="white" strokeWidth={1.5} />
+                                    {/* Purity label */}
+                                    <text
+                                      x={cx}
+                                      y={isAbove ? cy - d - 4 : cy + d + 11}
+                                      textAnchor="middle"
+                                      fontSize={8.5}
+                                      fontWeight="bold"
+                                      fill="#ea580c"
+                                    >
+                                      {purityLabel}
+                                    </text>
+                                    {/* "Sample" label below purity */}
+                                    <text
+                                      x={cx}
+                                      y={isAbove ? cy - d - 4 + 10 : cy + d + 21}
+                                      textAnchor="middle"
+                                      fontSize={7.5}
+                                      fill="#9a3412"
+                                      opacity={0.8}
+                                    >
+                                      Sample
+                                    </text>
+                                  </g>
+                                );
+                              })()}
                             </svg>
                           </div>
                           {/* Stats panel — scientific format (Agilent ChemStation style) */}
