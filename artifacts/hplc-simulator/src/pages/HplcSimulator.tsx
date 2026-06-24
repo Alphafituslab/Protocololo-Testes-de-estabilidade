@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download, Users, ShieldCheck, ShieldOff, ToggleLeft, ToggleRight, LayoutDashboard, ImageDown, ClipboardCheck, ClipboardX, ScrollText, Activity, ImageIcon, Eye, EyeOff, ClipboardPaste, Scale, Lock, LockOpen } from "lucide-react";
 import { useAuth } from "@/contexts/use-auth";
+import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -2785,6 +2786,7 @@ interface UserRecord {
 export default function HplcSimulator() {
   const { user, token, logout, isAdmin } = useAuth();
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const [page, setPage] = useState<PageMode>("chromatogram");
   const [isDirty, setIsDirty] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -3664,13 +3666,106 @@ export default function HplcSimulator() {
   // ── Active Compounds ─────────────────────────────────────────────────────────
 
   const addActiveCompound = () => {
-    setActiveCompounds(cs => [...cs, {
-      id: uid(), name: "New Compound", wavelength: detector.sigWavelength, waveTol: 8,
-      expectedRT: 2.0, rtTol: 0.15, typicalWidth: 0.030, typicalAsym: 1.15,
-      amtPerArea: 0.03, units: "ug/ml", specMin: 0, specMax: 0,
+    // ── 1. Find peaks that have no matching compound yet ────────────────────────
+    const unmatchedPeaks = peaks.filter(p =>
+      !activeCompounds.some(c =>
+        Math.abs(c.expectedRT - p.retentionTime) <= (c.rtTol || 0.15) &&
+        Math.abs(c.wavelength - detector.sigWavelength) <= (c.waveTol || 8)
+      )
+    );
+    const template = unmatchedPeaks[0] ?? null; // first unmatched peak → use as template
+
+    // ── 2. Generate a unique compound name ─────────────────────────────────────
+    const existingNames = new Set(activeCompounds.map(c => c.name.trim().toLowerCase()));
+    let candidateName = template?.name?.trim() ?? "";
+    if (!candidateName || existingNames.has(candidateName.toLowerCase())) {
+      let i = activeCompounds.length + 1;
+      while (existingNames.has(`composto ${i}`)) i++;
+      candidateName = `Composto ${i}`;
+    }
+
+    // ── 3. Choose RT: from template, or next free slot ─────────────────────────
+    const usedRTs = activeCompounds.map(c => c.expectedRT);
+    let candidateRT = template?.retentionTime ?? (
+      usedRTs.length > 0 ? parseFloat((Math.max(...usedRTs) + 1.5).toFixed(3)) : 2.0
+    );
+
+    // ── 4. Duplicate guard — same λ ± 5 nm AND RT ± 0.10 min ─────────────────
+    const isDupRT = activeCompounds.some(c =>
+      Math.abs(c.expectedRT - candidateRT) <= 0.10 &&
+      Math.abs(c.wavelength - detector.sigWavelength) <= 5
+    );
+    if (isDupRT && !template) {
+      // Bump RT to an unoccupied slot
+      candidateRT = parseFloat((
+        usedRTs.length > 0 ? Math.max(...usedRTs) + 1.5 : 2.0
+      ).toFixed(3));
+    }
+    const isDupName = existingNames.has(candidateName.toLowerCase());
+    if (isDupRT && isDupName) {
+      toast({
+        title: "Composto já existe",
+        description: `Já há um composto em TR≈${candidateRT.toFixed(2)} min com λ=${detector.sigWavelength} nm. Edite o existente ou altere o detector.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // ── 5. Build the new compound from template or smart defaults ─────────────
+    const newCompound: ActiveCompound = {
+      id: uid(),
+      name: candidateName,
+      wavelength: detector.sigWavelength,
+      waveTol: 8,
+      expectedRT: candidateRT,
+      rtTol: 0.15,
+      typicalWidth: template ? parseFloat(template.width.toFixed(4)) : 0.030,
+      typicalAsym: template ? parseFloat(template.asymmetry.toFixed(3)) : 1.15,
+      amtPerArea: (template?.amtPerArea ?? 0) > 0 ? template!.amtPerArea : 0.03,
+      units: "ug/ml",
+      specMin: 0,
+      specMax: 0,
       certifiedPurity: 99.5,
-      method: "", notes: "",
-    }]);
+      method: sample.analysisMethod || "",
+      notes: "",
+    };
+
+    setActiveCompounds(cs => [...cs, newCompound]);
+
+    // ── 6. Add / update the corresponding peak in the chromatogram ─────────────
+    if (template) {
+      // Update the existing unmatched peak: give it the compound name + response factor
+      setPeaks(ps => ps.map(p =>
+        p.id === template.id
+          ? { ...p, name: newCompound.name, amtPerArea: newCompound.amtPerArea }
+          : p
+      ));
+    } else {
+      // No existing peak → create a new one at the chosen RT
+      setPeaks(ps => [...ps, {
+        id: uid(),
+        name: newCompound.name,
+        peakType: "BB",
+        grp: "",
+        retentionTime: newCompound.expectedRT,
+        height: 200,
+        width: newCompound.typicalWidth,
+        asymmetry: newCompound.typicalAsym,
+        amtPerArea: newCompound.amtPerArea,
+        amount: 0,
+        manualArea: 0,
+        peakNoise: 0,
+        printSelected: true,
+      }]);
+    }
+
+    toast({
+      title: "Composto adicionado",
+      description: template
+        ? `"${newCompound.name}" criado a partir do pico TR=${newCompound.expectedRT.toFixed(3)} min — edite o composto para ajustar os parâmetros.`
+        : `"${newCompound.name}" criado com pico novo em TR=${newCompound.expectedRT.toFixed(3)} min.`,
+    });
+
     markDirty();
   };
 
