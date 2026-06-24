@@ -3572,6 +3572,26 @@ export default function HplcSimulator() {
         const newAnalysisMethod = `C:\\CHEM32\\1\\METHODS\\${safe}.M`;
         return { ...s, sampleName: val, acqMethod: newAcqMethod, analysisMethod: newAnalysisMethod, lastChanged1: ts, lastChanged2: ts };
       }
+      if (k === "dataFile") {
+        // Extract date from path like "…\TESTE Nome 2025-04-23 12-55-35\009-0901.D"
+        const m = val.match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{2})-(\d{2})-(\d{2})/);
+        if (m) {
+          const [, yr, mo, day, hh, mm, ss] = m;
+          const h = parseInt(hh, 10);
+          const ampm = h >= 12 ? "PM" : "AM";
+          const h12 = h % 12 || 12;
+          const dateFormatted = `${parseInt(mo)}/${parseInt(day)}/${yr} ${h12}:${mm}:${ss} ${ampm}`;
+          const byOp = ` by ${s.acqOperator || "LAB"}`;
+          return {
+            ...s,
+            dataFile: val,
+            injectionDate: dateFormatted,
+            lastChanged1: dateFormatted + byOp,
+            lastChanged2: dateFormatted + byOp,
+          };
+        }
+        return { ...s, dataFile: val };
+      }
       return { ...s, [k]: val };
     });
     markDirty();
