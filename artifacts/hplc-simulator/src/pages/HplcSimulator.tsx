@@ -9599,7 +9599,12 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                     {`  ${String(padraoConfig.stdPeakName.match(/\d+\.\d+/)?.[0] ?? "std").padStart(7)}  STD  ${padraoConfig.stdArea.toFixed(5).padStart(14)} ${padraoConfig.stdAmountUg.toFixed(4).padStart(12)} ${(padraoConfig.stdAmountUg / 1000).toFixed(6).padStart(12)} ${padraoConfig.stdPurity.toFixed(2).padStart(11)}   ${padraoConfig.compoundName} [standard]`}
                   </div>
                   <div style={{ whiteSpace: "pre", fontSize: 11, fontWeight: "bold", color: "#ea580c" }}>
-                    {`  ${String(padraoSmpRT > 0 ? padraoSmpRT.toFixed(3) : "?.???").padStart(7)}  MM   ${padraoConfig.smpArea.toFixed(5).padStart(14)} ${padraoFoundUg.toFixed(4).padStart(12)} ${padraoFoundMg.toFixed(6).padStart(12)} ${padraoFoundPurity.toFixed(2).padStart(11)}   ${padraoConfig.compoundName} [sample]`}
+                    {(() => {
+                      const matchedPeak = peakStats.find(p => isPadraoSamplePeak(p));
+                      const rtVal = padraoSmpRT > 0 ? padraoSmpRT : (matchedPeak ? matchedPeak.retentionTime : 0);
+                      const rtStr = rtVal > 0 ? rtVal.toFixed(3) : "?.???";
+                      return `  ${String(rtStr).padStart(7)}  MM   ${padraoConfig.smpArea.toFixed(5).padStart(14)} ${padraoFoundUg.toFixed(4).padStart(12)} ${padraoFoundMg.toFixed(6).padStart(12)} ${padraoFoundPurity.toFixed(2).padStart(11)}   ${padraoConfig.compoundName} [sample]`;
+                    })()}
                   </div>
                 </div>
                 <div style={{ marginTop: 8, fontSize: 9, color: "#6b7280", borderTop: "1px solid #bbf7d0", paddingTop: 6 }}>
