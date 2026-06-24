@@ -2833,6 +2833,8 @@ export default function HplcSimulator() {
   const [deleteSessionPwd, setDeleteSessionPwd] = useState("");
   const [deleteSessionError, setDeleteSessionError] = useState<string | null>(null);
   const [deleteSessionLoading, setDeleteSessionLoading] = useState(false);
+  const [peakPickerOpen, setPeakPickerOpen] = useState(false);
+  const peakPickerCbRef = useRef<((p: Peak) => void) | null>(null);
   // Master-password unlock for concluded sessions
   const [unlockedSessionId, setUnlockedSessionId] = useState<string | null>(null);
   const [masterAuthDialog, setMasterAuthDialog] = useState<{ onSuccess: () => void; description?: string; buttonLabel?: string } | null>(null);
@@ -7642,41 +7644,57 @@ export default function HplcSimulator() {
           updatePadrao({ selectedLotIds: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] });
         };
 
-        // Auto-fill Padrão fields from the current chromatogram + active compound data
-        const autoFillPadrao = () => {
-          for (const compound of activeCompounds) {
-            const matchingPeak = peakList.find(p =>
-              (p.name && (
-                p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
-                compound.name.toLowerCase().includes(p.name.toLowerCase())
-              )) || Math.abs(p.retentionTime - compound.expectedRT) < compound.rtTol
-            );
-            if (matchingPeak) {
-              const cc = getCC(compound.id);
-              const sortedStds = [...cc.standards].sort((a, b) => a.amount - b.amount);
-              const midStd = sortedStds[Math.floor(sortedStds.length / 2)] ?? sortedStds[0];
-              const smpA = parseFloat(getArea(matchingPeak).toFixed(5));
-              updatePadrao({
-                compoundName: compound.name,
-                stdPeakName: midStd ? `Level ${midStd.level} — cal. ${compound.name}` : compound.name,
-                stdArea: midStd ? parseFloat(midStd.area.toFixed(5)) : smpA,
-                stdAmountUg: midStd ? parseFloat(midStd.amount.toFixed(4)) : parseFloat((compound.amtPerArea * smpA).toFixed(4)),
-                stdPurity: compound.certifiedPurity > 0 ? compound.certifiedPurity : 99.5,
-                smpPeakName: matchingPeak.name || `TR ${matchingPeak.retentionTime.toFixed(3)} min`,
-                smpArea: smpA,
-                smpDeclaredAmountUg: 0,
-              });
-              return;
-            }
-          }
-          // Fallback: fill sample area from the largest peak
-          const largest = peakList.reduce<Peak | null>((b, p) => (!b || getArea(p) > getArea(b)) ? p : b, null);
-          if (largest) {
+        // Auto-fill Padrão fields from a single chosen peak
+        const doFillFromPeak = (peak: Peak) => {
+          const smpA = parseFloat(getArea(peak).toFixed(5));
+          // Find the best matching compound for this peak
+          const compound = activeCompounds.find(c =>
+            (peak.name && (
+              peak.name.toLowerCase().includes(c.name.toLowerCase()) ||
+              c.name.toLowerCase().includes(peak.name.toLowerCase())
+            )) || Math.abs(peak.retentionTime - c.expectedRT) < c.rtTol
+          ) ?? null;
+          if (compound) {
+            const cc = getCC(compound.id);
+            const sortedStds = [...cc.standards].sort((a, b) => a.amount - b.amount);
+            const midStd = sortedStds[Math.floor(sortedStds.length / 2)] ?? sortedStds[0] ?? null;
             updatePadrao({
-              smpPeakName: largest.name || `TR ${largest.retentionTime.toFixed(3)} min`,
-              smpArea: parseFloat(getArea(largest).toFixed(5)),
+              compoundName: compound.name,
+              stdPeakName: midStd ? `Level ${midStd.level} — cal. ${compound.name}` : compound.name,
+              stdArea: midStd ? parseFloat(midStd.area.toFixed(5)) : smpA,
+              stdAmountUg: midStd
+                ? parseFloat(midStd.amount.toFixed(4))
+                : parseFloat((compound.amtPerArea * smpA).toFixed(4)),
+              stdPurity: compound.certifiedPurity > 0 ? compound.certifiedPurity : 99.5,
+              smpPeakName: peak.name || `TR ${peak.retentionTime.toFixed(3)} min`,
+              smpArea: smpA,
+              smpDeclaredAmountUg: 0,
+            });
+          } else {
+            // No compound match — fill only sample area
+            updatePadrao({
+              smpPeakName: peak.name || `TR ${peak.retentionTime.toFixed(3)} min`,
+              smpArea: smpA,
             });
           }
+          toast({
+            title: "Auto-fill aplicado",
+            description: compound
+              ? `Pico "${peak.name || `TR ${peak.retentionTime.toFixed(3)}`}" vinculado ao composto "${compound.name}".`
+              : `Área do pico "${peak.name || `TR ${peak.retentionTime.toFixed(3)}`}" copiada (sem composto correspondente).`,
+          });
+        };
+
+        // Auto-fill Padrão: 1 pico → direto; >1 pico → picker
+        const autoFillPadrao = () => {
+          if (peakList.length === 0) return;
+          if (peakList.length === 1) {
+            doFillFromPeak(peakList[0]);
+            return;
+          }
+          // Multiple peaks — open picker dialog
+          peakPickerCbRef.current = doFillFromPeak;
+          setPeakPickerOpen(true);
         };
 
         // Print/PDF export for the Resultado section
@@ -9375,6 +9393,85 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                 {deleteSessionLoading ? "Verifying…" : "Delete"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Peak picker — Auto-fill from chromatogram (múltiplos picos) ──────── */}
+      {peakPickerOpen && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999,
+        }} onClick={() => setPeakPickerOpen(false)}>
+          <div style={{
+            background: "#fff", borderRadius: 10, padding: "20px 22px",
+            minWidth: 360, maxWidth: 520, boxShadow: "0 8px 32px rgba(0,0,0,0.22)",
+            fontFamily: "Courier New, monospace",
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: "bold", fontSize: 13, marginBottom: 4 }}>
+              ⚡ Selecionar pico para Auto-fill
+            </div>
+            <div style={{ fontSize: 10, color: "#666", marginBottom: 14 }}>
+              Há {peaks.filter(p => p.retentionTime > 0.5).length} picos no cromatograma. Escolha qual comparar com o Padrão cadastrado:
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {peaks
+                .filter(p => p.retentionTime > 0.5)
+                .sort((a, b) => a.retentionTime - b.retentionTime)
+                .map(p => {
+                  const area = p.manualArea > 0 ? p.manualArea : computeArea(p);
+                  const matchedCompound = activeCompounds.find(c =>
+                    (p.name && (
+                      p.name.toLowerCase().includes(c.name.toLowerCase()) ||
+                      c.name.toLowerCase().includes(p.name.toLowerCase())
+                    )) || Math.abs(p.retentionTime - c.expectedRT) < c.rtTol
+                  ) ?? null;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        peakPickerCbRef.current?.(p);
+                        setPeakPickerOpen(false);
+                      }}
+                      style={{
+                        textAlign: "left", padding: "8px 12px",
+                        border: matchedCompound ? "1.5px solid #6366f1" : "1px solid #d1d5db",
+                        borderRadius: 6,
+                        background: matchedCompound ? "#eef2ff" : "#f9fafb",
+                        cursor: "pointer", fontFamily: "Courier New, monospace",
+                        display: "flex", flexDirection: "column", gap: 2,
+                      }}
+                    >
+                      <span style={{ fontWeight: "bold", fontSize: 11, color: matchedCompound ? "#4338ca" : "#111" }}>
+                        {p.name || `Pico sem nome`}
+                        {matchedCompound && (
+                          <span style={{ marginLeft: 8, fontSize: 9, fontWeight: "normal", color: "#6366f1" }}>
+                            → composto: {matchedCompound.name}
+                          </span>
+                        )}
+                      </span>
+                      <span style={{ fontSize: 9.5, color: "#555" }}>
+                        TR = {p.retentionTime.toFixed(3)} min &nbsp;|&nbsp; Área = {area.toFixed(2)} mAU·s &nbsp;|&nbsp; h = {p.height} mAU
+                      </span>
+                      {!matchedCompound && (
+                        <span style={{ fontSize: 9, color: "#9ca3af" }}>
+                          Sem composto correspondente — preenche apenas a área da amostra
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+            </div>
+            <button
+              onClick={() => setPeakPickerOpen(false)}
+              style={{
+                marginTop: 14, width: "100%", padding: "6px", fontSize: 11,
+                border: "1px solid #d1d5db", borderRadius: 6, background: "#f3f4f6",
+                cursor: "pointer", color: "#374151",
+              }}
+            >
+              Cancelar
+            </button>
           </div>
         </div>
       )}
