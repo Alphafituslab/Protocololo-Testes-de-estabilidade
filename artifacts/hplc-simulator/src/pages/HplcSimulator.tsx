@@ -286,6 +286,10 @@ interface PadraoConfig {
   anvisaNorm: string;             // e.g. "IN 28/2018"
   anvisaUseUg: boolean;           // true → display min/max in µg instead of mg
   anvisaFoundMgOverride: number;  // mg — direct override from "Aplicar" (0 = use area-based calc)
+  // Identificação do documento
+  productName: string;   // Nome do produto (identificação comercial)
+  productLot: string;    // Lote do produto
+  certTitle: string;     // Título do Certificado (default: "Certificado de Análise")
 }
 
 // ─── Padrao protection + audit types ────────────────────────────────────────────
@@ -2044,6 +2048,7 @@ const DEFAULT_PADRAO_CONFIG: PadraoConfig = {
   smpMassDeclaradaMg: 0, smpConcFinalUgMl: 0, smpVolInicialMl: 0, smpInjVolUl: 0,
   anvisaLabelAmountMg: 0, anvisaMinMg: 0, anvisaMaxMg: 0, anvisaNorm: "IN 28/2018", anvisaUseUg: false,
   anvisaFoundMgOverride: 0,
+  productName: "", productLot: "", certTitle: "Certificado de Análise",
 };
 function loadPadraoConfig(): PadraoConfig {
   try { return { ...DEFAULT_PADRAO_CONFIG, ...(JSON.parse(localStorage.getItem(PADRAO_KEY) ?? "{}") as Partial<PadraoConfig>) }; }
@@ -7993,9 +7998,13 @@ export default function HplcSimulator() {
 </div>`;
           })();
 
-          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Standard — Resultado Quantificação</title><style>
+          const certTitleStr  = padraoConfig.certTitle || 'Certificado de Análise';
+          const productNameStr = padraoConfig.productName || '—';
+          const productLotStr  = padraoConfig.productLot  || '—';
+
+          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${certTitleStr} — ${productNameStr}</title><style>
 body{font-family:'Courier New',monospace;font-size:11px;padding:24px;color:#111}
-h1{font-size:14px;border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:10px}
+h1{font-size:15px;border-bottom:2px solid #1e3a5f;padding-bottom:8px;margin-bottom:10px;color:#1e3a5f}
 h2{font-size:12px;margin-top:18px;border-bottom:1px solid #ccc;padding-bottom:3px;margin-bottom:6px}
 p{margin:2px 0}
 table{width:100%;border-collapse:collapse;margin-top:6px}
@@ -8006,12 +8015,44 @@ th{background:#f1f5f9;font-weight:700}
 .big{font-size:19px;font-weight:bold}.lbl{font-size:9px;color:#64748b;margin-top:1px}
 .ok{color:#16a34a}.warn{color:#d97706}.bad{color:#dc2626}
 footer{font-size:9px;color:#999;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:6px}
+.id-block{border:2px solid #1e3a5f;border-radius:8px;padding:14px 20px;margin-bottom:16px;background:#f8fafc}
+.id-block table{margin-top:0}
+.id-block th{background:#1e3a5f;color:#fff;font-size:11px;text-align:left;padding:6px 12px}
+.id-block td{font-size:11px;padding:6px 12px;border-color:#cbd5e1}
+.id-block .section-label{font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px}
+.id-block .section-value{font-size:13px;font-weight:bold;color:#1e293b}
 @media print{@page{margin:8mm 10mm}}</style></head>
 <body>
-<h1>Standard — Resultado Quantificação (External Standard)</h1>
-<p><strong>Composto:</strong> ${padraoConfig.compoundName || '—'} &nbsp;&nbsp; <strong>Método:</strong> External Standard (single point)</p>
-<p><strong>Amostra:</strong> ${sample.sampleName || '—'} &nbsp;&nbsp; <strong>Operador:</strong> ${sample.acqOperator || '—'} &nbsp;&nbsp; <strong>Data:</strong> ${sample.injectionDate || '—'}</p>
-<p><strong>Método aquisição:</strong> ${sample.acqMethod || '—'} &nbsp;&nbsp; <strong>Vol. injeção:</strong> ${sample.injVolume || '—'}</p>
+<div style="text-align:center;margin-bottom:4px">
+  <div style="font-size:9px;color:#64748b;letter-spacing:0.1em;text-transform:uppercase">Alphafitus — Controle de Qualidade</div>
+</div>
+
+<div class="id-block">
+  <table>
+    <thead><tr><th colspan="2">${certTitleStr}</th></tr></thead>
+    <tbody>
+      <tr>
+        <td style="width:35%;font-weight:600;color:#475569" class="section-label">1. Identificação do Produto</td>
+        <td><span class="section-value">${productNameStr}</span></td>
+      </tr>
+      <tr>
+        <td style="font-weight:600;color:#475569" class="section-label">2. Lote</td>
+        <td><span class="section-value">${productLotStr}</span></td>
+      </tr>
+      <tr>
+        <td style="font-weight:600;color:#475569" class="section-label">3. Certificado de Análise</td>
+        <td><span class="section-value">${certTitleStr}</span></td>
+      </tr>
+      <tr>
+        <td style="font-weight:600;color:#475569" class="section-label">4. Nome do Produto (Composto Ativo)</td>
+        <td><span class="section-value">${padraoConfig.compoundName || '—'}</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<p><strong>Método:</strong> External Standard (single point) &nbsp;&nbsp; <strong>Amostra:</strong> ${sample.sampleName || '—'}</p>
+<p><strong>Operador:</strong> ${sample.acqOperator || '—'} &nbsp;&nbsp; <strong>Data:</strong> ${sample.injectionDate || new Date().toLocaleDateString('pt-BR')} &nbsp;&nbsp; <strong>Vol. injeção:</strong> ${sample.injVolume || '—'}</p>
 
 ${chromSvg}
 
@@ -8198,6 +8239,100 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               >
                 Clear
               </button>
+            </div>
+
+            {/* ── Identificação do Documento ── */}
+            <div style={{ ...CARD, marginBottom: 14, borderLeft: "4px solid #1e3a5f" }}>
+              <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#1e3a5f", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                📋 Identificação do Documento
+                <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8", marginLeft: 4 }}>
+                  — aparece no PDF
+                </span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px 14px" }}>
+                {/* 1 — Identificação do Produto */}
+                <div>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b", marginBottom: 3 }}>
+                    <strong style={{ color: "#1e3a5f" }}>1.</strong> Identificação do Produto
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Ex: Suplemento Vitamina D3 1000UI"
+                    value={padraoConfig.productName}
+                    onChange={e => updatePadrao({ productName: e.target.value })}
+                    style={INP}
+                  />
+                </div>
+                {/* 2 — Lote */}
+                <div>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b", marginBottom: 3 }}>
+                    <strong style={{ color: "#1e3a5f" }}>2.</strong> Lote do Produto
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Ex: LOT-2025-001"
+                    value={padraoConfig.productLot}
+                    onChange={e => updatePadrao({ productLot: e.target.value })}
+                    style={INP}
+                  />
+                </div>
+                {/* 3 — Título do Certificado */}
+                <div>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b", marginBottom: 3 }}>
+                    <strong style={{ color: "#1e3a5f" }}>3.</strong> Certificado de Análise
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Certificado de Análise"
+                    value={padraoConfig.certTitle}
+                    onChange={e => updatePadrao({ certTitle: e.target.value })}
+                    style={INP}
+                  />
+                </div>
+              </div>
+              {/* 4 — Nome do produto (composto ativo) — leitura do campo compoundName */}
+              <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "#f8fafc", borderRadius: 5, border: "1px solid #e2e8f0" }}>
+                <span style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b" }}>
+                  <strong style={{ color: "#1e3a5f" }}>4.</strong> Nome do Produto (Composto Ativo):
+                </span>
+                <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: padraoConfig.compoundName ? "#1e293b" : "#94a3b8" }}>
+                  {padraoConfig.compoundName || "— preencha o campo Compound abaixo —"}
+                </span>
+              </div>
+              {/* Botão Salvar */}
+              <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                <button
+                  onClick={() => {
+                    // 1. Salva o cromatograma como SVG
+                    const svgEl = document.getElementById("padrao-chrom-svg-live");
+                    if (svgEl) {
+                      const svgData = new XMLSerializer().serializeToString(svgEl);
+                      const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      const safeName = (padraoConfig.productName || padraoConfig.compoundName || "cromatograma").replace(/[^a-z0-9_\-]/gi, "_");
+                      const safeLot  = (padraoConfig.productLot || "sem-lote").replace(/[^a-z0-9_\-]/gi, "_");
+                      a.href = url;
+                      a.download = `cromatograma_${safeName}_${safeLot}.svg`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }
+                    // 2. Gera o PDF
+                    handlePrintPadrao();
+                  }}
+                  style={{
+                    fontFamily: "Courier New, monospace", fontSize: 11, padding: "5px 16px",
+                    border: "2px solid #1e3a5f", borderRadius: 5, background: "#1e3a5f",
+                    cursor: "pointer", color: "#fff", fontWeight: "bold", display: "flex", alignItems: "center", gap: 6,
+                  }}
+                  title="Salva o cromatograma (.svg) e abre o PDF para impressão/download"
+                >
+                  💾 Salvar (Cromatograma + PDF)
+                </button>
+                <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8" }}>
+                  Salva o cromatograma como .svg e gera o PDF do Standard
+                </span>
+              </div>
             </div>
 
             {/* ── Quick Setup Guide — aparece quando há campos obrigatórios faltando ── */}
@@ -9051,6 +9186,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                           CROMATOGRAMA — visualização proporcional às áreas
                         </div>
                         <svg
+                          id="padrao-chrom-svg-live"
                           viewBox={`0 0 ${W} ${H}`}
                           style={{ width: "100%", height: H, display: "block" }}
                           xmlns="http://www.w3.org/2000/svg"
