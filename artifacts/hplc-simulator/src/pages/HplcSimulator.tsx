@@ -9291,10 +9291,10 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                       {pctLabel !== null ? (
                         <>
                           <div style={{ fontSize: 18, fontWeight: 900, color: pctLabel >= 80 && pctLabel <= 120 ? "#16a34a" : "#dc2626" }}>
-                            {pctLabel.toFixed(1)}%
+                            {pctLabel.toFixed(2)}%
                           </div>
                           <div style={{ fontSize: 9, color: "#64748b", marginTop: 2 }}>
-                            {pctLabel >= 100 ? `+${(pctLabel - 100).toFixed(1)}% overage` : `-${(100 - pctLabel).toFixed(1)}% déficit`}
+                            {pctLabel >= 100 ? `+${(pctLabel - 100).toFixed(2)}% overage` : `-${(100 - pctLabel).toFixed(2)}% déficit`}
                           </div>
                         </>
                       ) : (
