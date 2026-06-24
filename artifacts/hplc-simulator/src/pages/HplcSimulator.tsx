@@ -2092,6 +2092,13 @@ const PADRAO_LOG_KEY = "hplc_padrao_changelog_v1";
   function savePadraoLocked(v: boolean) {
     try { localStorage.setItem(PADRAO_LOCKED_KEY, v ? "true" : "false"); } catch { /* noop */ }
   }
+  const SMP_PURITY_LOCKED_KEY = "hplc_smp_purity_locked_v1";
+  function loadSmpPurityLocked(): boolean {
+    try { return localStorage.getItem(SMP_PURITY_LOCKED_KEY) === "true"; } catch { return false; }
+  }
+  function saveSmpPurityLocked(v: boolean) {
+    try { localStorage.setItem(SMP_PURITY_LOCKED_KEY, v ? "true" : "false"); } catch { /* noop */ }
+  }
   function validatePadrao(cfg: PadraoConfig): ValidationAlert[] {
     const alerts: ValidationAlert[] = [];
     if (!cfg.compoundName) alerts.push({ severity: "warning", message: "Compound name not set", field: "compoundName" });
@@ -2900,6 +2907,7 @@ export default function HplcSimulator() {
     return { ...DEFAULT_PADRAO_CONFIG, ...cfg, selectedLotIds: cfg.selectedLotIds ?? [] };
   });
   const [padraoLocked, setPadraoLocked] = useState<boolean>(() => loadPadraoLocked());
+  const [smpPurityLocked, setSmpPurityLocked] = useState<boolean>(() => loadSmpPurityLocked());
   const [padraoChangelog, setPadraoChangelog] = useState<PadraoChangeLog[]>(() => loadPadraoChangelog());
   const [padraoHistoryOpen, setPadraoHistoryOpen] = useState(false);
   const [padraoPresets, setPadraoPresets] = useState<PadraoPreset[]>(() => loadPadraoPresets());
@@ -3453,6 +3461,47 @@ export default function HplcSimulator() {
       buttonLabel: "🔓 Unlock Standard",
       onSuccess: () => { setPadraoLocked(false); savePadraoLocked(false); },
     });
+  };
+  const lockSmpPurity = () => {
+    setMasterAuthInput("");
+    setMasterAuthError(null);
+    setMasterAuthDialog({
+      description: `Lock Pureza da amostra at ${padraoConfig.smpPurity.toFixed(2)}%. Once locked, no baseline change or peak capture can overwrite this value.`,
+      buttonLabel: "🔒 Save & Lock Purity",
+      onSuccess: () => { setSmpPurityLocked(true); saveSmpPurityLocked(true); },
+    });
+  };
+  const unlockSmpPurity = () => {
+    setMasterAuthInput("");
+    setMasterAuthError(null);
+    setMasterAuthDialog({
+      description: "Enter the manager password to UNLOCK Pureza da amostra for editing.",
+      buttonLabel: "🔓 Unlock Purity",
+      onSuccess: () => { setSmpPurityLocked(false); saveSmpPurityLocked(false); },
+    });
+  };
+  const updateSmpPurity = (v: number) => {
+    if (smpPurityLocked) {
+      setMasterAuthInput("");
+      setMasterAuthError(null);
+      setMasterAuthDialog({
+        description: `Pureza da amostra is locked at ${padraoConfig.smpPurity.toFixed(2)}%. Enter the manager password to edit.`,
+        buttonLabel: "✏️ Edit Purity",
+        onSuccess: () => {
+          const clamped = Math.max(0.01, v || 100);
+          const stdA = padraoConfig.stdArea;
+          const stdP = padraoConfig.stdPurity;
+          const newArea = stdA > 0 && stdP > 0 ? parseFloat((stdA * clamped / stdP).toFixed(5)) : padraoConfig.smpArea;
+          updatePadrao({ smpPurity: clamped, smpArea: newArea, smpRawArea: stdA });
+        },
+      });
+    } else {
+      const clamped = Math.max(0.01, v || 100);
+      const stdA = padraoConfig.stdArea;
+      const stdP = padraoConfig.stdPurity;
+      const newArea = stdA > 0 && stdP > 0 ? parseFloat((stdA * clamped / stdP).toFixed(5)) : padraoConfig.smpArea;
+      updatePadrao({ smpPurity: clamped, smpArea: newArea, smpRawArea: stdA });
+    }
   };
   const updatePadraoProtected = (patchData: Partial<PadraoConfig>, changedBy?: string) => {
     const protectedKeys: (keyof PadraoConfig)[] = ["stdArea", "stdAmountUg", "stdPurity", "compoundName"];
@@ -7872,7 +7921,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
         const numInput = (
           value: number,
           onChange: (v: number) => void,
-          opts?: { step?: string; placeholder?: string; min?: number }
+          opts?: { step?: string; placeholder?: string; min?: number; disabled?: boolean }
         ) => (
           <input
             type="number"
@@ -7880,8 +7929,9 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
             min={opts?.min ?? 0}
             placeholder={opts?.placeholder}
             value={value === 0 ? "" : value}
+            disabled={opts?.disabled}
             onChange={e => onChange(parseFloat(e.target.value) || 0)}
-            style={INP}
+            style={{ ...INP, ...(opts?.disabled ? { opacity: 0.6, cursor: "not-allowed", background: "#f1f5f9" } : {}) }}
           />
         );
 
@@ -8181,17 +8231,37 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                 <div id="padrao-row-smpPurity" style={ROW}>
                   <span style={{ ...LBL, color: "#c2410c" }}>Pureza da amostra (%)</span>
                   <div>
-                    {numInput(padraoConfig.smpPurity, v => {
-                      const clamped = Math.max(0.01, v || 100);
-                      // smpArea = stdArea × (smpPurity / stdPurity)
-                      // Relates sample area directly to the Reference Standard via purity ratio
-                      const stdA = padraoConfig.stdArea;
-                      const stdP = padraoConfig.stdPurity;
-                      const newArea = stdA > 0 && stdP > 0
-                        ? parseFloat((stdA * clamped / stdP).toFixed(5))
-                        : padraoConfig.smpArea;
-                      updatePadrao({ smpPurity: clamped, smpArea: newArea, smpRawArea: stdA });
-                    }, { step: "0.01", min: 0.01, placeholder: "100.00" })}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      {numInput(padraoConfig.smpPurity, updateSmpPurity, {
+                        step: "0.01", min: 0.01, placeholder: "100.00",
+                        disabled: smpPurityLocked,
+                      })}
+                      <button
+                        onClick={smpPurityLocked ? unlockSmpPurity : lockSmpPurity}
+                        title={smpPurityLocked
+                          ? `Purity locked at ${padraoConfig.smpPurity.toFixed(2)}% — click to unlock (password required)`
+                          : "Save & lock this purity value (prevents chromatogram baseline changes from overwriting it)"}
+                        style={{
+                          fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 8px",
+                          border: `1px solid ${smpPurityLocked ? "#f59e0b" : "#cbd5e1"}`,
+                          borderRadius: 4,
+                          background: smpPurityLocked ? "#fef3c7" : "#f8fafc",
+                          cursor: "pointer",
+                          color: smpPurityLocked ? "#92400e" : "#64748b",
+                          display: "flex", alignItems: "center", gap: 4,
+                          whiteSpace: "nowrap", flexShrink: 0,
+                        }}
+                      >
+                        {smpPurityLocked
+                          ? <><Lock style={{ width: 10, height: 10 }} /> {padraoConfig.smpPurity.toFixed(2)}% locked</>
+                          : <><Lock style={{ width: 10, height: 10 }} /> Save & Lock</>}
+                      </button>
+                    </div>
+                    {smpPurityLocked && (
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#92400e", background: "#fef3c7", border: "1px solid #fde68a", borderRadius: 3, padding: "2px 7px", marginTop: 3 }}>
+                        🔒 Bloqueado — baseline e peak capture não alteram este %. Senha necessária para editar.
+                      </div>
+                    )}
                     {padraoConfig.stdArea > 0 && padraoConfig.stdPurity > 0 && Math.abs(padraoConfig.smpPurity - 100) > 0.01 && (
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8", marginTop: 2 }}>
                         {padraoConfig.stdArea.toFixed(3)} mAU·s × ({padraoConfig.smpPurity.toFixed(2)} ÷ {padraoConfig.stdPurity.toFixed(2)}) = {(padraoConfig.stdArea * padraoConfig.smpPurity / padraoConfig.stdPurity).toFixed(5)} mAU·s
@@ -8229,13 +8299,17 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                   label="Capture as sample area"
                   onCapture={p => {
                     const rawArea = parseFloat(getArea(p).toFixed(5));
-                    const peakPurity = (p.purityPct && p.purityPct > 0) ? p.purityPct : (padraoConfig.smpPurity || 100);
+                    // Use locked purity if set; otherwise peak's purity or current value
+                    const peakPurity = smpPurityLocked
+                      ? padraoConfig.smpPurity
+                      : (p.purityPct && p.purityPct > 0 ? p.purityPct : (padraoConfig.smpPurity || 100));
                     const correctedArea = parseFloat((rawArea * peakPurity / 100).toFixed(5));
                     updatePadrao({
                       smpRawArea: rawArea,
                       smpArea: correctedArea,
                       smpPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}`,
-                      ...(p.purityPct && p.purityPct > 0 ? { smpPurity: p.purityPct } : {}),
+                      // Never overwrite smpPurity when locked
+                      ...(!smpPurityLocked && p.purityPct && p.purityPct > 0 ? { smpPurity: p.purityPct } : {}),
                     });
                   }}
                 />
@@ -9106,13 +9180,16 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                               <button
                                 onClick={() => {
                                   const rawArea = parseFloat(area.toFixed(5));
-                                  const purPct = p.purityPct && p.purityPct > 0 ? p.purityPct : (padraoConfig.smpPurity > 0 ? padraoConfig.smpPurity : 100);
+                                  // Use locked purity if set; never overwrite when locked
+                                  const purPct = smpPurityLocked
+                                    ? padraoConfig.smpPurity
+                                    : (p.purityPct && p.purityPct > 0 ? p.purityPct : (padraoConfig.smpPurity > 0 ? padraoConfig.smpPurity : 100));
                                   const corrected = parseFloat((rawArea * (purPct / 100)).toFixed(5));
                                   updatePadrao({
                                     smpRawArea: rawArea,
                                     smpArea: corrected,
                                     smpPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}`,
-                                    smpPurity: purPct,
+                                    ...(!smpPurityLocked ? { smpPurity: purPct } : {}),
                                   });
                                 }}
                                 style={{ fontSize: 9.5, padding: "2px 6px", border: "1px solid #fed7aa", borderRadius: 3, background: "#fff7ed", cursor: "pointer", color: "#c2410c" }}
