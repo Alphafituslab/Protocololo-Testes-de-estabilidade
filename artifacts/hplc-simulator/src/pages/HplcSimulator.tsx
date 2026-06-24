@@ -3240,7 +3240,7 @@ export default function HplcSimulator() {
   const padraoFoundUg      = padraoExtRatio * padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100);
   const padraoFoundMg      = padraoFoundUg / 1000;
   const padraoFoundPurity  = padraoExtHasData
-    ? (padraoConfig.smpPurity > 0 && padraoConfig.smpPurity < 99.99
+    ? (padraoConfig.smpPurity > 0 && Math.abs(padraoConfig.smpPurity - 100) > 0.01
         ? padraoConfig.smpPurity
         : padraoExtRatio * padraoConfig.stdPurity)
     : 0;
@@ -7610,8 +7610,8 @@ export default function HplcSimulator() {
         // purityCalc: what the external-standard method derives from the area ratio
         const purityCalc      = ratio * padraoConfig.stdPurity;
 
-        // hasSmpPurity: user explicitly entered a sample purity (anything < 99.99 is intentional)
-        const hasSmpPurity    = padraoConfig.smpPurity > 0 && padraoConfig.smpPurity < 99.99;
+        // hasSmpPurity: user explicitly entered a non-default purity (anything ≠ 100 is intentional, including overage >100)
+        const hasSmpPurity    = padraoConfig.smpPurity > 0 && Math.abs(padraoConfig.smpPurity - 100) > 0.01;
 
         // displaySmpPurity: show the entered value when the user set it; else the calculated one
         const displaySmpPurity = hasSmpPurity ? padraoConfig.smpPurity : purityCalc;
@@ -8132,13 +8132,13 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                   <span style={{ ...LBL, color: "#c2410c" }}>Pureza da amostra (%)</span>
                   <div>
                     {numInput(padraoConfig.smpPurity, v => {
-                      const clamped = Math.max(0.01, Math.min(100, v || 100));
+                      const clamped = Math.max(0.01, v || 100);
                       const newArea = padraoConfig.smpRawArea > 0
                         ? parseFloat((padraoConfig.smpRawArea * clamped / 100).toFixed(5))
                         : padraoConfig.smpArea;
                       updatePadrao({ smpPurity: clamped, smpArea: newArea });
                     }, { step: "0.01", min: 0.01, placeholder: "100.00" })}
-                    {padraoConfig.smpRawArea > 0 && padraoConfig.smpPurity < 99.99 && (
+                    {padraoConfig.smpRawArea > 0 && Math.abs(padraoConfig.smpPurity - 100) > 0.01 && (
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8", marginTop: 2 }}>
                         Área bruta: {padraoConfig.smpRawArea.toFixed(5)} mAU·s → ×{(padraoConfig.smpPurity / 100).toFixed(4)} = {(padraoConfig.smpRawArea * padraoConfig.smpPurity / 100).toFixed(5)} mAU·s
                       </div>
@@ -8154,9 +8154,9 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                     {padraoConfig.stdArea > 0 && padraoConfig.smpArea > 0 && padraoConfig.smpArea / padraoConfig.stdArea > 2 && (
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#d97706", marginTop: 2 }}>⚠ Sample area &gt;2× standard — verify concentrations</div>
                     )}
-                    {padraoConfig.smpPurity < 99.99 && padraoConfig.smpArea > 0 && (
-                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#f97316", marginTop: 2 }}>
-                        ✓ Corrigida para {padraoConfig.smpPurity.toFixed(2)}% de pureza
+                    {Math.abs(padraoConfig.smpPurity - 100) > 0.01 && padraoConfig.smpArea > 0 && (
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: padraoConfig.smpPurity > 100 ? "#7c3aed" : "#f97316", marginTop: 2 }}>
+                        {padraoConfig.smpPurity > 100 ? `⚗ Overage: ${padraoConfig.smpPurity.toFixed(2)}% (área ampliada)` : `✓ Corrigida para ${padraoConfig.smpPurity.toFixed(2)}% de pureza`}
                       </div>
                     )}
                   </div>
@@ -8836,7 +8836,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                 </div>
                 <div style={{ marginTop: 8, fontSize: 9, color: "#6b7280", borderTop: "1px solid #bbf7d0", paddingTop: 6 }}>
                   {"Formula: Amount(µg) = (SmpArea ÷ StdArea) × StdAmount × (StdPurity ÷ 100)" +
-                    (padraoConfig.smpPurity > 0 && padraoConfig.smpPurity < 99.99 ? " · Purity entered by operator" : "") +
+                    (padraoConfig.smpPurity > 0 && Math.abs(padraoConfig.smpPurity - 100) > 0.01 ? ` · Purity entered by operator (${padraoConfig.smpPurity.toFixed(2)}%)` : "") +
                     (padraoConfig.smpRawArea > 0 ? ` · Raw area: ${padraoConfig.smpRawArea.toFixed(5)} mAU·s → corrected: ${padraoConfig.smpArea.toFixed(5)}` : "")}
                 </div>
               </div>
