@@ -8646,7 +8646,24 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                 <div id="padrao-row-smpArea" style={ROW}>
                   <span style={LBL}>Sample Area (mAU·s)</span>
                   <div>
-                    {numInput(padraoConfig.smpArea, v => updatePadrao({ smpArea: v, smpRawArea: 0 }), { step: "0.001", placeholder: "0.000" })}
+                    {numInput(padraoConfig.smpArea, v => {
+                      updatePadrao({ smpArea: v, smpRawArea: 0 });
+                      // Sync to matched peak: update height + manualArea so chromatogram and Edit Peak reflect the new value
+                      const smpName = padraoConfig.smpPeakName;
+                      const cmpName = padraoConfig.compoundName;
+                      const smpRT   = padraoSmpRT;
+                      if (v > 0 && (smpName || cmpName || smpRT > 0)) {
+                        setPeaks(ps => ps.map(p => {
+                          const nameMatch = (smpName && p.name === smpName) || (cmpName && p.name === cmpName);
+                          const rtMatch   = smpRT > 0 && Math.abs(p.retentionTime - smpRT) < 0.05;
+                          if (!nameMatch && !rtMatch) return p;
+                          // Back-calculate height so computeArea(peak) ≈ v
+                          const curArea = p.manualArea > 0 ? p.manualArea : computeArea(p);
+                          const newHeight = curArea > 0 ? parseFloat((p.height * (v / curArea)).toFixed(4)) : p.height;
+                          return { ...p, height: newHeight, manualArea: parseFloat(v.toFixed(5)) };
+                        }));
+                      }
+                    }, { step: "0.001", placeholder: "0.000" })}
                     {padraoConfig.smpArea <= 0 && <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#dc2626", marginTop: 2 }}>⚠ Required — enter a value &gt; 0</div>}
                     {padraoConfig.stdArea > 0 && padraoConfig.smpArea > 0 && padraoConfig.smpArea / padraoConfig.stdArea > 2 && (
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#d97706", marginTop: 2 }}>⚠ Sample area &gt;2× standard — verify concentrations</div>
