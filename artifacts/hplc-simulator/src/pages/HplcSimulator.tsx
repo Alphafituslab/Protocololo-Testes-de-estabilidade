@@ -1471,12 +1471,17 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
               <div className="space-y-0.5 pt-1">
                 <Label className="text-xs text-muted-foreground">Pureza do ativo (%) — opcional</Label>
                 <Input
-                  type="number" step="0.01" min="0.01" max="100"
-                  placeholder="100 — ex: 99.5"
+                  type="number" step="0.01" min="0.01"
+                  placeholder="100 — ex: 99.5 ou 105 (overage)"
                   value={purityVal > 0 ? String(purityVal) : ""}
                   onChange={e => setDraft(d => ({ ...d, purityPct: e.target.value }))}
                   className="h-7 text-xs font-mono"
                 />
+                {purityVal > 100 && (
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#2563eb", marginTop: 2 }}>
+                    Overage: {(purityVal - 100).toFixed(2)}% acima de 100% — a área será corrigida ao capturar na aba Standard
+                  </div>
+                )}
                 {purityVal > 0 && purityVal < 100 && (
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#d97706", marginTop: 2 }}>
                     ⚠ {(100 - purityVal).toFixed(2)}% impurezas — a área será corrigida ao capturar na aba Standard
