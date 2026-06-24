@@ -9602,7 +9602,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                       const matchedPeak = peakStats.find(p => isPadraoSamplePeak(p));
                       const rtVal = padraoSmpRT > 0 ? padraoSmpRT : (matchedPeak ? matchedPeak.retentionTime : 0);
                       const rtStr = rtVal > 0 ? rtVal.toFixed(3) : "?.???";
-                      return `  ${String(rtStr).padStart(7)}  MM   ${padraoConfig.smpArea.toFixed(5).padStart(14)} ${padraoFoundUg.toFixed(4).padStart(12)} ${padraoFoundMg.toFixed(6).padStart(12)} ${padraoFoundPurity.toFixed(2).padStart(11)}   ${padraoConfig.compoundName} [sample]`;
+                      return `  ${String(rtStr).padStart(7)}  MM   ${padraoConfig.smpArea.toFixed(5).padStart(14)} ${padraoFoundUg.toFixed(4).padStart(12)} ${padraoFoundMg.toFixed(6).padStart(12)} ${"".padStart(11)}   ${padraoConfig.compoundName} [sample]`;
                     })()}
                   </div>
                 </div>
