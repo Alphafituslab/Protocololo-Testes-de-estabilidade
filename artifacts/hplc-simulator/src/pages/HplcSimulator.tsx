@@ -6525,8 +6525,9 @@ export default function HplcSimulator() {
                     </div>
                   )}
                   {peakStats.filter(p => p.printSelected !== false).map(p => {
-                    const area = p.displayArea;
                     const isSmpPeak = isPadraoSamplePeak(p);
+                    // For the sample peak, always use the value typed in Standard tab
+                    const area = isSmpPeak && padraoConfig.smpArea > 0 ? padraoConfig.smpArea : p.displayArea;
                     const effectiveAmt = isSmpPeak ? padraoFoundUg : p.calcAmount;
                     const amtPerArea = p.amtPerArea > 0 ? p.amtPerArea : (area > 0 && effectiveAmt > 0 ? effectiveAmt / area : 0);
                     const rt = p.retentionTime.toFixed(3).padStart(7);
