@@ -280,11 +280,12 @@ interface PadraoConfig {
   notes: string;
   selectedLotIds: string[];  // operator-selected lots to show in report (empty = show all)
   // ANVISA conformance
-  anvisaLabelAmountMg: number; // mg — declared amount on label (for % found)
-  anvisaMinMg: number;         // mg — ANVISA acceptance range lower limit
-  anvisaMaxMg: number;         // mg — ANVISA acceptance range upper limit
-  anvisaNorm: string;          // e.g. "IN 28/2018"
-  anvisaUseUg: boolean;        // true → display min/max in µg instead of mg
+  anvisaLabelAmountMg: number;    // mg — declared amount on label (for % found)
+  anvisaMinMg: number;            // mg — ANVISA acceptance range lower limit
+  anvisaMaxMg: number;            // mg — ANVISA acceptance range upper limit
+  anvisaNorm: string;             // e.g. "IN 28/2018"
+  anvisaUseUg: boolean;           // true → display min/max in µg instead of mg
+  anvisaFoundMgOverride: number;  // mg — direct override from "Aplicar" (0 = use area-based calc)
 }
 
 // ─── Padrao protection + audit types ────────────────────────────────────────────
@@ -2042,6 +2043,7 @@ const DEFAULT_PADRAO_CONFIG: PadraoConfig = {
   smpPurity: 100, smpRawArea: 0,
   smpMassDeclaradaMg: 0, smpConcFinalUgMl: 0, smpVolInicialMl: 0, smpInjVolUl: 0,
   anvisaLabelAmountMg: 0, anvisaMinMg: 0, anvisaMaxMg: 0, anvisaNorm: "IN 28/2018", anvisaUseUg: false,
+  anvisaFoundMgOverride: 0,
 };
 function loadPadraoConfig(): PadraoConfig {
   try { return { ...DEFAULT_PADRAO_CONFIG, ...(JSON.parse(localStorage.getItem(PADRAO_KEY) ?? "{}") as Partial<PadraoConfig>) }; }
@@ -8564,19 +8566,16 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                           const label     = hasProp
                             ? `→ Aplicar ${mApplyMg.toFixed(4)} mg (proporcional) como "Encontrado na análise"`
                             : `→ Aplicar ${mOriginalMg.toFixed(4)} mg como "Encontrado na análise"`;
-                          const canApplyFinal = mApplyMg > 0 && padraoConfig.stdArea > 0 && padraoConfig.stdAmountUg > 0 && padraoConfig.stdPurity > 0;
+                          const canApplyFinal = mApplyMg > 0;
                           return (
                             <button
                               disabled={!canApplyFinal}
                               onClick={() => {
-                                const stdA   = padraoConfig.stdArea;
-                                const stdAmt = padraoConfig.stdAmountUg;
-                                const stdPur = padraoConfig.stdPurity;
-                                const newSmpArea = parseFloat(((mApplyMg * 1000 * stdA) / (stdAmt * (stdPur / 100))).toFixed(5));
-                                updatePadrao({ smpArea: newSmpArea, smpRawArea: 0 });
+                                // Write directly — smpArea is NOT changed
+                                updatePadrao({ anvisaFoundMgOverride: parseFloat(mApplyMg.toFixed(4)) });
                                 setSmpSubTab("padrao");
                               }}
-                              title={canApplyFinal ? "Aplica como Encontrado na análise" : "Preencha o Padrão para habilitar"}
+                              title={canApplyFinal ? "Envia o valor proporcional direto para Conformidade ANVISA (sem alterar Sample Area)" : "Calcule a massa primeiro"}
                               style={{
                                 width: "100%", fontFamily: "Courier New, monospace", fontSize: 10,
                                 padding: "7px 12px", border: `1px solid ${canApplyFinal ? "#0ea5e9" : "#cbd5e1"}`,
@@ -8941,8 +8940,11 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
               const minMg      = padraoConfig.anvisaMinMg;
               const maxMg      = padraoConfig.anvisaMaxMg;
               const norm       = padraoConfig.anvisaNorm || "IN 28/2018";
-              const foundMgAnv = foundAmountMg; // from padraoConfig computed above
-              const hasFound   = foundAmountMg > 0;
+              // Use direct override if set (from "Aplicar" in Concentração Inicial), else area-based
+              const foundMgAnv = padraoConfig.anvisaFoundMgOverride > 0
+                ? padraoConfig.anvisaFoundMgOverride
+                : foundAmountMg;
+              const hasFound   = foundMgAnv > 0;
               const pctLabel   = labelMg > 0 && hasFound ? (foundMgAnv / labelMg) * 100 : null;
               const inMin      = minMg > 0 ? foundMgAnv >= minMg : null;
               const inMax      = maxMg > 0 ? foundMgAnv <= maxMg : null;
@@ -9069,16 +9071,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                           placeholder="0.00"
                           onChange={e => {
                             const enteredMg = parseFloat(e.target.value) || 0;
-                            const stdA = padraoConfig.stdArea;
-                            const stdAmt = padraoConfig.stdAmountUg;
-                            const stdPur = padraoConfig.stdPurity;
-                            if (stdA > 0 && stdAmt > 0 && stdPur > 0) {
-                              // smpArea = foundUg × stdArea / (stdAmountUg × stdPurity/100)
-                              const newSmpArea = parseFloat(
-                                ((enteredMg * 1000 * stdA) / (stdAmt * (stdPur / 100))).toFixed(5)
-                              );
-                              updatePadrao({ smpArea: newSmpArea, smpRawArea: 0 });
-                            }
+                            updatePadrao({ anvisaFoundMgOverride: enteredMg });
                           }}
                           style={{
                             width: "100%", fontFamily: "Courier New, monospace",
@@ -9092,11 +9085,19 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                       <div style={{ fontSize: 8.5, color: "#0369a1", marginTop: 3 }}>
                         = {(foundMgAnv * 1000).toFixed(2)} µg
                       </div>
-                      {hasFound && padraoConfig.smpArea > 0 && (
-                        <div style={{ fontSize: 8.5, color: "#64748b", marginTop: 1 }}>
-                          Área amostra: {padraoConfig.smpArea.toFixed(3)} mAU·s
+                      {padraoConfig.anvisaFoundMgOverride > 0 ? (
+                        <div style={{ fontSize: 8, color: "#16a34a", marginTop: 3, display: "flex", alignItems: "center", gap: 5 }}>
+                          <span>✓ valor aplicado da Conc. Inicial</span>
+                          <button
+                            onClick={() => updatePadrao({ anvisaFoundMgOverride: 0 })}
+                            style={{ fontSize: 7.5, padding: "1px 5px", border: "1px solid #86efac", borderRadius: 3, background: "#f0fdf4", cursor: "pointer", color: "#15803d" }}
+                          >limpar</button>
                         </div>
-                      )}
+                      ) : hasFound && padraoConfig.smpArea > 0 ? (
+                        <div style={{ fontSize: 8, color: "#64748b", marginTop: 1 }}>
+                          via área: {padraoConfig.smpArea.toFixed(3)} mAU·s
+                        </div>
+                      ) : null}
                       {labelMg > 0 && hasFound && (
                         <div style={{ fontSize: 9, color: "#64748b", marginTop: 2 }}>
                           rótulo: {labelMg.toFixed(2)} mg
