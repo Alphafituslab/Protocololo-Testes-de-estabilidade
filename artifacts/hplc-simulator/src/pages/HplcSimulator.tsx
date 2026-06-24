@@ -272,6 +272,9 @@ interface PadraoConfig {
   smpRawArea: number;      // mAU·s — raw captured area before purity correction (0 = not set)
   smpPurity: number;       // % purity of the analyzed sample (100 = no correction)
   smpDeclaredAmountUg: number; // µg — theoretical/declared amount (for purity %)
+  // Concentração Inicial (direct-concentration route)
+  smpConcInicialUgMl: number;  // µg/mL — initial concentration measured by HPLC
+  smpVolDilucaoMl: number;     // mL — total dilution volume used to dissolve the sample
   notes: string;
   selectedLotIds: string[];  // operator-selected lots to show in report (empty = show all)
   // ANVISA conformance
@@ -279,6 +282,7 @@ interface PadraoConfig {
   anvisaMinMg: number;         // mg — ANVISA acceptance range lower limit
   anvisaMaxMg: number;         // mg — ANVISA acceptance range upper limit
   anvisaNorm: string;          // e.g. "IN 28/2018"
+  anvisaUseUg: boolean;        // true → display min/max in µg instead of mg
 }
 
 // ─── Padrao protection + audit types ────────────────────────────────────────────
@@ -2034,7 +2038,8 @@ const DEFAULT_PADRAO_CONFIG: PadraoConfig = {
   compoundName: "", stdPeakName: "", stdArea: 0, stdAmountUg: 0, stdPurity: 100,
   smpPeakName: "", smpArea: 0, smpDeclaredAmountUg: 0, notes: "", selectedLotIds: [],
   smpPurity: 100, smpRawArea: 0,
-  anvisaLabelAmountMg: 0, anvisaMinMg: 0, anvisaMaxMg: 0, anvisaNorm: "IN 28/2018",
+  smpConcInicialUgMl: 0, smpVolDilucaoMl: 0,
+  anvisaLabelAmountMg: 0, anvisaMinMg: 0, anvisaMaxMg: 0, anvisaNorm: "IN 28/2018", anvisaUseUg: false,
 };
 function loadPadraoConfig(): PadraoConfig {
   try { return { ...DEFAULT_PADRAO_CONFIG, ...(JSON.parse(localStorage.getItem(PADRAO_KEY) ?? "{}") as Partial<PadraoConfig>) }; }
@@ -2908,6 +2913,7 @@ export default function HplcSimulator() {
   });
   const [padraoLocked, setPadraoLocked] = useState<boolean>(() => loadPadraoLocked());
   const [smpPurityLocked, setSmpPurityLocked] = useState<boolean>(() => loadSmpPurityLocked());
+  const [smpSubTab, setSmpSubTab] = useState<"padrao" | "conc_inicial">("padrao");
   const [padraoChangelog, setPadraoChangelog] = useState<PadraoChangeLog[]>(() => loadPadraoChangelog());
   const [padraoHistoryOpen, setPadraoHistoryOpen] = useState(false);
   const [padraoPresets, setPadraoPresets] = useState<PadraoPreset[]>(() => loadPadraoPresets());
@@ -8222,11 +8228,164 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
 
               {/* ─ Sample card ─ */}
               <div style={CARD}>
-                <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#f97316", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#f97316", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
                   <div style={{ width: 10, height: 10, background: "#f97316", borderRadius: 2 }} />
                   Analyzed Sample
                 </div>
 
+                {/* ── Sub-tab nav ── */}
+                <div style={{ display: "flex", gap: 0, marginBottom: 12, borderBottom: "2px solid #e2e8f0" }}>
+                  {(["padrao", "conc_inicial"] as const).map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setSmpSubTab(tab)}
+                      style={{
+                        fontFamily: "Courier New, monospace", fontSize: 10, padding: "4px 14px",
+                        border: "none", borderBottom: smpSubTab === tab ? "2px solid #f97316" : "2px solid transparent",
+                        background: "transparent", cursor: "pointer",
+                        color: smpSubTab === tab ? "#ea580c" : "#64748b",
+                        fontWeight: smpSubTab === tab ? 700 : 400,
+                        marginBottom: -2,
+                      }}
+                    >
+                      {tab === "padrao" ? "Padrão" : "Concentração Inicial"}
+                    </button>
+                  ))}
+                </div>
+
+                {smpSubTab === "conc_inicial" && (() => {
+                  const cInicial = padraoConfig.smpConcInicialUgMl;
+                  const volDiluc = padraoConfig.smpVolDilucaoMl;
+                  const declUg   = padraoConfig.smpDeclaredAmountUg;
+                  const fd            = (cInicial > 0 && declUg > 0) ? cInicial / declUg : 0;
+                  const cOriginal     = fd > 0 ? cInicial * fd : 0;
+                  const massaOrigUg   = cOriginal > 0 && volDiluc > 0 ? cOriginal * volDiluc : 0;
+                  const massaOrigMg   = massaOrigUg / 1000;
+                  const labelMg       = padraoConfig.anvisaLabelAmountMg;
+                  const pctFoundLabel = labelMg > 0 && massaOrigMg > 0 ? (massaOrigMg / labelMg) * 100 : null;
+
+                  const canApply = massaOrigMg > 0 && padraoConfig.stdArea > 0 && padraoConfig.stdAmountUg > 0 && padraoConfig.stdPurity > 0;
+
+                  const applyToAnvisa = () => {
+                    const stdA   = padraoConfig.stdArea;
+                    const stdAmt = padraoConfig.stdAmountUg;
+                    const stdPur = padraoConfig.stdPurity;
+                    const newSmpArea = parseFloat(((massaOrigMg * 1000 * stdA) / (stdAmt * (stdPur / 100))).toFixed(5));
+                    updatePadrao({ smpArea: newSmpArea, smpRawArea: 0 });
+                    setSmpSubTab("padrao");
+                  };
+
+                  const CALC_ROW: React.CSSProperties = {
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "5px 0", borderBottom: "1px dashed #f1f5f9",
+                    fontFamily: "Courier New, monospace",
+                  };
+                  const VAL_STYLE: React.CSSProperties = {
+                    fontSize: 12, fontWeight: 700, color: "#0c4a6e",
+                  };
+
+                  return (
+                    <div>
+                      {/* Inputs */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", marginBottom: 12 }}>
+                        <div>
+                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#64748b", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
+                            Concentração Inicial (µg/mL)
+                          </div>
+                          {numInput(padraoConfig.smpConcInicialUgMl, v => updatePadrao({ smpConcInicialUgMl: v }), { step: "0.001", placeholder: "0.000" })}
+                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#94a3b8", marginTop: 2 }}>
+                            Concentração medida na injeção
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#64748b", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
+                            Volume de Diluição (mL)
+                          </div>
+                          {numInput(padraoConfig.smpVolDilucaoMl, v => updatePadrao({ smpVolDilucaoMl: v }), { step: "0.1", placeholder: "0.0" })}
+                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#94a3b8", marginTop: 2 }}>
+                            Volume total de preparo da amostra
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Reference values used */}
+                      {declUg <= 0 && (
+                        <div style={{ fontFamily: "Courier New, monospace", fontSize: 9.5, color: "#d97706", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 4, padding: "5px 9px", marginBottom: 8 }}>
+                          ⚠ Preencha <strong>Declared/theoretical amount (µg)</strong> na aba Padrão para calcular o Fator de Diluição
+                        </div>
+                      )}
+
+                      {/* Calculation chain */}
+                      {cInicial > 0 && declUg > 0 && volDiluc > 0 && (
+                        <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, padding: "10px 14px", marginBottom: 10 }}>
+                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#475569", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
+                            📐 Cálculo passo a passo
+                          </div>
+
+                          <div style={CALC_ROW}>
+                            <span style={{ fontFamily: "Courier New, monospace", fontSize: 9.5, color: "#64748b" }}>Fator de Diluição</span>
+                            <div style={{ textAlign: "right" }}>
+                              <span style={VAL_STYLE}>{fd.toFixed(6)}</span>
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#94a3b8" }}>= {cInicial} µg/mL ÷ {declUg} µg</div>
+                            </div>
+                          </div>
+
+                          <div style={CALC_ROW}>
+                            <span style={{ fontFamily: "Courier New, monospace", fontSize: 9.5, color: "#64748b" }}>Concentração Original (µg/mL)</span>
+                            <div style={{ textAlign: "right" }}>
+                              <span style={VAL_STYLE}>{cOriginal.toFixed(6)}</span>
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#94a3b8" }}>= {cInicial} × {fd.toFixed(6)}</div>
+                            </div>
+                          </div>
+
+                          <div style={{ ...CALC_ROW, borderBottom: "none", paddingBottom: 0 }}>
+                            <span style={{ fontFamily: "Courier New, monospace", fontSize: 9.5, color: "#64748b" }}>Massa Original</span>
+                            <div style={{ textAlign: "right" }}>
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 15, fontWeight: 900, color: "#ea580c" }}>
+                                {massaOrigMg.toFixed(4)} mg
+                              </div>
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#0c4a6e", fontWeight: 600 }}>
+                                = {massaOrigUg.toFixed(2)} µg
+                              </div>
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#94a3b8" }}>
+                                = {cOriginal.toFixed(6)} µg/mL × {volDiluc} mL
+                              </div>
+                            </div>
+                          </div>
+
+                          {pctFoundLabel !== null && (
+                            <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e2e8f0" }}>
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#64748b" }}>
+                                % vs rótulo ({labelMg.toFixed(2)} mg)
+                              </div>
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 13, fontWeight: 700, color: pctFoundLabel >= 80 && pctFoundLabel <= 120 ? "#16a34a" : "#dc2626" }}>
+                                {pctFoundLabel.toFixed(1)}%
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Apply button */}
+                      <button
+                        disabled={!canApply}
+                        onClick={applyToAnvisa}
+                        title={canApply ? "Aplica Massa Original como Encontrado na análise (back-calcula a Sample Area)" : "Preencha todos os campos acima e o Padrão para usar esta função"}
+                        style={{
+                          width: "100%", fontFamily: "Courier New, monospace", fontSize: 10,
+                          padding: "6px 12px", border: `1px solid ${canApply ? "#0ea5e9" : "#cbd5e1"}`,
+                          borderRadius: 5, background: canApply ? "#f0f9ff" : "#f8fafc",
+                          cursor: canApply ? "pointer" : "not-allowed",
+                          color: canApply ? "#0369a1" : "#94a3b8", fontWeight: 600,
+                        }}
+                      >
+                        → Aplicar como "Encontrado na análise" e ir para Padrão
+                      </button>
+                    </div>
+                  );
+                })()}
+
+                {smpSubTab === "padrao" && <>
                 {/* ── Pureza da amostra ── */}
                 <div id="padrao-row-smpPurity" style={ROW}>
                   <span style={{ ...LBL, color: "#c2410c" }}>Pureza da amostra (%)</span>
@@ -8338,6 +8497,7 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                     style={INP}
                   />
                 </div>
+                </>}
               </div>
             </div>
 
@@ -8597,48 +8757,85 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                   </div>
 
                   {/* Input row */}
-                  <div style={{ background: "#f0f9ff", padding: "10px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1.4fr", gap: "8px 16px", borderBottom: "1px solid #bae6fd" }}>
-                    <div>
-                      <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Qtd. declarada no rótulo (mg)</div>
-                      <input
-                        type="number" min="0" step="0.01"
-                        placeholder="ex: 500.00"
-                        value={labelMg > 0 ? labelMg : ""}
-                        onChange={e => updatePadrao({ anvisaLabelAmountMg: parseFloat(e.target.value) || 0 })}
-                        style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
-                      />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Faixa mín ANVISA (mg)</div>
-                      <input
-                        type="number" min="0" step="0.01"
-                        placeholder="ex: 13.50"
-                        value={minMg > 0 ? minMg : ""}
-                        onChange={e => updatePadrao({ anvisaMinMg: parseFloat(e.target.value) || 0 })}
-                        style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
-                      />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Faixa máx ANVISA (mg)</div>
-                      <input
-                        type="number" min="0" step="0.01"
-                        placeholder="ex: 1916.02"
-                        value={maxMg > 0 ? maxMg : ""}
-                        onChange={e => updatePadrao({ anvisaMaxMg: parseFloat(e.target.value) || 0 })}
-                        style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
-                      />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Norma de referência</div>
-                      <input
-                        type="text"
-                        placeholder="ex: IN 28/2018"
-                        value={norm}
-                        onChange={e => updatePadrao({ anvisaNorm: e.target.value })}
-                        style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
-                      />
-                    </div>
-                  </div>
+                  {(() => {
+                    const useUg     = padraoConfig.anvisaUseUg;
+                    const unitLabel = useUg ? "µg" : "mg";
+                    const dispMin   = useUg ? minMg * 1000 : minMg;
+                    const dispMax   = useUg ? maxMg * 1000 : maxMg;
+                    const UnitToggle = () => (
+                      <button
+                        onClick={() => updatePadrao({ anvisaUseUg: !useUg })}
+                        title={useUg ? "Trocar para mg" : "Trocar para µg"}
+                        style={{
+                          fontFamily: "Courier New, monospace", fontSize: 8, padding: "1px 6px",
+                          border: "1px solid #7dd3fc", borderRadius: 3,
+                          background: useUg ? "#0369a1" : "#e0f2fe",
+                          color: useUg ? "#fff" : "#0369a1",
+                          cursor: "pointer", marginLeft: 5, fontWeight: 600,
+                        }}
+                      >{useUg ? "µg ↔ mg" : "mg ↔ µg"}</button>
+                    );
+                    return (
+                      <div style={{ background: "#f0f9ff", padding: "10px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1.4fr", gap: "8px 16px", borderBottom: "1px solid #bae6fd" }}>
+                        <div>
+                          <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Qtd. declarada no rótulo (mg)</div>
+                          <input
+                            type="number" min="0" step="0.01"
+                            placeholder="ex: 500.00"
+                            value={labelMg > 0 ? labelMg : ""}
+                            onChange={e => updatePadrao({ anvisaLabelAmountMg: parseFloat(e.target.value) || 0 })}
+                            style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3, display: "flex", alignItems: "center" }}>
+                            Faixa mín ANVISA ({unitLabel})<UnitToggle />
+                          </div>
+                          <input
+                            type="number" min="0" step={useUg ? "1" : "0.01"}
+                            placeholder={useUg ? "ex: 13500" : "ex: 13.50"}
+                            value={dispMin > 0 ? dispMin : ""}
+                            onChange={e => {
+                              const v = parseFloat(e.target.value) || 0;
+                              updatePadrao({ anvisaMinMg: useUg ? v / 1000 : v });
+                            }}
+                            style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
+                          />
+                          {useUg && minMg > 0 && (
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#64748b", marginTop: 1 }}>= {minMg.toFixed(4)} mg</div>
+                          )}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3, display: "flex", alignItems: "center" }}>
+                            Faixa máx ANVISA ({unitLabel})<UnitToggle />
+                          </div>
+                          <input
+                            type="number" min="0" step={useUg ? "1" : "0.01"}
+                            placeholder={useUg ? "ex: 1916020" : "ex: 1916.02"}
+                            value={dispMax > 0 ? dispMax : ""}
+                            onChange={e => {
+                              const v = parseFloat(e.target.value) || 0;
+                              updatePadrao({ anvisaMaxMg: useUg ? v / 1000 : v });
+                            }}
+                            style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
+                          />
+                          {useUg && maxMg > 0 && (
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#64748b", marginTop: 1 }}>= {maxMg.toFixed(4)} mg</div>
+                          )}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Norma de referência</div>
+                          <input
+                            type="text"
+                            placeholder="ex: IN 28/2018"
+                            value={norm}
+                            onChange={e => updatePadrao({ anvisaNorm: e.target.value })}
+                            style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Result display */}
                   <div style={{ background: "#fff", padding: "12px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px 20px" }}>
