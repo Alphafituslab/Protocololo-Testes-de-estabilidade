@@ -8133,18 +8133,18 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                   <div>
                     {numInput(padraoConfig.smpPurity, v => {
                       const clamped = Math.max(0.01, v || 100);
-                      // Use smpRawArea if already saved; otherwise treat current smpArea as raw baseline
-                      const rawArea = padraoConfig.smpRawArea > 0
-                        ? padraoConfig.smpRawArea
+                      // smpArea = stdArea × (smpPurity / stdPurity)
+                      // Relates sample area directly to the Reference Standard via purity ratio
+                      const stdA = padraoConfig.stdArea;
+                      const stdP = padraoConfig.stdPurity;
+                      const newArea = stdA > 0 && stdP > 0
+                        ? parseFloat((stdA * clamped / stdP).toFixed(5))
                         : padraoConfig.smpArea;
-                      const newArea = rawArea > 0
-                        ? parseFloat((rawArea * clamped / 100).toFixed(5))
-                        : padraoConfig.smpArea;
-                      updatePadrao({ smpPurity: clamped, smpArea: newArea, smpRawArea: rawArea });
+                      updatePadrao({ smpPurity: clamped, smpArea: newArea, smpRawArea: stdA });
                     }, { step: "0.01", min: 0.01, placeholder: "100.00" })}
-                    {padraoConfig.smpRawArea > 0 && Math.abs(padraoConfig.smpPurity - 100) > 0.01 && (
+                    {padraoConfig.stdArea > 0 && padraoConfig.stdPurity > 0 && Math.abs(padraoConfig.smpPurity - 100) > 0.01 && (
                       <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8", marginTop: 2 }}>
-                        Área bruta: {padraoConfig.smpRawArea.toFixed(5)} mAU·s → ×{(padraoConfig.smpPurity / 100).toFixed(4)} = {(padraoConfig.smpRawArea * padraoConfig.smpPurity / 100).toFixed(5)} mAU·s
+                        {padraoConfig.stdArea.toFixed(3)} mAU·s × ({padraoConfig.smpPurity.toFixed(2)} ÷ {padraoConfig.stdPurity.toFixed(2)}) = {(padraoConfig.stdArea * padraoConfig.smpPurity / padraoConfig.stdPurity).toFixed(5)} mAU·s
                       </div>
                     )}
                   </div>
