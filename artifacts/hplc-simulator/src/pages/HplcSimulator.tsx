@@ -273,6 +273,7 @@ interface PadraoConfig {
   smpPurity: number;       // % purity of the analyzed sample (100 = no correction)
   smpDeclaredAmountUg: number; // µg — theoretical/declared amount (for purity %)
   // Concentração Inicial (dilution back-calculation route)
+  smpMassDeclaradaMg: number;  // mg — declared/label mass (editable, independent of anvisaLabelAmountMg)
   smpConcFinalUgMl: number;    // µg/mL — C_f: final concentration measured by HPLC in the injection solution
   smpVolInicialMl: number;     // mL — V_i: initial dissolution volume
   smpInjVolUl: number;         // µL — injection volume (optional; auto-derives C_f from foundAmountUg)
@@ -2039,7 +2040,7 @@ const DEFAULT_PADRAO_CONFIG: PadraoConfig = {
   compoundName: "", stdPeakName: "", stdArea: 0, stdAmountUg: 0, stdPurity: 100,
   smpPeakName: "", smpArea: 0, smpDeclaredAmountUg: 0, notes: "", selectedLotIds: [],
   smpPurity: 100, smpRawArea: 0,
-  smpConcFinalUgMl: 0, smpVolInicialMl: 0, smpInjVolUl: 0,
+  smpMassDeclaradaMg: 0, smpConcFinalUgMl: 0, smpVolInicialMl: 0, smpInjVolUl: 0,
   anvisaLabelAmountMg: 0, anvisaMinMg: 0, anvisaMaxMg: 0, anvisaNorm: "IN 28/2018", anvisaUseUg: false,
 };
 function loadPadraoConfig(): PadraoConfig {
@@ -8256,8 +8257,10 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
 
                 {smpSubTab === "conc_inicial" && (() => {
                   // ── Fields ──────────────────────────────────────────────────────────
-                  // M_declarada = mass on label (mg)
-                  const mDeclaradaMg  = padraoConfig.anvisaLabelAmountMg;
+                  // M_declarada: editable field; falls back to anvisaLabelAmountMg if not set
+                  const mDeclaradaMg  = padraoConfig.smpMassDeclaradaMg > 0
+                    ? padraoConfig.smpMassDeclaradaMg
+                    : padraoConfig.anvisaLabelAmountMg;
                   // V_i = initial dissolution volume (mL)
                   const vi            = padraoConfig.smpVolInicialMl;
                   // C_f = final concentration measured by HPLC (µg/mL) — user-entered
@@ -8368,12 +8371,18 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                           <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#64748b", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
                             M_declarada (mg)
                           </div>
-                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 14, fontWeight: 700, color: mDeclaradaMg > 0 ? "#0c4a6e" : "#94a3b8", padding: "4px 2px", borderBottom: "2px solid #e2e8f0" }}>
-                            {mDeclaradaMg > 0 ? mDeclaradaMg.toFixed(2) : "—"}
-                          </div>
-                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 7.5, color: "#94a3b8", marginTop: 2 }}>
-                            da seção ANVISA ↓
-                          </div>
+                          {numInput(
+                            padraoConfig.smpMassDeclaradaMg > 0
+                              ? padraoConfig.smpMassDeclaradaMg
+                              : padraoConfig.anvisaLabelAmountMg,
+                            v => updatePadrao({ smpMassDeclaradaMg: v }),
+                            { step: "0.01", placeholder: "ex: 1000.00" }
+                          )}
+                          {padraoConfig.anvisaLabelAmountMg > 0 && padraoConfig.smpMassDeclaradaMg <= 0 && (
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 7.5, color: "#0369a1", marginTop: 2 }}>
+                              ↑ da seção ANVISA — pode editar
+                            </div>
+                          )}
                         </div>
                         <div>
                           <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#64748b", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
@@ -8482,21 +8491,104 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
                           )}
                         </div>
 
+                        {/* Step 5 — Proportional result using Reference Standard */}
+                        {(() => {
+                          const foundUg  = padraoFoundUg;          // from area comparison with standard
+                          const declUgSmp = padraoConfig.smpDeclaredAmountUg; // declared in µg (same as std amount injected)
+                          const hasPropData = foundUg > 0 && declUgSmp > 0 && mDeclaradaMg > 0 && fd > 0;
+                          if (!hasPropData) return null;
+
+                          // Proportional: M_found = M_declarada × (foundUg / declaredUg)
+                          // Equivalent to: M_declarada × (smpPurity / 100)
+                          const ratio       = foundUg / declUgSmp;
+                          const mPropMg     = mDeclaradaMg * ratio;
+                          const mPropUg     = mPropMg * 1000;
+                          const pctProp     = ratio * 100;
+                          const propColor   = pctProp >= 90 && pctProp <= 110 ? "#16a34a" : pctProp >= 80 && pctProp <= 120 ? "#d97706" : "#dc2626";
+                          const propLabel   = pctProp >= 90 && pctProp <= 110 ? "✓ dentro de ±10%" : pctProp >= 80 && pctProp <= 120 ? "⚠ fora de ±10%" : "✗ fora de ±20%";
+
+                          return (
+                            <div style={{ ...STEP, border: "2px solid #16a34a", background: "#f0fdf4", marginTop: 4 }}>
+                              <div style={{ display: "flex", alignItems: "center", marginBottom: 2 }}>
+                                <span style={{ ...STEP_NUM, background: "#16a34a" }}>5</span>
+                                <span style={{ ...STEP_TITLE, color: "#15803d" }}>Massa encontrada — proporção com Reference Standard</span>
+                              </div>
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#166534", marginLeft: 25, marginBottom: 6 }}>
+                                Usa found amount do padrão externo + FD para estimar a massa na cápsula original
+                              </div>
+
+                              <div style={{ ...FORMULA, color: "#166534" }}>
+                                Razão = found (µg) ÷ declared (µg) = {foundUg.toFixed(4)} ÷ {declUgSmp.toFixed(4)} = {ratio.toFixed(6)}
+                              </div>
+                              <div style={{ ...FORMULA, color: "#166534" }}>
+                                M_encontrada = M_declarada × Razão = {mDeclaradaMg.toFixed(2)} mg × {ratio.toFixed(6)}
+                              </div>
+
+                              <div style={{ marginLeft: 25, marginTop: 8, display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                                <span style={{ fontFamily: "Courier New, monospace", fontSize: 24, fontWeight: 900, color: "#15803d" }}>
+                                  {mPropMg.toFixed(4)} mg
+                                </span>
+                                <span style={{ fontFamily: "Courier New, monospace", fontSize: 12, color: "#166534", fontWeight: 600 }}>
+                                  = {mPropUg.toFixed(2)} µg
+                                </span>
+                              </div>
+
+                              <div style={{ marginLeft: 25, marginTop: 6, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                                <span style={{ fontFamily: "Courier New, monospace", fontSize: 14, fontWeight: 700, color: propColor }}>
+                                  {pctProp.toFixed(2)}%
+                                </span>
+                                <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: propColor, fontWeight: 600 }}>
+                                  {propLabel} do declarado ({mDeclaradaMg.toFixed(2)} mg)
+                                </span>
+                              </div>
+
+                              {/* Comparison: dilution route vs proportional */}
+                              {mOriginalMg > 0 && (
+                                <div style={{ marginTop: 8, paddingTop: 6, borderTop: "1px solid #bbf7d0", fontFamily: "Courier New, monospace", fontSize: 8, color: "#64748b" }}>
+                                  Comparação: Via diluição = {mOriginalMg.toFixed(4)} mg &nbsp;|&nbsp; Via proporção = <strong>{mPropMg.toFixed(4)} mg</strong>
+                                  {Math.abs(mOriginalMg - mPropMg) < 0.01 * mDeclaradaMg
+                                    ? " ✓ resultados consistentes (&lt;1% diff)"
+                                    : ` ⚠ diferença ${Math.abs(mOriginalMg - mPropMg).toFixed(2)} mg`}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+
                         {/* Apply button */}
-                        <button
-                          disabled={!canApply}
-                          onClick={applyToAnvisa}
-                          title={canApply ? "Aplica a Massa Encontrada como valor de Encontrado na análise" : "Preencha o Padrão (stdArea, stdAmountUg, stdPurity) para habilitar"}
-                          style={{
-                            width: "100%", fontFamily: "Courier New, monospace", fontSize: 10,
-                            padding: "7px 12px", border: `1px solid ${canApply ? "#0ea5e9" : "#cbd5e1"}`,
-                            borderRadius: 5, background: canApply ? "#0369a1" : "#f8fafc",
-                            cursor: canApply ? "pointer" : "not-allowed",
-                            color: canApply ? "#fff" : "#94a3b8", fontWeight: 700, marginTop: 4,
-                          }}
-                        >
-                          → Aplicar {mOriginalMg.toFixed(4)} mg como "Encontrado na análise"
-                        </button>
+                        {(() => {
+                          const foundUg   = padraoFoundUg;
+                          const declUgSmp = padraoConfig.smpDeclaredAmountUg;
+                          const hasProp   = foundUg > 0 && declUgSmp > 0 && mDeclaradaMg > 0;
+                          const mApplyMg  = hasProp ? mDeclaradaMg * (foundUg / declUgSmp) : mOriginalMg;
+                          const label     = hasProp
+                            ? `→ Aplicar ${mApplyMg.toFixed(4)} mg (proporcional) como "Encontrado na análise"`
+                            : `→ Aplicar ${mOriginalMg.toFixed(4)} mg como "Encontrado na análise"`;
+                          const canApplyFinal = mApplyMg > 0 && padraoConfig.stdArea > 0 && padraoConfig.stdAmountUg > 0 && padraoConfig.stdPurity > 0;
+                          return (
+                            <button
+                              disabled={!canApplyFinal}
+                              onClick={() => {
+                                const stdA   = padraoConfig.stdArea;
+                                const stdAmt = padraoConfig.stdAmountUg;
+                                const stdPur = padraoConfig.stdPurity;
+                                const newSmpArea = parseFloat(((mApplyMg * 1000 * stdA) / (stdAmt * (stdPur / 100))).toFixed(5));
+                                updatePadrao({ smpArea: newSmpArea, smpRawArea: 0 });
+                                setSmpSubTab("padrao");
+                              }}
+                              title={canApplyFinal ? "Aplica como Encontrado na análise" : "Preencha o Padrão para habilitar"}
+                              style={{
+                                width: "100%", fontFamily: "Courier New, monospace", fontSize: 10,
+                                padding: "7px 12px", border: `1px solid ${canApplyFinal ? "#0ea5e9" : "#cbd5e1"}`,
+                                borderRadius: 5, background: canApplyFinal ? "#0369a1" : "#f8fafc",
+                                cursor: canApplyFinal ? "pointer" : "not-allowed",
+                                color: canApplyFinal ? "#fff" : "#94a3b8", fontWeight: 700, marginTop: 6,
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })()}
                       </>)}
 
                       {(missingMdecl || missingVi || missingCf) && (
