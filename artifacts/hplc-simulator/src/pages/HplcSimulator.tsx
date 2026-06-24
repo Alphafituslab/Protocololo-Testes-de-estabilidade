@@ -1477,11 +1477,6 @@ function PeakEditorDialog({ peak, onSave, onPreview, children, controlledOpen, o
                   onChange={e => setDraft(d => ({ ...d, purityPct: e.target.value }))}
                   className="h-7 text-xs font-mono"
                 />
-                {purityVal > 100 && (
-                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#2563eb", marginTop: 2 }}>
-                    Overage: {(purityVal - 100).toFixed(2)}% acima de 100% — a área será corrigida ao capturar na aba Standard
-                  </div>
-                )}
                 {purityVal > 0 && purityVal < 100 && (
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#d97706", marginTop: 2 }}>
                     ⚠ {(100 - purityVal).toFixed(2)}% impurezas — a área será corrigida ao capturar na aba Standard
