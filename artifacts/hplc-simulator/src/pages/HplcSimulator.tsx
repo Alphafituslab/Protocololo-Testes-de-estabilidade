@@ -6470,7 +6470,7 @@ export default function HplcSimulator() {
                     const grpStr = (p.grp || "").padEnd(2);
                     const purStr = isSmpPeak ? `  [${padraoFoundPurity.toFixed(2)}%]` : "";
                     return (
-                      <div key={p.id} style={{ whiteSpace: "pre", color: isSmpPeak ? "#ea580c" : undefined, fontWeight: isSmpPeak ? "bold" : undefined }}>
+                      <div key={p.id} style={{ whiteSpace: "pre" }}>
                         {"    " + rt + " " + type + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + p.name + purStr}
                       </div>
                     );
