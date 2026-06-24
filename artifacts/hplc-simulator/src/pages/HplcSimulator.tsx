@@ -8514,17 +8514,48 @@ ${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
 
                   {/* Result display */}
                   <div style={{ background: "#fff", padding: "12px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px 20px" }}>
-                    {/* Encontrado */}
+                    {/* Encontrado — editável → back-calcula smpArea */}
                     <div>
                       <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>
                         Encontrado na análise
+                        <span style={{ marginLeft: 5, fontWeight: "normal", color: "#64748b", fontSize: 8, textTransform: "none" }}>✏ editável</span>
                       </div>
-                      {hasFound ? (
-                        <div style={{ fontSize: 18, fontWeight: 900, color: "#0c4a6e" }}>
-                          {foundMgAnv.toFixed(2)} mg
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={foundMgAnv > 0 ? parseFloat(foundMgAnv.toFixed(4)) : ""}
+                          placeholder="0.00"
+                          onChange={e => {
+                            const enteredMg = parseFloat(e.target.value) || 0;
+                            const stdA = padraoConfig.stdArea;
+                            const stdAmt = padraoConfig.stdAmountUg;
+                            const stdPur = padraoConfig.stdPurity;
+                            if (stdA > 0 && stdAmt > 0 && stdPur > 0) {
+                              // smpArea = foundUg × stdArea / (stdAmountUg × stdPurity/100)
+                              const newSmpArea = parseFloat(
+                                ((enteredMg * 1000 * stdA) / (stdAmt * (stdPur / 100))).toFixed(5)
+                              );
+                              updatePadrao({ smpArea: newSmpArea, smpRawArea: 0 });
+                            }
+                          }}
+                          style={{
+                            width: "100%", fontFamily: "Courier New, monospace",
+                            fontSize: 18, fontWeight: 900, color: "#0c4a6e",
+                            border: "none", borderBottom: "2px dashed #bae6fd",
+                            background: "transparent", outline: "none", padding: "0 2px",
+                          }}
+                        />
+                        <span style={{ fontSize: 12, fontWeight: "bold", color: "#0c4a6e", whiteSpace: "nowrap" }}>mg</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: "#0369a1", marginTop: 3 }}>
+                        = {(foundMgAnv * 1000).toFixed(2)} µg
+                      </div>
+                      {hasFound && padraoConfig.smpArea > 0 && (
+                        <div style={{ fontSize: 8.5, color: "#64748b", marginTop: 1 }}>
+                          Área amostra: {padraoConfig.smpArea.toFixed(3)} mAU·s
                         </div>
-                      ) : (
-                        <div style={{ fontSize: 11, color: "#94a3b8", fontStyle: "italic" }}>aguardando análise</div>
                       )}
                       {labelMg > 0 && hasFound && (
                         <div style={{ fontSize: 9, color: "#64748b", marginTop: 2 }}>
