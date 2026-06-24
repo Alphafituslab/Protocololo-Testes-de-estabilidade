@@ -6802,21 +6802,10 @@ export default function HplcSimulator() {
                                     <line x1={mL} y1={cy} x2={cx} y2={cy} stroke="#ea580c" strokeDasharray="3 2" strokeWidth={0.9} opacity={0.5} />
                                     {/* Diamond */}
                                     <path d={diamond} fill="#ea580c" stroke="white" strokeWidth={1.5} />
-                                    {/* Purity label */}
+                                    {/* "Sample" label */}
                                     <text
                                       x={cx}
                                       y={isAbove ? cy - d - 4 : cy + d + 11}
-                                      textAnchor="middle"
-                                      fontSize={8.5}
-                                      fontWeight="bold"
-                                      fill="#ea580c"
-                                    >
-                                      {purityLabel}
-                                    </text>
-                                    {/* "Sample" label below purity */}
-                                    <text
-                                      x={cx}
-                                      y={isAbove ? cy - d - 4 + 10 : cy + d + 21}
                                       textAnchor="middle"
                                       fontSize={7.5}
                                       fill="#9a3412"
