@@ -9904,8 +9904,8 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                   <tbody>
                     {peakList.map((p, i) => {
                       const area = getArea(p);
-                      const isStd = padraoConfig.stdArea === parseFloat(area.toFixed(5));
-                      const isSmp = padraoConfig.smpArea === parseFloat(area.toFixed(5));
+                      const isSmp = isPadraoSamplePeak(p);
+                      const isStd = !isSmp && padraoConfig.stdArea > 0 && parseFloat(area.toFixed(5)) === parseFloat(padraoConfig.stdArea.toFixed(5));
                       return (
                         <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9", background: isStd ? "#eff6ff" : isSmp ? "#fff7ed" : i % 2 === 0 ? "#fff" : "#fafafa" }}>
                           <td style={{ padding: "4px 8px", color: "#1e293b", fontWeight: 600 }}>
@@ -9915,7 +9915,9 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                           </td>
                           <td style={{ padding: "4px 8px", textAlign: "right" }}>{p.retentionTime.toFixed(3)}</td>
                           <td style={{ padding: "4px 8px", textAlign: "right" }}>{p.height.toFixed(1)}</td>
-                          <td style={{ padding: "4px 8px", textAlign: "right" }}>{computeArea(p).toFixed(5)}</td>
+                          <td style={{ padding: "4px 8px", textAlign: "right", color: isSmp ? "#ea580c" : isStd ? "#1560bd" : undefined, fontWeight: (isSmp || isStd) ? 700 : undefined }}>
+                            {isSmp ? padraoConfig.smpArea.toFixed(5) : area.toFixed(5)}
+                          </td>
                           <td style={{ padding: "4px 8px", textAlign: "right", color: p.manualArea > 0 ? "#7c3aed" : "#94a3b8" }}>
                             {p.manualArea > 0 ? p.manualArea.toFixed(5) : "—"}
                           </td>
