@@ -7814,52 +7814,150 @@ export default function HplcSimulator() {
 
         // Print/PDF export for the Resultado section
         const handlePrintPadrao = () => {
-          const w = window.open('', '_blank', 'width=940,height=820');
+          const w = window.open('', '_blank', 'width=960,height=900');
           if (!w) return;
+
+          // ── Lots table rows ─────────────────────────────────────────────
           const lotsRows = displayLots.map(lot => {
             const r = lot.results.find(res =>
               padraoConfig.compoundName
                 ? res.compoundName.toLowerCase().includes(padraoConfig.compoundName.toLowerCase())
                 : true
             );
-            const statusTxt = r ? (r.inSpec === null ? 'N/A' : r.inSpec ? 'Conforming' : 'Non-Conforming') : '—';
-            return `<tr><td>${lot.lotNumber}</td><td>${new Date(lot.createdAt).toLocaleDateString('en-US')}</td><td>${lot.sample.sampleName || '—'}</td><td style="text-align:right">${r ? r.area.toFixed(3) : '—'}</td><td style="text-align:right">${r ? r.concentration.toFixed(3) : '—'}</td><td style="text-align:center">${statusTxt}</td></tr>`;
+            const statusTxt = r ? (r.inSpec === null ? 'N/A' : r.inSpec ? 'Conforme' : 'Não Conforme') : '—';
+            return `<tr><td>${lot.lotNumber}</td><td>${new Date(lot.createdAt).toLocaleDateString('pt-BR')}</td><td>${lot.sample.sampleName || '—'}</td><td style="text-align:right">${r ? r.area.toFixed(3) : '—'}</td><td style="text-align:right">${r ? r.concentration.toFixed(3) : '—'}</td><td style="text-align:center">${statusTxt}</td></tr>`;
           }).join('');
-          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Result — External Standard Quantification</title><style>
-body{font-family:'Courier New',monospace;font-size:11px;padding:24px;color:#111}
-h1{font-size:14px;border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:10px}
-h2{font-size:12px;margin-top:18px;border-bottom:1px solid #ccc;padding-bottom:3px}
-p{margin:2px 0}table{width:100%;border-collapse:collapse;margin-top:8px}
-th,td{padding:5px 9px;border:1px solid #d1d5db}th{background:#f1f5f9;font-weight:700}
-.cards{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
-.card{border:1.5px solid #e2e8f0;border-radius:6px;padding:8px 12px;min-width:110px}
-.big{font-size:19px;font-weight:bold}.lbl{font-size:9px;color:#64748b;margin-top:1px}
-.ok{color:#16a34a}.warn{color:#d97706}.bad{color:#dc2626}
-footer{font-size:9px;color:#999;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:6px}
-@media print{@page{margin:0 !important}}</style></head><body style="padding:1.5cm">
-<h1>Result — External Standard Quantification</h1>
-<p><strong>Compound:</strong> ${padraoConfig.compoundName || '—'} &nbsp;&nbsp; <strong>Method:</strong> External Standard (single point)</p>
-<p><strong>Sample:</strong> ${sample.sampleName} &nbsp;&nbsp; <strong>Operator:</strong> ${sample.acqOperator} &nbsp;&nbsp; <strong>Date:</strong> ${sample.injectionDate}</p>
-${hasData ? `<h2>Results</h2><div class="cards">
-<div class="card"><div class="big ${displaySmpPurity >= 98 ? 'ok' : displaySmpPurity >= 90 ? 'warn' : 'bad'}">${displaySmpPurity.toFixed(2)}%</div><div class="lbl">${hasSmpPurity ? 'Pureza da amostra (digitada)' : 'Purity vs. Standard (area)'}</div></div>
-${purityVsDecl !== null && padraoConfig.smpDeclaredAmountUg < foundAmountUg * 100 ? `<div class="card"><div class="big ${purityVsDecl >= 98 ? 'ok' : purityVsDecl >= 90 ? 'warn' : 'bad'}">${purityVsDecl.toFixed(2)}%</div><div class="lbl">% Found vs. Declared (µg)</div></div>` : ''}
-<div class="card"><div class="big">${foundAmountUg.toFixed(4)} µg</div><div class="lbl">Amount found (std method)</div></div>
-${foundAmountFromPurityUg !== null ? `<div class="card"><div class="big">${foundAmountFromPurityUg.toFixed(4)} µg</div><div class="lbl">Found amount — purity basis</div></div>` : ''}
+
+          // ── Mini-chromatogram SVG (two Gaussian peaks) ─────────────────
+          const chromSvg = (() => {
+            if (stdArea <= 0 && smpArea <= 0) return '';
+            const W = 600, H = 150;
+            const PAD = { top: 28, right: 20, bottom: 30, left: 48 };
+            const plotW = W - PAD.left - PAD.right;
+            const plotH = H - PAD.top - PAD.bottom;
+            const sigma = 0.09;
+            const stdMu = 0.27, smpMu = 0.73;
+            const maxA = Math.max(stdArea, smpArea, 1);
+            const stdHn = stdArea / maxA;
+            const smpHn = smpArea / maxA;
+            const gauss = (x: number, mu: number, hn: number) => hn * Math.exp(-0.5 * ((x - mu) / sigma) ** 2);
+            const N = 250;
+            const xs = Array.from({ length: N + 1 }, (_, i) => i / N);
+            const toX = (t: number) => PAD.left + t * plotW;
+            const toY = (v: number) => PAD.top + plotH - v * plotH * 0.92;
+            const baseY = toY(0);
+            const buildLine = (mu: number, hn: number) =>
+              xs.filter(x => Math.abs(x - mu) < sigma * 4)
+                .map(x => `${toX(x).toFixed(1)},${toY(gauss(x, mu, hn)).toFixed(1)}`).join(' ');
+            const buildFill = (mu: number, hn: number) => {
+              const pts = xs.filter(x => Math.abs(x - mu) < sigma * 3.5);
+              if (!pts.length) return '';
+              return [`${toX(pts[0]).toFixed(1)},${baseY}`,
+                ...pts.map(x => `${toX(x).toFixed(1)},${toY(gauss(x, mu, hn)).toFixed(1)}`),
+                `${toX(pts[pts.length - 1]).toFixed(1)},${baseY}`].join(' ');
+            };
+            const stdLine = buildLine(stdMu, stdHn);
+            const smpLine = buildLine(smpMu, smpHn);
+            const stdFill = buildFill(stdMu, stdHn);
+            const smpFill = buildFill(smpMu, smpHn);
+            const stdApexX = toX(stdMu).toFixed(1);
+            const stdApexY = (toY(stdHn) - 7).toFixed(1);
+            const smpApexX = toX(smpMu).toFixed(1);
+            const smpApexY = (toY(smpHn) - 7).toFixed(1);
+            const yTicks = [0.25, 0.5, 0.75, 1.0].map(v => {
+              const yp = toY(v).toFixed(1);
+              const lbl = (v * maxA).toFixed(0);
+              return `<line x1="${(PAD.left - 3).toFixed(1)}" y1="${yp}" x2="${(PAD.left + plotW).toFixed(1)}" y2="${yp}" stroke="#1e293b" stroke-width="0.6" stroke-dasharray="4 3"/>
+                      <text x="${(PAD.left - 5).toFixed(1)}" y="${(parseFloat(yp) + 3).toFixed(1)}" font-size="7.5" text-anchor="end" fill="#64748b">${lbl}</text>`;
+            }).join('');
+            return `<div style="margin:14px 0;border:1.5px solid #334155;border-radius:6px;overflow:hidden">
+<div style="background:#1e293b;padding:6px 14px;font-family:'Courier New',monospace;font-size:9.5px;color:#94a3b8;letter-spacing:0.06em;display:flex;align-items:center">
+  <span>CROMATOGRAMA — visualização proporcional às áreas (Padrão × Amostra)</span>
+  <span style="margin-left:auto;font-size:8px;color:#475569">mAU·s</span>
 </div>
-${(() => {
-  if (stdArea <= 0 || smpArea <= 0) return '';
-  const maxA   = Math.max(stdArea, smpArea);
-  const sBar   = ((stdArea / maxA) * 100).toFixed(1);
-  const mBar   = ((smpArea / maxA) * 100).toFixed(1);
-  const rat    = smpArea / stdArea;
-  const rC     = rat >= 0.95 ? '#16a34a' : rat >= 0.80 ? '#d97706' : '#dc2626';
-  const sym    = rat >= 0.95 ? '✓' : rat >= 0.80 ? '~' : '!';
-  const pctF   = displaySmpPurity.toFixed(2);
-  const declRow = padraoConfig.smpDeclaredAmountUg > 0
-    ? `<span style="margin-left:12px;color:#6366f1">vs. Declared ${padraoConfig.smpDeclaredAmountUg.toFixed(2)} µg → <strong>${((foundAmountUg / padraoConfig.smpDeclaredAmountUg) * 100).toFixed(1)}%</strong></span>` : '';
-  return `<div style="margin:14px 0 10px;border:1.5px solid #334155;border-radius:6px;overflow:hidden;font-family:'Courier New',monospace">
+<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;background:#0f172a" xmlns="http://www.w3.org/2000/svg">
+  ${yTicks}
+  <line x1="${PAD.left}" y1="${PAD.top}" x2="${PAD.left}" y2="${baseY.toFixed(1)}" stroke="#334155" stroke-width="1"/>
+  <line x1="${PAD.left}" y1="${baseY.toFixed(1)}" x2="${(PAD.left + plotW).toFixed(1)}" y2="${baseY.toFixed(1)}" stroke="#475569" stroke-width="1.2"/>
+  ${stdFill ? `<polygon points="${stdFill}" fill="#1560bd" fill-opacity="0.20"/>` : ''}
+  ${stdLine ? `<polyline points="${stdLine}" fill="none" stroke="#3b82f6" stroke-width="2"/>` : ''}
+  ${smpFill ? `<polygon points="${smpFill}" fill="#f97316" fill-opacity="0.25"/>` : ''}
+  ${smpLine ? `<polyline points="${smpLine}" fill="none" stroke="#f97316" stroke-width="2.2"/>` : ''}
+  ${stdArea > 0 ? `<text x="${stdApexX}" y="${(parseFloat(stdApexY) - 9).toFixed(1)}" text-anchor="middle" font-size="8" fill="#60a5fa">● Padrão</text>
+    <text x="${stdApexX}" y="${stdApexY}" text-anchor="middle" font-size="9" font-weight="bold" fill="#93c5fd">${stdArea.toFixed(3)} mAU·s</text>` : ''}
+  ${smpArea > 0 ? `<text x="${smpApexX}" y="${(parseFloat(smpApexY) - 9).toFixed(1)}" text-anchor="middle" font-size="8" fill="#fb923c">● Amostra</text>
+    <text x="${smpApexX}" y="${smpApexY}" text-anchor="middle" font-size="9" font-weight="bold" fill="#fdba74">${smpArea.toFixed(3)} mAU·s</text>` : ''}
+</svg>
+<div style="background:#1e293b;padding:5px 14px;font-family:'Courier New',monospace;font-size:9px;color:#64748b;display:flex;gap:28px">
+  <span><span style="color:#3b82f6">●</span> Padrão: ${stdArea.toFixed(5)} mAU·s · ${padraoConfig.stdAmountUg.toFixed(4)} µg · pureza ${padraoConfig.stdPurity.toFixed(2)}%</span>
+  <span><span style="color:#f97316">●</span> Amostra: ${smpArea.toFixed(5)} mAU·s · Ratio: ${ratio.toFixed(4)} · encontrado: ${foundAmountUg.toFixed(4)} µg</span>
+</div>
+</div>`;
+          })();
+
+          // ── ChemStation peak table ───────────────────────────────────────
+          const peakTableRows = peakStats
+            .filter(p => p.printSelected !== false)
+            .map(p => {
+              const isSmp = isPadraoSamplePeak(p);
+              const area = isSmp && padraoConfig.smpArea > 0 ? padraoConfig.smpArea : p.displayArea;
+              const matchedPk = peakStats.find(pk => isPadraoSamplePeak(pk));
+              const rtVal = isSmp
+                ? (padraoSmpRT > 0 ? padraoSmpRT : (matchedPk ? matchedPk.retentionTime : p.retentionTime))
+                : p.retentionTime;
+              const amt = isSmp ? padraoFoundUg : p.calcAmount;
+              const mg = amt / 1000;
+              const rowStyle = isSmp ? 'font-weight:bold;color:#c2410c;background:#fff7ed' : '';
+              return `<tr style="${rowStyle}">
+                <td>${rtVal.toFixed(3)}</td>
+                <td>${p.peakType}</td>
+                <td style="text-align:right">${area.toFixed(5)}</td>
+                <td style="text-align:right">${amt > 0 ? amt.toFixed(4) : '—'}</td>
+                <td style="text-align:right">${mg > 0 ? mg.toFixed(6) : '—'}</td>
+                <td>${p.name || '—'}${isSmp ? ' <em>[sample]</em>' : ''}</td>
+              </tr>`;
+            }).join('');
+
+          // ── ANVISA Conformidade ─────────────────────────────────────────
+          const anvisaLabelMg = padraoConfig.anvisaLabelAmountMg;
+          const anvisaMinMg   = padraoConfig.anvisaMinMg;
+          const anvisaMaxMg   = padraoConfig.anvisaMaxMg;
+          const anvisaNorm    = padraoConfig.anvisaNorm || 'IN 28/2018';
+          const foundMgAnv    = padraoConfig.anvisaFoundMgOverride > 0 ? padraoConfig.anvisaFoundMgOverride : foundAmountMg;
+          const pctLabelAnv   = anvisaLabelMg > 0 && foundMgAnv > 0 ? (foundMgAnv / anvisaLabelMg) * 100 : null;
+          const inMin         = anvisaMinMg > 0 ? foundMgAnv >= anvisaMinMg : null;
+          const inMax         = anvisaMaxMg > 0 ? foundMgAnv <= anvisaMaxMg : null;
+          const inRange       = (inMin !== null || inMax !== null) ? (inMin !== false && inMax !== false) : null;
+          const hasAnvisa     = foundMgAnv > 0 || anvisaLabelMg > 0 || anvisaMinMg > 0 || anvisaMaxMg > 0;
+          const anvisaSection = hasAnvisa ? `
+<h2>🇧🇷 Conformidade ANVISA — ${anvisaNorm}</h2>
+<table>
+  <thead><tr><th>Parâmetro</th><th>Valor</th><th>Status</th></tr></thead>
+  <tbody>
+    ${anvisaLabelMg > 0 ? `<tr><td>Qtd. declarada no rótulo</td><td>${anvisaLabelMg.toFixed(4)} mg</td><td>—</td></tr>` : ''}
+    ${foundMgAnv > 0 ? `<tr><td>Encontrado na análise</td><td><strong>${foundMgAnv.toFixed(4)} mg</strong> (= ${(foundMgAnv * 1000).toFixed(2)} µg)</td><td>—</td></tr>` : ''}
+    ${pctLabelAnv !== null ? `<tr><td>% vs. declarado no rótulo</td><td><strong style="color:${pctLabelAnv >= 80 && pctLabelAnv <= 120 ? '#16a34a' : '#dc2626'}">${pctLabelAnv.toFixed(2)}%</strong></td><td style="color:${pctLabelAnv >= 80 && pctLabelAnv <= 120 ? '#16a34a' : '#dc2626'}">${pctLabelAnv >= 80 && pctLabelAnv <= 120 ? '✓ dentro da faixa' : '✗ fora da faixa'}</td></tr>` : ''}
+    ${anvisaMinMg > 0 ? `<tr><td>Faixa mín ANVISA</td><td>${anvisaMinMg.toFixed(4)} mg (= ${(anvisaMinMg * 1000).toFixed(2)} µg)</td><td style="color:${inMin ? '#16a34a' : '#dc2626'}">${inMin === null ? '—' : inMin ? '✓ acima do mínimo' : '✗ abaixo do mínimo'}</td></tr>` : ''}
+    ${anvisaMaxMg > 0 ? `<tr><td>Faixa máx ANVISA</td><td>${anvisaMaxMg.toFixed(4)} mg (= ${(anvisaMaxMg * 1000).toFixed(2)} µg)</td><td style="color:${inMax ? '#16a34a' : '#dc2626'}">${inMax === null ? '—' : inMax ? '✓ abaixo do máximo' : '✗ acima do máximo'}</td></tr>` : ''}
+    ${inRange !== null ? `<tr style="background:${inRange ? '#dcfce7' : '#fef2f2'}"><td colspan="2"><strong>Resultado ANVISA</strong></td><td><strong style="color:${inRange ? '#16a34a' : '#dc2626'}">${inRange ? '✓ CONFORME' : '✗ NÃO CONFORME'}</strong></td></tr>` : ''}
+  </tbody>
+</table>` : '';
+
+          // ── Visual comparison bar table ──────────────────────────────────
+          const visComp = (() => {
+            if (stdArea <= 0 || smpArea <= 0) return '';
+            const maxA   = Math.max(stdArea, smpArea);
+            const sBar   = ((stdArea / maxA) * 100).toFixed(1);
+            const mBar   = ((smpArea / maxA) * 100).toFixed(1);
+            const rat    = smpArea / stdArea;
+            const rC     = rat >= 0.95 ? '#16a34a' : rat >= 0.80 ? '#d97706' : '#dc2626';
+            const sym    = rat >= 0.95 ? '✓' : rat >= 0.80 ? '~' : '!';
+            const pctF   = displaySmpPurity.toFixed(2);
+            const declRow = padraoConfig.smpDeclaredAmountUg > 0
+              ? `<span style="margin-left:12px;color:#6366f1">vs. Declarado ${padraoConfig.smpDeclaredAmountUg.toFixed(2)} µg → <strong>${((foundAmountUg / padraoConfig.smpDeclaredAmountUg) * 100).toFixed(1)}%</strong></span>` : '';
+            return `<div style="margin:14px 0 10px;border:1.5px solid #334155;border-radius:6px;overflow:hidden;font-family:'Courier New',monospace">
 <div style="background:#1e293b;padding:7px 14px;display:flex;align-items:center;gap:8px">
-  <span style="font-size:11px;font-weight:bold;color:#e2e8f0;letter-spacing:0.04em">📊 COMPARAÇÃO VISUAL — Padrão × Amostra</span>
+  <span style="font-size:11px;font-weight:bold;color:#e2e8f0;letter-spacing:0.04em">📊 COMPARAÇÃO — Padrão × Amostra</span>
   <span style="margin-left:auto;font-size:10px;font-weight:bold;color:${rC};background:#0f172a;border:1px solid ${rC};border-radius:10px;padding:1px 10px">Ratio ${rat.toFixed(4)}</span>
 </div>
 <table style="width:100%;border-collapse:collapse;font-size:10px">
@@ -7867,10 +7965,10 @@ ${(() => {
 <td style="width:42%;padding:10px 12px;border-right:1px solid #e2e8f0;border-bottom:none;vertical-align:top;background:#f8fafc">
   <div style="font-size:9px;font-weight:bold;color:#1560bd;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px">● Reference Standard</div>
   <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Peak: </span><strong>${padraoConfig.stdPeakName || '—'}</strong></p>
-  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Area: </span><strong style="color:#1560bd">${stdArea.toFixed(3)} mAU·s</strong></p>
+  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Área: </span><strong style="color:#1560bd">${stdArea.toFixed(5)} mAU·s</strong></p>
   <div style="height:7px;background:#e2e8f0;border-radius:4px;margin:5px 0;overflow:hidden"><div style="height:100%;width:${sBar}%;background:#1560bd;border-radius:4px"></div></div>
-  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Inj. amt: </span><strong>${padraoConfig.stdAmountUg.toFixed(4)} µg</strong></p>
-  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Purity: </span><strong>${padraoConfig.stdPurity.toFixed(2)} %</strong></p>
+  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Qtd. injetada: </span><strong>${padraoConfig.stdAmountUg.toFixed(4)} µg</strong></p>
+  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Pureza: </span><strong>${padraoConfig.stdPurity.toFixed(2)} %</strong></p>
 </td>
 <td style="width:16%;padding:10px 4px;border-right:1px solid #e2e8f0;border-bottom:none;text-align:center;vertical-align:middle;background:#fff">
   <div style="font-size:16px;font-weight:900;color:${rC}">${(rat * 100).toFixed(2)}%</div>
@@ -7880,40 +7978,100 @@ ${(() => {
   </div>
 </td>
 <td style="width:42%;padding:10px 12px;border-bottom:none;vertical-align:top;background:#f8fafc">
-  <div style="font-size:9px;font-weight:bold;color:#ea580c;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px">● Analyzed Sample</div>
+  <div style="font-size:9px;font-weight:bold;color:#ea580c;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px">● Amostra Analisada</div>
   <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Peak: </span><strong>${padraoConfig.smpPeakName || '—'}</strong></p>
-  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Area: </span><strong style="color:#ea580c">${smpArea.toFixed(3)} mAU·s</strong></p>
+  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Área: </span><strong style="color:#ea580c">${smpArea.toFixed(5)} mAU·s</strong></p>
   <div style="height:7px;background:#e2e8f0;border-radius:4px;margin:5px 0;overflow:hidden"><div style="height:100%;width:${mBar}%;background:#f97316;border-radius:4px"></div></div>
-  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Found: </span><strong style="color:#ea580c">${foundAmountUg.toFixed(4)} µg</strong></p>
-  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Purity: </span><strong style="color:${rC}">${pctF} %</strong></p>
+  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Encontrado: </span><strong style="color:#ea580c">${foundAmountUg.toFixed(4)} µg (${foundAmountMg.toFixed(6)} mg)</strong></p>
+  <p style="margin:2px 0;font-size:10px"><span style="color:#94a3b8">Pureza: </span><strong style="color:${rC}">${pctF} %</strong></p>
 </td>
 </tr>
 </table>
 <div style="padding:5px 14px;background:#f1f5f9;font-size:9px;color:#64748b;border-top:1px solid #e2e8f0">
-  Amount = (${smpArea.toFixed(3)} ÷ ${stdArea.toFixed(3)}) × ${padraoConfig.stdAmountUg.toFixed(4)} µg × (${padraoConfig.stdPurity.toFixed(2)} ÷ 100) = <strong style="color:#ea580c">${foundAmountUg.toFixed(4)} µg</strong>${declRow}
+  Amount = (${smpArea.toFixed(5)} ÷ ${stdArea.toFixed(5)}) × ${padraoConfig.stdAmountUg.toFixed(4)} µg × (${padraoConfig.stdPurity.toFixed(2)} ÷ 100) = <strong style="color:#ea580c">${foundAmountUg.toFixed(4)} µg</strong>${declRow}
 </div>
 </div>`;
-})()}
-<table><thead><tr><th>Parameter</th><th>Standard</th><th>Sample</th><th>Ratio (S/A)</th></tr></thead><tbody>
-<tr><td>Compound</td><td>${padraoConfig.compoundName || '—'}</td><td>${padraoConfig.smpPeakName || '—'}</td><td></td></tr>
-<tr><td>Area (mAU·s)</td><td>${stdArea.toFixed(5)}</td><td>${smpArea.toFixed(5)}</td><td>${ratio.toFixed(6)}</td></tr>
-<tr><td>Amount injected (µg)</td><td>${padraoConfig.stdAmountUg.toFixed(4)}</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
-<tr><td>Std certified purity (%)</td><td>${padraoConfig.stdPurity.toFixed(2)}</td><td>—</td><td></td></tr>
-<tr><td>Pureza da amostra (%)</td><td>—</td><td>${displaySmpPurity.toFixed(2)}</td><td></td></tr>
-${purityVsDecl !== null && padraoConfig.smpDeclaredAmountUg < foundAmountUg * 100 ? `<tr><td>% Found vs. Declared (µg)</td><td>100.00</td><td>${purityVsDecl.toFixed(2)}</td><td></td></tr>` : ''}
-<tr><td>Amount found (µg)</td><td>—</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
-<tr><td>Amount found (mg)</td><td>—</td><td>${foundAmountMg.toFixed(6)}</td><td></td></tr>
-${foundAmountFromPurityUg !== null ? `<tr><td>Found amount — purity (µg)</td><td>—</td><td>${foundAmountFromPurityUg.toFixed(4)}</td><td></td></tr><tr><td>Found amount — purity (mg)</td><td>—</td><td>${foundAmountFromPurityMg!.toFixed(6)}</td><td></td></tr>` : ''}
-</tbody></table>
-<p style="font-size:10px;color:#64748b;margin-top:8px">Formula: Amount (µg) = (Smp Area ÷ Std Area) × Std Amount (µg) × (Std Purity ÷ 100)${hasSmpPurity ? ' | ★ Purity entered by operator' : ''}${foundAmountFromPurityUg !== null ? ' | Found (purity) = Declared × (Purity/100)' : ''}</p>`
-: '<p style="color:#999;margin-top:10px">Insufficient data to calculate the result.</p>'}
-${relevantLots.length > 0 ? `<h2>Analyzed Lots</h2>
-<table><thead><tr><th>Lot</th><th>Date</th><th>Sample</th><th>Area (mAU·s)</th><th>Conc. (µg/ml)</th><th>Conformance</th></tr></thead><tbody>${lotsRows}</tbody></table>` : ''}
-<footer>Generated on ${new Date().toLocaleString('en-US')} · HPLC Agilent ChemStation</footer>
+          })();
+
+          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Standard — Resultado Quantificação</title><style>
+body{font-family:'Courier New',monospace;font-size:11px;padding:24px;color:#111}
+h1{font-size:14px;border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:10px}
+h2{font-size:12px;margin-top:18px;border-bottom:1px solid #ccc;padding-bottom:3px;margin-bottom:6px}
+p{margin:2px 0}
+table{width:100%;border-collapse:collapse;margin-top:6px}
+th,td{padding:5px 9px;border:1px solid #d1d5db;font-size:10px}
+th{background:#f1f5f9;font-weight:700}
+.cards{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+.card{border:1.5px solid #e2e8f0;border-radius:6px;padding:8px 12px;min-width:110px}
+.big{font-size:19px;font-weight:bold}.lbl{font-size:9px;color:#64748b;margin-top:1px}
+.ok{color:#16a34a}.warn{color:#d97706}.bad{color:#dc2626}
+footer{font-size:9px;color:#999;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:6px}
+@media print{@page{margin:8mm 10mm}}</style></head>
+<body>
+<h1>Standard — Resultado Quantificação (External Standard)</h1>
+<p><strong>Composto:</strong> ${padraoConfig.compoundName || '—'} &nbsp;&nbsp; <strong>Método:</strong> External Standard (single point)</p>
+<p><strong>Amostra:</strong> ${sample.sampleName || '—'} &nbsp;&nbsp; <strong>Operador:</strong> ${sample.acqOperator || '—'} &nbsp;&nbsp; <strong>Data:</strong> ${sample.injectionDate || '—'}</p>
+<p><strong>Método aquisição:</strong> ${sample.acqMethod || '—'} &nbsp;&nbsp; <strong>Vol. injeção:</strong> ${sample.injVolume || '—'}</p>
+
+${chromSvg}
+
+${hasData ? `
+<h2>Resultados</h2>
+<div class="cards">
+  <div class="card"><div class="big ${displaySmpPurity >= 98 ? 'ok' : displaySmpPurity >= 90 ? 'warn' : 'bad'}">${displaySmpPurity.toFixed(2)}%</div><div class="lbl">${hasSmpPurity ? 'Pureza (digitada)' : 'Pureza vs. Padrão (área)'}</div></div>
+  ${pctLabelAnv !== null ? `<div class="card"><div class="big ${pctLabelAnv >= 80 && pctLabelAnv <= 120 ? 'ok' : 'bad'}">${pctLabelAnv.toFixed(2)}%</div><div class="lbl">% vs. rótulo (ANVISA)</div></div>` : ''}
+  <div class="card"><div class="big">${foundAmountUg.toFixed(4)} µg</div><div class="lbl">Encontrado (método std)</div></div>
+  <div class="card"><div class="big">${foundAmountMg.toFixed(6)} mg</div><div class="lbl">Encontrado (mg)</div></div>
+  ${foundAmountFromPurityUg !== null ? `<div class="card"><div class="big">${foundAmountFromPurityUg.toFixed(4)} µg</div><div class="lbl">Encontrado — base pureza</div></div>` : ''}
+</div>
+
+${visComp}
+
+<h2>Tabela de Picos — Integration Report</h2>
+<p style="font-size:9px;color:#64748b;margin-bottom:4px">RetTime [min] | Tipo | Área [mAU·s] | Encontrado [µg] | Encontrado [mg] | Nome</p>
+<table>
+  <thead><tr><th>RetTime</th><th>Tipo</th><th>Área (mAU·s)</th><th>Encontrado (µg)</th><th>Encontrado (mg)</th><th>Nome</th></tr></thead>
+  <tbody>
+    <tr style="color:#1560bd;background:#eff6ff">
+      <td>${padraoConfig.stdPeakName.match(/\d+\.\d+/)?.[0] ?? '—'}</td>
+      <td>STD</td>
+      <td style="text-align:right">${padraoConfig.stdArea.toFixed(5)}</td>
+      <td style="text-align:right">${padraoConfig.stdAmountUg.toFixed(4)}</td>
+      <td style="text-align:right">${(padraoConfig.stdAmountUg / 1000).toFixed(6)}</td>
+      <td>${padraoConfig.compoundName || '—'} <em>[standard]</em></td>
+    </tr>
+    ${peakTableRows}
+  </tbody>
+</table>
+
+<h2>Parâmetros Calculados</h2>
+<table>
+  <thead><tr><th>Parâmetro</th><th>Padrão</th><th>Amostra</th><th>Ratio</th></tr></thead>
+  <tbody>
+    <tr><td>Composto</td><td>${padraoConfig.compoundName || '—'}</td><td>${padraoConfig.smpPeakName || '—'}</td><td></td></tr>
+    <tr><td>Área (mAU·s)</td><td>${stdArea.toFixed(5)}</td><td>${smpArea.toFixed(5)}</td><td>${ratio.toFixed(6)}</td></tr>
+    <tr><td>Quantidade injetada (µg)</td><td>${padraoConfig.stdAmountUg.toFixed(4)}</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
+    <tr><td>Pureza certificada padrão (%)</td><td>${padraoConfig.stdPurity.toFixed(2)}</td><td>—</td><td></td></tr>
+    <tr><td>Pureza calculada amostra (%)</td><td>—</td><td>${displaySmpPurity.toFixed(2)}</td><td></td></tr>
+    ${purityVsDecl !== null && padraoConfig.smpDeclaredAmountUg < foundAmountUg * 100 ? `<tr><td>% vs. declarado (µg)</td><td>100.00</td><td>${purityVsDecl.toFixed(2)}</td><td></td></tr>` : ''}
+    <tr><td>Encontrado (µg)</td><td>—</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
+    <tr><td>Encontrado (mg)</td><td>—</td><td>${foundAmountMg.toFixed(6)}</td><td></td></tr>
+    ${foundAmountFromPurityUg !== null ? `<tr><td>Encontrado — pureza (µg)</td><td>—</td><td>${foundAmountFromPurityUg.toFixed(4)}</td><td></td></tr><tr><td>Encontrado — pureza (mg)</td><td>—</td><td>${foundAmountFromPurityMg!.toFixed(6)}</td><td></td></tr>` : ''}
+  </tbody>
+</table>
+<p style="font-size:9px;color:#64748b;margin-top:6px">Fórmula: Quantidade (µg) = (Área Amostra ÷ Área Padrão) × Quantidade Padrão (µg) × (Pureza Padrão ÷ 100)${hasSmpPurity ? ' | ★ Pureza digitada pelo operador' : ''}${foundAmountFromPurityUg !== null ? ' | Encontrado (pureza) = Declarado × (Pureza/100)' : ''}</p>
+` : '<p style="color:#999;margin-top:10px">Dados insuficientes para calcular o resultado.</p>'}
+
+${anvisaSection}
+
+${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
+<table><thead><tr><th>Lote</th><th>Data</th><th>Amostra</th><th>Área (mAU·s)</th><th>Conc. (µg/ml)</th><th>Conformidade</th></tr></thead><tbody>${lotsRows}</tbody></table>` : ''}
+
+<footer>Gerado em ${new Date().toLocaleString('pt-BR')} · HPLC Agilent ChemStation Simulator</footer>
 </body></html>`;
           w.document.write(html);
           w.document.close();
-          setTimeout(() => w.print(), 400);
+          setTimeout(() => w.print(), 500);
         };
 
         const ROW: React.CSSProperties = { display: "grid", gridTemplateColumns: "160px 1fr", gap: "6px 12px", alignItems: "center", marginBottom: 6 };
