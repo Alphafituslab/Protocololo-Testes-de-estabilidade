@@ -1973,12 +1973,13 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
   return (
     <Dialog open={open} onOpenChange={v => { setOpen(v); if (v) setDraft(compoundToStrings(compound)); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
+      <DialogContent className="max-w-sm flex flex-col" style={{ maxHeight: "92vh" }}>
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle style={{ fontFamily: "Courier New, monospace" }}>
             {compound.name || "New Compound"}
           </DialogTitle>
         </DialogHeader>
+        <div className="overflow-y-auto flex-1 pr-1">
         <form onSubmit={e => { e.preventDefault(); onSave(stringsToCompound(compound, draft)); setOpen(false); }} className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-1">
           {/* Compound name */}
           <div className="col-span-2">
@@ -2104,6 +2105,7 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
             Save Compound
           </Button>
         </form>
+        </div>{/* end scrollable wrapper */}
       </DialogContent>
     </Dialog>
   );
