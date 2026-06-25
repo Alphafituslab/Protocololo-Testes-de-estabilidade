@@ -7024,11 +7024,13 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                 // Diamond shape
                                 const d = 6;
                                 const diamond = `M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`;
+                                const xLabelW = smpFoundUg.toFixed(3).length * 5.5 + 6;
                                 return (
                                   <g key="smp-pt">
-                                    {/* Guide lines to axes */}
-                                    <line x1={cx} y1={mT} x2={cx} y2={cy} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
+                                    {/* Horizontal dashed guide: Y-axis → sample point */}
                                     <line x1={mL} y1={cy} x2={cx} y2={cy} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
+                                    {/* Vertical dashed guide: sample point → X-axis (downward) */}
+                                    <line x1={cx} y1={cy} x2={cx} y2={mT + iH} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
                                     {/* Diamond */}
                                     <path d={diamond} fill="#ea580c" stroke="white" strokeWidth={1.5} />
                                     {/* Area label on Y-axis */}
@@ -7042,14 +7044,22 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                     >
                                       {padraoConfig.smpArea.toFixed(3)}
                                     </text>
-                                    {/* Found-amount label on X-axis */}
+                                    {/* Found-amount label on X-axis — highlighted box like ChemStation */}
+                                    <rect
+                                      x={cx - xLabelW / 2}
+                                      y={mT + iH + 3}
+                                      width={xLabelW}
+                                      height={13}
+                                      fill="#c8d8f0"
+                                      rx={1}
+                                    />
                                     <text
                                       x={cx}
-                                      y={mT + iH + 15}
+                                      y={mT + iH + 13}
                                       textAnchor="middle"
                                       fontSize={8.5}
                                       fontWeight="bold"
-                                      fill="#333"
+                                      fill="#111"
                                     >
                                       {smpFoundUg.toFixed(3)}
                                     </text>
