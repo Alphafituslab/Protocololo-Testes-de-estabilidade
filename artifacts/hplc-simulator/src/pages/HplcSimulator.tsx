@@ -5701,8 +5701,15 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                       {a.foundAmountMg.toFixed(4)} mg
                                     </span>
                                   )}
-                                  <button onClick={() => openSavedPdf(a)} style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 8px", border: "1px solid #1e3a5f", borderRadius: 3, background: "#1e3a5f", color: "#fff", cursor: "pointer", marginLeft: "auto" }}>
-                                    📄 Ver PDF
+                                  <button onClick={() => {
+                                    updatePadrao({ ...a.config }, { changedBy: "operator" });
+                                    setSaveConfirmId(null);
+                                    setPage("padrao");
+                                  }} style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 8px", border: "1px solid #16a34a", borderRadius: 3, background: "#16a34a", color: "#fff", cursor: "pointer", marginLeft: "auto" }} title="Recarregar no Standard para editar">
+                                    ✏️ Editar
+                                  </button>
+                                  <button onClick={() => openSavedPdf(a)} style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 8px", border: "1px solid #1e3a5f", borderRadius: 3, background: "#1e3a5f", color: "#fff", cursor: "pointer" }}>
+                                    📄 PDF
                                   </button>
                                   <button onClick={() => {
                                     if (!confirm("Remover este registro?")) return;
@@ -7328,12 +7335,21 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                               {date}
                             </div>
                           </div>
-                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                            <button onClick={() => {
+                              updatePadrao({ ...a.config }, { changedBy: "operator" });
+                              setSaveConfirmId(null);
+                              setPage("padrao");
+                            }} style={{
+                              fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 14px",
+                              border: "none", borderRadius: 5, background: "#16a34a", color: "#fff",
+                              cursor: "pointer", fontWeight: "bold",
+                            }} title="Recarrega todos os dados no Standard para editar">✏️ Editar</button>
                             <button onClick={() => openSavedPdf(a)} style={{
                               fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 14px",
                               border: "none", borderRadius: 5, background: "#3b82f6", color: "#fff",
                               cursor: "pointer", fontWeight: "bold",
-                            }}>📄 Abrir PDF</button>
+                            }}>📄 Baixar PDF</button>
                             <button onClick={() => {
                               if (!confirm(`Remover "${a.certTitle || "este registro"}"?`)) return;
                               const upd = savedAnalyses.filter(x => x.id !== a.id);
@@ -8629,79 +8645,114 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                 </span>
               </div>
               {/* Botão Salvar */}
-              <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <button
-                  onClick={() => {
-                    // 1. Captura SVG do cromatograma ao vivo
-                    const svgEl = document.getElementById("padrao-chrom-svg-live");
-                    const chromSvgData = svgEl ? new XMLSerializer().serializeToString(svgEl) : "";
+              <div style={{ marginTop: 12 }}>
+                {!saveConfirmId ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button
+                      onClick={() => {
+                        // 1. Captura SVG do cromatograma ao vivo
+                        const svgEl = document.getElementById("padrao-chrom-svg-live");
+                        const chromSvgData = svgEl ? new XMLSerializer().serializeToString(svgEl) : "";
 
-                    // 2. Computa inSpec (ANVISA)
-                    const _foundMgAnv = padraoConfig.anvisaFoundMgOverride > 0 ? padraoConfig.anvisaFoundMgOverride : foundAmountMg;
-                    const _inMin = padraoConfig.anvisaMinMg > 0 ? _foundMgAnv >= padraoConfig.anvisaMinMg : null;
-                    const _inMax = padraoConfig.anvisaMaxMg > 0 ? _foundMgAnv <= padraoConfig.anvisaMaxMg : null;
-                    const _inSpec: boolean | null = (_inMin !== null || _inMax !== null) ? (_inMin !== false && _inMax !== false) : null;
+                        // 2. Computa inSpec (ANVISA)
+                        const _foundMgAnv = padraoConfig.anvisaFoundMgOverride > 0 ? padraoConfig.anvisaFoundMgOverride : foundAmountMg;
+                        const _inMin = padraoConfig.anvisaMinMg > 0 ? _foundMgAnv >= padraoConfig.anvisaMinMg : null;
+                        const _inMax = padraoConfig.anvisaMaxMg > 0 ? _foundMgAnv <= padraoConfig.anvisaMaxMg : null;
+                        const _inSpec: boolean | null = (_inMin !== null || _inMax !== null) ? (_inMin !== false && _inMax !== false) : null;
 
-                    // 3. Cria registro (inclui o HTML idêntico ao impresso)
-                    const record: SavedAnalysis = {
-                      id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-                      savedAt: new Date().toISOString(),
-                      certTitle: padraoConfig.certTitle || "Certificado de Análise",
-                      productName: padraoConfig.productName || "",
-                      productLot: padraoConfig.productLot || "",
-                      compoundName: padraoConfig.compoundName || "",
-                      foundAmountMg,
-                      purity: displaySmpPurity,
-                      inSpec: _inSpec,
-                      sampleName: sample.sampleName || "",
-                      operator: sample.acqOperator || "",
-                      injDate: sample.injectionDate || "",
-                      chromSvgData,
-                      config: { ...padraoConfig },
-                      htmlContent: buildPadraoHtml(),
-                    };
+                        // 3. Cria registro com HTML idêntico ao impresso
+                        const record: SavedAnalysis = {
+                          id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+                          savedAt: new Date().toISOString(),
+                          certTitle: padraoConfig.certTitle || "Certificado de Análise",
+                          productName: padraoConfig.productName || "",
+                          productLot: padraoConfig.productLot || "",
+                          compoundName: padraoConfig.compoundName || "",
+                          foundAmountMg,
+                          purity: displaySmpPurity,
+                          inSpec: _inSpec,
+                          sampleName: sample.sampleName || "",
+                          operator: sample.acqOperator || "",
+                          injDate: sample.injectionDate || "",
+                          chromSvgData,
+                          config: { ...padraoConfig },
+                          htmlContent: buildPadraoHtml(),
+                        };
 
-                    // 4. Persiste
-                    const updated = [record, ...savedAnalyses];
-                    setSavedAnalyses(updated);
-                    persistSavedAnalyses(updated);
-                    setSaveConfirmId(record.id);
-                    setTimeout(() => setSaveConfirmId(prev => prev === record.id ? null : prev), 3000);
-
-                    // 5. Navega para aba Análise > PDFs Salvos
-                    setAnaliseSubTab("pdfs");
-                    setPage("analise");
-
-                    // 6. Download SVG e PDF
-                    if (chromSvgData) {
-                      const blob = new Blob([chromSvgData], { type: "image/svg+xml;charset=utf-8" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      const safeName = (padraoConfig.productName || padraoConfig.compoundName || "cromatograma").replace(/[^a-z0-9_\-]/gi, "_");
-                      const safeLot  = (padraoConfig.productLot || "sem-lote").replace(/[^a-z0-9_\-]/gi, "_");
-                      a.href = url; a.download = `cromatograma_${safeName}_${safeLot}.svg`; a.click();
-                      URL.revokeObjectURL(url);
-                    }
-                    handlePrintPadrao();
-                  }}
-                  style={{
-                    fontFamily: "Courier New, monospace", fontSize: 11, padding: "5px 16px",
-                    border: "2px solid #1e3a5f", borderRadius: 5, background: "#1e3a5f",
-                    cursor: "pointer", color: "#fff", fontWeight: "bold", display: "flex", alignItems: "center", gap: 6,
-                  }}
-                  title="Salva na aba Análise, baixa o cromatograma (.svg) e abre o PDF"
-                >
-                  💾 Salvar (Cromatograma + PDF)
-                </button>
-                {saveConfirmId && (
-                  <span style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#16a34a", fontWeight: "bold" }}>
-                    ✓ Salvo na aba Análise!
-                  </span>
-                )}
-                {!saveConfirmId && (
-                  <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8" }}>
-                    Salva o registro na aba Análise › PDFs Salvos
-                  </span>
+                        // 4. Persiste — fica na aba Standard, sem download automático
+                        const updated = [record, ...savedAnalyses];
+                        setSavedAnalyses(updated);
+                        persistSavedAnalyses(updated);
+                        setSaveConfirmId(record.id);
+                      }}
+                      style={{
+                        fontFamily: "Courier New, monospace", fontSize: 11, padding: "6px 20px",
+                        border: "2px solid #1e3a5f", borderRadius: 5, background: "#1e3a5f",
+                        cursor: "pointer", color: "#fff", fontWeight: "bold",
+                      }}
+                    >
+                      💾 Salvar
+                    </button>
+                    <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8" }}>
+                      Salva na aba Análise sem baixar nada
+                    </span>
+                  </div>
+                ) : (
+                  /* Ações pós-salvar */
+                  <div style={{ border: "1.5px solid #16a34a", borderRadius: 8, padding: "10px 14px", background: "#f0fdf4" }}>
+                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#16a34a", marginBottom: 8 }}>
+                      ✓ Análise salva com sucesso!
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        onClick={() => setSaveConfirmId(null)}
+                        style={{
+                          fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 14px",
+                          border: "1.5px solid #1e3a5f", borderRadius: 5, background: "#fff",
+                          cursor: "pointer", color: "#1e3a5f", fontWeight: "bold",
+                        }}
+                      >
+                        ✏️ Continuar Editando
+                      </button>
+                      <button
+                        onClick={() => {
+                          const rec = savedAnalyses.find(a => a.id === saveConfirmId);
+                          if (rec) openSavedPdf(rec);
+                        }}
+                        style={{
+                          fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 14px",
+                          border: "1.5px solid #3b82f6", borderRadius: 5, background: "#3b82f6",
+                          cursor: "pointer", color: "#fff", fontWeight: "bold",
+                        }}
+                      >
+                        📄 Baixar PDF
+                      </button>
+                      <button
+                        onClick={() => {
+                          updatePadrao({ ...DEFAULT_PADRAO_CONFIG }, { changedBy: "operator" });
+                          setSaveConfirmId(null);
+                        }}
+                        style={{
+                          fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 14px",
+                          border: "1.5px solid #f97316", borderRadius: 5, background: "#f97316",
+                          cursor: "pointer", color: "#fff", fontWeight: "bold",
+                        }}
+                        title="Apaga todos os dados do Standard para começar uma nova análise"
+                      >
+                        🆕 Iniciar Novo
+                      </button>
+                      <button
+                        onClick={() => { setAnaliseSubTab("pdfs"); setPage("analise"); }}
+                        style={{
+                          fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 14px",
+                          border: "1.5px solid #64748b", borderRadius: 5, background: "#fff",
+                          cursor: "pointer", color: "#64748b",
+                        }}
+                      >
+                        📂 Ver na Análise
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
