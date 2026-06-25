@@ -7009,7 +7009,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                             return (
                               <div style={{ paddingTop: 14, fontSize: 10, fontFamily: "Courier New, monospace", lineHeight: 2, color: "#111", minWidth: 260 }}>
                                 <div>{compound.name + " at exp. RT: " + expRT.toFixed(3)}</div>
-                                <div style={{ color: "#444" }}>{signalLabel}</div>
+                                <div style={{ color: "#444" }}>{"(modified after loading)"}</div>
                                 <div>{"Correlation (r²):      " + r2val.toFixed(5)}</div>
                                 <div>{"Residual Std. Dev.:    " + compReg.residStdDev.toFixed(5)}</div>
                                 <div>{"Formula: y = mx + b"}</div>
