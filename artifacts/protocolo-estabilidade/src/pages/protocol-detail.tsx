@@ -3723,7 +3723,17 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       const t6Num = parseFloat(ov.t6);
                       const declaredNum = parseFloat(lim.declared.replace(",", "."));
                       if (isNaN(t6Num) || isNaN(declaredNum)) return <span className="text-xs text-muted-foreground">—</span>;
-                      const actualMg = (t6Num / 100) * declaredNum;
+
+                      // Quando overage está definido, o produto foi fabricado com quantidade maior
+                      // (Mfg = declarado × (1 + overage%/100)). O T6% é medido sobre essa
+                      // quantidade fabricada, portanto actualMg = T6% × Mfg.
+                      const overagePctV = lim?.overage ? parseFloat(lim.overage.replace(",", ".")) : NaN;
+                      const hasOvg = !isNaN(overagePctV) && overagePctV > 0;
+                      const mfgNum = hasOvg ? declaredNum * (1 + overagePctV / 100) : declaredNum;
+                      const actualMg = (t6Num / 100) * mfgNum;
+                      // T6% efetivo em relação ao declarado (> T6% quando há overage)
+                      const effT6Pct = hasOvg ? t6Num * (1 + overagePctV / 100) : t6Num;
+
                       const minRaw = parseFloat((lim.min ?? "").replace(",", "."));
                       const maxRaw = parseFloat((lim.max ?? "").replace(",", "."));
                       const minNum = isNaN(minRaw) ? null : minRaw;
@@ -3732,7 +3742,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       const minIsNE = isNEorLivre(lim.min ?? "");
                       const maxIsNE = isNEorLivre(lim.max ?? "");
                       const t0Num = parseFloat(ov.t0);
-                      const degradation = !isNaN(t0Num) && t0Num > 0 ? ((t0Num - t6Num) / t0Num) * 100 : null;
+                      const degradation = !isNaN(t0Num) && t0Num > 0 ? ((t0Num - effT6Pct) / t0Num) * 100 : null;
                       const belowMin = minNum !== null && !minIsNE && actualMg < minNum;
                       const aboveMax = maxNum !== null && !maxIsNE && actualMg > maxNum;
                       // highDegradation (ICH 80% = >20% queda de T0) só é usado como fallback
@@ -3753,9 +3763,30 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       })();
                       return (
                         <div className="flex flex-col items-end gap-0.5">
-                          <span className={`text-sm font-bold tabular-nums ${isOutOfRange ? "text-red-700" : "text-indigo-700"}`}>
+                          {/* Base de cálculo: Mfg quando há overage, declarado caso contrário */}
+                          {hasOvg && (
+                            <span
+                              className="text-[9px] text-amber-600 tabular-nums cursor-help"
+                              title={`Mfg = ${declaredNum} × (1 + ${overagePctV}%) = ${mfgNum.toFixed(2)} ${lim.unit} — base de cálculo com overage`}
+                            >
+                              Mfg: {mfgNum.toFixed(2)} {lim.unit}
+                            </span>
+                          )}
+                          <span
+                            className={`text-sm font-bold tabular-nums ${isOutOfRange ? "text-red-700" : "text-indigo-700"}`}
+                            title={hasOvg ? `T6 (${t6Num}%) × Mfg (${mfgNum.toFixed(2)} ${lim.unit}) = ${actualMg.toFixed(2)} ${lim.unit}` : undefined}
+                          >
                             {actualMg.toFixed(2)} {lim.unit}
                           </span>
+                          {/* T6% efetivo vs declarado quando overage está ativo */}
+                          {hasOvg && (
+                            <span
+                              className="text-[9px] text-amber-500 tabular-nums cursor-help"
+                              title={`T6 efetivo vs declarado = ${t6Num}% × (1 + ${overagePctV}%) = ${effT6Pct.toFixed(2)}%`}
+                            >
+                              efetivo: {effT6Pct.toFixed(2)}% vs declarado
+                            </span>
+                          )}
                           {faixaLabel && (
                             <span className="text-[10px] text-indigo-400 tabular-nums">faixa: {faixaLabel}</span>
                           )}
