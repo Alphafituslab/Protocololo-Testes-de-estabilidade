@@ -3118,6 +3118,8 @@ export default function HplcSimulator() {
   const editingOriginalLotRef = React.useRef<string | null>(null);
   // Duplicate certNumber warning: holds the conflicting record name when detected
   const [preSaveDupWarning, setPreSaveDupWarning] = useState<string | null>(null);
+  // Save mode when editing a restored document: "update" = overwrite, "new" = create copy
+  const [preSaveSaveMode, setPreSaveSaveMode] = useState<"update" | "new" | null>(null);
 
   // Restore the full document state from a SavedAnalysis record so the user can
   // reopen, verify, edit and re-save exactly where they left off.
@@ -3139,6 +3141,9 @@ export default function HplcSimulator() {
     setEditingSavedId(saved.id);
     // Remember the lot that was loaded — changing it forces a new analysis
     editingOriginalLotRef.current = saved.config.productLot ?? "";
+    // Reset save-mode choice so the chooser always shows fresh for this restore
+    setPreSaveSaveMode(null);
+    setPreSaveDupWarning(null);
     // 4. Navigate to Standard tab so user sees the restored document immediately
     setSaveConfirmId(null);
     setPage("padrao");
@@ -8997,6 +9002,12 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               <div style={{ marginTop: 12 }}>
                 {/* Helper: executa o save e retorna o record */}
                 {(() => {
+                  // lotChanged is computed at IIFE scope so both doSave() and the UI can use it
+                  const lotChanged =
+                    editingSavedId !== null &&
+                    editingOriginalLotRef.current !== null &&
+                    padraoConfig.productLot.trim() !== editingOriginalLotRef.current.trim();
+
                   const doSave = () => {
                     const svgEl = document.getElementById("padrao-chrom-svg-live");
                     const chromSvgData = svgEl ? new XMLSerializer().serializeToString(svgEl) : "";
@@ -9006,12 +9017,8 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                     const _inSpec: boolean | null = (_inMin !== null || _inMax !== null) ? (_inMin !== false && _inMax !== false) : null;
                     let _htmlContent = "";
                     try { _htmlContent = buildPadraoHtml(); } catch { /* salva sem HTML */ }
-                    // If the user changed the lot number since loading, treat as a brand-new analysis
-                    const lotChanged =
-                      editingSavedId !== null &&
-                      editingOriginalLotRef.current !== null &&
-                      padraoConfig.productLot.trim() !== editingOriginalLotRef.current.trim();
-                    const effectiveEditId = lotChanged ? null : editingSavedId;
+                    // "Save as new" OR lot changed → create a new record
+                    const effectiveEditId = (lotChanged || preSaveSaveMode === "new") ? null : editingSavedId;
                     const baseId = effectiveEditId ?? (Date.now().toString(36) + Math.random().toString(36).slice(2));
                     const originalRecord = effectiveEditId ? savedAnalyses.find(x => x.id === effectiveEditId) : undefined;
                     const record: SavedAnalysis = {
@@ -9128,6 +9135,43 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                           </div>
                         )}
 
+                        {/* ── Seletor de modo quando documento foi restaurado do Analysis ── */}
+                        {editingSavedId && !lotChanged && (
+                          <div style={{ background: "#f0f4ff", border: "1.5px solid #1e3a5f", borderRadius: 6, padding: "10px 12px", marginBottom: 10 }}>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1e3a5f", fontWeight: "bold", marginBottom: 6 }}>
+                              📋 Documento restaurado do Analysis — como deseja salvar?
+                            </div>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button
+                                onClick={() => { setPreSaveSaveMode("update"); setPreSaveDupWarning(null); }}
+                                style={{
+                                  fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 12px",
+                                  border: `2px solid ${preSaveSaveMode === "update" ? "#1560bd" : "#1560bd44"}`,
+                                  borderRadius: 5,
+                                  background: preSaveSaveMode === "update" ? "#dbeafe" : "#fff",
+                                  color: preSaveSaveMode === "update" ? "#1e3a5f" : "#64748b",
+                                  cursor: "pointer", fontWeight: preSaveSaveMode === "update" ? "bold" : "normal",
+                                }}
+                              >
+                                ✏ Salvar alteração no documento existente
+                              </button>
+                              <button
+                                onClick={() => { setPreSaveSaveMode("new"); setPreSaveDupWarning(null); }}
+                                style={{
+                                  fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 12px",
+                                  border: `2px solid ${preSaveSaveMode === "new" ? "#7c3aed" : "#7c3aed44"}`,
+                                  borderRadius: 5,
+                                  background: preSaveSaveMode === "new" ? "#ede9fe" : "#fff",
+                                  color: preSaveSaveMode === "new" ? "#4c1d95" : "#64748b",
+                                  cursor: "pointer", fontWeight: preSaveSaveMode === "new" ? "bold" : "normal",
+                                }}
+                              >
+                                📄 Salvar como novo documento
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Aviso de Nº Certificado duplicado */}
                         {preSaveDupWarning && (
                           <div style={{ background: "#fffbeb", border: "1.5px solid #f59e0b", borderRadius: 6, padding: "10px 12px", marginBottom: 10 }}>
@@ -9137,7 +9181,9 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                             <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#78350f", marginBottom: 8, lineHeight: 1.5 }}>
                               O Nº <b>{padraoConfig.certNumber}</b> já está em uso por:<br />
                               <b>{preSaveDupWarning}</b><br />
-                              Deseja salvar mesmo assim? O registro ficará duplicado.
+                              {preSaveSaveMode === "new"
+                                ? "Para salvar como novo, altere o Nº do Certificado ou confirme abaixo."
+                                : "Deseja salvar mesmo assim? O registro ficará duplicado."}
                             </div>
                             <div style={{ display: "flex", gap: 6 }}>
                               <button
@@ -9149,6 +9195,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                                   setPreSaveSessionId("");
                                   setEditingSavedId(null);
                                   setPreSaveDupWarning(null);
+                                  setPreSaveSaveMode(null);
                                   setAnaliseSubTab("pdfs");
                                   setPage("analise");
                                 }}
@@ -9168,14 +9215,17 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
 
                         {/* Ações */}
                         {!preSaveDupWarning && (
-                        <div style={{ display: "flex", gap: 8 }}>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                           <button
+                            disabled={!!(editingSavedId && !lotChanged && preSaveSaveMode === null)}
                             onClick={() => {
-                              // Check for duplicate certNumber (skip if editing the same record)
+                              // Dup check: when saving as NEW, don't skip the current record
+                              // (so it detects certNumber conflict with the original doc too)
                               const num = padraoConfig.certNumber?.trim();
                               if (num) {
+                                const skipId = preSaveSaveMode === "new" ? null : editingSavedId;
                                 const dup = savedAnalyses.find(x =>
-                                  x.id !== editingSavedId &&
+                                  x.id !== skipId &&
                                   x.certNumber?.trim() === num
                                 );
                                 if (dup) {
@@ -9192,19 +9242,28 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                               setPreSaveSessionId("");
                               setEditingSavedId(null);
                               setPreSaveDupWarning(null);
+                              setPreSaveSaveMode(null);
                               setAnaliseSubTab("pdfs");
                               setPage("analise");
                             }}
                             style={{
                               fontFamily: "Courier New, monospace", fontSize: 11, padding: "6px 20px",
-                              border: "2px solid #16a34a", borderRadius: 5, background: "#16a34a",
-                              cursor: "pointer", color: "#fff", fontWeight: "bold",
+                              border: "2px solid #16a34a", borderRadius: 5,
+                              background: (editingSavedId && !lotChanged && preSaveSaveMode === null) ? "#d1fae5" : "#16a34a",
+                              cursor: (editingSavedId && !lotChanged && preSaveSaveMode === null) ? "not-allowed" : "pointer",
+                              color: (editingSavedId && !lotChanged && preSaveSaveMode === null) ? "#6ee7b7" : "#fff",
+                              fontWeight: "bold",
                             }}
                           >
                             💾 Salvar
                           </button>
+                          {editingSavedId && !lotChanged && preSaveSaveMode === null && (
+                            <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8" }}>
+                              ← escolha como salvar acima
+                            </span>
+                          )}
                           <button
-                            onClick={() => { setShowPreSaveDialog(false); setPreSaveSessionId(""); setEditingSavedId(null); setPreSaveDupWarning(null); }}
+                            onClick={() => { setShowPreSaveDialog(false); setPreSaveSessionId(""); setEditingSavedId(null); setPreSaveDupWarning(null); setPreSaveSaveMode(null); }}
                             style={{
                               fontFamily: "Courier New, monospace", fontSize: 11, padding: "6px 16px",
                               border: "1.5px solid #94a3b8", borderRadius: 5, background: "#fff",
