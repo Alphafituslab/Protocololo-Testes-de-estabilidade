@@ -7236,46 +7236,31 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                   <circle cx={xs(s.amount)} cy={ys(s.area)} r={5} fill="#111" stroke="white" strokeWidth={1.5} />
                                 </g>
                               ))}
-                              {/* Sample point ◆ — actual (Amount, Area) like ChemStation */}
+                              {/* Standard point ◆ — (stdAmount, stdArea) contraprova do padrão na curva */}
                               {(() => {
-                                // Y source priority:
-                                //   1. padraoConfig.smpArea (External Standard sample area)
-                                //   2. Matching chromatogram peak for this compound (by name or RT)
-                                let smpArea = padraoConfig.smpArea;
-                                if (smpArea <= 0) {
-                                  const matchPk = peaks.find(p => {
-                                    const nameMatch = !!(p.name && (
-                                      p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
-                                      compound.name.toLowerCase().includes(p.name.toLowerCase())
-                                    ));
-                                    const rtMatch = Math.abs(p.retentionTime - compound.expectedRT) <= compound.rtTol;
-                                    return nameMatch || rtMatch;
-                                  });
-                                  if (matchPk) smpArea = matchPk.manualArea > 0 ? matchPk.manualArea : computeArea(matchPk);
-                                }
-                                if (smpArea <= 0) return null;
-                                // X source priority:
-                                //   1. padraoFoundUg — matches Amount column in chromatogram table
-                                //   2. Regression back-calc from calibration curve
-                                const smpAmount = padraoFoundUg > 0
-                                  ? padraoFoundUg
-                                  : (compReg.slope > 0 ? Math.max(0, (smpArea - compReg.intercept) / compReg.slope) : 0);
-                                if (smpAmount <= 0) return null;
-                                // Y = ACTUAL measured area (NOT the predicted regression value)
-                                const cx = xs(Math.min(smpAmount, compCalibXMax));
-                                const cy = ys(Math.min(Math.max(smpArea, 0), compCalibYMax));
+                                // Y = área medida do PADRÃO (não da amostra)
+                                const stdArea = padraoConfig.stdArea;
+                                if (stdArea <= 0) return null;
+                                // X = quantidade real do padrão (ajustada pela pureza)
+                                const stdPurityFrac = (padraoConfig.stdPurity > 0 ? padraoConfig.stdPurity : 100) / 100;
+                                const stdAmount = padraoConfig.stdAmountUg > 0
+                                  ? padraoConfig.stdAmountUg * stdPurityFrac
+                                  : (compReg.slope > 0 ? Math.max(0, (stdArea - compReg.intercept) / compReg.slope) : 0);
+                                if (stdAmount <= 0) return null;
+                                const cx = xs(Math.min(stdAmount, compCalibXMax));
+                                const cy = ys(Math.min(Math.max(stdArea, 0), compCalibYMax));
                                 // Diamond shape
                                 const d = 6;
                                 const diamond = `M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`;
                                 return (
-                                  <g key="smp-pt">
+                                  <g key="std-pt">
                                     {/* Horizontal dashed guide: Y-axis → diamond */}
                                     <line x1={mL} y1={cy} x2={cx} y2={cy} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
                                     {/* Vertical dashed guide: diamond → X-axis */}
                                     <line x1={cx} y1={cy} x2={cx} y2={mT + iH} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
                                     {/* Diamond */}
                                     <path d={diamond} fill="#111" stroke="white" strokeWidth={1.5} />
-                                    {/* Y label — actual measured area — near Y-axis */}
+                                    {/* Y label — área do padrão — próxima ao eixo Y */}
                                     <text
                                       x={mL + 4}
                                       y={cy - 3}
@@ -7284,9 +7269,9 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                       fontWeight="bold"
                                       fill="#333"
                                     >
-                                      {smpArea.toFixed(5)}
+                                      {stdArea.toFixed(5)}
                                     </text>
-                                    {/* X label — back-calculated Amount — above X-axis */}
+                                    {/* X label — amount do padrão — acima do eixo X */}
                                     <text
                                       x={cx + 3}
                                       y={mT + iH - 4}
@@ -7295,7 +7280,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                       fontWeight="bold"
                                       fill="#111"
                                     >
-                                      {smpAmount.toFixed(5)}
+                                      {stdAmount.toFixed(5)}
                                     </text>
                                   </g>
                                 );
