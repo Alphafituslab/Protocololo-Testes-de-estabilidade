@@ -6814,11 +6814,6 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
               </div>
 
 
-              {/* End of Report */}
-              <div style={{ marginTop: 20 }}>
-                <Div />
-                <div style={{ whiteSpace: "pre" }}>{center("*** End of Report ***")}</div>
-              </div>
 
 
               {/* Per-compound Calibration Tables — only show the compound selected/configured in the chromatogram */}
@@ -7029,12 +7024,6 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                       );
                     })()}
 
-                    {/* *** End of Report *** */}
-                    <div style={{ marginTop: 28, fontFamily: "Courier New, monospace" }}>
-                      <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
-                      <div style={{ whiteSpace: "pre", textAlign: "center", fontWeight: "bold", letterSpacing: 2 }}>{"                   *** End of Report ***"}</div>
-                      <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
-                    </div>
 
                   </div>
                 );
