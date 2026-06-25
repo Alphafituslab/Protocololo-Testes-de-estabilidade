@@ -9407,18 +9407,29 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                   // ── Step 3: Dilution factor FD = C_i / C_f ──────────────────────────
                   const fd            = (ci > 0 && cf > 0) ? ci / cf : 0;
 
-                  // ── Step 4: Back-calculation ─────────────────────────────────────────
-                  // 4a. Recover C_original = C_f × FD  (= C_i)
-                  const cOriginal     = cf * fd;
-                  // 4b. Recover mass: M_original (µg) = C_original × V_i
-                  const mOriginalUg   = cOriginal * vi;
-                  // 4c. Convert back to mg
-                  const mOriginalMg   = mOriginalUg / 1000;
-
-                  // % found vs label
+                  // % found vs label — computed first so it can drive M_original below
                   // Quando "Pureza da amostra" está disponível (digitada/travada), ela é o
                   // resultado analítico autoritativo — usar diretamente em vez do back-calc.
                   const hasSmpPurity  = padraoConfig.smpPurity > 0 && Math.abs(padraoConfig.smpPurity - 100) > 0.01;
+
+                  // ── Step 4: Back-calculation ─────────────────────────────────────────
+                  // 4a. Recover C_original = C_f × FD  (= C_i)
+                  const cOriginal        = cf * fd;
+                  // 4b. Recover mass: M_original (µg) = C_original × V_i
+                  const mOriginalUg_fromCf = cOriginal * vi;
+                  // 4c. Convert back to mg (route via C_f × FD)
+                  const mOriginalMg_fromCf = mOriginalUg_fromCf / 1000;
+
+                  // Authoritative M_original:
+                  // When smpPurity is set (from area ratio), use M_decl × purity% — that IS the real
+                  // recovered mass and is consistent with the displayed purity.
+                  // The C_f × FD × Vi route is circular (FD is derived from M_decl) so it always
+                  // returns M_decl × stdPurity%, NOT the true recovered amount.
+                  const mOriginalMg   = (hasSmpPurity && mDeclaradaMg > 0)
+                    ? mDeclaradaMg * (padraoConfig.smpPurity / 100)
+                    : mOriginalMg_fromCf;
+                  const mOriginalUg   = mOriginalMg * 1000;
+
                   const pctFound      = hasSmpPurity
                     ? padraoConfig.smpPurity
                     : (mDeclaradaMg > 0 && mOriginalMg > 0 ? (mOriginalMg / mDeclaradaMg) * 100 : null);
@@ -9597,14 +9608,20 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                             4a. C_original = C_f × FD = {cf} × {fd.toFixed(4)} = {cOriginal.toFixed(4)} µg/mL
                           </div>
                           <div style={{ ...FORMULA, color: "#0c4a6e" }}>
-                            4b. M_original (µg) = C_original × V_i = {cOriginal.toFixed(4)} × {vi} = {mOriginalUg.toFixed(2)} µg
+                            4b. M_original (µg) = C_original × V_i = {cOriginal.toFixed(4)} × {vi} = {mOriginalUg_fromCf.toFixed(2)} µg
                           </div>
-                          <div style={{ ...FORMULA, color: "#0c4a6e" }}>
-                            4c. M_original (mg) = {mOriginalUg.toFixed(4)} ÷ 1000 =
-                          </div>
+                          {hasSmpPurity && mDeclaradaMg > 0 ? (
+                            <div style={{ ...FORMULA, color: "#0c4a6e" }}>
+                              4c. M_original (mg) = M_decl × pureza% = {mDeclaradaMg.toFixed(2)} × {padraoConfig.smpPurity.toFixed(2)}% =
+                            </div>
+                          ) : (
+                            <div style={{ ...FORMULA, color: "#0c4a6e" }}>
+                              4c. M_original (mg) = {mOriginalUg_fromCf.toFixed(2)} ÷ 1000 =
+                            </div>
+                          )}
                           <div style={{ marginLeft: 25, marginTop: 6, display: "flex", alignItems: "baseline", gap: 8 }}>
                             <span style={{ fontFamily: "Courier New, monospace", fontSize: 22, fontWeight: 900, color: "#0c4a6e" }}>
-                              {mOriginalMg.toFixed(4)} mg
+                              {mOriginalMg.toFixed(2)} mg
                             </span>
                             <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#475569" }}>
                               = {mOriginalUg.toFixed(2)} µg
