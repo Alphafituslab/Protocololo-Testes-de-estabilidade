@@ -7024,15 +7024,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                     >
                                       {padraoConfig.smpArea.toFixed(3)}
                                     </text>
-                                    {/* Found-amount label on X-axis — highlighted box like ChemStation */}
-                                    <rect
-                                      x={cx - xLabelW / 2}
-                                      y={mT + iH + 3}
-                                      width={xLabelW}
-                                      height={13}
-                                      fill="#c8d8f0"
-                                      rx={1}
-                                    />
+                                    {/* Found-amount label on X-axis */}
                                     <text
                                       x={cx}
                                       y={mT + iH + 13}
