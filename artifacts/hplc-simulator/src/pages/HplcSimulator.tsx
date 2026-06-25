@@ -9754,23 +9754,23 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                             4a. C_original = C_f × FD = {cf} × {fd.toFixed(4)} = {cOriginal.toFixed(4)} µg/mL
                           </div>
                           <div style={{ ...FORMULA, color: "#0c4a6e" }}>
-                            4b. M_original (µg) = C_original × V_i = {cOriginal.toFixed(4)} × {vi} = {mOriginalUg_fromCf.toFixed(2)} µg
+                            4b. M_original (µg) = C_original × V_i = {cOriginal.toFixed(4)} × {vi} = {mOriginalUg_fromCf.toFixed(4)} µg
                           </div>
                           {hasSmpPurity && mDeclaradaMg > 0 ? (
                             <div style={{ ...FORMULA, color: "#0c4a6e" }}>
-                              4c. M_original (mg) = M_decl × pureza% = {mDeclaradaMg.toFixed(2)} × {padraoConfig.smpPurity.toFixed(2)}% =
+                              4c. M_original (mg) = M_decl × pureza% = {mDeclaradaMg.toFixed(4)} × {padraoConfig.smpPurity.toFixed(4)}% =
                             </div>
                           ) : (
                             <div style={{ ...FORMULA, color: "#0c4a6e" }}>
-                              4c. M_original (mg) = {mOriginalUg_fromCf.toFixed(2)} ÷ 1000 =
+                              4c. M_original (mg) = {mOriginalUg_fromCf.toFixed(4)} ÷ 1000 =
                             </div>
                           )}
                           <div style={{ marginLeft: 25, marginTop: 6, display: "flex", alignItems: "baseline", gap: 8 }}>
                             <span style={{ fontFamily: "Courier New, monospace", fontSize: 22, fontWeight: 900, color: "#0c4a6e" }}>
-                              {mOriginalMg.toFixed(2)} mg
+                              {mOriginalMg.toFixed(4)} mg
                             </span>
                             <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#475569" }}>
-                              = {mOriginalUg.toFixed(2)} µg
+                              = {mOriginalUg.toFixed(4)} µg
                             </span>
                           </div>
                           {pctFound !== null && (
@@ -9778,7 +9778,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                               <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#0369a1" }}>
                                 {hasSmpPurity
                                   ? `Pureza da amostra (%): `
-                                  : `vs. declarado (${mDeclaradaMg.toFixed(2)} mg): `}
+                                  : `vs. declarado (${mDeclaradaMg.toFixed(4)} mg): `}
                               </span>
                               <span style={{
                                 fontFamily: "Courier New, monospace", fontSize: 15, fontWeight: 700, marginLeft: 8,
