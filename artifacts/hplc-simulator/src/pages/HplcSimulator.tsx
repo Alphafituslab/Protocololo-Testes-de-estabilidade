@@ -7579,11 +7579,25 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                         {/* Header */}
                         <div style={{ background: "#1e3a5f", padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                           <div>
-                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#fff" }}>
-                              {a.certTitle || "Certificado de Análise"}
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#fff" }}>
+                                {a.certTitle || "Certificado de Análise"}
+                              </div>
+                              {a.compoundName && (
+                                <span style={{
+                                  fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: 800,
+                                  background: "#f97316", color: "#fff",
+                                  borderRadius: 4, padding: "1px 8px", letterSpacing: "0.03em",
+                                }}>
+                                  ⚗ {a.compoundName}
+                                </span>
+                              )}
                             </div>
-                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
-                              {date}
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#94a3b8", marginTop: 3, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                              <span>{date}</span>
+                              {a.productName && <span style={{ color: "#cbd5e1" }}>· {a.productName}</span>}
+                              {a.productLot  && <span style={{ color: "#94a3b8" }}>Lote: {a.productLot}</span>}
+                              {a.certNumber  && <span style={{ color: "#7dd3fc" }}>Nº {a.certNumber}</span>}
                             </div>
                           </div>
                           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
