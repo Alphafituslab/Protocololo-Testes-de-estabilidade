@@ -308,6 +308,7 @@ interface SavedAnalysis {
   injDate: string;
   chromSvgData: string;     // serialized SVG string for re-display
   config: PadraoConfig;     // full config snapshot to regenerate PDF
+  htmlContent?: string;     // full PDF HTML (same as handlePrintPadrao output)
 }
 
 // ─── Padrao protection + audit types ────────────────────────────────────────────
@@ -2962,6 +2963,17 @@ export default function HplcSimulator() {
   const [saveConfirmId, setSaveConfirmId] = useState<string | null>(null);
 
   const openSavedPdf = useCallback((saved: SavedAnalysis) => {
+    if (!saved.htmlContent) {
+      alert("Este registro foi salvo antes da atualização e não contém HTML armazenado.\nRecrie o PDF na aba Standard.");
+      return;
+    }
+    const w = window.open("", "_blank", "width=960,height=900");
+    if (!w) return;
+    w.document.write(saved.htmlContent);
+    w.document.close();
+    setTimeout(() => w.print(), 500);
+  }, []);
+  const _openSavedPdfLegacy = useCallback((saved: SavedAnalysis) => {
     const cfg = saved.config;
     const stdArea = cfg.stdArea;
     const smpArea = cfg.smpArea;
@@ -8132,9 +8144,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
         };
 
         // Print/PDF export for the Resultado section
-        const handlePrintPadrao = () => {
-          const w = window.open('', '_blank', 'width=960,height=900');
-          if (!w) return;
+        const buildPadraoHtml = (): string => {
 
           // ── Lots table rows ─────────────────────────────────────────────
           const lotsRows = displayLots.map(lot => {
@@ -8424,7 +8434,12 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
 
 <footer>Gerado em ${new Date().toLocaleString('pt-BR')} · HPLC Agilent ChemStation Simulator</footer>
 </body></html>`;
-          w.document.write(html);
+          return html;
+        };
+        const handlePrintPadrao = () => {
+          const w = window.open('', '_blank', 'width=960,height=900');
+          if (!w) return;
+          w.document.write(buildPadraoHtml());
           w.document.close();
           setTimeout(() => w.print(), 500);
         };
@@ -8627,7 +8642,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                     const _inMax = padraoConfig.anvisaMaxMg > 0 ? _foundMgAnv <= padraoConfig.anvisaMaxMg : null;
                     const _inSpec: boolean | null = (_inMin !== null || _inMax !== null) ? (_inMin !== false && _inMax !== false) : null;
 
-                    // 3. Cria registro
+                    // 3. Cria registro (inclui o HTML idêntico ao impresso)
                     const record: SavedAnalysis = {
                       id: Date.now().toString(36) + Math.random().toString(36).slice(2),
                       savedAt: new Date().toISOString(),
@@ -8643,6 +8658,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                       injDate: sample.injectionDate || "",
                       chromSvgData,
                       config: { ...padraoConfig },
+                      htmlContent: buildPadraoHtml(),
                     };
 
                     // 4. Persiste
