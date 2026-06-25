@@ -2315,39 +2315,43 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                               const hasOvg = !isNaN(overagePct) && overagePct > 0;
                               const mfg = hasOvg ? declaredNum * (1 + overagePct / 100) : declaredNum;
                               const effectiveQty = (avgT6 / 100) * mfg;
+                              // Regra 1: fora da faixa ANVISA (min/max cadastrada)
                               const belowMin = minNum !== null && effectiveQty < minNum - 0.005;
                               const aboveMax = maxNum !== null && effectiveQty > maxNum + 0.005;
                               const hasSpec = minNum !== null || maxNum !== null;
-                              const isOk = !belowMin && !aboveMax;
+                              // Regra 2: não pode cair mais de 20% abaixo do declarado (< 80% do declarado)
+                              const limit80 = declaredNum * 0.80;
+                              const below80 = effectiveQty < limit80 - 0.005;
+                              const isOk = !belowMin && !aboveMax && !below80;
+                              const failReason = belowMin
+                                ? "✗ abaixo do mín ANVISA"
+                                : aboveMax
+                                ? "✗ acima do máx ANVISA"
+                                : below80
+                                ? "✗ < 80% do declarado"
+                                : "";
                               const tooltipParts = [
                                 `Média T6 (${t6Vals.length} lote${t6Vals.length > 1 ? "s" : ""}): ${avgT6.toFixed(2)}%`,
                                 hasOvg
                                   ? `Base Mfg = ${declaredNum} × (1 + ${overagePct}%) = ${mfg.toFixed(3)} ${lim.unit}`
                                   : `Base = ${declaredNum} ${lim.unit}`,
                                 `Efetivo T6 = ${avgT6.toFixed(2)}% × ${mfg.toFixed(3)} = ${effectiveQty.toFixed(3)} ${lim.unit}`,
+                                `Limite 80% declarado: ${limit80.toFixed(3)} ${lim.unit}`,
                                 minNum !== null ? `Mín ANVISA: ${minNum} ${lim.unit}` : "",
                                 maxNum !== null ? `Máx ANVISA: ${maxNum} ${lim.unit}` : "",
                               ].filter(Boolean).join("\n");
                               return (
                                 <td className="py-1 pl-3 border-l border-indigo-100 text-right" title={tooltipParts}>
                                   <div className="flex flex-col items-end gap-0.5">
-                                    <span className={`text-[10px] font-semibold ${
-                                      !hasSpec
-                                        ? "text-indigo-500"
-                                        : isOk
-                                        ? "text-emerald-700"
-                                        : "text-red-600"
-                                    }`}>
+                                    <span className={`text-[10px] font-semibold ${isOk ? "text-emerald-700" : "text-red-600"}`}>
                                       {effectiveQty.toFixed(2)} {lim.unit}
                                     </span>
                                     <span className="text-[9px] text-slate-400">
-                                      {avgT6.toFixed(1)}%{hasOvg ? ` × Mfg` : ""}
+                                      {avgT6.toFixed(1)}%{hasOvg ? ` × Mfg` : ""} · ≥{limit80.toFixed(1)}
                                     </span>
-                                    {hasSpec && (
-                                      <span className={`text-[9px] font-bold ${isOk ? "text-emerald-600" : "text-red-600"}`}>
-                                        {isOk ? "✓ OK" : belowMin ? "✗ abaixo" : "✗ acima"}
-                                      </span>
-                                    )}
+                                    <span className={`text-[9px] font-bold ${isOk ? "text-emerald-600" : "text-red-600"}`}>
+                                      {isOk ? "✓ Aprovado" : failReason}
+                                    </span>
                                   </div>
                                 </td>
                               );
