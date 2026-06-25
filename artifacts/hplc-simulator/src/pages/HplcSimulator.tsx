@@ -6996,8 +6996,10 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                 if (padraoConfig.smpArea <= 0 || padraoConfig.stdArea <= 0) return null;
                                 const smpFoundUg = (padraoConfig.smpArea / padraoConfig.stdArea) * padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100);
                                 if (smpFoundUg <= 0) return null;
+                                // Y = predicted area from regression line (so diamond sits on the line)
+                                const predictedArea = compReg.slope * smpFoundUg + compReg.intercept;
                                 const cx = xs(Math.min(smpFoundUg, compCalibXMax));
-                                const cy = ys(Math.min(padraoConfig.smpArea, compCalibYMax));
+                                const cy = ys(Math.min(predictedArea, compCalibYMax));
                                 const hasPurity = padraoConfig.smpPurity > 0 && Math.abs(padraoConfig.smpPurity - 100) > 0.01;
                                 const purityLabel = hasPurity ? `${padraoConfig.smpPurity.toFixed(2)}%` : `${((padraoConfig.smpArea / padraoConfig.stdArea) * padraoConfig.stdPurity).toFixed(2)}%`;
                                 const isAbove = cy > mT + 18;
@@ -7013,7 +7015,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                     <line x1={cx} y1={cy} x2={cx} y2={mT + iH} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
                                     {/* Diamond */}
                                     <path d={diamond} fill="#ea580c" stroke="white" strokeWidth={1.5} />
-                                    {/* Area label on Y-axis */}
+                                    {/* Area label on Y-axis — predicted area at found amount */}
                                     <text
                                       x={mL - 6}
                                       y={cy + 3.5}
@@ -7022,7 +7024,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                       fontWeight="bold"
                                       fill="#333"
                                     >
-                                      {padraoConfig.smpArea.toFixed(3)}
+                                      {predictedArea.toFixed(3)}
                                     </text>
                                     {/* Found-amount label on X-axis */}
                                     <text
