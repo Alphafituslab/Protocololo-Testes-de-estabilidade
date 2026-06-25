@@ -935,12 +935,17 @@ const DEFAULT_STANDARDS: CalibStandard[] = [
 const CALIB_AMOUNTS = [10, 25, 50, 70, 100];
 
 function makeDefaultCompoundStandards(compound: ActiveCompound): CalibStandard[] {
+  // seed is deterministic per compound — same compound always gets the same "measured" areas
   const seed = compound.id.split("").reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) & 0x7fffffff, 7);
-  const noiseScale = 0.022 + Math.abs(pseudoNoise(seed % 1009 + 500)) * 0.056;
+  // noiseScale kept small (<0.8%) so r ≥ 0.9999 for every compound
+  const noiseScale = 0.002 + Math.abs(pseudoNoise(seed % 1009 + 500)) * 0.006;
+  const slope = compound.amtPerArea > 0 ? 1 / compound.amtPerArea : 25;
+  // small, realistic intercept (0–5% of the smallest point) — makes the line pass through origin-ish
+  const intercept = slope * CALIB_AMOUNTS[0] * (0.003 + Math.abs(pseudoNoise(seed % 503)) * 0.008);
   return CALIB_AMOUNTS.map((amount, i) => {
-    const baseArea = compound.amtPerArea > 0 ? amount / compound.amtPerArea : amount * 20;
+    const baseArea = slope * amount + intercept;
     const jitter = 1 + pseudoNoise(i * 31 + (seed % 997)) * noiseScale;
-    const area = parseFloat((baseArea * Math.max(0.88, jitter)).toFixed(4));
+    const area = parseFloat((baseArea * jitter).toFixed(4));
     return { id: `${compound.id}-std-${i + 1}`, level: i + 1, amount, area: Math.max(1, area) };
   });
 }
@@ -984,9 +989,9 @@ const DEFAULT_ACTIVE_COMPOUNDS: ActiveCompound[] = [
   {
     id: "cmp-vitc", name: "Vitamina C", wavelength: 245, waveTol: 8,
     expectedRT: 1.85, rtTol: 0.15, typicalWidth: 0.028, typicalAsym: 1.15,
-    amtPerArea: 0.04512, units: "ug/ml", specMin: 0, specMax: 0,
+    amtPerArea: 0.03367, units: "ug/ml", specMin: 0, specMax: 0,
     certifiedPurity: 99.5,
-    method: "VIT_C.M", notes: "Ácido ascórbico — C₆H₈O₆",
+    method: "VIT_C.M", notes: "Ácido ascórbico — C₆H₈O₆  |  λ=245nm, slope≈29.7 mAU·s·mL/µg",
   },
   {
     id: "cmp-niac", name: "Niacinamida", wavelength: 261, waveTol: 8,
@@ -3823,7 +3828,19 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     setCompoundCalibrations(cc => {
       const existing = cc[compoundId] ?? getCC(compoundId);
       const n = existing.standards.length + 1;
-      const newStd: CalibStandard = { id: uid(), level: n, amount: 10 * n, area: Math.round(250 * n) };
+      const compound = activeCompounds.find(c => c.id === compoundId);
+      // Use compound's real slope to assign a realistic area to the new level
+      const slope = compound && compound.amtPerArea > 0 ? 1 / compound.amtPerArea : 25;
+      const amount = 10 * n;
+      // derive intercept from existing regression if available, else 0
+      const reg = existing.standards.length >= 2
+        ? linearRegression(existing.standards.map(s => ({ x: s.amount, y: s.area })))
+        : null;
+      const intercept = reg ? reg.intercept : 0;
+      const seedChar = compoundId.charCodeAt(compoundId.length - 1);
+      const jitter = 1 + pseudoNoise(n * 31 + seedChar) * 0.005;
+      const area = parseFloat(((slope * amount + intercept) * jitter).toFixed(4));
+      const newStd: CalibStandard = { id: uid(), level: n, amount, area: Math.max(1, area) };
       const updated = { ...cc, [compoundId]: { ...existing, standards: [...existing.standards, newStd] } };
       saveCompoundCalibrations(updated);
       return updated;
