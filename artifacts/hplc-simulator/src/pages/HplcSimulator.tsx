@@ -8505,7 +8505,7 @@ ${anvisaSection}
 ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
 <table><thead><tr><th>Lote</th><th>Data</th><th>Amostra</th><th>Área (mAU·s)</th><th>Conc. (µg/ml)</th><th>Conformidade</th></tr></thead><tbody>${lotsRows}</tbody></table>` : ''}
 
-<footer>Gerado em ${new Date().toLocaleString('pt-BR')} · HPLC Agilent ChemStation Simulator</footer>
+
 </body></html>`;
           return html;
         };
