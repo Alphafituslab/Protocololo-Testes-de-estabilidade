@@ -8213,7 +8213,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
             const midStd = sortedStds[Math.floor(sortedStds.length / 2)] ?? sortedStds[0] ?? null;
             updatePadrao({
               compoundName: compound.name,
-              stdPeakName: midStd ? `Level ${midStd.level} — cal. ${compound.name}` : compound.name,
+              stdPeakName: compound.name,
               stdArea: midStd ? parseFloat(midStd.area.toFixed(5)) : smpA,
               stdAmountUg: midStd
                 ? parseFloat(midStd.amount.toFixed(4))
@@ -8530,9 +8530,9 @@ ${visComp}
     <tr><td>Pureza certificada padrão (%)</td><td>${padraoConfig.stdPurity.toFixed(2)}</td><td>—</td><td></td></tr>
     <tr><td>Pureza calculada amostra (%)</td><td>—</td><td>${displaySmpPurity.toFixed(2)}</td><td></td></tr>
     ${purityVsDecl !== null && padraoConfig.smpDeclaredAmountUg < foundAmountUg * 100 ? `<tr><td>% vs. declarado (µg)</td><td>100.00</td><td>${purityVsDecl.toFixed(2)}</td><td></td></tr>` : ''}
-    <tr><td>Encontrado (µg)</td><td>—</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
-    <tr><td>Encontrado (mg)</td><td>—</td><td>${foundAmountMg.toFixed(6)}</td><td></td></tr>
-    ${foundAmountFromPurityUg !== null ? `<tr><td>Encontrado — pureza (µg)</td><td>—</td><td>${foundAmountFromPurityUg.toFixed(4)}</td><td></td></tr><tr><td>Encontrado — pureza (mg)</td><td>—</td><td>${foundAmountFromPurityMg!.toFixed(6)}</td><td></td></tr>` : ''}
+    <tr><td>Encontrado (µg)</td><td>${(padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100)).toFixed(4)}</td><td>${foundAmountUg.toFixed(4)}</td><td></td></tr>
+    <tr><td>Encontrado (mg)</td><td>${(padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100) / 1000).toFixed(6)}</td><td>${foundAmountMg.toFixed(6)}</td><td></td></tr>
+    ${foundAmountFromPurityUg !== null ? `<tr><td>Encontrado — pureza (µg)</td><td>${(padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100)).toFixed(4)}</td><td>${foundAmountFromPurityUg.toFixed(4)}</td><td></td></tr><tr><td>Encontrado — pureza (mg)</td><td>${(padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100) / 1000).toFixed(6)}</td><td>${foundAmountFromPurityMg!.toFixed(6)}</td><td></td></tr>` : ''}
   </tbody>
 </table>
 <p style="font-size:9px;color:#64748b;margin-top:6px">Fórmula: Quantidade (µg) = (Área Amostra ÷ Área Padrão) × Quantidade Padrão (µg) × (Pureza Padrão ÷ 100)${hasSmpPurity ? ' | ★ Pureza digitada pelo operador' : ''}${foundAmountFromPurityUg !== null ? ' | Encontrado (pureza) = Declarado × (Pureza/100)' : ''}</p>
@@ -10473,11 +10473,11 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                         { label: "Area (mAU·s)", std: stdArea.toFixed(5), smp: smpArea.toFixed(5), ratio: ratio.toFixed(6), stdFieldId: "padrao-row-stdArea", smpFieldId: "padrao-row-smpArea" },
                         { label: "Injected amount (µg)", std: padraoConfig.stdAmountUg.toFixed(4), smp: foundAmountUg.toFixed(4), ratio: ratio.toFixed(6), stdFieldId: "padrao-row-stdAmountUg", smpFieldId: "padrao-row-smpArea" },
                         { label: "Purity (%)", std: padraoConfig.stdPurity.toFixed(2), smp: displaySmpPurity.toFixed(2), ratio: "", stdFieldId: "padrao-row-stdPurity", smpFieldId: "padrao-row-smpArea" },
-                        { label: "Found amount (µg)", std: "—", smp: foundAmountUg.toFixed(4), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpArea" },
-                        { label: "Found amount (mg)", std: "—", smp: foundAmountMg.toFixed(6), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpArea" },
+                        { label: "Found amount (µg)", std: (padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100)).toFixed(4), smp: foundAmountUg.toFixed(4), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpArea" },
+                        { label: "Found amount (mg)", std: (padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100) / 1000).toFixed(6), smp: foundAmountMg.toFixed(6), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpArea" },
                         ...(foundAmountFromPurityUg !== null ? [
-                          { label: "Found amount — purity (µg)", std: "—", smp: foundAmountFromPurityUg.toFixed(4), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpPurity" },
-                          { label: "Found amount — purity (mg)", std: "—", smp: foundAmountFromPurityMg!.toFixed(6), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpPurity" },
+                          { label: "Found amount — purity (µg)", std: (padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100)).toFixed(4), smp: foundAmountFromPurityUg.toFixed(4), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpPurity" },
+                          { label: "Found amount — purity (mg)", std: (padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100) / 1000).toFixed(6), smp: foundAmountFromPurityMg!.toFixed(6), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpPurity" },
                         ] : []),
                       ] as { label: string; std: string; smp: string; ratio: string; stdFieldId?: string; smpFieldId?: string }[]).map((row, i) => (
                         <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
