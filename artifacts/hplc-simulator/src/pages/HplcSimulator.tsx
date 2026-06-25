@@ -9395,8 +9395,11 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                   // Optional: injection volume (µL) → auto-derive C_f suggestion from found amount
                   const injVolUl      = padraoConfig.smpInjVolUl;
 
-                  // ── Step 1: Convert declared mass to µg ──────────────────────────────
-                  const miUg          = mDeclaradaMg * 1000;
+                  // ── Step 1: Convert declared mass to µg — apply certified purity ─────
+                  // M_i (µg) = M_declarada (mg) × (stdPurity / 100) × 1000
+                  // Certified purity > 100% (overage) is handled naturally by this factor.
+                  const stdPurityFactor = (padraoConfig.stdPurity > 0 ? padraoConfig.stdPurity : 100) / 100;
+                  const miUg          = mDeclaradaMg * stdPurityFactor * 1000;
 
                   // ── Step 2: Theoretical initial concentration C_i ────────────────────
                   const ci            = (miUg > 0 && vi > 0) ? miUg / vi : 0;
@@ -9549,10 +9552,12 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                         <div style={STEP}>
                           <div style={{ display: "flex", alignItems: "center" }}>
                             <span style={STEP_NUM}>1</span>
-                            <span style={STEP_TITLE}>Converter massa declarada para µg</span>
+                            <span style={STEP_TITLE}>Converter massa declarada para µg (aplicar pureza certificada)</span>
                           </div>
-                          <div style={FORMULA}>M_i = {mDeclaradaMg.toFixed(2)} mg × 1.000 = <strong>{miUg.toLocaleString("pt-BR")} µg</strong></div>
-                          <div style={RESULT}>{miUg.toLocaleString("pt-BR")} µg</div>
+                          <div style={FORMULA}>
+                            M_i = {mDeclaradaMg.toFixed(2)} mg × {stdPurityFactor.toFixed(5)} ({padraoConfig.stdPurity > 0 ? padraoConfig.stdPurity : 100}%) × 1000 = <strong>{miUg.toFixed(4)} µg</strong>
+                          </div>
+                          <div style={RESULT}>{miUg.toFixed(4)} µg</div>
                         </div>
 
                         {/* Step 2 */}
@@ -9591,7 +9596,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                             4b. M_original (µg) = C_original × V_i = {cOriginal.toFixed(4)} × {vi} = {mOriginalUg.toFixed(2)} µg
                           </div>
                           <div style={{ ...FORMULA, color: "#0c4a6e" }}>
-                            4c. M_original (mg) = {mOriginalUg.toFixed(2)} ÷ 1.000 =
+                            4c. M_original (mg) = {mOriginalUg.toFixed(4)} ÷ 1000 =
                           </div>
                           <div style={{ marginLeft: 25, marginTop: 6, display: "flex", alignItems: "baseline", gap: 8 }}>
                             <span style={{ fontFamily: "Courier New, monospace", fontSize: 22, fontWeight: 900, color: "#0c4a6e" }}>
