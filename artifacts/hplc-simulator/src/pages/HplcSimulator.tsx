@@ -7423,27 +7423,43 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                       const xs = (v: number) => mL + (v / compCalibXMax) * iW;
                       const ys = (v: number) => mT + iH - (Math.min(Math.max(v, 0), compCalibYMax) / compCalibYMax) * iH;
                       const sorted = [...cc.standards].sort((a, b) => a.amount - b.amount);
-                      // Y ticks = actual area values of each standard (so grid lines pass through data points)
-                      const yTicksData = sorted.map(s => s.area).filter(v => v > 0);
-                      const yTicks = yTicksData.length > 0 ? [0, ...yTicksData] : [0];
-                      // X ticks = actual amount values of each standard
-                      const xTicksData = sorted.map(s => s.amount).filter(v => v > 0);
-                      const xTicks = xTicksData.length > 0 ? [0, ...xTicksData] : [0];
+                      // Y ticks — números inteiros bonitos (ex: 0, 500, 1000, 1500, 2000)
+                      const niceYTicks = (maxVal: number, target = 5): number[] => {
+                        if (maxVal <= 0) return [0];
+                        const raw = maxVal / target;
+                        const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+                        const norm = raw / mag;
+                        const step = norm <= 1 ? mag : norm <= 2 ? 2 * mag : norm <= 5 ? 5 * mag : 10 * mag;
+                        const ticks: number[] = [];
+                        for (let t = 0; t <= maxVal * 1.001; t += step) ticks.push(Math.round(t));
+                        return ticks;
+                      };
+                      const yTicks = niceYTicks(compCalibYMax);
+                      // X ticks — números inteiros bonitos
+                      const niceXTicks = (maxVal: number, target = 5): number[] => {
+                        if (maxVal <= 0) return [0];
+                        const raw = maxVal / target;
+                        const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+                        const norm = raw / mag;
+                        const step = norm <= 1 ? mag : norm <= 2 ? 2 * mag : norm <= 5 ? 5 * mag : 10 * mag;
+                        const ticks: number[] = [];
+                        for (let t = 0; t <= maxVal * 1.001; t += step) ticks.push(Math.round(t));
+                        return ticks;
+                      };
+                      const xTicks = niceXTicks(compCalibXMax);
                       const ry0 = Math.max(0, compReg.intercept);
                       const ry1 = compReg.slope * compCalibXMax + compReg.intercept;
 
-                      // Format y-axis labels: show decimals for area values (up to 4 dp)
+                      // Format y-axis labels: integers only (ticks são sempre números bonitos)
                       const fmtY = (v: number) => {
                         if (v === 0) return "0";
-                        if (v >= 100000) return (v / 1000).toFixed(1) + "k";
-                        if (Number.isInteger(v)) return v.toFixed(0);
-                        return v.toFixed(4);
+                        if (v >= 100000) return Math.round(v / 1000) + "k";
+                        return Math.round(v).toString();
                       };
-                      // Format x-axis labels: show decimals for amount values (up to 2 dp)
+                      // Format x-axis labels: integers only
                       const fmtX = (v: number) => {
                         if (v === 0) return "0";
-                        if (Number.isInteger(v)) return v.toFixed(0);
-                        return v.toFixed(2);
+                        return Math.round(v).toString();
                       };
 
                       return (
