@@ -6793,9 +6793,12 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                     const aptStr = amtPerArea > 0 ? fmtSci2(amtPerArea, -2).padStart(10) : "".padStart(10);
                     const amtStr = effectiveAmt > 0 ? effectiveAmt.toFixed(5).padStart(10) : "".padStart(10);
                     const grpStr = (p.grp || "").padEnd(2);
+                    const displayName = isSmpPeak
+                      ? (padraoConfig.compoundName || p.name)
+                      : p.name;
                     return (
                       <div key={p.id} style={{ whiteSpace: "pre" }}>
-                        {"    " + rt + " " + type + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + p.name}
+                        {"    " + rt + " " + type + " " + areaStr + " " + aptStr + " " + amtStr + " " + grpStr + "  " + displayName}
                       </div>
                     );
                   })}
