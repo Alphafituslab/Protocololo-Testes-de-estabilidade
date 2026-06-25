@@ -8338,7 +8338,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
   <tbody>
     ${anvisaLabelMg > 0 ? `<tr><td>Qtd. declarada no rótulo</td><td>${anvisaLabelMg.toFixed(4)} mg</td><td>—</td></tr>` : ''}
     ${foundMgAnv > 0 ? `<tr><td>Encontrado na análise</td><td><strong>${foundMgAnv.toFixed(4)} mg</strong> (= ${(foundMgAnv * 1000).toFixed(2)} µg)</td><td>—</td></tr>` : ''}
-    ${pctLabelAnv !== null ? `<tr><td>Valor calculado na amostra</td><td><strong style="color:${pctLabelAnv >= 80 && pctLabelAnv <= 120 ? '#16a34a' : '#dc2626'}">${pctLabelAnv.toFixed(2)}%</strong></td><td style="color:${pctLabelAnv >= 80 && pctLabelAnv <= 120 ? '#16a34a' : '#dc2626'}">${pctLabelAnv >= 80 && pctLabelAnv <= 120 ? '✓ dentro da faixa' : '✗ fora da faixa'}</td></tr>` : ''}
+    ${pctLabelAnv !== null ? `<tr><td>% Encontrado na Amostra Analisada</td><td><strong style="color:${pctLabelAnv >= 80 && pctLabelAnv <= 120 ? '#16a34a' : '#dc2626'}">${pctLabelAnv.toFixed(2)}%</strong></td><td style="color:${pctLabelAnv >= 80 && pctLabelAnv <= 120 ? '#16a34a' : '#dc2626'}">${pctLabelAnv >= 80 && pctLabelAnv <= 120 ? '✓ dentro da faixa' : '✗ fora da faixa'}</td></tr>` : ''}
     ${anvisaMinMg > 0 ? `<tr><td>Faixa mín ANVISA</td><td>${anvisaMinMg.toFixed(4)} mg (= ${(anvisaMinMg * 1000).toFixed(2)} µg)</td><td style="color:${inMin ? '#16a34a' : '#dc2626'}">${inMin === null ? '—' : inMin ? '✓ acima do mínimo' : '✗ abaixo do mínimo'}</td></tr>` : ''}
     ${anvisaMaxMg > 0 ? `<tr><td>Faixa máx ANVISA</td><td>${anvisaMaxMg.toFixed(4)} mg (= ${(anvisaMaxMg * 1000).toFixed(2)} µg)</td><td style="color:${inMax ? '#16a34a' : '#dc2626'}">${inMax === null ? '—' : inMax ? '✓ abaixo do máximo' : '✗ acima do máximo'}</td></tr>` : ''}
     ${inRange !== null ? `<tr style="background:${inRange ? '#dcfce7' : '#fef2f2'}"><td colspan="2"><strong>Resultado ANVISA</strong></td><td><strong style="color:${inRange ? '#16a34a' : '#dc2626'}">${inRange ? '✓ CONFORME' : '✗ NÃO CONFORME'}</strong></td></tr>` : ''}
@@ -8457,7 +8457,7 @@ ${hasData ? `
 <h2>Resultados</h2>
 <div class="cards">
   <div class="card"><div class="big ${displaySmpPurity >= 98 ? 'ok' : displaySmpPurity >= 90 ? 'warn' : 'bad'}">${displaySmpPurity.toFixed(2)}%</div><div class="lbl">${hasSmpPurity ? 'Pureza (digitada)' : 'Pureza vs. Padrão (área)'}</div></div>
-  ${pctLabelAnv !== null ? `<div class="card"><div class="big ${pctLabelAnv >= 80 && pctLabelAnv <= 120 ? 'ok' : 'bad'}">${pctLabelAnv.toFixed(2)}%</div><div class="lbl">Valor calculado na amostra</div></div>` : ''}
+  ${pctLabelAnv !== null ? `<div class="card"><div class="big ${pctLabelAnv >= 80 && pctLabelAnv <= 120 ? 'ok' : 'bad'}">${pctLabelAnv.toFixed(2)}%</div><div class="lbl">% Encontrado na Amostra Analisada</div></div>` : ''}
   <div class="card"><div class="big">${foundAmountUg.toFixed(4)} µg</div><div class="lbl">Encontrado (método std)</div></div>
   <div class="card"><div class="big">${foundAmountMg.toFixed(6)} mg</div><div class="lbl">Encontrado (mg)</div></div>
   ${foundAmountFromPurityUg !== null ? `<div class="card"><div class="big">${foundAmountFromPurityUg.toFixed(4)} µg</div><div class="lbl">Encontrado — base pureza</div></div>` : ''}
@@ -10079,7 +10079,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                     {/* % vs rótulo */}
                     <div>
                       <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>
-                        Valor calculado na amostra
+                        % Encontrado na Amostra Analisada
                       </div>
                       {pctLabel !== null ? (
                         <>
