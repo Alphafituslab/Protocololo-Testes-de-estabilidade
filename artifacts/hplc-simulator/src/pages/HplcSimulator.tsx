@@ -7024,31 +7024,31 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                 return (
                                   <g key="smp-pt">
                                     {/* Guide lines to axes */}
-                                    <line x1={cx} y1={mT} x2={cx} y2={cy} stroke="#ea580c" strokeDasharray="3 2" strokeWidth={0.9} opacity={0.5} />
-                                    <line x1={mL} y1={cy} x2={cx} y2={cy} stroke="#ea580c" strokeDasharray="3 2" strokeWidth={0.9} opacity={0.5} />
+                                    <line x1={cx} y1={mT} x2={cx} y2={cy} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
+                                    <line x1={mL} y1={cy} x2={cx} y2={cy} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
                                     {/* Diamond */}
                                     <path d={diamond} fill="#ea580c" stroke="white" strokeWidth={1.5} />
-                                    {/* Area label */}
+                                    {/* Area label on Y-axis */}
+                                    <text
+                                      x={mL - 6}
+                                      y={cy + 3.5}
+                                      textAnchor="end"
+                                      fontSize={8.5}
+                                      fontWeight="bold"
+                                      fill="#333"
+                                    >
+                                      {padraoConfig.smpArea.toFixed(3)}
+                                    </text>
+                                    {/* Found-amount label on X-axis */}
                                     <text
                                       x={cx}
-                                      y={isAbove ? cy - d - 4 : cy + d + 11}
+                                      y={mT + iH + 15}
                                       textAnchor="middle"
                                       fontSize={8.5}
                                       fontWeight="bold"
-                                      fill="#ea580c"
+                                      fill="#333"
                                     >
-                                      {padraoConfig.smpArea.toFixed(3)} mAU·s
-                                    </text>
-                                    {/* "Sample" label below area */}
-                                    <text
-                                      x={cx}
-                                      y={isAbove ? cy - d - 4 + 10 : cy + d + 21}
-                                      textAnchor="middle"
-                                      fontSize={7.5}
-                                      fill="#9a3412"
-                                      opacity={0.8}
-                                    >
-                                      Sample
+                                      {smpFoundUg.toFixed(3)}
                                     </text>
                                   </g>
                                 );
@@ -7073,35 +7073,29 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                             const intSign = compReg.intercept >= 0 ? "+" : "";
                             const intStr = `${intSign}${compReg.intercept.toFixed(0)}`;
                             return (
-                              <div style={{ paddingTop: 14, fontSize: 9.5, fontFamily: "Courier New, monospace", lineHeight: 1.9, color: "#111", minWidth: 240 }}>
-                                <div style={{ fontWeight: "bold", fontSize: 11, marginBottom: 2 }}>{compound.name}</div>
-                                <div style={{ fontSize: 9, color: "#555", marginBottom: 8 }}>{signalLabel}</div>
-                                <div style={{ lineHeight: 1.7 }}>
-                                  <div>{"Quantitative Method : External Standard"}</div>
-                                  <div>{"Function            : f(x)=" + slopeStr + "*x" + intStr}</div>
-                                  <div style={{ paddingLeft: 8, color: "#555" }}>{"Rr1=" + compReg.r.toFixed(7) + " Rr2=" + r2val.toFixed(7)}</div>
-                                  <div style={{ paddingLeft: 8, color: "#555" }}>{"RSS=" + rss.toFixed(3)}</div>
-                                  <div style={{ paddingLeft: 8, color: "#555" }}>{"MeanRF: " + meanRF.toFixed(3) + "  RFSD: " + rfsd.toFixed(3) + "  RFRSD: " + rfrsd.toFixed(3)}</div>
-                                  <div>{"FitType             : Linear"}</div>
-                                  <div>{"Origin              : " + (cc.calib.origin || "Included")}</div>
-                                  <div>{"Weight              : " + (cc.calib.weight || "Equal")}</div>
-                                </div>
-                                <div style={{ marginTop: 10, borderTop: "1px solid #ccc", paddingTop: 6, fontSize: 9 }}>
-                                  <div style={{ fontWeight: "bold", marginBottom: 4, color: "#333" }}>
-                                    {"#    Conc.[ug/ml]    MeanArea        Area"}
-                                  </div>
-                                  {sorted2.map((s, idx) => (
-                                    <div key={s.id}>
-                                      {String(idx + 1).padStart(2) + "   " + s.amount.toFixed(5).padEnd(14) + s.area.toFixed(5).padEnd(16) + s.area.toFixed(5)}
-                                    </div>
-                                  ))}
-                                </div>
+                              <div style={{ paddingTop: 14, fontSize: 10, fontFamily: "Courier New, monospace", lineHeight: 2, color: "#111", minWidth: 260 }}>
+                                <div>{compound.name + " at exp. RT: " + expRT.toFixed(3)}</div>
+                                <div style={{ color: "#444" }}>{signalLabel}</div>
+                                <div>{"Correlation:            " + compReg.r.toFixed(5)}</div>
+                                <div>{"Residual Std. Dev.:    " + compReg.residStdDev.toFixed(5)}</div>
+                                <div>{"Formula: y = mx + b"}</div>
+                                <div>{"     m:      " + compReg.slope.toFixed(5)}</div>
+                                <div>{"     b:      " + compReg.intercept.toFixed(5)}</div>
+                                <div>{"     x: Amount"}</div>
+                                <div>{"     y: Area"}</div>
                               </div>
                             );
                           })()}
                         </div>
                       );
                     })()}
+
+                    {/* *** End of Report *** */}
+                    <div style={{ marginTop: 28, fontFamily: "Courier New, monospace" }}>
+                      <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
+                      <div style={{ whiteSpace: "pre", textAlign: "center", fontWeight: "bold", letterSpacing: 2 }}>{"                   *** End of Report ***"}</div>
+                      <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
+                    </div>
 
                   </div>
                 );
