@@ -3619,6 +3619,22 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
       onSuccess: () => { setSmpPurityLocked(false); saveSmpPurityLocked(false); },
     });
   };
+  // Syncs the matched sample peak's manualArea (and back-calculated height) to match
+  // whatever value is canonical in padraoConfig.smpArea — call this everywhere smpArea changes.
+  const syncSmpPeakManualArea = (area: number) => {
+    const smpName = padraoConfig.smpPeakName;
+    const cmpName = padraoConfig.compoundName;
+    const smpRT   = padraoSmpRT;
+    if (area <= 0) return;
+    setPeaks(ps => ps.map(p => {
+      const nameMatch = (!!smpName && p.name === smpName) || (!!cmpName && p.name === cmpName);
+      const rtMatch   = smpRT > 0 && Math.abs(p.retentionTime - smpRT) < 0.05;
+      if (!nameMatch && !rtMatch) return p;
+      const curArea   = p.manualArea > 0 ? p.manualArea : computeArea(p);
+      const newHeight = curArea > 0 ? parseFloat((p.height * (area / curArea)).toFixed(4)) : p.height;
+      return { ...p, height: newHeight, manualArea: parseFloat(area.toFixed(5)) };
+    }));
+  };
   const updateSmpPurity = (v: number) => {
     if (smpPurityLocked) {
       setMasterAuthInput("");
@@ -3632,6 +3648,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
           const stdP = padraoConfig.stdPurity;
           const newArea = stdA > 0 && stdP > 0 ? parseFloat((stdA * clamped / stdP).toFixed(5)) : padraoConfig.smpArea;
           updatePadrao({ smpPurity: clamped, smpArea: newArea, smpRawArea: stdA });
+          syncSmpPeakManualArea(newArea);
         },
       });
     } else {
@@ -3640,6 +3657,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
       const stdP = padraoConfig.stdPurity;
       const newArea = stdA > 0 && stdP > 0 ? parseFloat((stdA * clamped / stdP).toFixed(5)) : padraoConfig.smpArea;
       updatePadrao({ smpPurity: clamped, smpArea: newArea, smpRawArea: stdA });
+      syncSmpPeakManualArea(newArea);
     }
   };
   const updatePadraoProtected = (patchData: Partial<PadraoConfig>, changedBy?: string) => {
@@ -5129,9 +5147,11 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                           {p.locked && <Lock style={{ display: "inline", width: 9, height: 9, color: "#f59e0b", marginRight: 3, verticalAlign: "middle" }} />}
                           {p.isGhost && <span style={{ marginRight: 3 }}>👻</span>}
                           {p.retentionTime.toFixed(3)} {p.isGhost ? <span style={{ color: "#7c3aed" }}>ghost</span> : p.name ? `(${p.name})` : "—"}
-                          {p.manualArea > 0
-                            ? <span style={{ color: "#1d4ed8" }}> ✎{p.manualArea.toFixed(2)}</span>
-                            : <span style={{ color: "#888" }}> ~{p.computedArea.toFixed(1)}</span>}
+                          {isPadraoSamplePeak(p) && padraoConfig.smpArea > 0
+                            ? <span style={{ color: "#f97316" }}> ✎{padraoConfig.smpArea.toFixed(2)}</span>
+                            : p.manualArea > 0
+                              ? <span style={{ color: "#1d4ed8" }}> ✎{p.manualArea.toFixed(2)}</span>
+                              : <span style={{ color: "#888" }}> ~{p.computedArea.toFixed(1)}</span>}
                         </span>
                         <Button size="sm" variant="ghost"
                           className={p.locked ? "h-5 w-5 p-0" : "h-5 w-5 p-0 opacity-0 group-hover:opacity-100"}
@@ -9069,6 +9089,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                       ((mOriginalMg * 1000 * stdA) / (stdAmt * (stdPur / 100))).toFixed(5)
                     );
                     updatePadrao({ smpArea: newSmpArea, smpRawArea: 0 });
+                    syncSmpPeakManualArea(newSmpArea);
                     setSmpSubTab("padrao");
                   };
 
@@ -9409,21 +9430,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                   <div>
                     {numInput(padraoConfig.smpArea, v => {
                       updatePadrao({ smpArea: v, smpRawArea: 0 });
-                      // Sync to matched peak: update height + manualArea so chromatogram and Edit Peak reflect the new value
-                      const smpName = padraoConfig.smpPeakName;
-                      const cmpName = padraoConfig.compoundName;
-                      const smpRT   = padraoSmpRT;
-                      if (v > 0 && (smpName || cmpName || smpRT > 0)) {
-                        setPeaks(ps => ps.map(p => {
-                          const nameMatch = (smpName && p.name === smpName) || (cmpName && p.name === cmpName);
-                          const rtMatch   = smpRT > 0 && Math.abs(p.retentionTime - smpRT) < 0.05;
-                          if (!nameMatch && !rtMatch) return p;
-                          // Back-calculate height so computeArea(peak) ≈ v
-                          const curArea = p.manualArea > 0 ? p.manualArea : computeArea(p);
-                          const newHeight = curArea > 0 ? parseFloat((p.height * (v / curArea)).toFixed(4)) : p.height;
-                          return { ...p, height: newHeight, manualArea: parseFloat(v.toFixed(5)) };
-                        }));
-                      }
+                      syncSmpPeakManualArea(v);
                     }, { step: "0.001", placeholder: "0.000" })}
                     {padraoConfig.smpArea <= 0 && <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#dc2626", marginTop: 2 }}>⚠ Required — enter a value &gt; 0</div>}
                     {padraoConfig.stdArea > 0 && padraoConfig.smpArea > 0 && padraoConfig.smpArea / padraoConfig.stdArea > 2 && (
