@@ -8377,13 +8377,18 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
         // Auto-fill Padrão fields from a single chosen peak
         const doFillFromPeak = (peak: Peak) => {
           const smpA = parseFloat(getArea(peak).toFixed(5));
-          // Find the best matching compound for this peak
-          const compound = activeCompounds.find(c =>
-            (peak.name && (
-              peak.name.toLowerCase().includes(c.name.toLowerCase()) ||
-              c.name.toLowerCase().includes(peak.name.toLowerCase())
-            )) || Math.abs(peak.retentionTime - c.expectedRT) < c.rtTol
+          // Find the best matching compound: name match takes priority over RT match
+          const pn = (peak.name ?? "").toLowerCase().trim();
+          const byName = pn
+            ? activeCompounds.find(c => {
+                const cn = c.name.toLowerCase().trim();
+                return pn.includes(cn) || cn.includes(pn);
+              }) ?? null
+            : null;
+          const byRT = activeCompounds.find(c =>
+            Math.abs(peak.retentionTime - c.expectedRT) < c.rtTol
           ) ?? null;
+          const compound = byName ?? byRT;
           if (compound) {
             const cc = getCC(compound.id);
             const sortedStds = [...cc.standards].sort((a, b) => a.amount - b.amount);
