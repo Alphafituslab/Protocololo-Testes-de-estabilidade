@@ -7217,28 +7217,29 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                   <circle cx={xs(s.amount)} cy={ys(s.area)} r={5} fill="#111" stroke="white" strokeWidth={1.5} />
                                 </g>
                               ))}
-                              {/* Sample point from Padrão tab — diamond plotted at (Amount, Area) */}
+                              {/* Sample point from Padrão tab — diamond ON the regression line */}
                               {(() => {
                                 const smpArea = padraoConfig.smpArea;
                                 if (smpArea <= 0 || compound.amtPerArea <= 0) return null;
                                 // X = Amount [ug/ml] = Area × Amt/Area  (matches the report table)
                                 const smpAmountUg = smpArea * compound.amtPerArea;
                                 if (smpAmountUg <= 0) return null;
-                                // Y = actual measured sample area (not predicted by regression)
+                                // Y = regression line at X (diamond sits ON the line)
+                                const regArea = compReg.slope * smpAmountUg + compReg.intercept;
                                 const cx = xs(Math.min(smpAmountUg, compCalibXMax));
-                                const cy = ys(Math.min(smpArea, compCalibYMax));
+                                const cy = ys(Math.min(Math.max(regArea, 0), compCalibYMax));
                                 // Diamond shape
                                 const d = 6;
                                 const diamond = `M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`;
                                 return (
                                   <g key="smp-pt">
-                                    {/* Horizontal dashed guide: Y-axis → sample point */}
+                                    {/* Horizontal dashed guide: Y-axis → diamond */}
                                     <line x1={mL} y1={cy} x2={cx} y2={cy} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
-                                    {/* Vertical dashed guide: sample point → X-axis (downward) */}
+                                    {/* Vertical dashed guide: diamond → X-axis */}
                                     <line x1={cx} y1={cy} x2={cx} y2={mT + iH} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
                                     {/* Diamond */}
                                     <path d={diamond} fill="#111" stroke="white" strokeWidth={1.5} />
-                                    {/* Area label — left of chart, Y-axis level */}
+                                    {/* Y label (predicted area on line) — near Y-axis */}
                                     <text
                                       x={mL + 4}
                                       y={cy - 3}
@@ -7247,9 +7248,9 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                       fontWeight="bold"
                                       fill="#333"
                                     >
-                                      {smpArea.toFixed(3)}
+                                      {regArea.toFixed(3)}
                                     </text>
-                                    {/* Amount label — just above X-axis */}
+                                    {/* X label (amount) — above X-axis */}
                                     <text
                                       x={cx + 3}
                                       y={mT + iH - 4}
