@@ -7218,17 +7218,17 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                   <circle cx={xs(s.amount)} cy={ys(s.area)} r={5} fill="#111" stroke="white" strokeWidth={1.5} />
                                 </g>
                               ))}
-                              {/* Sample point from Padrão tab — diamond ON the regression line */}
+                              {/* Sample point from Padrão tab — actual (Amount, Area) like ChemStation */}
                               {(() => {
                                 const smpArea = padraoConfig.smpArea;
-                                if (smpArea <= 0 || compound.amtPerArea <= 0) return null;
-                                // X = Amount [ug/ml] = Area × Amt/Area  (matches the report table)
-                                const smpAmountUg = smpArea * compound.amtPerArea;
-                                if (smpAmountUg <= 0) return null;
-                                // Y = regression line at X (diamond sits ON the line)
-                                const regArea = compReg.slope * smpAmountUg + compReg.intercept;
-                                const cx = xs(Math.min(smpAmountUg, compCalibXMax));
-                                const cy = ys(Math.min(Math.max(regArea, 0), compCalibYMax));
+                                if (smpArea <= 0 || compReg.slope <= 0) return null;
+                                // X = Amount [ug/ml] back-calculated from calibration regression
+                                //   Amount = (Area − b) / m   ← same formula ChemStation uses
+                                const smpAmount = (smpArea - compReg.intercept) / compReg.slope;
+                                if (smpAmount <= 0) return null;
+                                // Y = ACTUAL measured area (NOT the predicted regression value)
+                                const cx = xs(Math.min(smpAmount, compCalibXMax));
+                                const cy = ys(Math.min(Math.max(smpArea, 0), compCalibYMax));
                                 // Diamond shape
                                 const d = 6;
                                 const diamond = `M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`;
@@ -7240,7 +7240,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                     <line x1={cx} y1={cy} x2={cx} y2={mT + iH} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
                                     {/* Diamond */}
                                     <path d={diamond} fill="#111" stroke="white" strokeWidth={1.5} />
-                                    {/* Y label (predicted area on line) — near Y-axis */}
+                                    {/* Y label — actual measured area — near Y-axis */}
                                     <text
                                       x={mL + 4}
                                       y={cy - 3}
@@ -7249,9 +7249,9 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                       fontWeight="bold"
                                       fill="#333"
                                     >
-                                      {regArea.toFixed(3)}
+                                      {smpArea.toFixed(5)}
                                     </text>
-                                    {/* X label (amount) — above X-axis */}
+                                    {/* X label — back-calculated Amount — above X-axis */}
                                     <text
                                       x={cx + 3}
                                       y={mT + iH - 4}
@@ -7260,7 +7260,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                       fontWeight="bold"
                                       fill="#111"
                                     >
-                                      {smpAmountUg.toFixed(3)}
+                                      {smpAmount.toFixed(5)}
                                     </text>
                                   </g>
                                 );
