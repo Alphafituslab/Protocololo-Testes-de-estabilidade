@@ -5807,6 +5807,42 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                             <SmallField label="Curve Type" value={cc.calib.curveType} onChange={e => updateCompoundCalibField(calibCompound.id, "curveType", e.target.value)} />
                             <SmallField label="Origin" value={cc.calib.origin} onChange={e => updateCompoundCalibField(calibCompound.id, "origin", e.target.value)} />
                             <SmallField label="Weight" value={cc.calib.weight} onChange={e => updateCompoundCalibField(calibCompound.id, "weight", e.target.value)} />
+                            {/* ── Padrão de Referência (External Standard) ── */}
+                            <div style={{
+                              borderTop: "1px solid #e2e8f0", marginTop: 8, paddingTop: 7,
+                              fontFamily: "Courier New, monospace", fontSize: 8.5,
+                              color: "#64748b", fontWeight: "bold", marginBottom: 4, letterSpacing: "0.04em",
+                            }}>
+                              PADRÃO DE REFERÊNCIA
+                            </div>
+                            <div className="mb-1.5">
+                              <Label style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", display: "block" }}>
+                                Area [mAU*s]
+                              </Label>
+                              <Input
+                                type="number"
+                                step="0.00001"
+                                value={padraoConfig.stdArea === 0 ? "" : padraoConfig.stdArea}
+                                placeholder="0.00000"
+                                onChange={e => updatePadrao({ stdArea: parseFloat(e.target.value) || 0 }, { changedBy: "operator" })}
+                                className="h-6 px-1.5"
+                                style={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
+                              />
+                            </div>
+                            <div className="mb-1.5">
+                              <Label style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", display: "block" }}>
+                                Amount [ug/ml]
+                              </Label>
+                              <Input
+                                type="number"
+                                step="0.00001"
+                                value={padraoConfig.stdAmountUg === 0 ? "" : padraoConfig.stdAmountUg}
+                                placeholder="0.00000"
+                                onChange={e => updatePadrao({ stdAmountUg: parseFloat(e.target.value) || 0 }, { changedBy: "operator" })}
+                                className="h-6 px-1.5"
+                                style={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
+                              />
+                            </div>
                           </>
                         )}
                       </>
