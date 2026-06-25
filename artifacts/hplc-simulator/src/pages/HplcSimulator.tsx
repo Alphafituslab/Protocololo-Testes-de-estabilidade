@@ -7217,22 +7217,19 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                   <circle cx={xs(s.amount)} cy={ys(s.area)} r={5} fill="#111" stroke="white" strokeWidth={1.5} />
                                 </g>
                               ))}
-                              {/* Sample point from Padrão tab — orange diamond */}
+                              {/* Sample point from Padrão tab — diamond plotted at (Amount, Area) */}
                               {(() => {
-                                if (padraoConfig.smpArea <= 0 || padraoConfig.stdArea <= 0) return null;
-                                const smpFoundUg = (padraoConfig.smpArea / padraoConfig.stdArea) * padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100);
-                                if (smpFoundUg <= 0) return null;
-                                // Y = predicted area from regression line (so diamond sits on the line)
-                                const predictedArea = compReg.slope * smpFoundUg + compReg.intercept;
-                                const cx = xs(Math.min(smpFoundUg, compCalibXMax));
-                                const cy = ys(Math.min(predictedArea, compCalibYMax));
-                                const hasPurity = padraoConfig.smpPurity > 0 && Math.abs(padraoConfig.smpPurity - 100) > 0.01;
-                                const purityLabel = hasPurity ? `${padraoConfig.smpPurity.toFixed(2)}%` : `${((padraoConfig.smpArea / padraoConfig.stdArea) * padraoConfig.stdPurity).toFixed(2)}%`;
-                                const isAbove = cy > mT + 18;
+                                const smpArea = padraoConfig.smpArea;
+                                if (smpArea <= 0 || compound.amtPerArea <= 0) return null;
+                                // X = Amount [ug/ml] = Area × Amt/Area  (matches the report table)
+                                const smpAmountUg = smpArea * compound.amtPerArea;
+                                if (smpAmountUg <= 0) return null;
+                                // Y = actual measured sample area (not predicted by regression)
+                                const cx = xs(Math.min(smpAmountUg, compCalibXMax));
+                                const cy = ys(Math.min(smpArea, compCalibYMax));
                                 // Diamond shape
                                 const d = 6;
                                 const diamond = `M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`;
-                                const xLabelW = smpFoundUg.toFixed(3).length * 5.5 + 6;
                                 return (
                                   <g key="smp-pt">
                                     {/* Horizontal dashed guide: Y-axis → sample point */}
@@ -7241,7 +7238,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                     <line x1={cx} y1={cy} x2={cx} y2={mT + iH} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
                                     {/* Diamond */}
                                     <path d={diamond} fill="#111" stroke="white" strokeWidth={1.5} />
-                                    {/* Area label — inside chart, just right of Y-axis */}
+                                    {/* Area label — left of chart, Y-axis level */}
                                     <text
                                       x={mL + 4}
                                       y={cy - 3}
@@ -7250,9 +7247,9 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                       fontWeight="bold"
                                       fill="#333"
                                     >
-                                      {predictedArea.toFixed(3)}
+                                      {smpArea.toFixed(3)}
                                     </text>
-                                    {/* Found-amount label — inside chart, just above X-axis */}
+                                    {/* Amount label — just above X-axis */}
                                     <text
                                       x={cx + 3}
                                       y={mT + iH - 4}
@@ -7261,7 +7258,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                       fontWeight="bold"
                                       fill="#111"
                                     >
-                                      {smpFoundUg.toFixed(3)}
+                                      {smpAmountUg.toFixed(3)}
                                     </text>
                                   </g>
                                 );
