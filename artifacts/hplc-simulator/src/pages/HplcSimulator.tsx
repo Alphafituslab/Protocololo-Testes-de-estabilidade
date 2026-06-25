@@ -1275,13 +1275,29 @@ function SectionTitle({ title }: { title: string }) {
 
 // ─── Tooltips ─────────────────────────────────────────────────────────────────
 
-function ChromTooltip({ active, payload }: { active?: boolean; payload?: { payload: { time: number; signal: number } }[] }) {
+function ChromTooltip({ active, payload, peakStats }: {
+  active?: boolean;
+  payload?: { payload: { time: number; signal: number } }[];
+  peakStats?: { retentionTime: number; name?: string; displayArea: number; width?: number }[];
+}) {
   if (!active || !payload?.length) return null;
   const { time, signal } = payload[0].payload;
+  // Find nearest peak and show its area if cursor is within ±1.5× half-width
+  const nearest = peakStats?.reduce<{ rt: number; name?: string; area: number; dist: number; w: number } | null>((best, p) => {
+    const dist = Math.abs(p.retentionTime - time);
+    if (!best || dist < best.dist) return { rt: p.retentionTime, name: p.name, area: p.displayArea, dist, w: p.width ?? 0.5 };
+    return best;
+  }, null);
+  const showArea = nearest && nearest.dist <= nearest.w * 1.5;
   return (
-    <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, background: "#fff", border: "1px solid #333", padding: "4px 8px" }}>
+    <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, background: "#fff", border: "1px solid #333", padding: "4px 8px", lineHeight: 1.6 }}>
       <div>{time.toFixed(3)} min</div>
       <div>{signal.toFixed(3)} mAU</div>
+      {showArea && (
+        <div style={{ color: "#1560bd", fontWeight: "bold" }}>
+          Area: {nearest.area.toFixed(5)} mAU·s{nearest.name ? ` — ${nearest.name}` : ""}
+        </div>
+      )}
     </div>
   );
 }
@@ -6676,7 +6692,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                     <YAxis domain={[detector.yAxisAuto ? 0 : (detector.yAxisMin ?? 0), yMax]} ticks={yTicks}
                       tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
                       axisLine={{ stroke: "#333" }} tickLine={{ stroke: "#333" }} width={46} />
-                    <Tooltip content={<ChromTooltip />} />
+                    <Tooltip content={<ChromTooltip peakStats={peakStats} />} />
 
                     {/* Integration boundary lines removed — hidden on screen and print */}
 
