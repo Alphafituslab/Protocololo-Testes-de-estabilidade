@@ -5772,7 +5772,27 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                             const id = e.target.value;
                             setSelectedCalibCompoundId(id);
                             const chosen = activeCompounds.find(ac => ac.id === id);
-                            if (chosen) setCalib(cb => ({ ...cb, compoundName: chosen.name, expRT: chosen.expectedRT }));
+                            if (chosen) {
+                              setCalib(cb => ({ ...cb, compoundName: chosen.name, expRT: chosen.expectedRT }));
+                              // ── Auto-fill External Standard from compound's calibration data ──
+                              // Pega o padrão médio da curva do composto e replica em stdArea/stdAmountUg
+                              const chosenCC = getCC(id);
+                              const stds = chosenCC.standards;
+                              if (stds.length > 0) {
+                                const mid = stds[Math.floor(stds.length / 2)];
+                                const patch: Partial<PadraoConfig> = {
+                                  compoundName: chosen.name,
+                                  stdArea:      mid.area,
+                                  stdAmountUg:  mid.amount,
+                                  stdPurity:    chosen.certifiedPurity > 0 ? chosen.certifiedPurity : 99.5,
+                                };
+                                // ANVISA fields — só auto-preenche se o composto tem dados
+                                if (chosen.anvisaMinMg && chosen.anvisaMinMg > 0) patch.anvisaMinMg = chosen.anvisaMinMg;
+                                if (chosen.anvisaMaxMg && chosen.anvisaMaxMg > 0) patch.anvisaMaxMg = chosen.anvisaMaxMg;
+                                if (chosen.anvisaNorm)                             patch.anvisaNorm  = chosen.anvisaNorm;
+                                updatePadrao(patch);
+                              }
+                            }
                           }}
                           className="w-full h-6 text-xs font-mono border border-input rounded px-1 bg-background mb-3"
                         >
