@@ -10307,14 +10307,6 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                         "Standard"
                       )}
                     />
-                    {purityVsDecl !== null && padraoConfig.smpDeclaredAmountUg < foundAmountUg * 100 && (
-                      <ResultCell
-                        value={`${purityVsDecl.toFixed(2)} %`}
-                        label="% Found vs. Declared (µg)"
-                        color={purityVsDecl >= 98 ? "#16a34a" : purityVsDecl >= 90 ? "#d97706" : "#dc2626"}
-                        fieldId="padrao-row-smpDeclared"
-                      />
-                    )}
                   </div>
 
                   {/* Detailed table */}
@@ -10340,9 +10332,6 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                           { label: "Found amount — purity (µg)", std: "—", smp: foundAmountFromPurityUg.toFixed(4), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpPurity" },
                           { label: "Found amount — purity (mg)", std: "—", smp: foundAmountFromPurityMg!.toFixed(6), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpPurity" },
                         ] : []),
-                        ...(purityVsDecl !== null && padraoConfig.smpDeclaredAmountUg < foundAmountUg * 100
-                          ? [{ label: "% Found vs. Declared (µg)", std: "100.00", smp: purityVsDecl.toFixed(2), ratio: "", stdFieldId: "padrao-row-smpDeclared", smpFieldId: "padrao-row-smpDeclared" }]
-                          : []),
                       ] as { label: string; std: string; smp: string; ratio: string; stdFieldId?: string; smpFieldId?: string }[]).map((row, i) => (
                         <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                           <td style={{ padding: "5px 10px", color: "#334155" }}>{row.label}</td>
