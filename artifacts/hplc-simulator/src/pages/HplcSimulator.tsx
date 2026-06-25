@@ -10445,14 +10445,22 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                     return (
                       <div style={{ background: "#f0f9ff", padding: "10px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1.4fr", gap: "8px 16px", borderBottom: "1px solid #bae6fd" }}>
                         <div>
-                          <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Qtd. declarada no rótulo (mg)</div>
+                          <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3, display: "flex", alignItems: "center" }}>
+                            Qtd. declarada no rótulo ({unitLabel})<UnitToggle />
+                          </div>
                           <input
-                            type="number" min="0" step="0.01"
-                            placeholder="ex: 500.00"
-                            value={labelMg > 0 ? labelMg : ""}
-                            onChange={e => updatePadrao({ anvisaLabelAmountMg: parseFloat(e.target.value) || 0 })}
+                            type="number" min="0" step={useUg ? "1" : "0.01"}
+                            placeholder={useUg ? "ex: 40000" : "ex: 40.00"}
+                            value={useUg ? (labelMg > 0 ? labelMg * 1000 : "") : (labelMg > 0 ? labelMg : "")}
+                            onChange={e => {
+                              const v = parseFloat(e.target.value) || 0;
+                              updatePadrao({ anvisaLabelAmountMg: useUg ? v / 1000 : v });
+                            }}
                             style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
                           />
+                          {useUg && labelMg > 0 && (
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#64748b", marginTop: 1 }}>= {labelMg.toFixed(4)} mg</div>
+                          )}
                         </div>
                         <div>
                           <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3, display: "flex", alignItems: "center" }}>
@@ -10514,53 +10522,62 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                   {/* Result display */}
                   <div style={{ background: "#fff", padding: "12px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px 20px" }}>
                     {/* Encontrado — editável → back-calcula smpArea */}
-                    <div>
-                      <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>
-                        Encontrado na análise
-                        <span style={{ marginLeft: 5, fontWeight: "normal", color: "#64748b", fontSize: 8, textTransform: "none" }}>✏ editável</span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={foundMgAnv > 0 ? foundMgAnv.toFixed(2) : ""}
-                          placeholder="0.00"
-                          onChange={e => {
-                            const enteredMg = parseFloat(e.target.value) || 0;
-                            updatePadrao({ anvisaFoundMgOverride: enteredMg });
-                          }}
-                          style={{
-                            width: "100%", fontFamily: "Courier New, monospace",
-                            fontSize: 18, fontWeight: 900, color: "#0c4a6e",
-                            border: "none", borderBottom: "2px dashed #bae6fd",
-                            background: "transparent", outline: "none", padding: "0 2px",
-                          }}
-                        />
-                        <span style={{ fontSize: 12, fontWeight: "bold", color: "#0c4a6e", whiteSpace: "nowrap" }}>mg</span>
-                      </div>
-                      <div style={{ fontSize: 8.5, color: "#0369a1", marginTop: 3 }}>
-                        = {(foundMgAnv * 1000).toFixed(2)} µg
-                      </div>
-                      {padraoConfig.anvisaFoundMgOverride > 0 ? (
-                        <div style={{ fontSize: 8, color: "#16a34a", marginTop: 3, display: "flex", alignItems: "center", gap: 5 }}>
-                          <span>✓ valor aplicado da Conc. Inicial</span>
-                          <button
-                            onClick={() => updatePadrao({ anvisaFoundMgOverride: 0 })}
-                            style={{ fontSize: 7.5, padding: "1px 5px", border: "1px solid #86efac", borderRadius: 3, background: "#f0fdf4", cursor: "pointer", color: "#15803d" }}
-                          >limpar</button>
+                    {(() => {
+                      const useUgR = padraoConfig.anvisaUseUg;
+                      const dispFound = useUgR ? foundMgAnv * 1000 : foundMgAnv;
+                      const unitR = useUgR ? "µg" : "mg";
+                      const altUnit = useUgR ? "mg" : "µg";
+                      const altFound = useUgR ? foundMgAnv.toFixed(4) : (foundMgAnv * 1000).toFixed(2);
+                      return (
+                      <div>
+                        <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>
+                          Encontrado na análise
+                          <span style={{ marginLeft: 5, fontWeight: "normal", color: "#64748b", fontSize: 8, textTransform: "none" }}>✏ editável</span>
                         </div>
-                      ) : hasFound && padraoConfig.smpArea > 0 ? (
-                        <div style={{ fontSize: 8, color: "#64748b", marginTop: 1 }}>
-                          via área: {padraoConfig.smpArea.toFixed(3)} mAU·s
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={dispFound > 0 ? dispFound.toFixed(2) : ""}
+                            placeholder="0.00"
+                            onChange={e => {
+                              const entered = parseFloat(e.target.value) || 0;
+                              updatePadrao({ anvisaFoundMgOverride: useUgR ? entered / 1000 : entered });
+                            }}
+                            style={{
+                              width: "100%", fontFamily: "Courier New, monospace",
+                              fontSize: 18, fontWeight: 900, color: "#0c4a6e",
+                              border: "none", borderBottom: "2px dashed #bae6fd",
+                              background: "transparent", outline: "none", padding: "0 2px",
+                            }}
+                          />
+                          <span style={{ fontSize: 12, fontWeight: "bold", color: "#0c4a6e", whiteSpace: "nowrap" }}>{unitR}</span>
                         </div>
-                      ) : null}
-                      {labelMg > 0 && hasFound && (
-                        <div style={{ fontSize: 9, color: "#64748b", marginTop: 2 }}>
-                          rótulo: {labelMg.toFixed(2)} mg
+                        <div style={{ fontSize: 8.5, color: "#0369a1", marginTop: 3 }}>
+                          = {altFound} {altUnit}
                         </div>
-                      )}
-                    </div>
+                        {padraoConfig.anvisaFoundMgOverride > 0 ? (
+                          <div style={{ fontSize: 8, color: "#16a34a", marginTop: 3, display: "flex", alignItems: "center", gap: 5 }}>
+                            <span>✓ valor aplicado da Conc. Inicial</span>
+                            <button
+                              onClick={() => updatePadrao({ anvisaFoundMgOverride: 0 })}
+                              style={{ fontSize: 7.5, padding: "1px 5px", border: "1px solid #86efac", borderRadius: 3, background: "#f0fdf4", cursor: "pointer", color: "#15803d" }}
+                            >limpar</button>
+                          </div>
+                        ) : hasFound && padraoConfig.smpArea > 0 ? (
+                          <div style={{ fontSize: 8, color: "#64748b", marginTop: 1 }}>
+                            via área: {padraoConfig.smpArea.toFixed(3)} mAU·s
+                          </div>
+                        ) : null}
+                        {labelMg > 0 && hasFound && (
+                          <div style={{ fontSize: 9, color: "#64748b", marginTop: 2 }}>
+                            rótulo: {useUgR ? `${(labelMg * 1000).toFixed(2)} µg` : `${labelMg.toFixed(2)} mg`}
+                          </div>
+                        )}
+                      </div>
+                      );
+                    })()}
 
                     {/* % vs rótulo */}
                     <div>
@@ -10584,40 +10601,55 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                     </div>
 
                     {/* Faixa ANVISA */}
-                    <div>
-                      <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>
-                        Faixa de aceitação ANVISA
-                      </div>
-                      {(minMg > 0 || maxMg > 0) ? (
-                        <>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: "#0c4a6e", marginBottom: 4 }}>
-                            {minMg > 0 ? `${minMg.toFixed(2)} mg` : "—"} – {maxMg > 0 ? `${maxMg.toFixed(2)} mg` : "—"}
-                          </div>
-                          <div style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>{norm}</div>
-                          {hasFound && (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                              {inMin !== null && (
-                                <span style={{ fontSize: 9, fontWeight: "bold", color: inMin ? "#16a34a" : "#dc2626" }}>
-                                  {inMin ? "✓" : "✗"} {inMin ? `acima do mín. (${minMg.toFixed(2)} mg)` : `abaixo do mín. (${minMg.toFixed(2)} mg)`}
-                                </span>
-                              )}
-                              {inMax !== null && (
-                                <span style={{ fontSize: 9, fontWeight: "bold", color: inMax ? "#16a34a" : "#dc2626" }}>
-                                  {inMax ? "✓" : "✗"} {inMax ? `abaixo do máx. (${maxMg.toFixed(2)} mg)` : `acima do máx. (${maxMg.toFixed(2)} mg)`}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div style={{ fontSize: 10, color: "#94a3b8", fontStyle: "italic", marginTop: 2 }}>
-                          informe a faixa mín. e máx.
+                    {(() => {
+                      const useUgF = padraoConfig.anvisaUseUg;
+                      const unitF = useUgF ? "µg" : "mg";
+                      const fmtMin = useUgF ? (minMg * 1000).toFixed(2) : minMg.toFixed(2);
+                      const fmtMax = useUgF ? (maxMg * 1000).toFixed(2) : maxMg.toFixed(2);
+                      return (
+                      <div>
+                        <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>
+                          Faixa de aceitação ANVISA
                         </div>
-                      )}
-                    </div>
+                        {(minMg > 0 || maxMg > 0) ? (
+                          <>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#0c4a6e", marginBottom: 4 }}>
+                              {minMg > 0 ? `${fmtMin} ${unitF}` : "—"} – {maxMg > 0 ? `${fmtMax} ${unitF}` : "—"}
+                            </div>
+                            <div style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>{norm}</div>
+                            {hasFound && (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                                {inMin !== null && (
+                                  <span style={{ fontSize: 9, fontWeight: "bold", color: inMin ? "#16a34a" : "#dc2626" }}>
+                                    {inMin ? "✓" : "✗"} {inMin ? `acima do mín. (${fmtMin} ${unitF})` : `abaixo do mín. (${fmtMin} ${unitF})`}
+                                  </span>
+                                )}
+                                {inMax !== null && (
+                                  <span style={{ fontSize: 9, fontWeight: "bold", color: inMax ? "#16a34a" : "#dc2626" }}>
+                                    {inMax ? "✓" : "✗"} {inMax ? `abaixo do máx. (${fmtMax} ${unitF})` : `acima do máx. (${fmtMax} ${unitF})`}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div style={{ fontSize: 10, color: "#94a3b8", fontStyle: "italic", marginTop: 2 }}>
+                            informe a faixa mín. e máx.
+                          </div>
+                        )}
+                      </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Status footer */}
+                  {(() => {
+                    const useUgS = padraoConfig.anvisaUseUg;
+                    const unitS = useUgS ? "µg" : "mg";
+                    const fFound = useUgS ? (foundMgAnv * 1000).toFixed(2) : foundMgAnv.toFixed(2);
+                    const fMin   = useUgS ? (minMg * 1000).toFixed(2) : minMg.toFixed(2);
+                    const fMax   = useUgS ? (maxMg * 1000).toFixed(2) : maxMg.toFixed(2);
+                    return (
                   <div style={{
                     background: inRange === null ? "#f1f5f9" : inRange ? "#dcfce7" : "#fef2f2",
                     padding: "7px 16px", borderTop: "1px solid #bae6fd",
@@ -10633,7 +10665,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                         <span style={{ fontWeight: "bold", color: "#16a34a", fontSize: 12 }}>✓ CONFORME — dentro da faixa {norm}</span>
                         {hasFound && minMg > 0 && maxMg > 0 && (
                           <span style={{ color: "#15803d", marginLeft: 8 }}>
-                            {foundMgAnv.toFixed(2)} mg está entre {minMg.toFixed(2)} e {maxMg.toFixed(2)} mg
+                            {fFound} {unitS} está entre {fMin} e {fMax} {unitS}
                           </span>
                         )}
                       </>
@@ -10641,14 +10673,16 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                       <>
                         <span style={{ fontWeight: "bold", color: "#dc2626", fontSize: 12 }}>✗ NÃO CONFORME — fora da faixa {norm}</span>
                         {inMin === false && (
-                          <span style={{ color: "#dc2626" }}>encontrado {foundMgAnv.toFixed(2)} mg &lt; mín {minMg.toFixed(2)} mg</span>
+                          <span style={{ color: "#dc2626" }}>encontrado {fFound} {unitS} &lt; mín {fMin} {unitS}</span>
                         )}
                         {inMax === false && (
-                          <span style={{ color: "#dc2626" }}>encontrado {foundMgAnv.toFixed(2)} mg &gt; máx {maxMg.toFixed(2)} mg</span>
+                          <span style={{ color: "#dc2626" }}>encontrado {fFound} {unitS} &gt; máx {fMax} {unitS}</span>
                         )}
                       </>
                     )}
                   </div>
+                    );
+                  })()}
                 </div>
               );
             })()}
