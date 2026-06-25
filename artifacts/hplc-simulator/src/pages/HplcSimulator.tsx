@@ -6793,8 +6793,9 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                     const aptStr = amtPerArea > 0 ? fmtSci2(amtPerArea, -2).padStart(10) : "".padStart(10);
                     const amtStr = effectiveAmt > 0 ? effectiveAmt.toFixed(5).padStart(10) : "".padStart(10);
                     const grpStr = (p.grp || "").padEnd(2);
+                    const calibCompound = activeCompounds.find(c => c.id === (selectedCalibCompoundId ?? activeCompounds[0]?.id));
                     const displayName = isSmpPeak
-                      ? (padraoConfig.compoundName || p.name)
+                      ? (calibCompound?.name || padraoConfig.compoundName || p.name)
                       : p.name;
                     return (
                       <div key={p.id} style={{ whiteSpace: "pre" }}>
