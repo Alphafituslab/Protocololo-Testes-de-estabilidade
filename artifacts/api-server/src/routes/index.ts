@@ -20,6 +20,7 @@ import bibliographicReferencesRouter from "./bibliographic-references";
 import snapshotsRouter from "./snapshots";
 import globalSnapshotsRouter from "./global-snapshots";
 import ativoReferencesRouter from "./ativo-references";
+import hplcSessionsRouter from "./hplc-sessions";
 
 const router: IRouter = Router();
 
