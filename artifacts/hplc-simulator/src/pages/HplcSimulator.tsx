@@ -7231,16 +7231,27 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                   <circle cx={xs(s.amount)} cy={ys(s.area)} r={5} fill="#111" stroke="white" strokeWidth={1.5} />
                                 </g>
                               ))}
-                              {/* Sample point from Padrão tab — actual (Amount, Area) like ChemStation */}
+                              {/* Sample point ◆ — actual (Amount, Area) like ChemStation */}
                               {(() => {
-                                const smpArea = padraoConfig.smpArea;
+                                // Y source priority:
+                                //   1. padraoConfig.smpArea (External Standard sample area)
+                                //   2. Matching chromatogram peak for this compound (by name or RT)
+                                let smpArea = padraoConfig.smpArea;
+                                if (smpArea <= 0) {
+                                  const matchPk = peaks.find(p => {
+                                    const nameMatch = !!(p.name && (
+                                      p.name.toLowerCase().includes(compound.name.toLowerCase()) ||
+                                      compound.name.toLowerCase().includes(p.name.toLowerCase())
+                                    ));
+                                    const rtMatch = Math.abs(p.retentionTime - compound.expectedRT) <= compound.rtTol;
+                                    return nameMatch || rtMatch;
+                                  });
+                                  if (matchPk) smpArea = matchPk.manualArea > 0 ? matchPk.manualArea : computeArea(matchPk);
+                                }
                                 if (smpArea <= 0) return null;
-                                // X = Amount [ug/ml]:
-                                //   Priority 1 — padraoFoundUg (the value already shown in the
-                                //                Amount column of the chromatogram table; matches
-                                //                what ChemStation displays for the sample peak).
-                                //   Priority 2 — regression back-calc fallback when no External
-                                //                Standard data exists yet.
+                                // X source priority:
+                                //   1. padraoFoundUg — matches Amount column in chromatogram table
+                                //   2. Regression back-calc from calibration curve
                                 const smpAmount = padraoFoundUg > 0
                                   ? padraoFoundUg
                                   : (compReg.slope > 0 ? Math.max(0, (smpArea - compReg.intercept) / compReg.slope) : 0);
