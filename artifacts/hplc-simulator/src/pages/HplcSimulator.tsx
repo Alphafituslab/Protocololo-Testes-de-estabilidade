@@ -10420,7 +10420,18 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                 ? padraoConfig.anvisaFoundMgOverride
                 : foundAmountMg;
               const hasFound   = foundMgAnv > 0;
-              const pctLabel   = labelMg > 0 && hasFound ? (foundMgAnv / labelMg) * 100 : null;
+              // pctLabel must match "Teor (recovery)" exactly — use padraoFoundUg / smpDeclaredAmountUg
+              // which is the same formula as the Overage section uses for `recovery`.
+              const _smpDeclaredUg = padraoConfig.smpDeclaredAmountUg;
+              const pctLabel: number | null = hasFound
+                ? (padraoConfig.anvisaFoundMgOverride > 0 && labelMg > 0
+                  ? (foundMgAnv / labelMg) * 100   // override: compute vs label
+                  : _smpDeclaredUg > 0
+                  ? (padraoFoundUg / _smpDeclaredUg) * 100   // same as recovery
+                  : padraoFoundPurity > 0
+                  ? padraoFoundPurity   // same as recovery fallback
+                  : (labelMg > 0 ? (foundMgAnv / labelMg) * 100 : null))
+                : null;
               const inMin      = minMg > 0 ? foundMgAnv >= minMg : null;
               const inMax      = maxMg > 0 ? foundMgAnv <= maxMg : null;
               const inRange    = (inMin !== null || inMax !== null)
@@ -10571,27 +10582,34 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                       const dispFound = useUgR ? foundMgAnv * 1000 : foundMgAnv;
                       const unitR = useUgR ? "µg" : "mg";
                       const altUnit = useUgR ? "mg" : "µg";
-                      const altFound = useUgR ? foundMgAnv.toFixed(4) : (foundMgAnv * 1000).toFixed(2);
+                      const altFound = useUgR ? foundMgAnv.toFixed(5) : (foundMgAnv * 1000).toFixed(5);
+                      const parseL = (s: string) => parseFloat(s.trim().replace(/,/g, ".")) || 0;
+                      const fmtFound = dispFound > 0 ? dispFound.toFixed(5) : "";
                       return (
                       <div>
-                        <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>
+                        <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>
                           Encontrado na análise
-                          <span style={{ marginLeft: 5, fontWeight: "normal", color: "#64748b", fontSize: 8, textTransform: "none" }}>✏ editável</span>
+                          <span style={{ fontWeight: "normal", color: "#64748b", fontSize: 8, textTransform: "none" }}>✏ editável</span>
+                          <button
+                            onClick={() => updatePadrao({ anvisaUseUg: !useUgR })}
+                            title={useUgR ? "Trocar para mg" : "Trocar para µg"}
+                            style={{ fontFamily: "Courier New, monospace", fontSize: 7.5, padding: "1px 5px", border: "1px solid #7dd3fc", borderRadius: 3, background: useUgR ? "#0369a1" : "#e0f2fe", color: useUgR ? "#fff" : "#0369a1", cursor: "pointer", fontWeight: 600 }}
+                          >{useUgR ? "µg ↔ mg" : "mg ↔ µg"}</button>
                         </div>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
                           <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={dispFound > 0 ? dispFound.toFixed(2) : ""}
-                            placeholder="0.00"
-                            onChange={e => {
-                              const entered = parseFloat(e.target.value) || 0;
+                            key={`found-${useUgR}-${fmtFound}`}
+                            type="text"
+                            inputMode="decimal"
+                            defaultValue={fmtFound}
+                            placeholder="0,00000"
+                            onBlur={e => {
+                              const entered = parseL(e.target.value);
                               updatePadrao({ anvisaFoundMgOverride: useUgR ? entered / 1000 : entered });
                             }}
                             style={{
                               width: "100%", fontFamily: "Courier New, monospace",
-                              fontSize: 18, fontWeight: 900, color: "#0c4a6e",
+                              fontSize: 16, fontWeight: 900, color: "#0c4a6e",
                               border: "none", borderBottom: "2px dashed #bae6fd",
                               background: "transparent", outline: "none", padding: "0 2px",
                             }}
@@ -10616,7 +10634,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                         ) : null}
                         {labelMg > 0 && hasFound && (
                           <div style={{ fontSize: 9, color: "#64748b", marginTop: 2 }}>
-                            rótulo: {useUgR ? `${(labelMg * 1000).toFixed(2)} µg` : `${labelMg.toFixed(2)} mg`}
+                            rótulo: {useUgR ? `${(labelMg * 1000).toFixed(5)} µg` : `${labelMg.toFixed(5)} mg`}
                           </div>
                         )}
                       </div>
