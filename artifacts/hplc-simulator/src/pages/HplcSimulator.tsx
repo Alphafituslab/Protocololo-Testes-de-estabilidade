@@ -2355,10 +2355,10 @@ function buildChromatogramPng(
       ctx.fillText(t.toFixed(1), gx, chartTop + CHART_H + 2);
     }
 
-    // "min" label
+    // "min" label — right-aligned inside the right edge of the chart
     ctx.font = FONT_SM; ctx.fillStyle = "#555";
-    ctx.textAlign = "left"; ctx.textBaseline = "top";
-    ctx.fillText("min", ML_c + cW + 4, chartTop + CHART_H + 2);
+    ctx.textAlign = "right"; ctx.textBaseline = "top";
+    ctx.fillText("min", ML_c + cW - 2, chartTop + CHART_H + 2);
 
     // Axes
     ctx.strokeStyle = "#111"; ctx.lineWidth = 1;
@@ -6817,7 +6817,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                     <XAxis dataKey="time" type="number" domain={[0, detector.runTime]} ticks={xTicks}
                       tickFormatter={v => v.toFixed(1)}
                       tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
-                      label={{ value: "min", position: "right", offset: 8, fontFamily: "Courier New, monospace", fontSize: 11 }}
+                      label={{ value: "min", position: "insideBottomRight", offset: 0, dy: 16, fontFamily: "Courier New, monospace", fontSize: 11 }}
                       axisLine={{ stroke: "#333" }} tickLine={{ stroke: "#333" }} />
                     <YAxis domain={[detector.yAxisAuto ? 0 : (detector.yAxisMin ?? 0), yMax]} ticks={yTicks}
                       tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
@@ -7764,7 +7764,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                         <XAxis dataKey="time" type="number" domain={[0, runTime]}
                           tickFormatter={(v: number) => v.toFixed(1)}
                           tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
-                          label={{ value: "min", position: "right", offset: 8, fontFamily: "Courier New, monospace", fontSize: 11 }}
+                          label={{ value: "min", position: "insideBottomRight", offset: 0, dy: 16, fontFamily: "Courier New, monospace", fontSize: 11 }}
                           axisLine={{ stroke: "#333" }} tickLine={{ stroke: "#333" }} />
                         <YAxis domain={[0, overlayYMax]}
                           tick={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
