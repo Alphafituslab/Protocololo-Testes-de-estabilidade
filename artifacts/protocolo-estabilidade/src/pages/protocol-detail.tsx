@@ -3733,9 +3733,13 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       const maxIsNE = isNEorLivre(lim.max ?? "");
                       const t0Num = parseFloat(ov.t0);
                       const degradation = !isNaN(t0Num) && t0Num > 0 ? ((t0Num - t6Num) / t0Num) * 100 : null;
-                      const belowMin = minNum !== null && actualMg < minNum;
-                      const aboveMax = maxNum !== null && actualMg > maxNum;
-                      const highDegradation = degradation !== null && degradation > 20;
+                      const belowMin = minNum !== null && !minIsNE && actualMg < minNum;
+                      const aboveMax = maxNum !== null && !maxIsNE && actualMg > maxNum;
+                      // highDegradation (ICH 80% = >20% queda de T0) só é usado como fallback
+                      // quando NÃO há spec min real cadastrada. Se lim.min está preenchido,
+                      // belowMin já cobre o critério mínimo com o valor real da faixa.
+                      const hasExplicitMin = minNum !== null && !minIsNE;
+                      const highDegradation = !hasExplicitMin && degradation !== null && degradation > 20;
                       const isOutOfRange = belowMin || aboveMax || highDegradation;
                       // Build range label — "NE" (Não Especificado) displays as "Livre"
                       const faixaLabel = (() => {
