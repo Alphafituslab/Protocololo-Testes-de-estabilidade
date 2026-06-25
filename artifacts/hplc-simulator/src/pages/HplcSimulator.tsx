@@ -7162,98 +7162,126 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                 )}
               </div>
 
-              {/* Table */}
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10.5 }}>
-                  <thead>
-                    <tr style={{ borderBottom: "2px solid #333", background: "#f4f4f4" }}>
-                      {["Compound", "λ (nm)", "±λ", "RT (min)", "±RT", "Amt/Area", "Units", "Spec Min", "Spec Max", "Pureza cert. (%)", "Method", "Notes", ""].map(h => (
-                        <th key={h} style={{ textAlign: "left", padding: "4px 8px", fontFamily: "Courier New, monospace", fontWeight: "bold", whiteSpace: "nowrap" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeCompounds.map((c, idx) => {
-                      const wavMatch = Math.abs(c.wavelength - detector.sigWavelength) <= c.waveTol;
-                      const peakMatch = peaks.find(p => Math.abs(p.retentionTime - c.expectedRT) <= c.rtTol && wavMatch);
-                      const amount = peakMatch
-                        ? parseFloat(((peakMatch.manualArea > 0 ? peakMatch.manualArea : computeArea(peakMatch)) * c.amtPerArea).toFixed(4))
-                        : null;
-                      const inSpec = amount !== null && c.specMin > 0 && c.specMax > 0
-                        ? amount >= c.specMin && amount <= c.specMax
-                        : null;
-                      return (
-                        <tr key={c.id} style={{ borderBottom: "1px solid #ddd", background: idx % 2 === 0 ? "#fff" : "#fafafa" }}>
-                          <td style={{ padding: "5px 8px", fontWeight: "bold" }}>{c.name}</td>
-                          <td style={{ padding: "5px 8px", textAlign: "center" }}>
-                            <span style={{
-                              background: wavMatch ? "#dcfce7" : "#f3f4f6",
-                              color: wavMatch ? "#166534" : "#555",
-                              padding: "1px 5px", borderRadius: 3, fontWeight: wavMatch ? "bold" : "normal"
-                            }}>{c.wavelength}</span>
-                          </td>
-                          <td style={{ padding: "5px 8px", textAlign: "center", color: "#888" }}>±{c.waveTol}</td>
-                          <td style={{ padding: "5px 8px", textAlign: "center" }}>{c.expectedRT.toFixed(3)}</td>
-                          <td style={{ padding: "5px 8px", textAlign: "center", color: "#888" }}>±{c.rtTol}</td>
-                          <td style={{ padding: "5px 8px", textAlign: "right" }}>{c.amtPerArea.toFixed(5)}</td>
-                          <td style={{ padding: "5px 8px" }}>{c.units}</td>
-                          <td style={{ padding: "5px 8px", textAlign: "right", color: c.specMin > 0 ? "#111" : "#bbb" }}>
-                            {c.specMin > 0 ? c.specMin.toFixed(1) : "—"}
-                          </td>
-                          <td style={{ padding: "5px 8px", textAlign: "right", color: c.specMax > 0 ? "#111" : "#bbb" }}>
-                            {c.specMax > 0 ? c.specMax.toFixed(1) : "—"}
-                          </td>
-                          <td style={{ padding: "5px 8px", textAlign: "center" }}>
-                            <span style={{
-                              background: (c.certifiedPurity || 99.5) >= 99 ? "#dcfce7" : (c.certifiedPurity || 99.5) >= 95 ? "#fef9c3" : "#fee2e2",
-                              color: (c.certifiedPurity || 99.5) >= 99 ? "#166534" : (c.certifiedPurity || 99.5) >= 95 ? "#713f12" : "#b91c1c",
-                              padding: "1px 6px", borderRadius: 3, fontWeight: "bold", fontSize: 10,
-                            }}>
-                              {(c.certifiedPurity || 99.5).toFixed(2)} %
-                            </span>
-                          </td>
-                          <td style={{ padding: "5px 8px", color: "#666", fontSize: 10 }}>{c.method}</td>
-                          <td style={{ padding: "5px 8px", color: "#888", fontSize: 9.5, maxWidth: 180, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.notes}</td>
-                          <td style={{ padding: "5px 8px", whiteSpace: "nowrap" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                              {/* Status pill */}
-                              {peakMatch ? (
-                                <span style={{ display: "flex", alignItems: "center", gap: 2, fontSize: 9, padding: "1px 5px", borderRadius: 3, background: inSpec === null ? "#e0f2fe" : inSpec ? "#dcfce7" : "#fee2e2", color: inSpec === null ? "#0369a1" : inSpec ? "#166534" : "#b91c1c", fontWeight: "bold", whiteSpace: "nowrap" }}>
-                                  {inSpec === null
-                                    ? <><CheckCircle2 style={{ width: 10, height: 10 }} /> {amount?.toFixed(2)} {c.units}</>
-                                    : inSpec
-                                      ? <><CheckCircle2 style={{ width: 10, height: 10 }} /> {amount?.toFixed(2)} ✓</>
-                                      : <><XCircle style={{ width: 10, height: 10 }} /> {amount?.toFixed(2)} ✗</>
-                                  }
-                                </span>
-                              ) : (
-                                <span style={{ fontSize: 9, color: "#aaa", whiteSpace: "nowrap" }}>no peak</span>
-                              )}
-                              {/* Add to chrom button */}
-                              <Button size="sm" variant="ghost" title="Add to chromatogram"
-                                className="h-5 w-5 p-0 text-blue-600 hover:text-blue-800"
-                                onClick={() => addCompoundAsPeak(c)}>
-                                <Plus className="h-3 w-3" />
+              {/* Table — table-layout:fixed para caber sem scroll lateral */}
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10, tableLayout: "fixed" }}>
+                <colgroup>
+                  <col style={{ width: "13%" }} /> {/* Compound */}
+                  <col style={{ width: "5%" }} />  {/* λ */}
+                  <col style={{ width: "4%" }} />  {/* ±λ */}
+                  <col style={{ width: "6%" }} />  {/* RT */}
+                  <col style={{ width: "4%" }} />  {/* ±RT */}
+                  <col style={{ width: "8%" }} />  {/* Amt/Area */}
+                  <col style={{ width: "5%" }} />  {/* Units */}
+                  <col style={{ width: "5%" }} />  {/* Min */}
+                  <col style={{ width: "5%" }} />  {/* Max */}
+                  <col style={{ width: "7%" }} />  {/* Pureza % */}
+                  <col style={{ width: "9%" }} />  {/* Method */}
+                  <col style={{ width: "10%" }} /> {/* Notes */}
+                  <col style={{ width: "19%" }} /> {/* Status + ações */}
+                </colgroup>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #333", background: "#f4f4f4" }}>
+                    {[
+                      "Compound", "λ nm", "±λ", "RT min", "±RT",
+                      "Amt/Area", "Units", "Min", "Max",
+                      "Pureza %", "Method", "Notes", "Status / Ações",
+                    ].map(h => (
+                      <th key={h} style={{
+                        textAlign: "left", padding: "3px 5px",
+                        fontFamily: "Courier New, monospace", fontWeight: "bold",
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: 9.5,
+                      }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeCompounds.map((c, idx) => {
+                    const wavMatch = Math.abs(c.wavelength - detector.sigWavelength) <= c.waveTol;
+                    const peakMatch = peaks.find(p => Math.abs(p.retentionTime - c.expectedRT) <= c.rtTol && wavMatch);
+                    const amount = peakMatch
+                      ? parseFloat(((peakMatch.manualArea > 0 ? peakMatch.manualArea : computeArea(peakMatch)) * c.amtPerArea).toFixed(4))
+                      : null;
+                    const inSpec = amount !== null && c.specMin > 0 && c.specMax > 0
+                      ? amount >= c.specMin && amount <= c.specMax
+                      : null;
+                    const td: React.CSSProperties = { padding: "3px 5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
+                    return (
+                      <tr key={c.id} style={{ borderBottom: "1px solid #ddd", background: idx % 2 === 0 ? "#fff" : "#fafafa" }}>
+                        <td style={{ ...td, fontWeight: "bold" }} title={c.name}>{c.name}</td>
+                        <td style={{ ...td, textAlign: "center" }}>
+                          <span style={{
+                            background: wavMatch ? "#dcfce7" : "#f3f4f6",
+                            color: wavMatch ? "#166534" : "#555",
+                            padding: "0 4px", borderRadius: 3, fontWeight: wavMatch ? "bold" : "normal",
+                          }}>{c.wavelength}</span>
+                        </td>
+                        <td style={{ ...td, textAlign: "center", color: "#888" }}>±{c.waveTol}</td>
+                        <td style={{ ...td, textAlign: "center" }}>{c.expectedRT.toFixed(2)}</td>
+                        <td style={{ ...td, textAlign: "center", color: "#888" }}>±{c.rtTol}</td>
+                        <td style={{ ...td, textAlign: "right" }}>{c.amtPerArea.toFixed(4)}</td>
+                        <td style={{ ...td }}>{c.units}</td>
+                        <td style={{ ...td, textAlign: "right", color: c.specMin > 0 ? "#111" : "#bbb" }}>
+                          {c.specMin > 0 ? c.specMin.toFixed(1) : "—"}
+                        </td>
+                        <td style={{ ...td, textAlign: "right", color: c.specMax > 0 ? "#111" : "#bbb" }}>
+                          {c.specMax > 0 ? c.specMax.toFixed(1) : "—"}
+                        </td>
+                        <td style={{ ...td, textAlign: "center" }}>
+                          <span style={{
+                            background: (c.certifiedPurity || 99.5) >= 99 ? "#dcfce7" : (c.certifiedPurity || 99.5) >= 95 ? "#fef9c3" : "#fee2e2",
+                            color: (c.certifiedPurity || 99.5) >= 99 ? "#166534" : (c.certifiedPurity || 99.5) >= 95 ? "#713f12" : "#b91c1c",
+                            padding: "0 5px", borderRadius: 3, fontWeight: "bold", fontSize: 9,
+                          }}>
+                            {(c.certifiedPurity || 99.5).toFixed(1)}%
+                          </span>
+                        </td>
+                        <td style={{ ...td, color: "#666" }} title={c.method}>{c.method}</td>
+                        <td style={{ ...td, color: "#888", fontSize: 9 }} title={c.notes}>{c.notes}</td>
+                        <td style={{ padding: "2px 4px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 3, flexWrap: "nowrap" }}>
+                            {/* Status pill */}
+                            {peakMatch ? (
+                              <span style={{
+                                display: "flex", alignItems: "center", gap: 1, fontSize: 9,
+                                padding: "1px 4px", borderRadius: 3,
+                                background: inSpec === null ? "#e0f2fe" : inSpec ? "#dcfce7" : "#fee2e2",
+                                color: inSpec === null ? "#0369a1" : inSpec ? "#166534" : "#b91c1c",
+                                fontWeight: "bold", whiteSpace: "nowrap", flexShrink: 0,
+                              }}>
+                                {inSpec === null
+                                  ? <><CheckCircle2 style={{ width: 9, height: 9 }} />{amount?.toFixed(2)} {c.units}</>
+                                  : inSpec
+                                    ? <><CheckCircle2 style={{ width: 9, height: 9 }} />{amount?.toFixed(2)} ✓</>
+                                    : <><XCircle style={{ width: 9, height: 9 }} />{amount?.toFixed(2)} ✗</>
+                                }
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 9, color: "#aaa" }}>no peak</span>
+                            )}
+                            {/* Add to chrom */}
+                            <Button size="sm" variant="ghost" title="Add to chromatogram"
+                              className="h-5 w-5 p-0 text-blue-600 hover:text-blue-800"
+                              onClick={() => addCompoundAsPeak(c)}>
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                            {/* Edit */}
+                            <ActiveCompoundDialog compound={c} onSave={saveActiveCompound}>
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-gray-500">
+                                <Settings className="h-3 w-3" />
                               </Button>
-                              {/* Edit */}
-                              <ActiveCompoundDialog compound={c} onSave={saveActiveCompound}>
-                                <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-gray-500">
-                                  <Settings className="h-3 w-3" />
-                                </Button>
-                              </ActiveCompoundDialog>
-                              {/* Delete */}
-                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-red-400 hover:text-red-600"
-                                onClick={() => removeActiveCompound(c.id)}>
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            </ActiveCompoundDialog>
+                            {/* Delete */}
+                            <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-red-400 hover:text-red-600"
+                              onClick={() => removeActiveCompound(c.id)}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
 
               {activeCompounds.length === 0 && (
                 <div style={{ textAlign: "center", color: "#aaa", padding: "32px 0", fontSize: 12 }}>
