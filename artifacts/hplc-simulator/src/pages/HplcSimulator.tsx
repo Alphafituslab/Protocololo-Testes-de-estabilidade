@@ -7155,27 +7155,34 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                     </div>
 
                     {(() => {
-                      const svgW = 340, svgH = 250;
-                      const mL = 52, mR = 10, mT = 12, mB = 38;
+                      const svgW = 360, svgH = 250;
+                      const mL = 70, mR = 10, mT = 12, mB = 38;
                       const iW = svgW - mL - mR;
                       const iH = svgH - mT - mB;
                       const xs = (v: number) => mL + (v / compCalibXMax) * iW;
                       const ys = (v: number) => mT + iH - (Math.min(Math.max(v, 0), compCalibYMax) / compCalibYMax) * iH;
                       const sorted = [...cc.standards].sort((a, b) => a.amount - b.amount);
-                      const yTicks = Array.from({ length: 6 }, (_, i) => Math.round(compCalibYMax * i / 5));
-                      const rawStep = compCalibXMax / 5;
-                      const xStep = rawStep >= 20 ? Math.round(rawStep / 10) * 10 : rawStep >= 10 ? Math.round(rawStep / 5) * 5 : Math.max(1, Math.round(rawStep));
-                      const xTicks: number[] = [];
-                      for (let x = 0; x <= compCalibXMax + 0.01; x += xStep) xTicks.push(Math.round(x));
-                      if (xTicks[xTicks.length - 1] !== Math.round(compCalibXMax)) xTicks.push(Math.round(compCalibXMax));
+                      // Y ticks = actual area values of each standard (so grid lines pass through data points)
+                      const yTicksData = sorted.map(s => s.area).filter(v => v > 0);
+                      const yTicks = yTicksData.length > 0 ? [0, ...yTicksData] : [0];
+                      // X ticks = actual amount values of each standard
+                      const xTicksData = sorted.map(s => s.amount).filter(v => v > 0);
+                      const xTicks = xTicksData.length > 0 ? [0, ...xTicksData] : [0];
                       const ry0 = Math.max(0, compReg.intercept);
                       const ry1 = compReg.slope * compCalibXMax + compReg.intercept;
 
-                      // Format y-axis labels compactly (use scientific notation for large values)
+                      // Format y-axis labels: show decimals for area values (up to 4 dp)
                       const fmtY = (v: number) => {
                         if (v === 0) return "0";
-                        if (v >= 10000) return (v / 1000).toFixed(0) + "k";
-                        return v.toFixed(0);
+                        if (v >= 100000) return (v / 1000).toFixed(1) + "k";
+                        if (Number.isInteger(v)) return v.toFixed(0);
+                        return v.toFixed(4);
+                      };
+                      // Format x-axis labels: show decimals for amount values (up to 2 dp)
+                      const fmtX = (v: number) => {
+                        if (v === 0) return "0";
+                        if (Number.isInteger(v)) return v.toFixed(0);
+                        return v.toFixed(2);
                       };
 
                       return (
@@ -7209,7 +7216,9 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                               {xTicks.map(t => (
                                 <g key={`xt-${t}`}>
                                   <line x1={xs(t)} y1={mT + iH} x2={xs(t)} y2={mT + iH + 4} stroke="#222" strokeWidth={1} />
-                                  <text x={xs(t)} y={mT + iH + 15} textAnchor="middle" fontSize={9.5} fill="#222">{t.toFixed(0)}</text>
+                                  <text x={xs(t)} y={mT + iH + 14} textAnchor="middle" fontSize={9} fill="#222"
+                                    transform={t > 0 ? `rotate(-35,${xs(t)},${mT + iH + 14})` : undefined}
+                                  >{fmtX(t)}</text>
                                 </g>
                               ))}
                               {/* X axis label */}
