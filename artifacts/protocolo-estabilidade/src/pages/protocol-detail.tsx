@@ -3572,31 +3572,23 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
           const t0Num = parseFloat(ov.t0);
           const declaredNum = parseFloat(lim.declared.replace(",", "."));
           if (isNaN(t6Num) || isNaN(declaredNum)) return [];
-          const actualMg = (t6Num / 100) * declaredNum;
+
+          // Aplicar overage exatamente como o quadro de conformidade (ResultsTab)
+          const overagePct = lim.overage ? parseFloat(lim.overage.replace(",", ".")) : NaN;
+          const hasOvg = !isNaN(overagePct) && overagePct > 0;
+          const mfg = hasOvg ? declaredNum * (1 + overagePct / 100) : declaredNum;
+          const actualMg = (t6Num / 100) * mfg;
+
           const minNum = lim.min ? parseFloat(lim.min.replace(",", ".")) : null;
           const maxNum = lim.max ? parseFloat(lim.max.replace(",", ".")) : null;
           const degradation = !isNaN(t0Num) && t0Num > 0 ? ((t0Num - t6Num) / t0Num) * 100 : null;
-          const belowMin = minNum !== null && actualMg < minNum;
-          const aboveMax = maxNum !== null && actualMg > maxNum;
+          const belowMin = minNum !== null && actualMg < minNum - 0.005;
+          const aboveMax = maxNum !== null && actualMg > maxNum + 0.005;
           const hasExplicitMin = minNum !== null;
           const highDegradation = !hasExplicitMin && degradation !== null && degradation > 20;
           if (!belowMin && !aboveMax && !highDegradation) return [];
 
-          // Se overage está configurado, verificar se a projeção ao final
-          // da validade adotada ≥ spec_min. Se sim, suprimir alerta:
-          // o overage compensa a degradação dentro do prazo declarado.
-          const overagePct = lim.overage ? parseFloat(lim.overage.replace(",", ".")) : NaN;
-          const k = parseFloat(ov.k);
-          const validadeMeses = parseFloat(ov.validadePraticada);
-          if (!isNaN(overagePct) && overagePct > 0 && !isNaN(k) && k >= 0 && !isNaN(validadeMeses) && validadeMeses > 0) {
-            if (minNum !== null && !aboveMax) {
-              // Quantidade projetada ao final da validade com overage aplicado
-              const qtyAtValidity = ((100 + overagePct) * Math.exp(-k * validadeMeses) / 100) * declaredNum;
-              if (qtyAtValidity >= minNum - 0.005) return []; // overage compensa — sem alerta
-            }
-          }
-
-          return [{ param: p.parameter, actualMg, unit: lim.unit, minNum, maxNum, minText: lim.min, maxText: lim.max, degradation, belowMin, aboveMax, highDegradation }];
+          return [{ param: p.parameter, actualMg, unit: lim.unit, minNum, maxNum, minText: lim.min, maxText: lim.max, degradation, belowMin, aboveMax, highDegradation, hasOvg, overagePct, mfg, declaredNum }];
         }) ?? [];
         if (outOfRange.length === 0) return null;
         return (
