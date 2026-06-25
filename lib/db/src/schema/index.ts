@@ -16,3 +16,4 @@ export * from "./protocol_snapshots";
 export * from "./global_snapshots";
 export * from "./ativo_references";
 export * from "./hplc_sessions";
+export * from "./hplc_saved_analyses";
