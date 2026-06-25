@@ -10286,9 +10286,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                         { label: "Peak (reference)", std: padraoConfig.stdPeakName || "—", smp: padraoConfig.smpPeakName || "—", ratio: "", stdFieldId: "padrao-row-compound", smpFieldId: "padrao-row-compound" },
                         { label: "Area (mAU·s)", std: stdArea.toFixed(5), smp: smpArea.toFixed(5), ratio: ratio.toFixed(6), stdFieldId: "padrao-row-stdArea", smpFieldId: "padrao-row-smpArea" },
                         { label: "Injected amount (µg)", std: padraoConfig.stdAmountUg.toFixed(4), smp: foundAmountUg.toFixed(4), ratio: ratio.toFixed(6), stdFieldId: "padrao-row-stdAmountUg", smpFieldId: "padrao-row-smpArea" },
-                        { label: "Std certified purity (%)", std: padraoConfig.stdPurity.toFixed(2), smp: "—", ratio: "", stdFieldId: "padrao-row-stdPurity", smpFieldId: undefined },
-                        { label: "Pureza da amostra (%)", std: "—", smp: displaySmpPurity.toFixed(2), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpArea" },
-                        ...(purityVsDecl !== null ? [{ label: "Purity vs. declared (%)", std: "—", smp: purityVsDecl.toFixed(2), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpDeclared" }] : []),
+                        { label: "Purity (%)", std: padraoConfig.stdPurity.toFixed(2), smp: displaySmpPurity.toFixed(2), ratio: "", stdFieldId: "padrao-row-stdPurity", smpFieldId: "padrao-row-smpArea" },
                         { label: "Found amount (µg)", std: "—", smp: foundAmountUg.toFixed(4), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpArea" },
                         { label: "Found amount (mg)", std: "—", smp: foundAmountMg.toFixed(6), ratio: "", stdFieldId: undefined, smpFieldId: "padrao-row-smpArea" },
                         ...(foundAmountFromPurityUg !== null ? [
