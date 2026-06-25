@@ -291,6 +291,7 @@ interface PadraoConfig {
   anvisaNorm: string;             // e.g. "IN 28/2018"
   anvisaUseUg: boolean;           // true → display min/max in µg instead of mg
   anvisaFoundMgOverride: number;  // mg — direct override from "Aplicar" (0 = use area-based calc)
+  concInicialUseUg: boolean;      // true → show M_declarada in µg instead of mg
   // Identificação do documento
   productName: string;   // Nome do produto (identificação comercial)
   productLot: string;    // Lote do produto
@@ -2133,7 +2134,7 @@ const DEFAULT_PADRAO_CONFIG: PadraoConfig = {
   smpPurity: 100, smpRawArea: 0,
   smpMassDeclaradaMg: 0, smpConcFinalUgMl: 0, smpVolInicialMl: 0, smpInjVolUl: 0, smpDilutionFactor: 1,
   anvisaLabelAmountMg: 0, anvisaMinMg: 0, anvisaMaxMg: 0, anvisaNorm: "IN 28/2018", anvisaUseUg: false,
-  anvisaFoundMgOverride: 0,
+  anvisaFoundMgOverride: 0, concInicialUseUg: false,
   productName: "", productLot: "", certNumber: "", certTitle: "Certificado de Análise",
 };
 function stripLevelPrefix(s: string): string {
@@ -9623,23 +9624,44 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
 
                       {/* ─ Inputs: 3-column grid ─ */}
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px 12px", marginBottom: 12 }}>
-                        <div>
-                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#64748b", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
-                            M_declarada (mg)
-                          </div>
-                          {numInput(
-                            padraoConfig.smpMassDeclaradaMg > 0
-                              ? padraoConfig.smpMassDeclaradaMg
-                              : padraoConfig.anvisaLabelAmountMg,
-                            v => updatePadrao({ smpMassDeclaradaMg: v }),
-                            { step: "0.01", placeholder: "ex: 1000.00" }
-                          )}
-                          {padraoConfig.anvisaLabelAmountMg > 0 && padraoConfig.smpMassDeclaradaMg <= 0 && (
-                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 7.5, color: "#0369a1", marginTop: 2 }}>
-                              ↑ da seção ANVISA — pode editar
+                        {(() => {
+                          const ciUseUg = padraoConfig.concInicialUseUg;
+                          const ciUnitLabel = ciUseUg ? "µg" : "mg";
+                          const ciRawMg = padraoConfig.smpMassDeclaradaMg > 0
+                            ? padraoConfig.smpMassDeclaradaMg
+                            : padraoConfig.anvisaLabelAmountMg;
+                          const ciDisp = ciUseUg ? ciRawMg * 1000 : ciRawMg;
+                          const parseL = (s: string) => parseFloat(s.trim().replace(/,/g, ".")) || 0;
+                          return (
+                            <div>
+                              <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#64748b", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3, display: "flex", alignItems: "center" }}>
+                                M_declarada ({ciUnitLabel})
+                                <button
+                                  onClick={() => updatePadrao({ concInicialUseUg: !ciUseUg })}
+                                  title={ciUseUg ? "Trocar para mg" : "Trocar para µg"}
+                                  style={{ fontFamily: "Courier New, monospace", fontSize: 8, padding: "1px 6px", border: "1px solid #94a3b8", borderRadius: 3, background: ciUseUg ? "#0369a1" : "#f1f5f9", color: ciUseUg ? "#fff" : "#475569", cursor: "pointer", marginLeft: 5, fontWeight: 600 }}
+                                >{ciUseUg ? "µg ↔ mg" : "mg ↔ µg"}</button>
+                              </div>
+                              <input
+                                key={`ci-mass-${ciUseUg}-${ciDisp}`}
+                                type="text" inputMode="decimal"
+                                placeholder={ciUseUg ? "ex: 40 ou 0,040 mg→µg" : "ex: 0,040 ou 40,00"}
+                                defaultValue={ciDisp > 0 ? String(ciDisp) : ""}
+                                onBlur={e => {
+                                  const v = parseL(e.target.value);
+                                  updatePadrao({ smpMassDeclaradaMg: ciUseUg ? v / 1000 : v });
+                                }}
+                                style={{ ...INP, width: "100%" }}
+                              />
+                              {ciRawMg > 0 && (
+                                <div style={{ fontFamily: "Courier New, monospace", fontSize: 7.5, color: "#0369a1", marginTop: 2 }}>
+                                  {ciUseUg ? `= ${ciRawMg.toFixed(4)} mg` : `= ${(ciRawMg * 1000).toFixed(2)} µg`}
+                                  {padraoConfig.anvisaLabelAmountMg > 0 && padraoConfig.smpMassDeclaradaMg <= 0 && " · da seção ANVISA"}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
+                          );
+                        })()}
                         <div>
                           <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#64748b", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
                             V_i — Vol. Dissolução (mL)
@@ -10447,64 +10469,83 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                     );
                     return (
                       <div style={{ background: "#f0f9ff", padding: "10px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1.4fr", gap: "8px 16px", borderBottom: "1px solid #bae6fd" }}>
-                        <div>
-                          <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3, display: "flex", alignItems: "center" }}>
-                            Qtd. declarada no rótulo ({unitLabel})<UnitToggle />
-                          </div>
-                          <input
-                            type="number" min="0" step={useUg ? "1" : "0.01"}
-                            placeholder={useUg ? "ex: 40000" : "ex: 40.00"}
-                            value={useUg ? (labelMg > 0 ? labelMg * 1000 : "") : (labelMg > 0 ? labelMg : "")}
-                            onChange={e => {
-                              const v = parseFloat(e.target.value) || 0;
-                              updatePadrao({ anvisaLabelAmountMg: useUg ? v / 1000 : v });
-                            }}
-                            style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
-                          />
-                          {useUg && labelMg > 0 && (
-                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#64748b", marginTop: 1 }}>= {labelMg.toFixed(4)} mg</div>
-                          )}
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3, display: "flex", alignItems: "center" }}>
-                            Faixa mín ANVISA ({unitLabel})<UnitToggle />
-                          </div>
-                          <input
-                            type="number" min="0" step={useUg ? "1" : "0.01"}
-                            placeholder={useUg ? "ex: 13500" : "ex: 13.50"}
-                            value={dispMin > 0 ? dispMin : ""}
-                            onChange={e => {
-                              const v = parseFloat(e.target.value) || 0;
-                              const newMin = useUg ? v / 1000 : v;
-                              updatePadrao({ anvisaMinMg: newMin });
-                              syncAnvisaToCompound(padraoConfig.compoundName, newMin, padraoConfig.anvisaMaxMg, padraoConfig.anvisaNorm);
-                            }}
-                            style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
-                          />
-                          {useUg && minMg > 0 && (
-                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#64748b", marginTop: 1 }}>= {minMg.toFixed(4)} mg</div>
-                          )}
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3, display: "flex", alignItems: "center" }}>
-                            Faixa máx ANVISA ({unitLabel})<UnitToggle />
-                          </div>
-                          <input
-                            type="number" min="0" step={useUg ? "1" : "0.01"}
-                            placeholder={useUg ? "ex: 1916020" : "ex: 1916.02"}
-                            value={dispMax > 0 ? dispMax : ""}
-                            onChange={e => {
-                              const v = parseFloat(e.target.value) || 0;
-                              const newMax = useUg ? v / 1000 : v;
-                              updatePadrao({ anvisaMaxMg: newMax });
-                              syncAnvisaToCompound(padraoConfig.compoundName, padraoConfig.anvisaMinMg, newMax, padraoConfig.anvisaNorm);
-                            }}
-                            style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
-                          />
-                          {useUg && maxMg > 0 && (
-                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#64748b", marginTop: 1 }}>= {maxMg.toFixed(4)} mg</div>
-                          )}
-                        </div>
+                        {/* helper: parse accepting both . and , as decimal separator */}
+                        {(() => {
+                          const parseL = (s: string) => parseFloat(s.trim().replace(/,/g, ".")) || 0;
+                          const fmtDisp = (v: number) => v > 0 ? String(v) : "";
+                          const INP_S = { width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" } as const;
+                          return (
+                            <>
+                              <div>
+                                <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3, display: "flex", alignItems: "center" }}>
+                                  Qtd. declarada no rótulo ({unitLabel})<UnitToggle />
+                                </div>
+                                <input
+                                  key={`anvisa-label-${useUg}-${useUg ? labelMg * 1000 : labelMg}`}
+                                  type="text" inputMode="decimal"
+                                  placeholder={useUg ? "ex: 40 ou 0,040 mg→µg" : "ex: 0,040 ou 40,00"}
+                                  defaultValue={fmtDisp(useUg ? labelMg * 1000 : labelMg)}
+                                  onBlur={e => {
+                                    const v = parseL(e.target.value);
+                                    updatePadrao({ anvisaLabelAmountMg: useUg ? v / 1000 : v });
+                                  }}
+                                  style={INP_S}
+                                />
+                                {labelMg > 0 && (
+                                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#64748b", marginTop: 1 }}>
+                                    {useUg ? `= ${labelMg.toFixed(4)} mg` : `= ${(labelMg * 1000).toFixed(2)} µg`}
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3, display: "flex", alignItems: "center" }}>
+                                  Faixa mín ANVISA ({unitLabel})<UnitToggle />
+                                </div>
+                                <input
+                                  key={`anvisa-min-${useUg}-${dispMin}`}
+                                  type="text" inputMode="decimal"
+                                  placeholder={useUg ? "ex: 18 ou 0,018 mg→µg" : "ex: 0,018 ou 18,00"}
+                                  defaultValue={fmtDisp(dispMin)}
+                                  onBlur={e => {
+                                    const v = parseL(e.target.value);
+                                    const newMin = useUg ? v / 1000 : v;
+                                    updatePadrao({ anvisaMinMg: newMin });
+                                    syncAnvisaToCompound(padraoConfig.compoundName, newMin, padraoConfig.anvisaMaxMg, padraoConfig.anvisaNorm);
+                                  }}
+                                  style={INP_S}
+                                />
+                                {minMg > 0 && (
+                                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#64748b", marginTop: 1 }}>
+                                    {useUg ? `= ${minMg.toFixed(4)} mg` : `= ${(minMg * 1000).toFixed(2)} µg`}
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3, display: "flex", alignItems: "center" }}>
+                                  Faixa máx ANVISA ({unitLabel})<UnitToggle />
+                                </div>
+                                <input
+                                  key={`anvisa-max-${useUg}-${dispMax}`}
+                                  type="text" inputMode="decimal"
+                                  placeholder={useUg ? "ex: 22 ou 0,022 mg→µg" : "ex: 0,022 ou 22,00"}
+                                  defaultValue={fmtDisp(dispMax)}
+                                  onBlur={e => {
+                                    const v = parseL(e.target.value);
+                                    const newMax = useUg ? v / 1000 : v;
+                                    updatePadrao({ anvisaMaxMg: newMax });
+                                    syncAnvisaToCompound(padraoConfig.compoundName, padraoConfig.anvisaMinMg, newMax, padraoConfig.anvisaNorm);
+                                  }}
+                                  style={INP_S}
+                                />
+                                {maxMg > 0 && (
+                                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#64748b", marginTop: 1 }}>
+                                    {useUg ? `= ${maxMg.toFixed(4)} mg` : `= ${(maxMg * 1000).toFixed(2)} µg`}
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()}
                         <div>
                           <div style={{ fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Norma de referência</div>
                           <input
