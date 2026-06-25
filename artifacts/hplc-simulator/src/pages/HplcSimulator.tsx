@@ -6842,9 +6842,23 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
               <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
                 {"    Acq. Method     : " + sample.acqMethod}
               </div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged1}</div>
+              <div style={{ display: "flex", alignItems: "baseline", fontFamily: "Courier New, monospace", fontSize: "inherit" }}>
+                <span style={{ whiteSpace: "pre", flexShrink: 0 }}>{"    Last changed    : "}</span>
+                <input
+                  value={sample.lastChanged1}
+                  onChange={sField("lastChanged1")}
+                  style={{ fontFamily: "Courier New, monospace", fontSize: "inherit", color: "inherit", background: "transparent", border: "none", borderBottom: "1px dashed #94a3b8", outline: "none", padding: 0, margin: 0, flex: 1, minWidth: 160 }}
+                />
+              </div>
               <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Analysis Method : " + sample.analysisMethod}</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged2}</div>
+              <div style={{ display: "flex", alignItems: "baseline", fontFamily: "Courier New, monospace", fontSize: "inherit" }}>
+                <span style={{ whiteSpace: "pre", flexShrink: 0 }}>{"    Last changed    : "}</span>
+                <input
+                  value={sample.lastChanged2}
+                  onChange={sField("lastChanged2")}
+                  style={{ fontFamily: "Courier New, monospace", fontSize: "inherit", color: "inherit", background: "transparent", border: "none", borderBottom: "1px dashed #94a3b8", outline: "none", padding: 0, margin: 0, flex: 1, minWidth: 160 }}
+                />
+              </div>
               <div style={{ whiteSpace: "pre", wordBreak: "break-all" }}>{"              " + fullSignalLine}</div>
               {/* ── Baseline toggle (never prints) ───────────────────────── */}
               <div className="no-print">
@@ -7170,9 +7184,23 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
               <div style={{ whiteSpace: "pre-wrap" }}>{"    Injection Date  : " + sample.injectionDate.padEnd(38) + "Inj :  " + sample.inj}</div>
               <div style={{ whiteSpace: "pre-wrap" }}>{"    " + " ".repeat(59) + "Inj Volume : " + sample.injVolume}</div>
               <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Acq. Method     : " + sample.acqMethod}</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged1}</div>
+              <div style={{ display: "flex", alignItems: "baseline", fontFamily: "Courier New, monospace", fontSize: "inherit" }}>
+                <span style={{ whiteSpace: "pre", flexShrink: 0 }}>{"    Last changed    : "}</span>
+                <input
+                  value={sample.lastChanged1}
+                  onChange={sField("lastChanged1")}
+                  style={{ fontFamily: "Courier New, monospace", fontSize: "inherit", color: "inherit", background: "transparent", border: "none", borderBottom: "1px dashed #94a3b8", outline: "none", padding: 0, margin: 0, flex: 1, minWidth: 160 }}
+                />
+              </div>
               <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{"    Analysis Method : " + sample.analysisMethod}</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{"    Last changed    : " + sample.lastChanged2}</div>
+              <div style={{ display: "flex", alignItems: "baseline", fontFamily: "Courier New, monospace", fontSize: "inherit" }}>
+                <span style={{ whiteSpace: "pre", flexShrink: 0 }}>{"    Last changed    : "}</span>
+                <input
+                  value={sample.lastChanged2}
+                  onChange={sField("lastChanged2")}
+                  style={{ fontFamily: "Courier New, monospace", fontSize: "inherit", color: "inherit", background: "transparent", border: "none", borderBottom: "1px dashed #94a3b8", outline: "none", padding: 0, margin: 0, flex: 1, minWidth: 160 }}
+                />
+              </div>
               <div style={{ whiteSpace: "pre", wordBreak: "break-all" }}>{"              " + fullSignalLine}</div>
               <Div />
 
