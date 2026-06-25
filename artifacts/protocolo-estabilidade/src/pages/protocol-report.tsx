@@ -23,6 +23,27 @@ const STATUS_LABEL: Record<string, string> = {
   rascunho: "Rascunho",
 };
 
+// Ordem canônica dos parâmetros — igual à tabela de Resultados (protocol-detail.tsx)
+const PARAM_ORDER = [
+  "pH", "Perda por dessecação", "Cor", "Odor", "Aparência",
+  "Cinzas totais", "Dissolução", "Massa média", "Kcal", "Sódio",
+  "Coliformes totais", "Salmonella spp.", "Estafilococos coagulase+",
+  "Bolores e leveduras", "Escherichia coli", "Enterobacteriaceae",
+  "Cálcio", "Vitamina D",
+  "Torque de tampa", "Selagem por indução", "Integridade selagem",
+];
+
+function sortParams(params: string[]): string[] {
+  return [...params].sort((a, b) => {
+    const ia = PARAM_ORDER.indexOf(a);
+    const ib = PARAM_ORDER.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b, "pt");
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+}
+
 const PRINT_SECTIONS = [
   { key: "s1",  label: "1. Identificação da Empresa" },
   { key: "s2",  label: "2. Identificação do Produto" },
@@ -645,7 +666,7 @@ export default function ProtocolReportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[...new Set(results.map(r => r.parameter))].map((param, i) => (
+                    {sortParams([...new Set(results.map(r => r.parameter))]).map((param, i) => (
                       <tr key={param} className={i % 2 === 0 ? "" : "bg-gray-50/70"}>
                         <Td bold>{param}</Td>
                         {lots.map(lot =>
