@@ -277,6 +277,7 @@ interface PadraoConfig {
   smpConcFinalUgMl: number;    // µg/mL — C_f: final concentration measured by HPLC in the injection solution
   smpVolInicialMl: number;     // mL — V_i: initial dissolution volume
   smpInjVolUl: number;         // µL — injection volume (optional; auto-derives C_f from foundAmountUg)
+  smpDilutionFactor: number;   // FD — dilution factor applied before injection (1 = no extra dilution)
   notes: string;
   selectedLotIds: string[];  // operator-selected lots to show in report (empty = show all)
   // ANVISA conformance
@@ -2126,7 +2127,7 @@ const DEFAULT_PADRAO_CONFIG: PadraoConfig = {
   compoundName: "", stdPeakName: "", stdArea: 0, stdAmountUg: 0, stdPurity: 100,
   smpPeakName: "", smpArea: 0, smpDeclaredAmountUg: 0, notes: "", selectedLotIds: [],
   smpPurity: 100, smpRawArea: 0,
-  smpMassDeclaradaMg: 0, smpConcFinalUgMl: 0, smpVolInicialMl: 0, smpInjVolUl: 0,
+  smpMassDeclaradaMg: 0, smpConcFinalUgMl: 0, smpVolInicialMl: 0, smpInjVolUl: 0, smpDilutionFactor: 1,
   anvisaLabelAmountMg: 0, anvisaMinMg: 0, anvisaMaxMg: 0, anvisaNorm: "IN 28/2018", anvisaUseUg: false,
   anvisaFoundMgOverride: 0,
   productName: "", productLot: "", certNumber: "", certTitle: "Certificado de Análise",
@@ -9328,41 +9329,34 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
 
                 {smpSubTab === "conc_inicial" && (() => {
                   // ── Fields ──────────────────────────────────────────────────────────
-                  // M_declarada: editable field; falls back to anvisaLabelAmountMg if not set
+                  // M_declarada: only used for % comparison at end (NOT part of back-calc)
                   const mDeclaradaMg  = padraoConfig.smpMassDeclaradaMg > 0
                     ? padraoConfig.smpMassDeclaradaMg
                     : padraoConfig.anvisaLabelAmountMg;
                   // V_i = initial dissolution volume (mL)
                   const vi            = padraoConfig.smpVolInicialMl;
-                  // C_f = final concentration measured by HPLC (µg/mL) — user-entered
+                  // C_f = concentration measured by HPLC in the injection solution (µg/mL)
                   const cf            = padraoConfig.smpConcFinalUgMl;
+                  // FD = dilution factor applied before injection (1 = no extra dilution)
+                  const fd            = padraoConfig.smpDilutionFactor > 0 ? padraoConfig.smpDilutionFactor : 1;
                   // Optional: injection volume (µL) → auto-derive C_f suggestion from found amount
                   const injVolUl      = padraoConfig.smpInjVolUl;
 
-                  // ── Step 1: Convert declared mass to µg ──────────────────────────────
-                  const miUg          = mDeclaradaMg * 1000;
-
-                  // ── Step 2: Theoretical initial concentration C_i ────────────────────
-                  const ci            = (miUg > 0 && vi > 0) ? miUg / vi : 0;
-
-                  // ── Step 3: Dilution factor FD = C_i / C_f ──────────────────────────
-                  const fd            = (ci > 0 && cf > 0) ? ci / cf : 0;
-
-                  // ── Step 4: Back-calculation ─────────────────────────────────────────
-                  // 4a. Recover C_original = C_f × FD  (= C_i)
-                  const cOriginal     = cf * fd;
-                  // 4b. Recover mass: M_original (µg) = C_original × V_i
-                  const mOriginalUg   = cOriginal * vi;
-                  // 4c. Convert back to mg
+                  // ── Back-calculation (non-circular): M = C_f × FD × V_i / 1000 ──────
+                  // Step 1: Recover initial concentration = C_f × FD
+                  const ci            = cf * fd;
+                  // Step 2: Mass in µg = C_i × V_i
+                  const mOriginalUg   = ci * vi;
+                  // Step 3: Convert to mg
                   const mOriginalMg   = mOriginalUg / 1000;
 
-                  // % found vs label
+                  // % found vs declared label (only for comparison — NOT used in back-calc)
                   const pctFound      = mDeclaradaMg > 0 && mOriginalMg > 0
                     ? (mOriginalMg / mDeclaradaMg) * 100 : null;
 
-                  // Suggestion: C_f from Reference Standard found amount
+                  // Suggestion: C_f from the analyzed sample's found amount ÷ injection volume
                   const cfFromStd     = injVolUl > 0 && padraoFoundUg > 0
-                    ? padraoFoundUg / (injVolUl / 1000)   // µg ÷ mL = µg/mL
+                    ? padraoFoundUg / (injVolUl / 1000)   // µg_in_injection ÷ mL_injected = µg/mL
                     : null;
 
                   // Apply to ANVISA (back-calc smpArea from mOriginalMg)
@@ -9404,32 +9398,31 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                     color: "#0c4a6e", marginLeft: 25,
                   };
 
-                  const missingMdecl = mDeclaradaMg <= 0;
                   const missingVi    = vi <= 0;
                   const missingCf    = cf <= 0;
 
                   return (
                     <div>
-                      {/* ─ Prerequisite warnings ─ */}
-                      {missingMdecl && (
-                        <div style={{ fontFamily: "Courier New, monospace", fontSize: 9.5, color: "#d97706", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 4, padding: "5px 9px", marginBottom: 8 }}>
-                          ⚠ Preencha <strong>Qtd. declarada no rótulo (mg)</strong> na seção ANVISA abaixo
-                        </div>
-                      )}
+                      {/* ─ Fórmula base explicada ─ */}
+                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#475569", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 5, padding: "6px 10px", marginBottom: 10, lineHeight: 1.6 }}>
+                        <span style={{ fontWeight: 700, color: "#0c4a6e" }}>Fórmula:</span> M_encontrada = <span style={{ color: "#0369a1" }}>C_f</span> × <span style={{ color: "#7c3aed" }}>FD</span> × <span style={{ color: "#047857" }}>V_i</span> ÷ 1000
+                        <br />
+                        <span style={{ color: "#94a3b8" }}>C_f = concentração HPLC na injeção · FD = fator de diluição · V_i = volume de preparo</span>
+                      </div>
 
-                      {/* ─ Reference Standard link ─ */}
+                      {/* ─ Analyzed Sample → C_f suggestion ─ */}
                       {padraoFoundUg > 0 && (
-                        <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#1560bd", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 5, padding: "5px 10px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
-                          <div style={{ width: 8, height: 8, background: "#1560bd", borderRadius: 2, flexShrink: 0 }} />
+                        <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#ea580c", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 5, padding: "5px 10px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ width: 8, height: 8, background: "#ea580c", borderRadius: 2, flexShrink: 0 }} />
                           <div>
-                            <span style={{ fontWeight: 700 }}>Reference Standard → </span>
-                            Amount found: <strong>{padraoFoundUg.toFixed(4)} µg</strong>
-                            {injVolUl > 0 && (
+                            <span style={{ fontWeight: 700 }}>Amostra Analisada → </span>
+                            Encontrado na injeção: <strong>{padraoFoundUg.toFixed(4)} µg</strong>
+                            {injVolUl > 0 && cfFromStd !== null && (
                               <span style={{ marginLeft: 8 }}>
-                                → C_f sugerida: <strong style={{ color: "#0369a1" }}>{cfFromStd!.toFixed(4)} µg/mL</strong>
+                                → C_f = <strong style={{ color: "#c2410c" }}>{cfFromStd.toFixed(4)} µg/mL</strong>
                                 <button
-                                  onClick={() => updatePadrao({ smpConcFinalUgMl: parseFloat(cfFromStd!.toFixed(4)) })}
-                                  style={{ fontFamily: "Courier New, monospace", fontSize: 8, marginLeft: 5, padding: "1px 5px", border: "1px solid #1560bd", borderRadius: 3, background: "#dbeafe", cursor: "pointer", color: "#1e40af" }}
+                                  onClick={() => updatePadrao({ smpConcFinalUgMl: parseFloat(cfFromStd.toFixed(4)) })}
+                                  style={{ fontFamily: "Courier New, monospace", fontSize: 8, marginLeft: 5, padding: "1px 5px", border: "1px solid #ea580c", borderRadius: 3, background: "#ffedd5", cursor: "pointer", color: "#c2410c" }}
                                 >usar</button>
                               </span>
                             )}
@@ -9437,11 +9430,38 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                         </div>
                       )}
 
-                      {/* ─ Inputs: 3-column grid ─ */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px 12px", marginBottom: 12 }}>
+                      {/* ─ Inputs: 4 fields ─ */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px", marginBottom: 8 }}>
+                        <div>
+                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#0369a1", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
+                            C_f — Conc. HPLC (µg/mL)
+                          </div>
+                          {numInput(padraoConfig.smpConcFinalUgMl, v => updatePadrao({ smpConcFinalUgMl: v }), { step: "0.0001", placeholder: "ex: 25.00" })}
+                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 7.5, color: "#94a3b8", marginTop: 2 }}>
+                            concentração medida pelo HPLC na injeção
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#7c3aed", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
+                            FD — Fator de Diluição
+                          </div>
+                          {numInput(padraoConfig.smpDilutionFactor > 0 ? padraoConfig.smpDilutionFactor : 1, v => updatePadrao({ smpDilutionFactor: v }), { step: "1", placeholder: "ex: 10" })}
+                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 7.5, color: "#94a3b8", marginTop: 2 }}>
+                            1 = sem diluição extra; 10 = diluído 10×
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#047857", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
+                            V_i — Vol. Dissolução (mL)
+                          </div>
+                          {numInput(padraoConfig.smpVolInicialMl, v => updatePadrao({ smpVolInicialMl: v }), { step: "1", placeholder: "ex: 350" })}
+                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 7.5, color: "#94a3b8", marginTop: 2 }}>
+                            volume de preparo da amostra
+                          </div>
+                        </div>
                         <div>
                           <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#64748b", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
-                            M_declarada (mg)
+                            M_declarada (mg) — para % comparação
                           </div>
                           {numInput(
                             padraoConfig.smpMassDeclaradaMg > 0
@@ -9452,90 +9472,62 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                           )}
                           {padraoConfig.anvisaLabelAmountMg > 0 && padraoConfig.smpMassDeclaradaMg <= 0 && (
                             <div style={{ fontFamily: "Courier New, monospace", fontSize: 7.5, color: "#0369a1", marginTop: 2 }}>
-                              ↑ da seção ANVISA — pode editar
+                              ↑ da seção ANVISA
                             </div>
                           )}
                         </div>
-                        <div>
-                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#64748b", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
-                            V_i — Vol. Dissolução (mL)
-                          </div>
-                          {numInput(padraoConfig.smpVolInicialMl, v => updatePadrao({ smpVolInicialMl: v }), { step: "1", placeholder: "ex: 350" })}
-                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 7.5, color: "#94a3b8", marginTop: 2 }}>
-                            volume de preparo da amostra
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#64748b", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
-                            C_f — Conc. HPLC (µg/mL)
-                          </div>
-                          {numInput(padraoConfig.smpConcFinalUgMl, v => updatePadrao({ smpConcFinalUgMl: v }), { step: "0.0001", placeholder: "ex: 25.00" })}
-                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 7.5, color: "#94a3b8", marginTop: 2 }}>
-                            medida pelo HPLC na injeção
-                          </div>
-                        </div>
                       </div>
 
-                      {/* Optional injection volume */}
+                      {/* Optional injection volume (for C_f suggestion only) */}
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                         <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#94a3b8" }}>
-                          Vol. injeção (µL) — opcional, para sugerir C_f do padrão:
+                          Vol. injeção (µL) — para sugerir C_f acima:
                         </div>
                         <div style={{ width: 90 }}>
                           {numInput(padraoConfig.smpInjVolUl, v => updatePadrao({ smpInjVolUl: v }), { step: "1", placeholder: "ex: 20" })}
                         </div>
                       </div>
 
-                      {/* ─ 4-step calculation ─ */}
-                      {!missingMdecl && !missingVi && !missingCf && (<>
+                      {/* ─ 3-step calculation ─ */}
+                      {!missingVi && !missingCf && (<>
 
-                        {/* Step 1 */}
+                        {/* Step 1 — Recover C_i */}
                         <div style={STEP}>
                           <div style={{ display: "flex", alignItems: "center" }}>
                             <span style={STEP_NUM}>1</span>
-                            <span style={STEP_TITLE}>Converter massa declarada para µg</span>
+                            <span style={STEP_TITLE}>Recuperar concentração inicial C_i = C_f × FD</span>
                           </div>
-                          <div style={FORMULA}>M_i = {mDeclaradaMg.toFixed(2)} mg × 1.000 = <strong>{miUg.toLocaleString("pt-BR")} µg</strong></div>
-                          <div style={RESULT}>{miUg.toLocaleString("pt-BR")} µg</div>
+                          <div style={FORMULA}>
+                            C_i = <span style={{ color: "#0369a1" }}>{cf.toFixed(4)} µg/mL</span> × <span style={{ color: "#7c3aed" }}>{fd.toFixed(4)}</span> = <strong>{ci.toFixed(4)} µg/mL</strong>
+                          </div>
+                          <div style={RESULT}>{ci.toFixed(4)} µg/mL</div>
+                          {fd === 1 && (
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 7.5, color: "#94a3b8", marginLeft: 25, marginTop: 2 }}>
+                              FD = 1 (sem diluição extra antes da injeção)
+                            </div>
+                          )}
                         </div>
 
-                        {/* Step 2 */}
+                        {/* Step 2 — Mass in µg */}
                         <div style={STEP}>
                           <div style={{ display: "flex", alignItems: "center" }}>
                             <span style={STEP_NUM}>2</span>
-                            <span style={STEP_TITLE}>Calcular concentração inicial teórica (C_i)</span>
+                            <span style={STEP_TITLE}>Calcular massa encontrada em µg = C_i × V_i</span>
                           </div>
-                          <div style={FORMULA}>C_i = {miUg.toLocaleString("pt-BR")} µg ÷ {vi} mL = <strong>{ci.toFixed(4)} µg/mL</strong></div>
-                          <div style={RESULT}>{ci.toFixed(4)} µg/mL</div>
+                          <div style={FORMULA}>
+                            M (µg) = {ci.toFixed(4)} µg/mL × <span style={{ color: "#047857" }}>{vi} mL</span> = <strong>{mOriginalUg.toFixed(2)} µg</strong>
+                          </div>
+                          <div style={RESULT}>{mOriginalUg.toFixed(2)} µg</div>
                         </div>
 
-                        {/* Step 3 */}
-                        <div style={STEP}>
-                          <div style={{ display: "flex", alignItems: "center" }}>
-                            <span style={STEP_NUM}>3</span>
-                            <span style={STEP_TITLE}>Determinar Fator de Diluição (FD)</span>
-                          </div>
-                          <div style={FORMULA}>FD = C_i ÷ C_f = {ci.toFixed(4)} ÷ {cf} = <strong>{fd.toFixed(4)}</strong></div>
-                          <div style={RESULT}>{fd.toFixed(4)}</div>
-                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#64748b", marginLeft: 25, marginTop: 2 }}>
-                            a amostra foi diluída {fd.toFixed(2)}× antes da injeção
-                          </div>
-                        </div>
-
-                        {/* Step 4 */}
+                        {/* Step 3 — Result in mg */}
                         <div style={{ ...STEP, border: "1.5px solid #0ea5e9", background: "#f0f9ff" }}>
                           <div style={{ display: "flex", alignItems: "center" }}>
-                            <span style={{ ...STEP_NUM, background: "#0369a1" }}>4</span>
-                            <span style={{ ...STEP_TITLE, color: "#0369a1" }}>Cálculo reverso — recuperar massa original</span>
+                            <span style={{ ...STEP_NUM, background: "#0369a1" }}>3</span>
+                            <span style={{ ...STEP_TITLE, color: "#0369a1" }}>Resultado — Massa encontrada (mg)</span>
                           </div>
                           <div style={{ ...FORMULA, color: "#0c4a6e" }}>
-                            4a. C_original = C_f × FD = {cf} × {fd.toFixed(4)} = {cOriginal.toFixed(4)} µg/mL
-                          </div>
-                          <div style={{ ...FORMULA, color: "#0c4a6e" }}>
-                            4b. M_original (µg) = C_original × V_i = {cOriginal.toFixed(4)} × {vi} = {mOriginalUg.toFixed(2)} µg
-                          </div>
-                          <div style={{ ...FORMULA, color: "#0c4a6e" }}>
-                            4c. M_original (mg) = {mOriginalUg.toFixed(2)} ÷ 1.000 =
+                            M (mg) = {mOriginalUg.toFixed(2)} µg ÷ 1.000 = <strong>{mOriginalMg.toFixed(4)} mg</strong>
                           </div>
                           <div style={{ marginLeft: 25, marginTop: 6, display: "flex", alignItems: "baseline", gap: 8 }}>
                             <span style={{ fontFamily: "Courier New, monospace", fontSize: 22, fontWeight: 900, color: "#0c4a6e" }}>
@@ -9563,15 +9555,13 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                           )}
                         </div>
 
-                        {/* Step 5 — Proportional result using Reference Standard */}
+                        {/* Step 4 — Proportional result using Reference Standard (optional cross-check) */}
                         {(() => {
-                          const foundUg  = padraoFoundUg;          // from area comparison with standard
-                          const declUgSmp = padraoConfig.smpDeclaredAmountUg; // declared in µg (same as std amount injected)
-                          const hasPropData = foundUg > 0 && declUgSmp > 0 && mDeclaradaMg > 0 && fd > 0;
+                          const foundUg  = padraoFoundUg;
+                          const declUgSmp = padraoConfig.smpDeclaredAmountUg;
+                          const hasPropData = foundUg > 0 && declUgSmp > 0 && mDeclaradaMg > 0;
                           if (!hasPropData) return null;
 
-                          // Proportional: M_found = M_declarada × (foundUg / declaredUg)
-                          // Equivalent to: M_declarada × (smpPurity / 100)
                           const ratio       = foundUg / declUgSmp;
                           const mPropMg     = mDeclaradaMg * ratio;
                           const mPropUg     = mPropMg * 1000;
@@ -9582,18 +9572,18 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                           return (
                             <div style={{ ...STEP, border: "2px solid #16a34a", background: "#f0fdf4", marginTop: 4 }}>
                               <div style={{ display: "flex", alignItems: "center", marginBottom: 2 }}>
-                                <span style={{ ...STEP_NUM, background: "#16a34a" }}>5</span>
-                                <span style={{ ...STEP_TITLE, color: "#15803d" }}>Massa encontrada — proporção com Reference Standard</span>
+                                <span style={{ ...STEP_NUM, background: "#16a34a" }}>4</span>
+                                <span style={{ ...STEP_TITLE, color: "#15803d" }}>Conferência — proporção com padrão externo</span>
                               </div>
                               <div style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#166534", marginLeft: 25, marginBottom: 6 }}>
-                                Usa found amount do padrão externo + FD para estimar a massa na cápsula original
+                                Alternativa: M = M_declarada × (found_smp ÷ declared_smp)
                               </div>
 
                               <div style={{ ...FORMULA, color: "#166534" }}>
-                                Razão = found (µg) ÷ declared (µg) = {foundUg.toFixed(4)} ÷ {declUgSmp.toFixed(4)} = {ratio.toFixed(6)}
+                                Razão = {foundUg.toFixed(4)} ÷ {declUgSmp.toFixed(4)} = {ratio.toFixed(6)}
                               </div>
                               <div style={{ ...FORMULA, color: "#166534" }}>
-                                M_encontrada = M_declarada × Razão = {mDeclaradaMg.toFixed(2)} mg × {ratio.toFixed(6)}
+                                M = {mDeclaradaMg.toFixed(2)} mg × {ratio.toFixed(6)} = <strong>{mPropMg.toFixed(4)} mg</strong>
                               </div>
 
                               <div style={{ marginLeft: 25, marginTop: 8, display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
@@ -9660,9 +9650,9 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                         })()}
                       </>)}
 
-                      {(missingMdecl || missingVi || missingCf) && (
+                      {(missingVi || missingCf) && (
                         <div style={{ fontFamily: "Courier New, monospace", fontSize: 9.5, color: "#94a3b8", textAlign: "center", padding: "16px 0" }}>
-                          Preencha os 3 campos acima para ver o cálculo passo a passo
+                          Preencha <strong>C_f</strong> e <strong>V_i</strong> para ver o cálculo passo a passo
                         </div>
                       )}
                     </div>
