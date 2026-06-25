@@ -8524,19 +8524,24 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                 Capture area from chromatogram:
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                {peakList.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => onCapture(p)}
-                    style={{
-                      fontFamily: "Courier New, monospace", fontSize: 10, padding: "2px 8px",
-                      border: "1px solid #93c5fd", borderRadius: 3, background: "#eff6ff",
-                      cursor: "pointer", color: "#1d4ed8",
-                    }}
-                  >
-                    {p.name || `RT ${p.retentionTime.toFixed(3)}`} — {getArea(p).toFixed(2)} mAU·s
-                  </button>
-                ))}
+                {peakList.map(p => {
+                  const _effArea = isPadraoSamplePeak(p) && padraoConfig.smpArea > 0
+                    ? padraoConfig.smpArea
+                    : getArea(p);
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => onCapture(p)}
+                      style={{
+                        fontFamily: "Courier New, monospace", fontSize: 10, padding: "2px 8px",
+                        border: "1px solid #93c5fd", borderRadius: 3, background: "#eff6ff",
+                        cursor: "pointer", color: "#1d4ed8",
+                      }}
+                    >
+                      {p.name || `RT ${p.retentionTime.toFixed(3)}`} — {_effArea.toFixed(2)} mAU·s
+                    </button>
+                  );
+                })}
               </div>
               <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2, fontFamily: "Courier New, monospace" }}>
                 {label}
@@ -10560,6 +10565,9 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                                     smpPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}`,
                                     ...(!smpPurityLocked ? { smpPurity: purPct } : {}),
                                   });
+                                  // Sincroniza manualArea do pico com smpArea para que
+                                  // o Edit Peak dialog e o hover mostrem o mesmo valor
+                                  setPeaks(ps => ps.map(pk => pk.id === p.id ? { ...pk, manualArea: corrected } : pk));
                                 }}
                                 style={{ fontSize: 9.5, padding: "2px 6px", border: "1px solid #fed7aa", borderRadius: 3, background: "#fff7ed", cursor: "pointer", color: "#c2410c" }}
                               >Sample</button>
@@ -10904,13 +10912,19 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               {/* Menu items */}
               <div style={{ padding: "4px 0" }}>
                 {(() => {
-                  const peakArea = peak.manualArea > 0 ? peak.manualArea : computeArea(peak);
+                  const _isSmpCtx = isPadraoSamplePeak(peak) && padraoConfig.smpArea > 0;
+                  const peakArea = _isSmpCtx
+                    ? padraoConfig.smpArea
+                    : (peak.manualArea > 0 ? peak.manualArea : computeArea(peak));
+                  const peakAreaSource = _isSmpCtx
+                    ? "Standard – Sample Area (corrigida por pureza)"
+                    : (peak.manualArea > 0 ? "Manual (overridden)" : "Computed (Gaussian model)");
                   const matchedCompound = activeCompounds.find(c => Math.abs(peak.retentionTime - c.expectedRT) <= c.rtTol);
                   const formulaStdEntry = formulaStandards.find(fs => fs.formulaId === selectedFormulaId);
                   if (matchedCompound) {
                     const stdEntry = formulaStdEntry?.entries.find(e => e.compoundId === matchedCompound.id) ?? null;
                     const traceInputs: { label: string; value: string; source: string }[] = [
-                      { label: "Peak Area", value: `${peakArea.toFixed(5)} mAU·s`, source: peak.manualArea > 0 ? "Manual (overridden)" : "Computed (Gaussian model)" },
+                      { label: "Peak Area", value: `${peakArea.toFixed(5)} mAU·s`, source: peakAreaSource },
                       { label: "RT", value: `${peak.retentionTime.toFixed(3)} min`, source: "Chromatogram" },
                     ];
                     let peakMethod: CalcMethod = "response_factor";
