@@ -10492,8 +10492,20 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
             {/* Multi-peak visual reference */}
             {peakList.length > 0 && (
               <div style={{ ...CARD }}>
-                <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#475569", marginBottom: 10 }}>
+                <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#475569", marginBottom: 6 }}>
                   Peaks available in current chromatogram
+                </div>
+                {/* Legenda das colunas */}
+                <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#64748b", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 5, padding: "6px 10px", marginBottom: 10, lineHeight: 1.6 }}>
+                  <span style={{ fontWeight: "bold", color: "#334155" }}>Peak</span> — nome do pico no cromatograma ·{" "}
+                  <span style={{ fontWeight: "bold", color: "#334155" }}>RT (min)</span> — tempo de retenção ·{" "}
+                  <span style={{ fontWeight: "bold", color: "#334155" }}>Height</span> — altura máxima do pico ·{" "}
+                  <span style={{ fontWeight: "bold", color: "#334155" }}>Area (mAU·s)</span> — área integrada usada nos cálculos (para [Sample] = área corrigida por pureza) ·{" "}
+                  <span style={{ fontWeight: "bold", color: "#7c3aed" }}>Manual Area</span> — área digitada manualmente pelo usuário (sobrepõe o modelo Gaussiano); <em>auto</em> = sincronizado com Sample Area ·{" "}
+                  <span style={{ fontWeight: "bold", color: "#334155" }}>Found (µg)</span> — quantidade calculada via razão Sample/Standard ·{" "}
+                  <span style={{ fontWeight: "bold", color: "#334155" }}>Purity (%)</span> — pureza da amostra ·{" "}
+                  <span style={{ fontWeight: "bold", color: "#1560bd" }}>[Standard]</span> = pico usado como referência ·{" "}
+                  <span style={{ fontWeight: "bold", color: "#f97316" }}>[Sample]</span> = pico da amostra analisada
                 </div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 10.5 }}>
                   <thead>
@@ -10520,8 +10532,12 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                           <td style={{ padding: "4px 8px", textAlign: "right", color: isSmp ? "#ea580c" : isStd ? "#1560bd" : undefined, fontWeight: (isSmp || isStd) ? 700 : undefined }}>
                             {isSmp ? padraoConfig.smpArea.toFixed(5) : area.toFixed(5)}
                           </td>
-                          <td style={{ padding: "4px 8px", textAlign: "right", color: p.manualArea > 0 ? "#7c3aed" : "#94a3b8" }}>
-                            {p.manualArea > 0 ? p.manualArea.toFixed(5) : "—"}
+                          <td style={{ padding: "4px 8px", textAlign: "right" }}>
+                            {isSmp
+                              ? <span style={{ color: "#f97316", fontSize: 9, fontStyle: "italic" }}>auto</span>
+                              : p.manualArea > 0
+                                ? <span style={{ color: "#7c3aed" }}>{p.manualArea.toFixed(5)}</span>
+                                : <span style={{ color: "#94a3b8" }}>—</span>}
                           </td>
                           {/* Found amount (µg) — shown when this peak is the [Sample] peak */}
                           <td style={{ padding: "4px 8px", textAlign: "right" }}>
@@ -10947,7 +10963,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                       teorPct2 !== null ? `${teorPct2.toFixed(2)} %` : `${calcConc2.toFixed(4)} ${matchedCompound.units}`,
                       peakMethod, peakFormula, traceInputs, "Chromatogram",
                       { peakName: peak.name || `RT ${peak.retentionTime.toFixed(3)}`, compoundName: matchedCompound.name,
-                        warningText: peak.manualArea > 0 ? "⚠ Area was manually overridden — not from Gaussian model" : undefined }
+                        warningText: (peak.manualArea > 0 && !isPadraoSamplePeak(peak)) ? "⚠ Area was manually overridden — not from Gaussian model" : undefined }
                     );
                     return (
                       <button
