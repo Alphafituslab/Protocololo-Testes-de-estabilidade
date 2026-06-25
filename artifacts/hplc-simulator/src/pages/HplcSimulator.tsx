@@ -7642,14 +7642,31 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                           axisLine={{ stroke: "#333" }} tickLine={{ stroke: "#333" }} width={46} />
                         <Tooltip content={({ active, payload, label }) => {
                           if (!active || !payload?.length) return null;
+                          const t = label as number;
                           return (
-                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, background: "#fff", border: "1px solid #333", padding: "4px 8px" }}>
-                              <div>{(label as number).toFixed(3)} min</div>
-                              {payload.map((p, i) => (
-                                <div key={i} style={{ color: p.color }}>
-                                  {p.name}: {(p.value as number).toFixed(2)} mAU
-                                </div>
-                              ))}
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, background: "#fff", border: "1px solid #333", padding: "4px 8px", lineHeight: 1.7 }}>
+                              <div style={{ marginBottom: 2 }}>{t.toFixed(3)} min</div>
+                              {payload.map((p, i) => {
+                                const run = visibleRuns[i];
+                                // Find nearest peak in this run
+                                const nearest = run?.peaks.reduce<{ area: number; dist: number; w: number } | null>((best, pk) => {
+                                  const dist = Math.abs(pk.retentionTime - t);
+                                  const area = pk.manualArea > 0 ? pk.manualArea : computeArea(pk);
+                                  if (!best || dist < best.dist) return { area, dist, w: pk.width ?? 0.5 };
+                                  return best;
+                                }, null);
+                                const showArea = nearest && nearest.dist <= nearest.w * 1.5;
+                                return (
+                                  <div key={i}>
+                                    <span style={{ color: p.color }}>{p.name}: {(p.value as number).toFixed(2)} mAU</span>
+                                    {showArea && (
+                                      <span style={{ color: "#1560bd", fontWeight: "bold", marginLeft: 6 }}>
+                                        [{nearest.area.toFixed(3)} mAU·s]
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           );
                         }} />
