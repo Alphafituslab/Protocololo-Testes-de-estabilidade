@@ -10708,9 +10708,10 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                   {(() => {
                     const useUgS = padraoConfig.anvisaUseUg;
                     const unitS = useUgS ? "µg" : "mg";
-                    const fFound = useUgS ? (foundMgAnv * 1000).toFixed(2) : foundMgAnv.toFixed(2);
-                    const fMin   = useUgS ? (minMg * 1000).toFixed(2) : minMg.toFixed(2);
-                    const fMax   = useUgS ? (maxMg * 1000).toFixed(2) : maxMg.toFixed(2);
+                    const fmt4 = (n: number) => parseFloat(n.toFixed(4)).toString();
+                    const fFound = useUgS ? fmt4(foundMgAnv * 1000) : fmt4(foundMgAnv);
+                    const fMin   = useUgS ? fmt4(minMg * 1000) : fmt4(minMg);
+                    const fMax   = useUgS ? fmt4(maxMg * 1000) : fmt4(maxMg);
                     return (
                   <div style={{
                     background: inRange === null ? "#f1f5f9" : inRange ? "#dcfce7" : "#fef2f2",
