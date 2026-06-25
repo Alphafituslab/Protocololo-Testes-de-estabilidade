@@ -9416,8 +9416,12 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                   const mOriginalMg   = mOriginalUg / 1000;
 
                   // % found vs label
-                  const pctFound      = mDeclaradaMg > 0 && mOriginalMg > 0
-                    ? (mOriginalMg / mDeclaradaMg) * 100 : null;
+                  // Quando "Pureza da amostra" está disponível (digitada/travada), ela é o
+                  // resultado analítico autoritativo — usar diretamente em vez do back-calc.
+                  const hasSmpPurity  = padraoConfig.smpPurity > 0 && Math.abs(padraoConfig.smpPurity - 100) > 0.01;
+                  const pctFound      = hasSmpPurity
+                    ? padraoConfig.smpPurity
+                    : (mDeclaradaMg > 0 && mOriginalMg > 0 ? (mOriginalMg / mDeclaradaMg) * 100 : null);
 
                   // Suggestion: C_f from Reference Standard found amount
                   const cfFromStd     = injVolUl > 0 && padraoFoundUg > 0
@@ -9609,7 +9613,9 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                           {pctFound !== null && (
                             <div style={{ marginLeft: 25, marginTop: 8, paddingTop: 6, borderTop: "1px solid #bae6fd" }}>
                               <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#0369a1" }}>
-                                vs. declarado ({mDeclaradaMg.toFixed(2)} mg):
+                                {hasSmpPurity
+                                  ? `Pureza da amostra (%): `
+                                  : `vs. declarado (${mDeclaradaMg.toFixed(2)} mg): `}
                               </span>
                               <span style={{
                                 fontFamily: "Courier New, monospace", fontSize: 15, fontWeight: 700, marginLeft: 8,
