@@ -144,6 +144,10 @@ interface ActiveCompound {
   certifiedPurity: number;  // % — certified purity of the reference standard (0 = not set → default 99.5)
   method: string;           // analytical method file
   notes: string;
+  // ANVISA conformance — auto-synced from the ANVISA block when this compound is active
+  anvisaMinMg?: number;     // mg — ANVISA lower limit
+  anvisaMaxMg?: number;     // mg — ANVISA upper limit
+  anvisaNorm?: string;      // reference norm, e.g. "IN 28/2018"
 }
 
 interface LotResult {
@@ -3228,6 +3232,21 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     });
   }, []);
 
+  // Sync ANVISA limits back to the active compound so the bank is always up-to-date.
+  // compoundName is passed explicitly (captured from padraoConfig at call-site).
+  const syncAnvisaToCompound = (compoundName: string, minMg: number, maxMg: number, norm: string) => {
+    const nameLower = compoundName.trim().toLowerCase();
+    if (!nameLower) return;
+    setActiveCompounds(prev => {
+      const idx = prev.findIndex(c => {
+        const cn = c.name.trim().toLowerCase();
+        return cn === nameLower || cn.includes(nameLower) || nameLower.includes(cn);
+      });
+      if (idx < 0) return prev;
+      return prev.map((c, i) => i === idx ? { ...c, anvisaMinMg: minMg, anvisaMaxMg: maxMg, anvisaNorm: norm } : c);
+    });
+  };
+
   // Load heavy image data after first paint so it doesn't block initial render
   useEffect(() => {
     const imgs = loadSavedImages();
@@ -4795,6 +4814,14 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                         onChange={e => {
                           const c = activeCompounds.find(ac => ac.id === e.target.value);
                           if (!c) return;
+                          // Load ANVISA limits saved for this compound into padraoConfig
+                          if ((c.anvisaMinMg ?? 0) > 0 || (c.anvisaMaxMg ?? 0) > 0 || c.anvisaNorm) {
+                            updatePadrao({
+                              anvisaMinMg: c.anvisaMinMg ?? 0,
+                              anvisaMaxMg: c.anvisaMaxMg ?? 0,
+                              anvisaNorm: c.anvisaNorm ?? "IN 28/2018",
+                            });
+                          }
                           const now2 = new Date();
                           const pad2 = (n: number) => String(n).padStart(2, "0");
                           const datePart2 = `${now2.getFullYear()}-${pad2(now2.getMonth() + 1)}-${pad2(now2.getDate())} ${pad2(now2.getHours())}-${pad2(now2.getMinutes())}-${pad2(now2.getSeconds())}`;
@@ -10357,7 +10384,9 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                             value={dispMin > 0 ? dispMin : ""}
                             onChange={e => {
                               const v = parseFloat(e.target.value) || 0;
-                              updatePadrao({ anvisaMinMg: useUg ? v / 1000 : v });
+                              const newMin = useUg ? v / 1000 : v;
+                              updatePadrao({ anvisaMinMg: newMin });
+                              syncAnvisaToCompound(padraoConfig.compoundName, newMin, padraoConfig.anvisaMaxMg, padraoConfig.anvisaNorm);
                             }}
                             style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
                           />
@@ -10375,7 +10404,9 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                             value={dispMax > 0 ? dispMax : ""}
                             onChange={e => {
                               const v = parseFloat(e.target.value) || 0;
-                              updatePadrao({ anvisaMaxMg: useUg ? v / 1000 : v });
+                              const newMax = useUg ? v / 1000 : v;
+                              updatePadrao({ anvisaMaxMg: newMax });
+                              syncAnvisaToCompound(padraoConfig.compoundName, padraoConfig.anvisaMinMg, newMax, padraoConfig.anvisaNorm);
                             }}
                             style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
                           />
@@ -10389,7 +10420,10 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                             type="text"
                             placeholder="ex: IN 28/2018"
                             value={norm}
-                            onChange={e => updatePadrao({ anvisaNorm: e.target.value })}
+                            onChange={e => {
+                              updatePadrao({ anvisaNorm: e.target.value });
+                              syncAnvisaToCompound(padraoConfig.compoundName, padraoConfig.anvisaMinMg, padraoConfig.anvisaMaxMg, e.target.value);
+                            }}
                             style={{ width: "100%", fontFamily: "Courier New, monospace", fontSize: 11, padding: "3px 6px", border: "1px solid #bae6fd", borderRadius: 4, background: "#fff" }}
                           />
                         </div>
@@ -10410,7 +10444,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                           type="number"
                           min="0"
                           step="0.01"
-                          value={foundMgAnv > 0 ? parseFloat(foundMgAnv.toFixed(4)) : ""}
+                          value={foundMgAnv > 0 ? foundMgAnv.toFixed(2) : ""}
                           placeholder="0.00"
                           onChange={e => {
                             const enteredMg = parseFloat(e.target.value) || 0;
