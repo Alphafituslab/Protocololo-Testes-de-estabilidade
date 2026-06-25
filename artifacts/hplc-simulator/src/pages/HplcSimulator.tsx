@@ -7490,28 +7490,34 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                               {(() => {
                                 if (compReg.slope <= 0) return null;
 
-                                // ── X: amount do padrão ──────────────────────────────────────
-                                // Priority 1: stdAmountUg configurado no External Standard
-                                // Priority 2: ponto médio dos níveis de calibração
                                 const stdPurityFrac = (padraoConfig.stdPurity > 0 ? padraoConfig.stdPurity : 100) / 100;
                                 const midStd = cc.standards.length > 0
                                   ? cc.standards[Math.floor(cc.standards.length / 2)]
                                   : null;
-                                const stdAmount = padraoConfig.stdAmountUg > 0
-                                  ? padraoConfig.stdAmountUg * stdPurityFrac
-                                  : (midStd ? midStd.amount : 0);
-                                if (stdAmount <= 0) return null;
 
-                                // ── Y: área do padrão ────────────────────────────────────────
-                                // Priority 1: stdArea medida (área real do padrão analisado)
-                                // Priority 2: auto-predict da regressão → ◆ fica SOBRE a reta
+                                // ── Determinar Area e Amount garantindo ◆ sempre sobre a reta ──
+                                // Regra: se temos área real medida, back-calc x = (area−b)/m.
+                                // Geometricamente: ponto (x, area) com x=(area−b)/m satisfaz
+                                // area = m·x + b por definição → sempre na reta.
                                 const measuredArea = padraoConfig.stdArea > 0 ? padraoConfig.stdArea : 0;
-                                const predictedArea = compReg.slope * stdAmount + compReg.intercept;
-                                const stdArea = measuredArea > 0 ? measuredArea : Math.max(0, predictedArea);
-                                if (stdArea <= 0) return null;
-
-                                // Se usando área predita, o ponto cai sobre a reta (auto-corrected)
-                                const isAutoLine = measuredArea <= 0;
+                                let stdArea: number;
+                                let stdAmount: number;
+                                let isAutoLine: boolean;
+                                if (measuredArea > 0) {
+                                  // Área real → x back-calculado da regressão atual
+                                  stdArea   = measuredArea;
+                                  stdAmount = Math.max(0, (measuredArea - compReg.intercept) / compReg.slope);
+                                  isAutoLine = false;
+                                } else {
+                                  // Sem área real → usar stdAmountUg ou ponto médio, predizer y
+                                  const rawAmt = padraoConfig.stdAmountUg > 0
+                                    ? padraoConfig.stdAmountUg * stdPurityFrac
+                                    : (midStd ? midStd.amount : 0);
+                                  stdAmount  = rawAmt;
+                                  stdArea    = Math.max(0, compReg.slope * rawAmt + compReg.intercept);
+                                  isAutoLine = true;
+                                }
+                                if (stdAmount <= 0 || stdArea <= 0) return null;
 
                                 const cx = xs(Math.min(stdAmount, compCalibXMax));
                                 const cy = ys(Math.min(Math.max(stdArea, 0), compCalibYMax));
