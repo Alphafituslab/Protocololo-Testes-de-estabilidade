@@ -6946,12 +6946,6 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                     {/* Calibration Curves — full-width SVG chart matching original   */}
                     {/* ══════════════════════════════════════════════════════════════ */}
                     <div style={{ marginTop: 28 }}>
-                    {/* Note if no peak in chromatogram */}
-                    {!peaks.some(p => (p.name && (p.name.toLowerCase().includes(compound.name.toLowerCase()) || compound.name.toLowerCase().includes(p.name.toLowerCase()))) || Math.abs(p.retentionTime - (cc.calib.expRT > 0 ? cc.calib.expRT : compound.expectedRT)) < compound.rtTol * 2) && (
-                      <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 4, padding: "5px 10px", marginBottom: 10 }}>
-                        ⚠ No chromatogram peak matched — showing calibration curve from entered standards only
-                      </div>
-                    )}
                       <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
                       <div style={{ whiteSpace: "pre" }}>{"    " + " ".repeat(26) + "Calibration Curves"}</div>
                       <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
