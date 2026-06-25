@@ -7015,22 +7015,22 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                     <line x1={cx} y1={cy} x2={cx} y2={mT + iH} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
                                     {/* Diamond */}
                                     <path d={diamond} fill="#ea580c" stroke="white" strokeWidth={1.5} />
-                                    {/* Area label on Y-axis — predicted area at found amount */}
+                                    {/* Area label — inside chart, just right of Y-axis */}
                                     <text
-                                      x={mL - 6}
-                                      y={cy + 3.5}
-                                      textAnchor="end"
+                                      x={mL + 4}
+                                      y={cy - 3}
+                                      textAnchor="start"
                                       fontSize={8.5}
                                       fontWeight="bold"
                                       fill="#333"
                                     >
                                       {predictedArea.toFixed(3)}
                                     </text>
-                                    {/* Found-amount label on X-axis */}
+                                    {/* Found-amount label — inside chart, just above X-axis */}
                                     <text
-                                      x={cx}
-                                      y={mT + iH + 13}
-                                      textAnchor="middle"
+                                      x={cx + 3}
+                                      y={mT + iH - 4}
+                                      textAnchor="start"
                                       fontSize={8.5}
                                       fontWeight="bold"
                                       fill="#111"
