@@ -384,7 +384,13 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
           // Prefer: kinetics saved T6 > T6-only avg > overall avg (last resort)
           const basePercent = getKineticsT6(param) ?? t6Only ?? avg;
           if (basePercent !== null && !isNaN(declaredNum) && declaredNum > 0) {
-            const actualMg = (basePercent / 100) * declaredNum;
+            // Apply overage exactly as the Faixa de Conformidade table does in the frontend.
+            // Without overage: actualMg = (T6% / 100) × declared
+            // With overage:    mfg = declared × (1 + overage%)  →  actualMg = (T6% / 100) × mfg
+            const overagePctRaw = lim.overage ? parseFloat((lim.overage ?? "").replace(",", ".")) : NaN;
+            const hasOvg = !isNaN(overagePctRaw) && overagePctRaw > 0;
+            const mfg = hasOvg ? declaredNum * (1 + overagePctRaw / 100) : declaredNum;
+            const actualMg = (basePercent / 100) * mfg;
             const minParsed = parseFloat((lim.min ?? "").replace(",", "."));
             const maxParsed = parseFloat((lim.max ?? "").replace(",", "."));
             const minNum = isNaN(minParsed) ? null : minParsed;

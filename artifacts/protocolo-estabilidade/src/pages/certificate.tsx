@@ -973,7 +973,7 @@ export default function CertificatePage() {
             <div className="space-y-3 py-1">
               <p className="text-sm text-muted-foreground">
                 Digite a senha mestra para alterar o status de{" "}
-                <span className="font-semibold text-red-700">Nao Conforme</span>.
+                <span className="font-semibold text-red-700">Reprovado</span>.
               </p>
               <Input
                 type="password"
@@ -998,7 +998,7 @@ export default function CertificatePage() {
                   className="justify-start border-green-300 text-green-800 hover:bg-green-50"
                   onClick={() => applyStatusOverride("Conforme")}
                 >
-                  ✓ Conforme
+                  ✓ Aprovado
                 </Button>
                 <Button
                   variant="outline"
@@ -1679,7 +1679,9 @@ export default function CertificatePage() {
                             : "text-gray-500"
                           }`}>
                             {isNC && <span className="inline-block w-2 h-2 rounded-full bg-red-600 shrink-0" />}
-                            {analysis.status}
+                            {analysis.status === "Conforme" ? "Aprovado"
+                              : analysis.status === "Nao Conforme" ? "Reprovado"
+                              : analysis.status}
                           </span>
                           {isNC && (
                             <button
@@ -1813,6 +1815,20 @@ export default function CertificatePage() {
           const practicedMonths = (cert as any).validityMonths as number | null ?? null;
           const hasData = validParams.length > 0;
 
+          // Build param → ativoStatus map from the analyses array (already has overage applied)
+          const ativoStatusMap: Record<string, { status: string; mgValue: string | null; faixa: string | null }> = {};
+          if (analyses) {
+            for (const a of analyses) {
+              if (a.ativoStatus) {
+                ativoStatusMap[a.parameter] = {
+                  status: a.ativoStatus,
+                  mgValue: a.ativoMgValue ?? null,
+                  faixa: a.ativoFaixa ?? null,
+                };
+              }
+            }
+          }
+
           if (!show.cineticaProtocolo) return null;
           return (
             <div className="cert-kinetica-block mb-6 rounded border border-blue-200 overflow-hidden text-xs text-gray-700">
@@ -1862,11 +1878,15 @@ export default function CertificatePage() {
                           <th className="border border-blue-200 px-2 py-1 text-center font-semibold">T6 (%)</th>
                           <th className="border border-blue-200 px-2 py-1 text-center font-semibold">k (mês⁻¹)</th>
                           <th className="border border-blue-200 px-2 py-1 text-center font-semibold">Validade Calc. (meses)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold">Conf. ANVISA</th>
                         </tr>
                       </thead>
                       <tbody>
                         {validParams.map(p => {
                           const isLimiting = p.parameter === limiting;
+                          const anvInfo = ativoStatusMap[p.parameter];
+                          const anvAprovado = anvInfo?.status === "dentro";
+                          const anvReprovado = anvInfo?.status === "fora";
                           return (
                             <tr key={p.parameter} className={isLimiting ? "bg-amber-50" : ""}>
                               <td className={`border border-blue-200 px-2 py-1 font-medium ${isLimiting ? "text-amber-800" : ""}`}>
@@ -1878,6 +1898,14 @@ export default function CertificatePage() {
                               <td className="border border-blue-200 px-2 py-1 text-center font-mono">{p.k != null ? p.k.toFixed(5) : "—"}</td>
                               <td className="border border-blue-200 px-2 py-1 text-center font-semibold">
                                 {p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(2) : "—"}
+                              </td>
+                              <td className={`border border-blue-200 px-2 py-1 text-center font-semibold ${anvAprovado ? "text-green-700" : anvReprovado ? "text-red-700" : "text-gray-400"}`}>
+                                {anvAprovado ? "✓ Aprovado"
+                                  : anvReprovado ? "✗ Reprovado"
+                                  : "—"}
+                                {anvInfo?.mgValue && (
+                                  <div className="text-[9px] font-normal text-gray-500 leading-snug">{anvInfo.mgValue}</div>
+                                )}
                               </td>
                             </tr>
                           );
