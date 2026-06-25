@@ -3570,7 +3570,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
 
   const chromatogram = useMemo(
     () => buildChromatogram(peaksForDisplay, detector.runTime, 2000, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander ?? 0, detector.shotNoise ?? 0, detector.baselineHump ?? 0, detector.broadeningFactor ?? 0, detector.baselineOffset ?? 0, detector.baselinePulseFreq ?? 1.6, detector.baselineStartOffset ?? 0, detector.baselineStartDecay ?? 1.0, detector.gradientRamp ?? 0, detector.baselineStep ?? 0, detector.baselineStepRT ?? 0, detector.spikeRate ?? 0, detector.baselineDecay ?? 0, detector.wanderFreq ?? 1.0),
-    [peaksForDisplay, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander, detector.shotNoise, detector.baselineHump, detector.broadeningFactor, detector.baselineOffset, detector.baselinePulseFreq, detector.baselineStartOffset, detector.baselineStartDecay],
+    [peaksForDisplay, detector.runTime, detector.baselineNoise, detector.baselineDrift, detector.baselinePulse, detector.baselineWander, detector.shotNoise, detector.baselineHump, detector.broadeningFactor, detector.baselineOffset, detector.baselinePulseFreq, detector.baselineStartOffset, detector.baselineStartDecay, detector.gradientRamp, detector.baselineStep, detector.baselineStepRT, detector.spikeRate, detector.baselineDecay, detector.wanderFreq],
   );
 
   // Standard reference peak overlay — simulates the mid-level calibration standard
