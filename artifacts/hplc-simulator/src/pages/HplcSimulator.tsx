@@ -3391,6 +3391,9 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     if (matched && matched.id !== selectedCalibCompoundId) {
       setSelectedCalibCompoundId(matched.id);
       setCalib(cb => ({ ...cb, compoundName: matched.name, expRT: matched.expectedRT }));
+      // Auto-fill certified purity from compound registration
+      const purity = matched.certifiedPurity > 0 ? matched.certifiedPurity : 99.5;
+      updatePadrao({ stdPurity: purity });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [padraoConfig.compoundName, activeCompounds]);
@@ -9399,10 +9402,31 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                 </div>
                 <div id="padrao-row-stdPurity" style={ROW}>
                   <span style={LBL}>Certified purity (%)</span>
-                  {numInput(padraoConfig.stdPurity, v => updatePadraoProtected({ stdPurity: v }), { step: "0.01", placeholder: "100.00" })}
-                    <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#059669", marginTop: 2, background: "#ecfdf5", border: "1px solid #6ee7b7", borderRadius: 3, padding: "2px 5px" }}>
-                      ✓ Altera Found Amount, Purity vs Standard e todos os cálculos abaixo automaticamente
-                    </div>
+                  {(() => {
+                    const matchedCpd = activeCompounds.find(c => {
+                      const n = padraoConfig.compoundName?.trim().toLowerCase();
+                      if (!n) return false;
+                      const cn = c.name.trim().toLowerCase();
+                      return cn === n || cn.includes(n) || n.includes(cn);
+                    });
+                    const cpPurity = matchedCpd && matchedCpd.certifiedPurity > 0 ? matchedCpd.certifiedPurity : null;
+                    return (
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        {numInput(padraoConfig.stdPurity, v => updatePadraoProtected({ stdPurity: v }), { step: "0.01", placeholder: "100.00" })}
+                        {cpPurity !== null && (
+                          <button
+                            type="button"
+                            title={`Sincronizar com o composto "${matchedCpd!.name}" (${cpPurity.toFixed(2)}%)`}
+                            onClick={() => updatePadraoProtected({ stdPurity: cpPurity })}
+                            style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 6px", border: "1px solid #6ee7b7", borderRadius: 3, background: "#ecfdf5", color: "#065f46", cursor: "pointer", whiteSpace: "nowrap" }}
+                          >↓ {cpPurity.toFixed(2)}%</button>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 8, color: "#059669", marginTop: 2, background: "#ecfdf5", border: "1px solid #6ee7b7", borderRadius: 3, padding: "2px 5px" }}>
+                    ✓ Altera Found Amount, Purity vs Standard e todos os cálculos abaixo automaticamente
+                  </div>
                 </div>
 
                 <PeakCapture
