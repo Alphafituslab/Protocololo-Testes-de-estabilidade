@@ -7014,7 +7014,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                     {/* Vertical dashed guide: sample point → X-axis (downward) */}
                                     <line x1={cx} y1={cy} x2={cx} y2={mT + iH} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
                                     {/* Diamond */}
-                                    <path d={diamond} fill="#ea580c" stroke="white" strokeWidth={1.5} />
+                                    <path d={diamond} fill="#111" stroke="white" strokeWidth={1.5} />
                                     {/* Area label — inside chart, just right of Y-axis */}
                                     <text
                                       x={mL + 4}
