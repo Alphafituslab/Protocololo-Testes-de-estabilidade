@@ -7625,11 +7625,11 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                     />
                                     {/* Y label — posicionado junto ao diamante deslocado */}
                                     <text x={mL + 4} y={adjCy - 3} textAnchor="start" fontSize={8.5} fontWeight="bold" fill="#333">
-                                      {stdArea.toFixed(5)}{isAutoLine ? "*" : ""}
+                                      {stdArea.toFixed(3)}{isAutoLine ? "*" : ""}
                                     </text>
                                     {/* X label */}
                                     <text x={cx + 3} y={mT + iH - 4} textAnchor="start" fontSize={8.5} fontWeight="bold" fill="#111">
-                                      {stdAmount.toFixed(5)}
+                                      {stdAmount.toFixed(3)}
                                     </text>
                                   </g>
                                 );
