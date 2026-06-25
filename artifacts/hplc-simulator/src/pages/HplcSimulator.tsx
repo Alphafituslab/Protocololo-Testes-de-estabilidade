@@ -309,6 +309,13 @@ interface SavedAnalysis {
   chromSvgData: string;     // serialized SVG string for re-display
   config: PadraoConfig;     // full config snapshot to regenerate PDF
   htmlContent?: string;     // full PDF HTML (same as handlePrintPadrao output)
+  // Full document snapshot — optional for backward compat with older records
+  peaks?: Peak[];
+  sample?: SampleInfo;
+  detector?: DetectorInfo;
+  standards?: CalibStandard[];
+  calib?: CalibInfo;
+  activeCompounds?: ActiveCompound[];
 }
 
 // ─── Padrao protection + audit types ────────────────────────────────────────────
@@ -2971,6 +2978,27 @@ export default function HplcSimulator() {
   const [analiseSubTab, setAnaliseSubTab] = useState<"sessions" | "pdfs">("sessions");
   const [analysisSearch, setAnalysisSearch] = useState("");
   const [saveConfirmId, setSaveConfirmId] = useState<string | null>(null);
+
+  // Restore the full document state from a SavedAnalysis record so the user can
+  // reopen, verify, edit and re-save exactly where they left off.
+  const restoreDocument = useCallback((saved: SavedAnalysis) => {
+    // 1. Standard tab config (always present)
+    setPadraoConfig(prev => {
+      const next = { ...prev, ...saved.config };
+      savePadraoConfig(next);
+      return next;
+    });
+    // 2. Full chromatogram state (only present in records saved after this update)
+    if (saved.peaks && saved.peaks.length > 0)   setPeaks(saved.peaks);
+    if (saved.sample)                             setSample(saved.sample);
+    if (saved.detector)                           setDetector(saved.detector);
+    if (saved.standards && saved.standards.length > 0) setStandards(saved.standards);
+    if (saved.calib)                              setCalib(saved.calib);
+    if (saved.activeCompounds)                    setActiveCompounds(saved.activeCompounds);
+    // 3. Navigate to Standard tab so user sees the restored document immediately
+    setSaveConfirmId(null);
+    setPage("padrao");
+  }, []);
 
   const openSavedPdf = useCallback((saved: SavedAnalysis) => {
     if (!saved.htmlContent) {
@@ -5730,12 +5758,8 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                       {a.foundAmountMg.toFixed(4)} mg
                                     </span>
                                   )}
-                                  <button onClick={() => {
-                                    updatePadrao({ ...a.config }, { changedBy: "operator" });
-                                    setSaveConfirmId(null);
-                                    setPage("padrao");
-                                  }} style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 8px", border: "1px solid #16a34a", borderRadius: 3, background: "#16a34a", color: "#fff", cursor: "pointer", marginLeft: "auto" }} title="Recarregar no Standard para editar">
-                                    ✏️ Editar
+                                  <button onClick={() => restoreDocument(a)} style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 8px", border: "1px solid #16a34a", borderRadius: 3, background: "#16a34a", color: "#fff", cursor: "pointer", marginLeft: "auto" }} title="Restaura todo o documento — cromatograma, configurações e dados">
+                                    🔄 Restaurar
                                   </button>
                                   <button onClick={() => openSavedPdf(a)} style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "2px 8px", border: "1px solid #1e3a5f", borderRadius: 3, background: "#1e3a5f", color: "#fff", cursor: "pointer" }}>
                                     📄 PDF
@@ -7393,15 +7417,11 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                             </div>
                           </div>
                           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                            <button onClick={() => {
-                              updatePadrao({ ...a.config }, { changedBy: "operator" });
-                              setSaveConfirmId(null);
-                              setPage("padrao");
-                            }} style={{
+                            <button onClick={() => restoreDocument(a)} style={{
                               fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 14px",
                               border: "none", borderRadius: 5, background: "#16a34a", color: "#fff",
                               cursor: "pointer", fontWeight: "bold",
-                            }} title="Recarrega todos os dados no Standard para editar">✏️ Editar</button>
+                            }} title="Restaura todo o documento — cromatograma, configurações e dados">🔄 Restaurar Documento</button>
                             <button onClick={() => openSavedPdf(a)} style={{
                               fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 14px",
                               border: "none", borderRadius: 5, background: "#3b82f6", color: "#fff",
@@ -8756,6 +8776,13 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                           chromSvgData,
                           config: { ...padraoConfig },
                           htmlContent: _htmlContent,
+                          // Full document snapshot so the entire session can be restored
+                          peaks: [...peaks],
+                          sample: { ...sample },
+                          detector: { ...detector },
+                          standards: [...standards],
+                          calib: { ...calib },
+                          activeCompounds: [...activeCompounds],
                         };
 
                         // 4. Persiste — fica na aba Standard, sem download automático
