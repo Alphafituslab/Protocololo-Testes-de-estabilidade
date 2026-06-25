@@ -3033,6 +3033,8 @@ export default function HplcSimulator() {
   const [analysisSearch, setAnalysisSearch] = useState("");
   const [saveConfirmId, setSaveConfirmId] = useState<string | null>(null);
   const [showPreSaveDialog, setShowPreSaveDialog] = useState(false);
+  const [preSaveSessionId, setPreSaveSessionId] = useState<string>("");
+  const [preSaveSessionStatus, setPreSaveSessionStatus] = useState<"em_andamento" | "aprovado" | "reprovado">("aprovado");
 
   // Restore the full document state from a SavedAnalysis record so the user can
   // reopen, verify, edit and re-save exactly where they left off.
@@ -8797,23 +8799,86 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                   };
 
                   if (showPreSaveDialog) {
-                    /* Dialog de confirmação pré-salvar */
+                    const statusOpts: { val: "em_andamento" | "aprovado" | "reprovado"; label: string; color: string; bg: string }[] = [
+                      { val: "em_andamento", label: "Em Andamento", color: "#1d4ed8", bg: "#dbeafe" },
+                      { val: "aprovado",     label: "Aprovado",     color: "#16a34a", bg: "#dcfce7" },
+                      { val: "reprovado",    label: "Reprovado",    color: "#dc2626", bg: "#fee2e2" },
+                    ];
                     return (
-                      <div style={{ border: "1.5px solid #1e3a5f", borderRadius: 8, padding: "12px 16px", background: "#f0f4ff" }}>
+                      <div style={{ border: "1.5px solid #1e3a5f", borderRadius: 8, padding: "14px 16px", background: "#f0f4ff" }}>
+                        {/* Título e doc info */}
                         <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#1e3a5f", marginBottom: 4 }}>
                           💾 Deseja salvar o documento?
                         </div>
-                        <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#475569", marginBottom: 10 }}>
+                        <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#475569", marginBottom: 12 }}>
                           {padraoConfig.productName && <span><b>{padraoConfig.productName}</b></span>}
                           {padraoConfig.productLot && <span> · Lote: <b>{padraoConfig.productLot}</b></span>}
                           {padraoConfig.certNumber && <span> · Nº: <b>{padraoConfig.certNumber}</b></span>}
                         </div>
+
+                        {/* Seletor de Analysis Session (opcional) */}
+                        {analysisSessions.length > 0 && (
+                          <div style={{ marginBottom: 10 }}>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b", marginBottom: 4, fontWeight: "bold" }}>
+                              Vincular a uma Analysis Session <span style={{ fontWeight: "normal", color: "#94a3b8" }}>(opcional)</span>
+                            </div>
+                            <select
+                              value={preSaveSessionId}
+                              onChange={e => setPreSaveSessionId(e.target.value)}
+                              style={{
+                                width: "100%", fontFamily: "Courier New, monospace", fontSize: 10,
+                                padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: 5,
+                                background: "#fff", color: "#1e293b", boxSizing: "border-box",
+                              }}
+                            >
+                              <option value="">— Nenhuma (salvar apenas o documento) —</option>
+                              {analysisSessions.map(s => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name}{s.status === "aprovado" ? " ✓" : s.status === "reprovado" ? " ✗" : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {/* Status da sessão — só aparece se uma sessão foi selecionada */}
+                        {preSaveSessionId && (
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b", marginBottom: 6, fontWeight: "bold" }}>
+                              Atualizar status da sessão para:
+                            </div>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              {statusOpts.map(({ val, label, color, bg }) => (
+                                <button
+                                  key={val}
+                                  onClick={() => setPreSaveSessionStatus(val)}
+                                  style={{
+                                    fontFamily: "Courier New, monospace", fontSize: 10, padding: "4px 12px",
+                                    border: `2px solid ${preSaveSessionStatus === val ? color : color + "44"}`,
+                                    borderRadius: 5, background: preSaveSessionStatus === val ? bg : "#fff",
+                                    color: preSaveSessionStatus === val ? color : "#64748b",
+                                    cursor: "pointer", fontWeight: preSaveSessionStatus === val ? "bold" : "normal",
+                                    transition: "all 0.1s",
+                                  }}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Ações */}
                         <div style={{ display: "flex", gap: 8 }}>
                           <button
                             onClick={() => {
                               doSave();
+                              if (preSaveSessionId) {
+                                handleConcludeSession(preSaveSessionId, preSaveSessionStatus);
+                              }
                               setShowPreSaveDialog(false);
                               setSaveConfirmId(null);
+                              setPreSaveSessionId("");
                               setAnaliseSubTab("pdfs");
                               setPage("analise");
                             }}
@@ -8823,10 +8888,10 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                               cursor: "pointer", color: "#fff", fontWeight: "bold",
                             }}
                           >
-                            💾 Salvar apenas
+                            💾 Salvar
                           </button>
                           <button
-                            onClick={() => setShowPreSaveDialog(false)}
+                            onClick={() => { setShowPreSaveDialog(false); setPreSaveSessionId(""); }}
                             style={{
                               fontFamily: "Courier New, monospace", fontSize: 11, padding: "6px 16px",
                               border: "1.5px solid #94a3b8", borderRadius: 5, background: "#fff",
