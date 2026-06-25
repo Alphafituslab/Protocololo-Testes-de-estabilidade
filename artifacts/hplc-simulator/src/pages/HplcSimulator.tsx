@@ -7236,20 +7236,35 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                   <circle cx={xs(s.amount)} cy={ys(s.area)} r={5} fill="#111" stroke="white" strokeWidth={1.5} />
                                 </g>
                               ))}
-                              {/* Standard point ◆ — (stdAmount, stdArea) contraprova do padrão na curva */}
+                              {/* Standard point ◆ — padrão na curva de calibração */}
                               {(() => {
-                                // Y = área medida do PADRÃO (não da amostra)
-                                const stdArea = padraoConfig.stdArea;
-                                if (stdArea <= 0) return null;
-                                // X = quantidade real do padrão (ajustada pela pureza)
+                                if (compReg.slope <= 0) return null;
+
+                                // ── X: amount do padrão ──────────────────────────────────────
+                                // Priority 1: stdAmountUg configurado no External Standard
+                                // Priority 2: ponto médio dos níveis de calibração
                                 const stdPurityFrac = (padraoConfig.stdPurity > 0 ? padraoConfig.stdPurity : 100) / 100;
+                                const midStd = cc.standards.length > 0
+                                  ? cc.standards[Math.floor(cc.standards.length / 2)]
+                                  : null;
                                 const stdAmount = padraoConfig.stdAmountUg > 0
                                   ? padraoConfig.stdAmountUg * stdPurityFrac
-                                  : (compReg.slope > 0 ? Math.max(0, (stdArea - compReg.intercept) / compReg.slope) : 0);
+                                  : (midStd ? midStd.amount : 0);
                                 if (stdAmount <= 0) return null;
+
+                                // ── Y: área do padrão ────────────────────────────────────────
+                                // Priority 1: stdArea medida (área real do padrão analisado)
+                                // Priority 2: auto-predict da regressão → ◆ fica SOBRE a reta
+                                const measuredArea = padraoConfig.stdArea > 0 ? padraoConfig.stdArea : 0;
+                                const predictedArea = compReg.slope * stdAmount + compReg.intercept;
+                                const stdArea = measuredArea > 0 ? measuredArea : Math.max(0, predictedArea);
+                                if (stdArea <= 0) return null;
+
+                                // Se usando área predita, o ponto cai sobre a reta (auto-corrected)
+                                const isAutoLine = measuredArea <= 0;
+
                                 const cx = xs(Math.min(stdAmount, compCalibXMax));
                                 const cy = ys(Math.min(Math.max(stdArea, 0), compCalibYMax));
-                                // Diamond shape
                                 const d = 6;
                                 const diamond = `M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`;
                                 return (
@@ -7258,28 +7273,19 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                     <line x1={mL} y1={cy} x2={cx} y2={cy} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
                                     {/* Vertical dashed guide: diamond → X-axis */}
                                     <line x1={cx} y1={cy} x2={cx} y2={mT + iH} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
-                                    {/* Diamond */}
-                                    <path d={diamond} fill="#111" stroke="white" strokeWidth={1.5} />
-                                    {/* Y label — área do padrão — próxima ao eixo Y */}
-                                    <text
-                                      x={mL + 4}
-                                      y={cy - 3}
-                                      textAnchor="start"
-                                      fontSize={8.5}
-                                      fontWeight="bold"
-                                      fill="#333"
-                                    >
-                                      {stdArea.toFixed(5)}
+                                    {/* Diamond — filled if real area, outlined if predicted */}
+                                    <path
+                                      d={diamond}
+                                      fill={isAutoLine ? "none" : "#111"}
+                                      stroke="#111"
+                                      strokeWidth={isAutoLine ? 1.5 : 1.5}
+                                    />
+                                    {/* Y label */}
+                                    <text x={mL + 4} y={cy - 3} textAnchor="start" fontSize={8.5} fontWeight="bold" fill="#333">
+                                      {stdArea.toFixed(5)}{isAutoLine ? "*" : ""}
                                     </text>
-                                    {/* X label — amount do padrão — acima do eixo X */}
-                                    <text
-                                      x={cx + 3}
-                                      y={mT + iH - 4}
-                                      textAnchor="start"
-                                      fontSize={8.5}
-                                      fontWeight="bold"
-                                      fill="#111"
-                                    >
+                                    {/* X label */}
+                                    <text x={cx + 3} y={mT + iH - 4} textAnchor="start" fontSize={8.5} fontWeight="bold" fill="#111">
                                       {stdAmount.toFixed(5)}
                                     </text>
                                   </g>
