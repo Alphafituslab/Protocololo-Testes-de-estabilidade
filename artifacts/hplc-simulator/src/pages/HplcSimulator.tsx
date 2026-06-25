@@ -6958,11 +6958,11 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                               {yTicks.map(t => (
                                 <line key={`yg-${t}`} x1={mL} y1={ys(t)} x2={mL + iW} y2={ys(t)} stroke="#e0e0e0" strokeWidth={0.6} />
                               ))}
-                              {/* Dashed guide lines from each data point to axes */}
+                              {/* Dashed guide lines: horizontal from Y-axis to point, vertical from point down to X-axis */}
                               {sorted.map(s => (
                                 <g key={`gl-${s.id}`}>
-                                  <line x1={xs(s.amount)} y1={mT} x2={xs(s.amount)} y2={ys(s.area)} stroke="#ccc" strokeDasharray="3 2" strokeWidth={0.8} />
                                   <line x1={mL} y1={ys(s.area)} x2={xs(s.amount)} y2={ys(s.area)} stroke="#ccc" strokeDasharray="3 2" strokeWidth={0.8} />
+                                  <line x1={xs(s.amount)} y1={ys(s.area)} x2={xs(s.amount)} y2={mT + iH} stroke="#ccc" strokeDasharray="3 2" strokeWidth={0.8} />
                                 </g>
                               ))}
                               {/* Axis lines */}
@@ -7006,13 +7006,8 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                   <circle cx={xs(s.amount)} cy={ys(s.area)} r={5} fill="#111" stroke="white" strokeWidth={1.5} />
                                 </g>
                               ))}
-                              {/* Sample point from Padrão tab — orange diamond + purity label */}
+                              {/* Sample point from Padrão tab — orange diamond */}
                               {(() => {
-                                const nameMatch = padraoConfig.compoundName && (
-                                  compound.name.toLowerCase().includes(padraoConfig.compoundName.toLowerCase()) ||
-                                  padraoConfig.compoundName.toLowerCase().includes(compound.name.toLowerCase())
-                                );
-                                if (!nameMatch) return null;
                                 if (padraoConfig.smpArea <= 0 || padraoConfig.stdArea <= 0) return null;
                                 const smpFoundUg = (padraoConfig.smpArea / padraoConfig.stdArea) * padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100);
                                 if (smpFoundUg <= 0) return null;
