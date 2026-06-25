@@ -3103,6 +3103,12 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       }
     } catch { /* ignore */ }
 
+    // When no user-set validity exists (neither in localStorage nor DB), fall back
+    // to the kinetics-recommended value so overage can be calculated immediately.
+    const kineticsFallback = (kinetics as any).recommendedValidityMonths != null
+      ? String((kinetics as any).recommendedValidityMonths) : "";
+    const effectiveCardValidity = savedCardValidity || kineticsFallback;
+
     const next: Record<string, KineticOverride> = {};
     for (const p of kinetics.parameters) {
       const base = buildKineticOverride(p);
@@ -3121,7 +3127,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
         deltaLn: recomputed.deltaLn ?? base.deltaLn,
         k: recomputed.k ?? base.k,
         shelfLife: recomputed.shelfLife ?? base.shelfLife,
-        validadePraticada: dbParam?.validadePraticada || saved.validadePraticada || base.validadePraticada || savedCardValidity || "",
+        validadePraticada: dbParam?.validadePraticada || saved.validadePraticada || base.validadePraticada || effectiveCardValidity,
         ichThreshold,
         specMin: dbParam?.specMin || saved.specMin || base.specMin,
         specMax: dbParam?.specMax || saved.specMax || base.specMax,
@@ -3129,6 +3135,11 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     }
     setOverrides(next);
     setCustomShelfLife(savedCustomShelfLife);
+    // Auto-fill the "Validade Praticada" card when no value has been set yet —
+    // uses the functional updater so we never overwrite a value the user typed.
+    if (effectiveCardValidity) {
+      setCardValidity(cv => cv || effectiveCardValidity);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kinetics, LS_KEY]);
 
