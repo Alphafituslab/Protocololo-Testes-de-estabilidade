@@ -5353,7 +5353,26 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                 {/* Ext. Std. Report meta — sorted by, calib date, multiplier, dilution */}
                 <ControlBox title="Ext. Std. Report — Meta">
                   <SmallField label="Sorted By" value={calib.sortedBy} onChange={cField("sortedBy")} />
-                  <SmallField label="Calib. Data Modified" value={calib.calibDataModified} onChange={cField("calibDataModified")} />
+                  {/* Calib. Data Modified + auto-fill button */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <div style={{ flex: 1 }}>
+                      <SmallField label="Calib. Data Modified" value={calib.calibDataModified} onChange={cField("calibDataModified")} />
+                    </div>
+                    <button
+                      type="button"
+                      title="Preencher com data/hora atual"
+                      onClick={() => {
+                        const now = new Date();
+                        const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+                        const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+                        const h = now.getHours(); const ampm = h >= 12 ? "PM" : "AM"; const h12 = h % 12 || 12;
+                        const val = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()} ${h12}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")} ${ampm}`;
+                        setCalib(c => { const next = { ...c, calibDataModified: val }; saveCalib(next); return next; });
+                        markDirty();
+                      }}
+                      style={{ marginTop: 14, padding: "2px 5px", fontSize: 9, fontFamily: "Courier New, monospace", border: "1px solid #bfdbfe", borderRadius: 3, background: "#eff6ff", color: "#1d4ed8", cursor: "pointer", whiteSpace: "nowrap" }}
+                    >📅 Agora</button>
+                  </div>
                   <SmallField label="Multiplier" value={calib.multiplier} onChange={cField("multiplier")} />
                   <SmallField label="Dilution" value={calib.dilution} onChange={cField("dilution")} />
                 </ControlBox>
@@ -5834,7 +5853,26 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                   {/* Ext. Std. Report meta (shared) */}
                   <ControlBox title="Ext. Std. Report — Meta">
                     <SmallField label="Sorted By" value={calib.sortedBy} onChange={cField("sortedBy")} />
-                    <SmallField label="Calib. Data Modified" value={calib.calibDataModified} onChange={cField("calibDataModified")} />
+                    {/* Calib. Data Modified + auto-fill button */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <div style={{ flex: 1 }}>
+                        <SmallField label="Calib. Data Modified" value={calib.calibDataModified} onChange={cField("calibDataModified")} />
+                      </div>
+                      <button
+                        type="button"
+                        title="Preencher com data/hora atual"
+                        onClick={() => {
+                          const now = new Date();
+                          const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+                          const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+                          const h = now.getHours(); const ampm = h >= 12 ? "PM" : "AM"; const h12 = h % 12 || 12;
+                          const val = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()} ${h12}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")} ${ampm}`;
+                          setCalib(c => { const next = { ...c, calibDataModified: val }; saveCalib(next); return next; });
+                          markDirty();
+                        }}
+                        style={{ marginTop: 14, padding: "2px 5px", fontSize: 9, fontFamily: "Courier New, monospace", border: "1px solid #bfdbfe", borderRadius: 3, background: "#eff6ff", color: "#1d4ed8", cursor: "pointer", whiteSpace: "nowrap" }}
+                      >📅 Agora</button>
+                    </div>
                     <SmallField label="Multiplier" value={calib.multiplier} onChange={cField("multiplier")} />
                     <SmallField label="Dilution" value={calib.dilution} onChange={cField("dilution")} />
                   </ControlBox>
