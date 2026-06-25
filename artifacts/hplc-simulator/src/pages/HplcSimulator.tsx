@@ -2115,8 +2115,15 @@ const DEFAULT_PADRAO_CONFIG: PadraoConfig = {
   anvisaFoundMgOverride: 0,
   productName: "", productLot: "", certNumber: "", certTitle: "Certificado de Análise",
 };
+function stripLevelPrefix(s: string): string {
+  return s.replace(/^Level\s+\d+\s*[—–-]\s*cal\.\s*/i, "");
+}
 function loadPadraoConfig(): PadraoConfig {
-  try { return { ...DEFAULT_PADRAO_CONFIG, ...(JSON.parse(localStorage.getItem(PADRAO_KEY) ?? "{}") as Partial<PadraoConfig>) }; }
+  try {
+    const raw = { ...DEFAULT_PADRAO_CONFIG, ...(JSON.parse(localStorage.getItem(PADRAO_KEY) ?? "{}") as Partial<PadraoConfig>) };
+    if (raw.stdPeakName) raw.stdPeakName = stripLevelPrefix(raw.stdPeakName);
+    return raw;
+  }
   catch { return { ...DEFAULT_PADRAO_CONFIG }; }
 }
 function savePadraoConfig(c: PadraoConfig) {
@@ -2125,7 +2132,13 @@ function savePadraoConfig(c: PadraoConfig) {
 
 const SAVED_ANALYSES_KEY = "hplc_saved_analyses_v1";
 function loadSavedAnalyses(): SavedAnalysis[] {
-  try { return JSON.parse(localStorage.getItem(SAVED_ANALYSES_KEY) ?? "[]") as SavedAnalysis[]; }
+  try {
+    const list = JSON.parse(localStorage.getItem(SAVED_ANALYSES_KEY) ?? "[]") as SavedAnalysis[];
+    return list.map(a => ({
+      ...a,
+      ...(a.config?.stdPeakName ? { config: { ...a.config, stdPeakName: stripLevelPrefix(a.config.stdPeakName) } } : {}),
+    }));
+  }
   catch { return []; }
 }
 function persistSavedAnalyses(list: SavedAnalysis[]) {
