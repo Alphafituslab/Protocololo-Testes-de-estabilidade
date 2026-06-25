@@ -6781,11 +6781,6 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                   <div style={{ whiteSpace: "pre" }}>{"    RetTime Type      Area     Amt/Area    Amount   Grp    Name"}</div>
                   <div style={{ whiteSpace: "pre" }}>{"     [min]          [mAU*s]               [ug/ml]"}</div>
                   <div style={{ whiteSpace: "pre" }}>{"    -------|------|----------|----------|----------|--|------------------"}</div>
-                  {padraoExtHasData && showExtStdNote && (
-                    <div style={{ whiteSpace: "pre", fontSize: 9, color: "#6b7280", fontStyle: "italic" }}>
-                      {`    [External standard: ${padraoConfig.compoundName} — ${padraoConfig.stdPeakName} — ${padraoConfig.stdAmountUg.toFixed(4)} µg — purity ${padraoConfig.stdPurity.toFixed(2)}%]`}
-                    </div>
-                  )}
                   {peakStats.filter(p => p.printSelected !== false).map(p => {
                     const isSmpPeak = isPadraoSamplePeak(p);
                     // For the sample peak, always use the value typed in Standard tab
