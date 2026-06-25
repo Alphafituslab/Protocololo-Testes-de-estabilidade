@@ -3100,6 +3100,8 @@ export default function HplcSimulator() {
   const [preSaveSessionStatus, setPreSaveSessionStatus] = useState<"em_andamento" | "aprovado" | "reprovado">("aprovado");
   // Tracks which saved analysis is currently being edited so re-save updates in place
   const [editingSavedId, setEditingSavedId] = useState<string | null>(null);
+  // Lot number of the record that was loaded — if user changes the lot, force a new save
+  const editingOriginalLotRef = React.useRef<string | null>(null);
   // Duplicate certNumber warning: holds the conflicting record name when detected
   const [preSaveDupWarning, setPreSaveDupWarning] = useState<string | null>(null);
 
@@ -3121,6 +3123,8 @@ export default function HplcSimulator() {
     if (saved.activeCompounds)                    setActiveCompounds(saved.activeCompounds);
     // 3. Mark this record as the one being edited so re-save updates in place
     setEditingSavedId(saved.id);
+    // Remember the lot that was loaded — changing it forces a new analysis
+    editingOriginalLotRef.current = saved.config.productLot ?? "";
     // 4. Navigate to Standard tab so user sees the restored document immediately
     setSaveConfirmId(null);
     setPage("padrao");
@@ -8910,8 +8914,14 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                     const _inSpec: boolean | null = (_inMin !== null || _inMax !== null) ? (_inMin !== false && _inMax !== false) : null;
                     let _htmlContent = "";
                     try { _htmlContent = buildPadraoHtml(); } catch { /* salva sem HTML */ }
-                    const baseId = editingSavedId ?? (Date.now().toString(36) + Math.random().toString(36).slice(2));
-                    const originalRecord = editingSavedId ? savedAnalyses.find(x => x.id === editingSavedId) : undefined;
+                    // If the user changed the lot number since loading, treat as a brand-new analysis
+                    const lotChanged =
+                      editingSavedId !== null &&
+                      editingOriginalLotRef.current !== null &&
+                      padraoConfig.productLot.trim() !== editingOriginalLotRef.current.trim();
+                    const effectiveEditId = lotChanged ? null : editingSavedId;
+                    const baseId = effectiveEditId ?? (Date.now().toString(36) + Math.random().toString(36).slice(2));
+                    const originalRecord = effectiveEditId ? savedAnalyses.find(x => x.id === effectiveEditId) : undefined;
                     const record: SavedAnalysis = {
                       id: baseId,
                       savedAt: new Date().toISOString(),
@@ -8939,12 +8949,17 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                       activeCompounds: [...activeCompounds],
                     };
                     let updated: SavedAnalysis[];
-                    if (editingSavedId) {
+                    if (effectiveEditId) {
                       // Update in place — replace the existing record, keep its position
-                      updated = savedAnalyses.map(x => x.id === editingSavedId ? record : x);
+                      updated = savedAnalyses.map(x => x.id === effectiveEditId ? record : x);
                     } else {
-                      // New document — prepend
+                      // New document (or lot changed) — prepend
                       updated = [record, ...savedAnalyses];
+                    }
+                    // If lot changed, the new record becomes the "editing" context
+                    if (lotChanged) {
+                      setEditingSavedId(record.id);
+                      editingOriginalLotRef.current = padraoConfig.productLot.trim();
                     }
                     setSavedAnalyses(updated);
                     persistSavedAnalyses(updated);
