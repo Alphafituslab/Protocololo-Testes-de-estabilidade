@@ -2160,6 +2160,35 @@ function loadSavedAnalyses(): SavedAnalysis[] {
 }
 function persistSavedAnalyses(list: SavedAnalysis[]) {
   try { localStorage.setItem(SAVED_ANALYSES_KEY, JSON.stringify(list)); } catch { /* ignore */ }
+  const token = getAuthToken();
+  if (token) {
+    fetch("/api/hplc/analyses/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(list),
+    }).catch(() => { /* ignore — localStorage is the fallback */ });
+  }
+}
+async function loadAnalysesFromServer(): Promise<SavedAnalysis[]> {
+  const token = getAuthToken();
+  if (!token) return [];
+  try {
+    const res = await fetch("/api/hplc/analyses", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    return await res.json() as SavedAnalysis[];
+  } catch { return []; }
+}
+async function archiveAnalysisOnServer(id: string): Promise<void> {
+  const token = getAuthToken();
+  if (!token) return;
+  try {
+    await fetch(`/api/hplc/analyses/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch { /* ignore */ }
 }
 
 const PADRAO_PRESETS_KEY = "hplc_padrao_presets_v1";
@@ -3225,6 +3254,30 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
       );
       setAnalysisSessions(merged);
       try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // On mount: load saved analyses from server and merge (server wins — always the most complete set)
+  useEffect(() => {
+    loadAnalysesFromServer().then(serverAnalyses => {
+      if (serverAnalyses.length === 0) {
+        // No server data yet — push local analyses to server for the first time
+        const local = loadSavedAnalyses();
+        if (local.length > 0) persistSavedAnalyses(local);
+        return;
+      }
+      // Merge: server is authoritative; add any local entries not yet on server
+      const serverMap = new Map(serverAnalyses.map(a => [a.id, a]));
+      const local = loadSavedAnalyses();
+      for (const la of local) {
+        if (!serverMap.has(la.id)) serverMap.set(la.id, la);
+      }
+      const merged = Array.from(serverMap.values()).sort(
+        (a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()
+      );
+      setSavedAnalyses(merged);
+      try { localStorage.setItem(SAVED_ANALYSES_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -5915,6 +5968,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                         const upd = savedAnalyses.filter(x => x.id !== a.id);
                                         setSavedAnalyses(upd);
                                         persistSavedAnalyses(upd);
+                                        void archiveAnalysisOnServer(a.id);
                                       },
                                     });
                                     setMasterAuthInput("");
@@ -7477,6 +7531,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                   const upd = savedAnalyses.filter(x => x.id !== a.id);
                                   setSavedAnalyses(upd);
                                   persistSavedAnalyses(upd);
+                                  void archiveAnalysisOnServer(a.id);
                                 },
                               });
                               setMasterAuthInput("");

@@ -21,6 +21,7 @@ import snapshotsRouter from "./snapshots";
 import globalSnapshotsRouter from "./global-snapshots";
 import ativoReferencesRouter from "./ativo-references";
 import hplcSessionsRouter from "./hplc-sessions";
+import hplcSavedAnalysesRouter from "./hplc-saved-analyses";
 
 const router: IRouter = Router();
 
@@ -47,5 +48,6 @@ router.use(snapshotsRouter);
 router.use(globalSnapshotsRouter);
 router.use(ativoReferencesRouter);
 router.use(hplcSessionsRouter);
+router.use(hplcSavedAnalysesRouter);
 
 export default router;
