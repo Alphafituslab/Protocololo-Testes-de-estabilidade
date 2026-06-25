@@ -6820,14 +6820,6 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                 <div style={{ whiteSpace: "pre" }}>{center("*** End of Report ***")}</div>
               </div>
 
-              {/* Footer line — matches ChemStation page footer */}
-              <div style={{ marginTop: 20, whiteSpace: "pre", fontSize: 9 }}>
-                {[
-                  sample.acqInstrument,
-                  new Date().toLocaleString("en-US", { month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true }),
-                  sample.acqOperator,
-                ].join(" ").padEnd(88) + "Page   1 of 1"}
-              </div>
 
               {/* Per-compound Calibration Tables — only show the compound selected/configured in the chromatogram */}
               {activeCompounds
@@ -6907,14 +6899,6 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                     <div style={{ whiteSpace: "pre" }}>{""}</div>
                     <div style={{ whiteSpace: "pre" }}>{""}</div>
 
-                    {/* Footer — matches ChemStation page footer, per compound calibration table page */}
-                    <div style={{ whiteSpace: "pre", fontSize: 9 }}>
-                      {[
-                        sample.acqInstrument,
-                        new Date().toLocaleString("en-US", { month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true }),
-                        sample.acqOperator,
-                      ].join(" ").padEnd(88) + "Page   1 of 1"}
-                    </div>
 
                     {/* ══════════════════════════════════════════════════════════════ */}
                     {/* Calibration Curves — full-width SVG chart matching original   */}
