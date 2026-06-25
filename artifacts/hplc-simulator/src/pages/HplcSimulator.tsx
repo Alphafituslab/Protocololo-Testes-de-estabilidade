@@ -6917,7 +6917,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                               {/* X axis label */}
                               <text x={mL + iW / 2} y={svgH - 4} textAnchor="middle" fontSize={10} fill="#222">Amount[ug/ml]</text>
                               {/* Regression line */}
-                              <line x1={xs(0)} y1={ys(ry0)} x2={xs(compCalibXMax)} y2={ys(ry1)} stroke="#1560bd" strokeWidth={1.4} />
+                              <line x1={xs(0)} y1={ys(ry0)} x2={xs(compCalibXMax)} y2={ys(ry1)} stroke="#1560bd" strokeWidth={0.8} />
                               {/* Residual lines — vertical dashed segment from each point to the regression line */}
                               {sorted.map(s => {
                                 const predictedArea = compReg.slope * s.amount + compReg.intercept;
