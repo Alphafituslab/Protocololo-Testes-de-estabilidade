@@ -7922,9 +7922,6 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
               <span>{sample.acqInstrument}{"   "}{sample.reportDate || now}{"   "}{sample.acqOperator}</span>
               <span>Page   1 of 1</span>
             </div>
-            <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#555", marginTop: 2, whiteSpace: "pre-wrap" }}>
-              {sample.softwareRev}
-            </div>
           </div>
         </div>
       </div>
