@@ -10,3 +10,4 @@
 - [setAtivoLimit — debounce obrigatório](ativo-limit-debounce.md) — mutate FORA do setState + debounce 600ms; mutate dentro de setState gera race condition e valores parciais no DB.
 - [KineticsTab — overage propagation](kinetics-overage-propagation.md) — ativoLimits vive em ResultsTab; KineticsTab em ProtocolDetail. Usar localAtivoLimitsJson state em ProtocolDetail + ceiling rounding para recStr.
 - [Certificado PDF — CSS paged media](cert-pdf-print.md) — position:fixed só renderiza na pág. 1 em Chrome print; usar display:table-header-group/footer-group; @page margin:0 Xmm para suprimir URL/data.
+- [HPLC — IDs estáveis em DEFAULT_ACTIVE_COMPOUNDS](hplc-stable-compound-ids.md) — NUNCA usar uid() em DEFAULT_ACTIVE_COMPOUNDS; IDs mudam a cada reload e quebram a indexação de calibração no localStorage.
