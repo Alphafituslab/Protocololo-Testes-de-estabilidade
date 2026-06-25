@@ -10434,17 +10434,12 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                 ? padraoConfig.anvisaFoundMgOverride
                 : foundAmountMg;
               const hasFound   = foundMgAnv > 0;
-              // pctLabel must match "Teor (recovery)" exactly — use padraoFoundUg / smpDeclaredAmountUg
-              // which is the same formula as the Overage section uses for `recovery`.
-              const _smpDeclaredUg = padraoConfig.smpDeclaredAmountUg;
-              const pctLabel: number | null = hasFound
-                ? (padraoConfig.anvisaFoundMgOverride > 0 && labelMg > 0
-                  ? (foundMgAnv / labelMg) * 100   // override: compute vs label
-                  : _smpDeclaredUg > 0
-                  ? (padraoFoundUg / _smpDeclaredUg) * 100   // same as recovery
-                  : padraoFoundPurity > 0
-                  ? padraoFoundPurity   // same as recovery fallback
-                  : (labelMg > 0 ? (foundMgAnv / labelMg) * 100 : null))
+              // pctLabel = sempre igual a "Teor (recovery)" — mesma fórmula exata, sem exceção.
+              const _declUg = padraoConfig.smpDeclaredAmountUg;
+              const pctLabel: number | null = padraoExtHasData
+                ? (_declUg > 0
+                  ? (padraoFoundUg / _declUg) * 100
+                  : padraoFoundPurity > 0 ? padraoFoundPurity : null)
                 : null;
               const inMin      = minMg > 0 ? foundMgAnv >= minMg : null;
               const inMax      = maxMg > 0 ? foundMgAnv <= maxMg : null;
