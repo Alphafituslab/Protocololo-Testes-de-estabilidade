@@ -2916,7 +2916,17 @@ export default function HplcSimulator() {
   const openEditorDialog = (id: string) => {
     const pk = peaks.find(p => p.id === id);
     if (!pk || pk.locked) return;
-    dialogPeakRef.current = pk; // stable reference used by always-mounted dialog
+    // For the Sample peak, sync manualArea = smpArea so Edit Peak shows the
+    // purity-corrected value (same as what the Standard tab displays).
+    const isSmpPk = padraoExtHasData && padraoConfig.smpArea > 0 && (
+      (pk.name && pk.name === padraoConfig.smpPeakName) ||
+      (padraoSmpRT > 0 && Math.abs(pk.retentionTime - padraoSmpRT) < 0.05)
+    );
+    const pkForDialog = isSmpPk ? { ...pk, manualArea: padraoConfig.smpArea } : pk;
+    if (isSmpPk) {
+      setPeaks(ps => ps.map(p => p.id === id ? pkForDialog : p));
+    }
+    dialogPeakRef.current = pkForDialog;
     setEditingPeakId(id);
     setEditorDialogOpen(true);
   };
@@ -3389,7 +3399,6 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
   })();
   const isPadraoSamplePeak = (p: { name?: string; retentionTime: number }) =>
     padraoExtHasData && (
-      (p.name && p.name === padraoConfig.compoundName) ||
       (p.name && p.name === padraoConfig.smpPeakName) ||
       (padraoSmpRT > 0 && Math.abs(p.retentionTime - padraoSmpRT) < 0.05)
     );
@@ -10524,7 +10533,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                         <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9", background: isStd ? "#eff6ff" : isSmp ? "#fff7ed" : i % 2 === 0 ? "#fff" : "#fafafa" }}>
                           <td style={{ padding: "4px 8px", color: "#1e293b", fontWeight: 600 }}>
                             {p.name || `—`}
-                            {isStd && <span style={{ color: "#1560bd", marginLeft: 4 }}>[Standard]</span>}
+                            {isStd && <span style={{ color: "#1560bd", marginLeft: 4 }}>[Padrão{padraoConfig.compoundName ? `: ${padraoConfig.compoundName}` : ""}]</span>}
                             {isSmp && <span style={{ color: "#f97316", marginLeft: 4 }}>[Sample]</span>}
                           </td>
                           <td style={{ padding: "4px 8px", textAlign: "right" }}>{p.retentionTime.toFixed(3)}</td>
