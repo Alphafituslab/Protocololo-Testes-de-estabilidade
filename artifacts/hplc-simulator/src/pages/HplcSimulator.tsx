@@ -7438,15 +7438,22 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                               cursor: "pointer", fontWeight: "bold",
                             }}>📄 Baixar PDF</button>
                             <button onClick={() => {
-                              if (!confirm(`Remover "${a.certTitle || "este registro"}"?`)) return;
-                              const upd = savedAnalyses.filter(x => x.id !== a.id);
-                              setSavedAnalyses(upd);
-                              persistSavedAnalyses(upd);
+                              setMasterAuthDialog({
+                                description: `Digite a senha Master para remover permanentemente "${a.certTitle || "Certificado de Análise"}${a.certNumber ? ` Nº ${a.certNumber}` : ""}".`,
+                                buttonLabel: "Confirmar exclusão",
+                                onSuccess: () => {
+                                  const upd = savedAnalyses.filter(x => x.id !== a.id);
+                                  setSavedAnalyses(upd);
+                                  persistSavedAnalyses(upd);
+                                },
+                              });
+                              setMasterAuthInput("");
+                              setMasterAuthError(null);
                             }} style={{
                               fontFamily: "Courier New, monospace", fontSize: 10, padding: "4px 10px",
                               border: "1px solid #f87171", borderRadius: 5, background: "transparent", color: "#fca5a5",
                               cursor: "pointer",
-                            }} title="Remover">🗑 Remover</button>
+                            }} title="Remover (requer senha Master)">🗑 Remover</button>
                           </div>
                         </div>
                         {/* Body */}
