@@ -3014,7 +3014,22 @@ export default function HplcSimulator() {
   const [padraoTemplatesOpen, setPadraoTemplatesOpen] = useState(false);
   const [calcTraceDialog, setCalcTraceDialog] = useState<CalcTrace | null>(null);
   const [savedAnalyses, setSavedAnalyses] = useState<SavedAnalysis[]>(() => loadSavedAnalyses());
-  const [analiseSubTab, setAnaliseSubTab] = useState<"sessions" | "pdfs">("sessions");
+  const [analiseSubTab, setAnaliseSubTabRaw] = useState<"sessions" | "pdfs">(() => {
+    try {
+      const saved = localStorage.getItem("hplc_analise_sub_tab") as "sessions" | "pdfs" | null;
+      if (saved === "sessions" || saved === "pdfs") return saved;
+    } catch { /* ignore */ }
+    // Default to "pdfs" if there are already saved analyses so records stay visible
+    try {
+      const list = JSON.parse(localStorage.getItem(SAVED_ANALYSES_KEY) ?? "[]") as unknown[];
+      if (list.length > 0) return "pdfs";
+    } catch { /* ignore */ }
+    return "sessions";
+  });
+  const setAnaliseSubTab = (tab: "sessions" | "pdfs") => {
+    try { localStorage.setItem("hplc_analise_sub_tab", tab); } catch { /* ignore */ }
+    setAnaliseSubTabRaw(tab);
+  };
   const [analysisSearch, setAnalysisSearch] = useState("");
   const [saveConfirmId, setSaveConfirmId] = useState<string | null>(null);
   const [showPreSaveDialog, setShowPreSaveDialog] = useState(false);
