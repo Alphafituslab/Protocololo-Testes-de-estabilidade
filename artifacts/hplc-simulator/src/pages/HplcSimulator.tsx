@@ -937,14 +937,17 @@ const CALIB_AMOUNTS = [10, 25, 50, 70, 100];
 function makeDefaultCompoundStandards(compound: ActiveCompound): CalibStandard[] {
   // seed is deterministic per compound — same compound always gets the same "measured" areas
   const seed = compound.id.split("").reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) & 0x7fffffff, 7);
-  // noiseScale kept small (<0.8%) so r ≥ 0.9999 for every compound
-  const noiseScale = 0.002 + Math.abs(pseudoNoise(seed % 1009 + 500)) * 0.006;
+  // noiseScale 2.5–5.5% → r typically 0.9978–0.9997 (realistic HPLC, never 1.00000)
+  const noiseScale = 0.025 + Math.abs(pseudoNoise(seed % 1009 + 500)) * 0.030;
   const slope = compound.amtPerArea > 0 ? 1 / compound.amtPerArea : 25;
-  // small, realistic intercept (0–5% of the smallest point) — makes the line pass through origin-ish
+  // small, realistic intercept (0.3–1.1% of the smallest point)
   const intercept = slope * CALIB_AMOUNTS[0] * (0.003 + Math.abs(pseudoNoise(seed % 503)) * 0.008);
   return CALIB_AMOUNTS.map((amount, i) => {
     const baseArea = slope * amount + intercept;
-    const jitter = 1 + pseudoNoise(i * 31 + (seed % 997)) * noiseScale;
+    // Use two independent noise terms to break any residual linearity
+    const e1 = pseudoNoise(i * 31  + (seed % 997));
+    const e2 = pseudoNoise(i * 113 + (seed % 503) + 1500) * 0.4;
+    const jitter = 1 + (e1 + e2) / 1.4 * noiseScale;
     const area = parseFloat((baseArea * jitter).toFixed(4));
     return { id: `${compound.id}-std-${i + 1}`, level: i + 1, amount, area: Math.max(1, area) };
   });
@@ -3893,7 +3896,21 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
   // ── Per-compound calibration helpers ─────────────────────────────────────────
 
   const getCC = (compoundId: string): CompoundCalibration => {
-    if (compoundCalibrations[compoundId]) return compoundCalibrations[compoundId];
+    const saved = compoundCalibrations[compoundId];
+    if (saved) {
+      // Detect stale DEFAULT_STANDARDS: all area values match the generic module defaults.
+      // If so, auto-upgrade to per-compound generated standards (preserves saved calib metadata).
+      const defaultAreaSet = new Set([296.16348, 620.81195, 1286.75647, 1737.21973, 2530.36230]);
+      const isStaleDefault = saved.standards.length > 0 &&
+        saved.standards.every(s => defaultAreaSet.has(s.area));
+      if (!isStaleDefault) return saved;
+      // Fall through: regenerate standards but keep the saved calib settings
+      const c = activeCompounds.find(ac => ac.id === compoundId);
+      return {
+        calib: saved.calib,
+        standards: c ? makeDefaultCompoundStandards(c) : DEFAULT_STANDARDS.map(s => ({ ...s, id: uid() })),
+      };
+    }
     const c = activeCompounds.find(ac => ac.id === compoundId);
     return {
       calib: { ...DEFAULT_CALIB, compoundName: c?.name ?? "", expRT: c?.expectedRT ?? 0 },
@@ -4132,10 +4149,12 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
       const midIdx = Math.floor(sorted.length / 2);
       const refAmount = sorted[midIdx].amount;
       if (refAmount <= 0) return cc;
-      // Gera variação determinística pequena por nível (±2%) para simular realismo analítico
+      // Gera variação determinística por nível (2.5–5%) para r < 0.99989
       const newStds = existing.standards.map(s => {
         const levelIdx = sorted.findIndex(x => x.id === s.id);
-        const jitter = 1 + pseudoNoise(levelIdx * 17 + compoundId.charCodeAt(0) * 3) * 0.02;
+        const e1 = pseudoNoise(levelIdx * 17  + compoundId.charCodeAt(0) * 3);
+        const e2 = pseudoNoise(levelIdx * 101 + compoundId.charCodeAt(compoundId.length - 1) * 7) * 0.4;
+        const jitter = 1 + (e1 + e2) / 1.4 * 0.050;
         const area = parseFloat((refArea * (s.amount / refAmount) * jitter).toFixed(4));
         return { ...s, area: Math.max(0, area) };
       });
