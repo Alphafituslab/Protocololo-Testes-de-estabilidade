@@ -45,6 +45,30 @@ router.post("/protocols/:id/attachments", requireAuth, async (req, res): Promise
   res.status(201).json(row);
 });
 
+const UpdateAttachmentBody = z.object({
+  fileName: z.string().min(1).optional(),
+  description: z.string().optional(),
+});
+
+router.patch("/protocols/:id/attachments/:attachmentId", requireAuth, async (req, res): Promise<void> => {
+  const params = AttachmentItemParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  const parsed = UpdateAttachmentBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (Object.keys(parsed.data).length === 0) { res.status(400).json({ error: "Nenhum campo para atualizar" }); return; }
+  const [updated] = await db
+    .update(protocolAttachmentsTable)
+    .set(parsed.data)
+    .where(and(
+      eq(protocolAttachmentsTable.id, params.data.attachmentId),
+      eq(protocolAttachmentsTable.protocolId, params.data.id),
+    ))
+    .returning();
+  if (!updated) { res.status(404).json({ error: "Anexo não encontrado" }); return; }
+  await logAudit(req, "EDITAR_DOCUMENTO", "anexo", `Documento renomeado para "${updated.fileName}"`, { entityId: updated.id, protocolId: params.data.id });
+  res.json(updated);
+});
+
 router.delete("/protocols/:id/attachments/:attachmentId", requireAuth, async (req, res): Promise<void> => {
   const params = AttachmentItemParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }

@@ -48,6 +48,7 @@ import type {
   ProtocolDetail,
   ProtocolSignature,
   ProtocolStats,
+  UpdateAttachmentBody,
   UpdateMethodologyBody,
   UpdateProtocolBody,
   UploadUrlRequest,
@@ -486,6 +487,97 @@ export const useCreateAttachment = <
   TContext
 > => {
   return useMutation(getCreateAttachmentMutationOptions(options));
+};
+
+/**
+ * @summary Update attachment name or description
+ */
+export const getUpdateAttachmentUrl = (id: number, attachmentId: number) => {
+  return `/api/protocols/${id}/attachments/${attachmentId}`;
+};
+
+export const updateAttachment = async (
+  id: number,
+  attachmentId: number,
+  updateAttachmentBody: UpdateAttachmentBody,
+  options?: RequestInit,
+): Promise<ProtocolAttachment> => {
+  return customFetch<ProtocolAttachment>(
+    getUpdateAttachmentUrl(id, attachmentId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updateAttachmentBody),
+    },
+  );
+};
+
+export const getUpdateAttachmentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAttachment>>,
+    TError,
+    { id: number; attachmentId: number; data: BodyType<UpdateAttachmentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateAttachment>>,
+  TError,
+  { id: number; attachmentId: number; data: BodyType<UpdateAttachmentBody> },
+  TContext
+> => {
+  const mutationKey = ["updateAttachment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateAttachment>>,
+    { id: number; attachmentId: number; data: BodyType<UpdateAttachmentBody> }
+  > = (props) => {
+    const { id, attachmentId, data } = props ?? {};
+
+    return updateAttachment(id, attachmentId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateAttachmentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateAttachment>>
+>;
+export type UpdateAttachmentMutationBody = BodyType<UpdateAttachmentBody>;
+export type UpdateAttachmentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update attachment name or description
+ */
+export const useUpdateAttachment = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAttachment>>,
+    TError,
+    { id: number; attachmentId: number; data: BodyType<UpdateAttachmentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateAttachment>>,
+  TError,
+  { id: number; attachmentId: number; data: BodyType<UpdateAttachmentBody> },
+  TContext
+> => {
+  return useMutation(getUpdateAttachmentMutationOptions(options));
 };
 
 /**

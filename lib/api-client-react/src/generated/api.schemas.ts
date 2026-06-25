@@ -522,6 +522,12 @@ export interface CreateAttachmentBody {
   description?: string | null;
 }
 
+export interface UpdateAttachmentBody {
+  /** @minLength 1 */
+  fileName?: string;
+  description?: string | null;
+}
+
 export interface UploadUrlRequest {
   /** @minLength 1 */
   name: string;

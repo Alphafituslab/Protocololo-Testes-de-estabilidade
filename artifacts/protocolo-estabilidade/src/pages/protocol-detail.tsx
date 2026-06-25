@@ -34,6 +34,7 @@ import {
   getListMethodologiesQueryKey,
   useListAttachments,
   useCreateAttachment,
+  useUpdateAttachment,
   useDeleteAttachment,
   getListAttachmentsQueryKey,
   useListSignatures,
@@ -6352,9 +6353,14 @@ function DocumentosTab({ protocolId }: { protocolId: number }) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; pct: number } | null>(null);
   const [description, setDescription] = useState("");
   const [printing, setPrinting] = useState(false);
+
+  // inline edit state
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editFileName, setEditFileName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
 
   const { data: protocol } = useGetProtocol(protocolId);
   const { data: attachments = [], isLoading } = useListAttachments(protocolId);
@@ -6363,10 +6369,19 @@ function DocumentosTab({ protocolId }: { protocolId: number }) {
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListAttachmentsQueryKey(protocolId) });
-        setDescription("");
-        toast({ title: "Documento anexado com sucesso" });
       },
       onError: () => toast({ title: "Erro ao registrar documento", variant: "destructive" }),
+    },
+  });
+
+  const updateAttachment = useUpdateAttachment({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListAttachmentsQueryKey(protocolId) });
+        setEditingId(null);
+        toast({ title: "Documento atualizado" });
+      },
+      onError: () => toast({ title: "Erro ao atualizar documento", variant: "destructive" }),
     },
   });
 
@@ -6380,68 +6395,75 @@ function DocumentosTab({ protocolId }: { protocolId: number }) {
     },
   });
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
+  const allowed = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "image/png", "image/jpeg", "image/webp",
+  ];
 
-    const allowed = [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "image/png", "image/jpeg", "image/webp",
-    ];
+  async function uploadSingleFile(file: File, token: string | null): Promise<void> {
     if (!allowed.includes(file.type)) {
-      toast({ title: "Tipo de arquivo não suportado", description: "Aceito: PDF, Word, imagens", variant: "destructive" });
+      toast({ title: `"${file.name}" — tipo não suportado`, description: "Aceito: PDF, Word, imagens", variant: "destructive" });
       return;
     }
     const MAX_MB = 20;
     if (file.size > MAX_MB * 1024 * 1024) {
-      toast({ title: `Arquivo muito grande (máx ${MAX_MB} MB)`, variant: "destructive" });
+      toast({ title: `"${file.name}" é muito grande (máx ${MAX_MB} MB)`, variant: "destructive" });
       return;
     }
+    const urlRes = await fetch("/api/storage/uploads/request-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+    });
+    if (!urlRes.ok) throw new Error(`Erro ao obter URL para "${file.name}"`);
+    const { uploadURL, objectPath } = await urlRes.json() as { uploadURL: string; objectPath: string };
+
+    const putRes = await fetch(uploadURL, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+    if (!putRes.ok) throw new Error(`Erro ao enviar "${file.name}"`);
+
+    await createAttachment.mutateAsync({
+      id: protocolId,
+      data: { fileName: file.name, fileType: file.type, fileSizeBytes: file.size, objectPath, description: description || undefined },
+    });
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length === 0) return;
 
     setUploading(true);
-    setUploadProgress(10);
-    try {
-      const token = localStorage.getItem("alphafitus_token");
-      const urlRes = await fetch("/api/storage/uploads/request-url", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
-      });
-      if (!urlRes.ok) throw new Error("Erro ao obter URL de upload");
-      const { uploadURL, objectPath } = await urlRes.json() as { uploadURL: string; objectPath: string };
+    const token = localStorage.getItem("alphafitus_token");
+    let done = 0;
+    const total = files.length;
+    setUploadProgress({ current: 0, total, pct: 0 });
 
-      setUploadProgress(40);
-      const putRes = await fetch(uploadURL, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
-      });
-      if (!putRes.ok) throw new Error("Erro ao enviar arquivo");
-
-      setUploadProgress(80);
-      await createAttachment.mutateAsync({
-        id: protocolId,
-        data: {
-          fileName: file.name,
-          fileType: file.type,
-          fileSizeBytes: file.size,
-          objectPath,
-          description: description || undefined,
-        },
-      });
-      setUploadProgress(100);
-    } catch (err) {
-      toast({ title: "Falha no upload", description: err instanceof Error ? err.message : "Erro desconhecido", variant: "destructive" });
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
+    const errors: string[] = [];
+    for (const file of files) {
+      try {
+        await uploadSingleFile(file, token);
+      } catch (err) {
+        errors.push(err instanceof Error ? err.message : `Erro: ${file.name}`);
+      }
+      done++;
+      setUploadProgress({ current: done, total, pct: Math.round((done / total) * 100) });
     }
+
+    queryClient.invalidateQueries({ queryKey: getListAttachmentsQueryKey(protocolId) });
+    setDescription("");
+
+    if (errors.length === 0) {
+      toast({ title: total === 1 ? "Documento anexado com sucesso" : `${total} documentos anexados com sucesso` });
+    } else if (errors.length < total) {
+      toast({ title: `${total - errors.length} de ${total} enviados`, description: errors[0], variant: "destructive" });
+    } else {
+      toast({ title: "Falha no upload", description: errors[0], variant: "destructive" });
+    }
+
+    setUploading(false);
+    setUploadProgress(null);
   }
 
   function formatSize(bytes: number | null | undefined) {
@@ -6629,17 +6651,19 @@ function DocumentosTab({ protocolId }: { protocolId: number }) {
             </Button>
           )}
           <Input
-            placeholder="Descrição (opcional)"
+            placeholder="Descrição p/ novos anexos (opcional)"
             value={description}
             onChange={e => setDescription(e.target.value)}
-            className="h-8 text-sm w-48"
+            className="h-8 text-sm w-56"
             disabled={uploading}
           />
           <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
             {uploading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
-            {uploading ? `${uploadProgress}%` : "Anexar arquivo"}
+            {uploading && uploadProgress
+              ? `${uploadProgress.current}/${uploadProgress.total} (${uploadProgress.pct}%)`
+              : "Anexar arquivos"}
           </Button>
-          <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileChange} />
+          <input ref={fileInputRef} type="file" className="hidden" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileChange} />
         </div>
       </CardHeader>
       <CardContent>
@@ -6649,74 +6673,134 @@ function DocumentosTab({ protocolId }: { protocolId: number }) {
           <div className="text-center py-10 text-muted-foreground text-sm">
             <Paperclip className="h-8 w-8 mx-auto mb-2 opacity-30" />
             <p>Nenhum documento anexado.</p>
-            <p className="text-xs mt-1">Anexe PDFs, arquivos Word ou imagens para apresentar em auditorias.</p>
+            <p className="text-xs mt-1">Selecione um ou mais arquivos (PDF, Word, imagens) para anexar de uma vez.</p>
           </div>
         ) : (
           <div className="space-y-2">
             {attachments.map(att => (
-              <div key={att.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors">
-                <div className="flex-shrink-0">{fileIcon(att.fileType)}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{att.fileName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {att.description && <span className="mr-2">{att.description} ·</span>}
-                    {formatSize(att.fileSizeBytes)}
-                    {att.fileSizeBytes ? " · " : ""}
-                    <span>{att.uploadedByName}</span>
-                    {" · "}
-                    {new Date(att.createdAt).toLocaleDateString("pt-BR")}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <a
-                    href={`/api/storage${att.objectPath}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download={att.fileName}
-                    className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-muted transition-colors"
-                    title="Baixar"
-                    onClick={e => {
-                      if (token) {
-                        e.preventDefault();
-                        fetch(`/api/storage${att.objectPath}`, { headers: { Authorization: `Bearer ${token}` } })
-                          .then(r => r.blob())
-                          .then(blob => {
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url; a.download = att.fileName; a.click();
-                            URL.revokeObjectURL(url);
-                          });
-                      }
-                    }}
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                  </a>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-7 px-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive gap-1">
-                        <Trash2 className="h-3.5 w-3.5" />
-                        <span className="text-xs">Excluir</span>
+              <div key={att.id} className="rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors">
+                {/* ── view row ── */}
+                {editingId !== att.id && (
+                  <div className="flex items-center gap-3 p-3">
+                    <div className="flex-shrink-0">{fileIcon(att.fileType)}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{att.fileName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {att.description && <span className="mr-2">{att.description} ·</span>}
+                        {formatSize(att.fileSizeBytes)}
+                        {att.fileSizeBytes ? " · " : ""}
+                        <span>{att.uploadedByName}</span>
+                        {" · "}
+                        {new Date(att.createdAt).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {/* edit button */}
+                      <Button
+                        variant="ghost" size="sm" className="h-7 w-7 p-0"
+                        title="Editar nome / descrição"
+                        onClick={() => { setEditingId(att.id); setEditFileName(att.fileName); setEditDescription(att.description ?? ""); }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir documento?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          O arquivo <strong>{att.fileName}</strong> será removido permanentemente do protocolo.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          className="bg-destructive text-white hover:bg-destructive/90"
-                          onClick={() => deleteAttachment.mutate({ id: protocolId, attachmentId: att.id })}
-                        >
-                          Excluir
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
+                      {/* download */}
+                      <a
+                        href={`/api/storage${att.objectPath}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download={att.fileName}
+                        className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-muted transition-colors"
+                        title="Baixar"
+                        onClick={e => {
+                          if (token) {
+                            e.preventDefault();
+                            fetch(`/api/storage${att.objectPath}`, { headers: { Authorization: `Bearer ${token}` } })
+                              .then(r => r.blob())
+                              .then(blob => {
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url; a.download = att.fileName; a.click();
+                                URL.revokeObjectURL(url);
+                              });
+                          }
+                        }}
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </a>
+                      {/* delete */}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-7 px-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive gap-1">
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span className="text-xs">Excluir</span>
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir documento?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              O arquivo <strong>{att.fileName}</strong> será removido permanentemente do protocolo.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-white hover:bg-destructive/90"
+                              onClick={() => deleteAttachment.mutate({ id: protocolId, attachmentId: att.id })}
+                            >
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                )}
+                {/* ── inline edit row ── */}
+                {editingId === att.id && (
+                  <div className="flex flex-col gap-2 p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-shrink-0">{fileIcon(att.fileType)}</div>
+                      <div className="flex-1 flex gap-2">
+                        <div className="flex-1">
+                          <p className="text-[10px] text-muted-foreground mb-0.5">Nome do arquivo</p>
+                          <Input
+                            value={editFileName}
+                            onChange={e => setEditFileName(e.target.value)}
+                            className="h-7 text-sm"
+                            autoFocus
+                            onKeyDown={e => {
+                              if (e.key === "Enter") updateAttachment.mutate({ id: protocolId, attachmentId: att.id, data: { fileName: editFileName.trim() || att.fileName, description: editDescription || undefined } });
+                              if (e.key === "Escape") setEditingId(null);
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-[10px] text-muted-foreground mb-0.5">Descrição (opcional)</p>
+                          <Input
+                            value={editDescription}
+                            onChange={e => setEditDescription(e.target.value)}
+                            placeholder="ex: Laudo de análise"
+                            className="h-7 text-sm"
+                            onKeyDown={e => {
+                              if (e.key === "Enter") updateAttachment.mutate({ id: protocolId, attachmentId: att.id, data: { fileName: editFileName.trim() || att.fileName, description: editDescription || undefined } });
+                              if (e.key === "Escape") setEditingId(null);
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-1 flex-shrink-0 self-end">
+                        <Button size="sm" className="h-7 px-3 text-xs" disabled={updateAttachment.isPending}
+                          onClick={() => updateAttachment.mutate({ id: protocolId, attachmentId: att.id, data: { fileName: editFileName.trim() || att.fileName, description: editDescription || undefined } })}>
+                          {updateAttachment.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Salvar"}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditingId(null)}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

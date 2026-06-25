@@ -123,6 +123,34 @@ paths:
                 $ref: '#/components/schemas/ProtocolAttachment'
 
   /protocols/{id}/attachments/{attachmentId}:
+    patch:
+      operationId: updateAttachment
+      tags: [attachments]
+      summary: Update attachment name or description
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: attachmentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAttachmentBody'
+      responses:
+        '200':
+          description: Updated attachment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProtocolAttachment'
     delete:
       operationId: deleteAttachment
       tags: [attachments]
@@ -2035,6 +2063,16 @@ components:
           nullable: true
         objectPath:
           type: string
+        description:
+          type: string
+          nullable: true
+
+    UpdateAttachmentBody:
+      type: object
+      properties:
+        fileName:
+          type: string
+          minLength: 1
         description:
           type: string
           nullable: true

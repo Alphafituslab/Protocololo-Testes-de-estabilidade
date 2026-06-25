@@ -48,6 +48,7 @@ export * from "./protocolFinalStatus";
 export * from "./protocolSignature";
 export * from "./protocolStats";
 export * from "./protocolStatus";
+export * from "./updateAttachmentBody";
 export * from "./updateMethodologyBody";
 export * from "./updateProtocolBody";
 export * from "./updateProtocolBodyStatus";

@@ -80,6 +80,32 @@ export const CreateAttachmentBody = zod.object({
 });
 
 /**
+ * @summary Update attachment name or description
+ */
+export const UpdateAttachmentParams = zod.object({
+  id: zod.coerce.number(),
+  attachmentId: zod.coerce.number(),
+});
+
+export const UpdateAttachmentBody = zod.object({
+  fileName: zod.string().min(1).optional(),
+  description: zod.string().nullish(),
+});
+
+export const UpdateAttachmentResponse = zod.object({
+  id: zod.number(),
+  protocolId: zod.number(),
+  fileName: zod.string(),
+  fileType: zod.string(),
+  fileSizeBytes: zod.number().nullish(),
+  objectPath: zod.string(),
+  uploadedBy: zod.number().nullish(),
+  uploadedByName: zod.string(),
+  description: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+
+/**
  * @summary Delete a protocol attachment
  */
 export const DeleteAttachmentParams = zod.object({
