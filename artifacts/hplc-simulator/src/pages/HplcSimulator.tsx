@@ -3035,6 +3035,8 @@ export default function HplcSimulator() {
   const [showPreSaveDialog, setShowPreSaveDialog] = useState(false);
   const [preSaveSessionId, setPreSaveSessionId] = useState<string>("");
   const [preSaveSessionStatus, setPreSaveSessionStatus] = useState<"em_andamento" | "aprovado" | "reprovado">("aprovado");
+  // Tracks which saved analysis is currently being edited so re-save updates in place
+  const [editingSavedId, setEditingSavedId] = useState<string | null>(null);
 
   // Restore the full document state from a SavedAnalysis record so the user can
   // reopen, verify, edit and re-save exactly where they left off.
@@ -3052,7 +3054,9 @@ export default function HplcSimulator() {
     if (saved.standards && saved.standards.length > 0) setStandards(saved.standards);
     if (saved.calib)                              setCalib(saved.calib);
     if (saved.activeCompounds)                    setActiveCompounds(saved.activeCompounds);
-    // 3. Navigate to Standard tab so user sees the restored document immediately
+    // 3. Mark this record as the one being edited so re-save updates in place
+    setEditingSavedId(saved.id);
+    // 4. Navigate to Standard tab so user sees the restored document immediately
     setSaveConfirmId(null);
     setPage("padrao");
   }, []);
@@ -8768,9 +8772,13 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                     const _inSpec: boolean | null = (_inMin !== null || _inMax !== null) ? (_inMin !== false && _inMax !== false) : null;
                     let _htmlContent = "";
                     try { _htmlContent = buildPadraoHtml(); } catch { /* salva sem HTML */ }
+                    const baseId = editingSavedId ?? (Date.now().toString(36) + Math.random().toString(36).slice(2));
+                    const originalRecord = editingSavedId ? savedAnalyses.find(x => x.id === editingSavedId) : undefined;
                     const record: SavedAnalysis = {
-                      id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+                      id: baseId,
                       savedAt: new Date().toISOString(),
+                      // preserve original createdAt if updating
+                      ...(originalRecord ? { createdAt: (originalRecord as SavedAnalysis & { createdAt?: string }).createdAt } : {}),
                       certTitle: padraoConfig.certTitle || "Certificado de Análise",
                       certNumber: padraoConfig.certNumber || "",
                       productName: padraoConfig.productName || "",
@@ -8792,7 +8800,14 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                       calib: { ...calib },
                       activeCompounds: [...activeCompounds],
                     };
-                    const updated = [record, ...savedAnalyses];
+                    let updated: SavedAnalysis[];
+                    if (editingSavedId) {
+                      // Update in place — replace the existing record, keep its position
+                      updated = savedAnalyses.map(x => x.id === editingSavedId ? record : x);
+                    } else {
+                      // New document — prepend
+                      updated = [record, ...savedAnalyses];
+                    }
                     setSavedAnalyses(updated);
                     persistSavedAnalyses(updated);
                     return record;
@@ -8879,6 +8894,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                               setShowPreSaveDialog(false);
                               setSaveConfirmId(null);
                               setPreSaveSessionId("");
+                              setEditingSavedId(null);
                               setAnaliseSubTab("pdfs");
                               setPage("analise");
                             }}
@@ -8891,7 +8907,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                             💾 Salvar
                           </button>
                           <button
-                            onClick={() => { setShowPreSaveDialog(false); setPreSaveSessionId(""); }}
+                            onClick={() => { setShowPreSaveDialog(false); setPreSaveSessionId(""); setEditingSavedId(null); }}
                             style={{
                               fontFamily: "Courier New, monospace", fontSize: 11, padding: "6px 16px",
                               border: "1.5px solid #94a3b8", borderRadius: 5, background: "#fff",
