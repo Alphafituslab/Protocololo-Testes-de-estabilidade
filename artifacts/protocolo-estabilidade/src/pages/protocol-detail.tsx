@@ -2378,7 +2378,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                 ? "✗ < 80% do declarado"
                                 : "";
                               const tooltipParts = [
-                                `Média T6 (${t6Vals.length} lote${t6Vals.length > 1 ? "s" : ""}): ${avgT6.toFixed(2)}%`,
+                                `Média T6 (cinética): ${avgT6.toFixed(2)}%`,
                                 hasOvg
                                   ? `Base Mfg = ${declaredNum} × (1 + ${overagePct}%) = ${mfg.toFixed(3)} ${lim.unit}`
                                   : `Base = ${declaredNum} ${lim.unit}`,
