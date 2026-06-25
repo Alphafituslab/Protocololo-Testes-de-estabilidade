@@ -3266,6 +3266,27 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const minShelfLife = shelfLives.length > 0 ? Math.min(...shelfLives) : null;
   const limitingParam = Object.entries(overrides).find(([, o]) => parseFloat(o.shelfLife) === minShelfLife)?.[0] ?? null;
 
+  // Overage-adjusted shelf life per parameter:
+  //   t_val_overage = −ln(ichThreshold / (100 + overage%)) / k
+  // Uses the same k from current overrides; only C0 changes to 100 + overage%.
+  const overageAdjustedShelfLives: Record<string, number> = {};
+  for (const [param, ov] of Object.entries(overrides)) {
+    const k = parseFloat(ov.k);
+    const ichThreshold = parseFloat(ov.ichThreshold) || 80;
+    const lim = ativoLimits[param];
+    const overagePct = lim?.overage ? parseFloat(lim.overage.replace(",", ".")) : NaN;
+    if (isNaN(k) || k <= 0 || isNaN(overagePct) || overagePct <= 0) continue;
+    const c0WithOverage = 100 + overagePct;
+    const lnNum = -Math.log(ichThreshold / c0WithOverage);
+    if (lnNum > 0) overageAdjustedShelfLives[param] = lnNum / k;
+  }
+  const overageValues = Object.values(overageAdjustedShelfLives).filter(v => v > 0);
+  const minOverageShelfLife = overageValues.length > 0 ? Math.min(...overageValues) : null;
+  const limitingOverageParam = Object.entries(overageAdjustedShelfLives).find(([, v]) => v === minOverageShelfLife)?.[0] ?? null;
+  // Show overage estimate only when EVERY parameter with a non-zero k has overage configured
+  const parametersWithK = Object.entries(overrides).filter(([, o]) => { const k = parseFloat(o.k); return !isNaN(k) && k > 0; });
+  const allHaveOverage = parametersWithK.length > 0 && parametersWithK.every(([p]) => overageAdjustedShelfLives[p] != null);
+
   return (
     <div className="space-y-6">
       {/* Dialog de senha para desbloquear edição da cinética */}
@@ -3491,6 +3512,21 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   <span className="text-xs font-bold text-amber-900">{limitingParam}</span>
                 </div>
               )}
+              {/* Overage-adjusted shelf life summary — shown when at least one parameter has overage */}
+              {minOverageShelfLife != null && (
+                <div className={`mt-2 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 border ${allHaveOverage ? "bg-blue-50 border-blue-300" : "bg-blue-50/60 border-blue-200"}`}>
+                  <span className="text-blue-500 text-xs">📦</span>
+                  <span className="text-xs font-semibold text-blue-700">
+                    {allHaveOverage ? "Com overage:" : "Com overage (parcial):"}
+                  </span>
+                  <span className="text-xs font-bold text-blue-900">
+                    {Math.floor(minOverageShelfLife)} meses
+                  </span>
+                  {limitingOverageParam && (
+                    <span className="text-[10px] text-blue-500">({limitingOverageParam})</span>
+                  )}
+                </div>
+              )}
               <p className="text-xs text-green-600 mt-1.5 opacity-60">
                 {customShelfLife !== ""
                   ? "Valor editado manualmente — clique em \"Restaurar\" para usar o calculado"
@@ -3581,11 +3617,45 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   </TableCell>
                   {/* Vida Útil Calculada — computed via ICH Q1A(R2); Δln/k/limiar run silently */}
                   <TableCell className="text-right py-2 bg-amber-50/30">
-                    <div className="flex items-center justify-end gap-2">
-                      <span className={`text-sm font-bold tabular-nums ${isLimiting ? "text-amber-700" : "text-green-700"}`}>
-                        {!isNaN(shelfNum) && shelfNum > 0 ? `${shelfNum} m` : "—"}
-                      </span>
-                    </div>
+                    {(() => {
+                      const overageShelf = overageAdjustedShelfLives[p.parameter];
+                      const lim = ativoLimits[p.parameter];
+                      const overagePct = lim?.overage ? parseFloat(lim.overage.replace(",", ".")) : NaN;
+                      const k = parseFloat(ov.k);
+                      const ichThreshold = parseFloat(ov.ichThreshold) || 80;
+                      const hasValidOverage = !isNaN(overagePct) && overagePct > 0 && !isNaN(k) && k > 0 && overageShelf != null;
+                      return (
+                        <div className="flex flex-col items-end gap-0.5">
+                          {/* Measured shelf life (from T0/T3/T6) */}
+                          <div className="flex items-center gap-1.5">
+                            {hasValidOverage && (
+                              <span className="text-[9px] text-muted-foreground">medido:</span>
+                            )}
+                            <span className={`text-sm font-bold tabular-nums ${isLimiting && !hasValidOverage ? "text-amber-700" : "text-green-700"}`}>
+                              {!isNaN(shelfNum) && shelfNum > 0 ? `${shelfNum} m` : "—"}
+                            </span>
+                          </div>
+                          {/* Overage-adjusted shelf life */}
+                          {hasValidOverage && (
+                            <div className="flex flex-col items-end gap-0.5">
+                              <div className="flex items-center gap-1">
+                                <span className="text-[9px] text-blue-500">+{overagePct}% overage:</span>
+                                <span className="text-sm font-bold tabular-nums text-blue-700">
+                                  {Math.floor(overageShelf)} m
+                                </span>
+                              </div>
+                              {/* Calculation breakdown on hover / title */}
+                              <span
+                                className="text-[8px] text-blue-400 tabular-nums cursor-help"
+                                title={`−ln(${ichThreshold}/(100+${overagePct})) / k = −ln(${(ichThreshold/(100+overagePct)).toFixed(4)}) / ${k.toFixed(6)} = ${overageShelf.toFixed(2)} meses`}
+                              >
+                                −ln({ichThreshold}/{(100+overagePct).toFixed(0)}) ÷ k
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-right py-2">
                     <EditableNum value={ov.validadePraticada} onChange={(v) => setField(p.parameter, "validadePraticada", v)} placeholder="ex: 24" />
