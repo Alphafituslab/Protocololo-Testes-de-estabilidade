@@ -3186,6 +3186,22 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peaks, sample, detector, standards, calib, activeCompounds, productName]);
 
+  // Auto-detect calibration compound from padraoConfig.compoundName
+  useEffect(() => {
+    const name = padraoConfig.compoundName?.trim().toLowerCase();
+    if (!name || activeCompounds.length === 0) return;
+    const exact = activeCompounds.find(c => c.name.trim().toLowerCase() === name);
+    const partial = !exact ? activeCompounds.find(c =>
+      c.name.trim().toLowerCase().includes(name) || name.includes(c.name.trim().toLowerCase())
+    ) : null;
+    const matched = exact ?? partial ?? null;
+    if (matched && matched.id !== selectedCalibCompoundId) {
+      setSelectedCalibCompoundId(matched.id);
+      setCalib(cb => ({ ...cb, compoundName: matched.name, expRT: matched.expectedRT }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [padraoConfig.compoundName, activeCompounds]);
+
   useEffect(() => {
     const prevTitle = document.title;
     const before = () => { document.title = ""; };
@@ -6917,7 +6933,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                               {/* X axis label */}
                               <text x={mL + iW / 2} y={svgH - 4} textAnchor="middle" fontSize={10} fill="#222">Amount[ug/ml]</text>
                               {/* Regression line */}
-                              <line x1={xs(0)} y1={ys(ry0)} x2={xs(compCalibXMax)} y2={ys(ry1)} stroke="#1560bd" strokeWidth={0.8} />
+                              <line x1={xs(0)} y1={ys(ry0)} x2={xs(compCalibXMax)} y2={ys(ry1)} stroke="#1560bd" strokeWidth={0.5} />
                               {/* Residual lines — vertical dashed segment from each point to the regression line */}
                               {sorted.map(s => {
                                 const predictedArea = compReg.slope * s.amount + compReg.intercept;
