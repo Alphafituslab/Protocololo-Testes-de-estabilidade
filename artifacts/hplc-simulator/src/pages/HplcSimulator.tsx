@@ -7221,10 +7221,16 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                               {/* Sample point from Padrão tab — actual (Amount, Area) like ChemStation */}
                               {(() => {
                                 const smpArea = padraoConfig.smpArea;
-                                if (smpArea <= 0 || compReg.slope <= 0) return null;
-                                // X = Amount [ug/ml] back-calculated from calibration regression
-                                //   Amount = (Area − b) / m   ← same formula ChemStation uses
-                                const smpAmount = (smpArea - compReg.intercept) / compReg.slope;
+                                if (smpArea <= 0) return null;
+                                // X = Amount [ug/ml]:
+                                //   Priority 1 — padraoFoundUg (the value already shown in the
+                                //                Amount column of the chromatogram table; matches
+                                //                what ChemStation displays for the sample peak).
+                                //   Priority 2 — regression back-calc fallback when no External
+                                //                Standard data exists yet.
+                                const smpAmount = padraoFoundUg > 0
+                                  ? padraoFoundUg
+                                  : (compReg.slope > 0 ? Math.max(0, (smpArea - compReg.intercept) / compReg.slope) : 0);
                                 if (smpAmount <= 0) return null;
                                 // Y = ACTUAL measured area (NOT the predicted regression value)
                                 const cx = xs(Math.min(smpAmount, compCalibXMax));
