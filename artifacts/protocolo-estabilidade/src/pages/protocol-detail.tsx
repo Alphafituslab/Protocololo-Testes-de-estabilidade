@@ -2169,6 +2169,10 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                         </th>
                         <th className="text-left pb-1.5 pl-1">Unidade</th>
                         <th className="text-left pb-1.5 pl-2"></th>
+                        <th className="text-right pb-1.5 pl-3 border-l border-indigo-200">
+                          Conf. T6
+                          <span className="block text-[9px] font-normal text-indigo-400 normal-case">média lotes</span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2282,6 +2286,72 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                 <span className="text-[10px] text-indigo-200">—</span>
                               )}
                             </td>
+                            {/* ── Conf. T6: avgT6% × Mfg vs spec ─────────── */}
+                            {(() => {
+                              const declaredNum = parseFloat(lim.declared.replace(",", "."));
+                              const overagePct = lim.overage ? parseFloat(lim.overage.replace(",", ".")) : 0;
+                              const minNum = lim.min ? parseFloat(lim.min.replace(",", ".")) : null;
+                              const maxNum = lim.max ? parseFloat(lim.max.replace(",", ".")) : null;
+                              if (!lim.declared || isNaN(declaredNum)) {
+                                return (
+                                  <td className="py-1 pl-3 border-l border-indigo-100 text-right">
+                                    <span className="text-[10px] text-indigo-200">—</span>
+                                  </td>
+                                );
+                              }
+                              const t6Vals = lots
+                                .map(lot => getResult(lot.id, 6, param.parameter))
+                                .filter((r): r is NonNullable<typeof r> => r != null && r.value != null && r.value.trim() !== "")
+                                .map(r => parseFloat(r.value!.replace(",", ".")))
+                                .filter(v => !isNaN(v));
+                              if (t6Vals.length === 0) {
+                                return (
+                                  <td className="py-1 pl-3 border-l border-indigo-100 text-right">
+                                    <span className="text-[10px] text-indigo-300 italic">sem T6</span>
+                                  </td>
+                                );
+                              }
+                              const avgT6 = t6Vals.reduce((a, b) => a + b, 0) / t6Vals.length;
+                              const hasOvg = !isNaN(overagePct) && overagePct > 0;
+                              const mfg = hasOvg ? declaredNum * (1 + overagePct / 100) : declaredNum;
+                              const effectiveQty = (avgT6 / 100) * mfg;
+                              const belowMin = minNum !== null && effectiveQty < minNum - 0.005;
+                              const aboveMax = maxNum !== null && effectiveQty > maxNum + 0.005;
+                              const hasSpec = minNum !== null || maxNum !== null;
+                              const isOk = !belowMin && !aboveMax;
+                              const tooltipParts = [
+                                `Média T6 (${t6Vals.length} lote${t6Vals.length > 1 ? "s" : ""}): ${avgT6.toFixed(2)}%`,
+                                hasOvg
+                                  ? `Base Mfg = ${declaredNum} × (1 + ${overagePct}%) = ${mfg.toFixed(3)} ${lim.unit}`
+                                  : `Base = ${declaredNum} ${lim.unit}`,
+                                `Efetivo T6 = ${avgT6.toFixed(2)}% × ${mfg.toFixed(3)} = ${effectiveQty.toFixed(3)} ${lim.unit}`,
+                                minNum !== null ? `Mín ANVISA: ${minNum} ${lim.unit}` : "",
+                                maxNum !== null ? `Máx ANVISA: ${maxNum} ${lim.unit}` : "",
+                              ].filter(Boolean).join("\n");
+                              return (
+                                <td className="py-1 pl-3 border-l border-indigo-100 text-right" title={tooltipParts}>
+                                  <div className="flex flex-col items-end gap-0.5">
+                                    <span className={`text-[10px] font-semibold ${
+                                      !hasSpec
+                                        ? "text-indigo-500"
+                                        : isOk
+                                        ? "text-emerald-700"
+                                        : "text-red-600"
+                                    }`}>
+                                      {effectiveQty.toFixed(2)} {lim.unit}
+                                    </span>
+                                    <span className="text-[9px] text-slate-400">
+                                      {avgT6.toFixed(1)}%{hasOvg ? ` × Mfg` : ""}
+                                    </span>
+                                    {hasSpec && (
+                                      <span className={`text-[9px] font-bold ${isOk ? "text-emerald-600" : "text-red-600"}`}>
+                                        {isOk ? "✓ OK" : belowMin ? "✗ abaixo" : "✗ acima"}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              );
+                            })()}
                           </tr>
                         );
                       })}
