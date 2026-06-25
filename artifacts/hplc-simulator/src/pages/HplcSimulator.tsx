@@ -5782,9 +5782,9 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                 const mid = stds[Math.floor(stds.length / 2)];
                                 const patch: Partial<PadraoConfig> = {
                                   compoundName: chosen.name,
-                                  stdArea:      mid.area,
-                                  stdAmountUg:  mid.amount,
-                                  stdPurity:    chosen.certifiedPurity > 0 ? chosen.certifiedPurity : 99.5,
+                                  stdArea:      parseFloat(mid.area.toFixed(3)),
+                                  stdAmountUg:  parseFloat(mid.amount.toFixed(3)),
+                                  stdPurity:    parseFloat((chosen.certifiedPurity > 0 ? chosen.certifiedPurity : 99.5).toFixed(3)),
                                 };
                                 // ANVISA fields — só auto-preenche se o composto tem dados
                                 if (chosen.anvisaMinMg && chosen.anvisaMinMg > 0) patch.anvisaMinMg = chosen.anvisaMinMg;
