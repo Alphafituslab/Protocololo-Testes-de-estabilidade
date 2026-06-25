@@ -8689,6 +8689,10 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                         const _inSpec: boolean | null = (_inMin !== null || _inMax !== null) ? (_inMin !== false && _inMax !== false) : null;
 
                         // 3. Cria registro com HTML idêntico ao impresso
+                        // buildPadraoHtml() pode falhar silenciosamente — captura o erro
+                        let _htmlContent = "";
+                        try { _htmlContent = buildPadraoHtml(); } catch { /* salva sem HTML */ }
+
                         const record: SavedAnalysis = {
                           id: Date.now().toString(36) + Math.random().toString(36).slice(2),
                           savedAt: new Date().toISOString(),
@@ -8704,7 +8708,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                           injDate: sample.injectionDate || "",
                           chromSvgData,
                           config: { ...padraoConfig },
-                          htmlContent: buildPadraoHtml(),
+                          htmlContent: _htmlContent,
                         };
 
                         // 4. Persiste — fica na aba Standard, sem download automático
@@ -9543,8 +9547,15 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                     </div>
                     {/* RIGHT — Sample */}
                     <div style={{ padding: "12px 14px" }}>
-                      <div style={{ fontSize: 9, fontWeight: "bold", color: "#ea580c", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                      <div style={{ fontSize: 9, fontWeight: "bold", color: "#ea580c", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
                         ● Analyzed Sample
+                        {(padraoConfig.smpArea > 0 || padraoConfig.smpPeakName) && (
+                          <button
+                            title="Limpar sample capturado"
+                            onClick={() => updatePadrao({ smpArea: 0, smpRawArea: 0, smpPeakName: "" }, { changedBy: "operator" })}
+                            style={{ fontSize: 9, padding: "1px 6px", border: "1px solid #fca5a5", borderRadius: 3, background: "#fff", color: "#dc2626", cursor: "pointer", fontWeight: "normal" }}
+                          >✕ Limpar</button>
+                        )}
                       </div>
                       <div style={{ fontSize: 10, color: "#334155", marginBottom: 2 }}>
                         <span style={{ color: "#94a3b8" }}>Peak: </span>
@@ -10482,7 +10493,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Courier New, monospace", fontSize: 10.5 }}>
                   <thead>
                     <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                      {["Peak", "RT (min)", "Height (mAU)", "Area (mAU·s)", "Manual Area", "Found (µg)", "Purity (%)", "Capture as"].map(h => (
+                      {["Peak", "RT (min)", "Height (mAU)", "Area (mAU·s)", "Manual Area", "Found (µg)", "Purity (%)", "Capture as", ""].map(h => (
                         <th key={h} style={{ padding: "5px 8px", textAlign: h === "Peak" ? "left" : "right", color: "#475569", fontWeight: 700 }}>{h}</th>
                       ))}
                     </tr>
@@ -10539,7 +10550,6 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                               <button
                                 onClick={() => {
                                   const rawArea = parseFloat(area.toFixed(5));
-                                  // Use locked purity if set; never overwrite when locked
                                   const purPct = smpPurityLocked
                                     ? padraoConfig.smpPurity
                                     : (p.purityPct && p.purityPct > 0 ? p.purityPct : (padraoConfig.smpPurity > 0 ? padraoConfig.smpPurity : 100));
@@ -10554,6 +10564,24 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                                 style={{ fontSize: 9.5, padding: "2px 6px", border: "1px solid #fed7aa", borderRadius: 3, background: "#fff7ed", cursor: "pointer", color: "#c2410c" }}
                               >Sample</button>
                             </div>
+                          </td>
+                          {/* Coluna excluir pico */}
+                          <td style={{ padding: "4px 6px", textAlign: "center" }}>
+                            <button
+                              title="Excluir este pico do cromatograma"
+                              onClick={() => {
+                                if (!confirm(`Excluir pico "${p.name || `RT ${p.retentionTime.toFixed(3)}`}"?`)) return;
+                                // Limpa referência no padraoConfig se era Standard ou Sample
+                                if (isStd) updatePadrao({ stdArea: 0, stdPeakName: "" }, { changedBy: "operator" });
+                                if (isSmp) updatePadrao({ smpArea: 0, smpRawArea: 0, smpPeakName: "" }, { changedBy: "operator" });
+                                removePeak(p.id);
+                              }}
+                              style={{
+                                fontSize: 10, padding: "2px 6px",
+                                border: "1px solid #fca5a5", borderRadius: 3,
+                                background: "#fff", color: "#dc2626", cursor: "pointer",
+                              }}
+                            >🗑</button>
                           </td>
                         </tr>
                       );
