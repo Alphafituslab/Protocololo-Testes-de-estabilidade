@@ -4077,7 +4077,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
           const h = parseInt(hh, 10);
           const ampm = h >= 12 ? "PM" : "AM";
           const h12 = h % 12 || 12;
-          const dateFormatted = `${parseInt(mo)}/${parseInt(day)}/${yr} ${h12}:${mm}:${ss} ${ampm}`;
+          const dateFormatted = `${mo}/${day}/${yr} ${h12}:${mm}:${ss} ${ampm}`;
           const byOp = ` by ${s.acqOperator || "LAB"}`;
           return {
             ...s,
