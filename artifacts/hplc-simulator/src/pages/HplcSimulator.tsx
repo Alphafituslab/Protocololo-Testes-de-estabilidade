@@ -289,6 +289,7 @@ interface PadraoConfig {
   // Identificação do documento
   productName: string;   // Nome do produto (identificação comercial)
   productLot: string;    // Lote do produto
+  certNumber: string;    // Número do certificado de análise (ex: CA-2025-001)
   certTitle: string;     // Título do Certificado (default: "Certificado de Análise")
 }
 
@@ -297,6 +298,7 @@ interface SavedAnalysis {
   id: string;
   savedAt: string;          // ISO date string
   certTitle: string;
+  certNumber: string;
   productName: string;
   productLot: string;
   compoundName: string;
@@ -2111,7 +2113,7 @@ const DEFAULT_PADRAO_CONFIG: PadraoConfig = {
   smpMassDeclaradaMg: 0, smpConcFinalUgMl: 0, smpVolInicialMl: 0, smpInjVolUl: 0,
   anvisaLabelAmountMg: 0, anvisaMinMg: 0, anvisaMaxMg: 0, anvisaNorm: "IN 28/2018", anvisaUseUg: false,
   anvisaFoundMgOverride: 0,
-  productName: "", productLot: "", certTitle: "Certificado de Análise",
+  productName: "", productLot: "", certNumber: "", certTitle: "Certificado de Análise",
 };
 function loadPadraoConfig(): PadraoConfig {
   try { return { ...DEFAULT_PADRAO_CONFIG, ...(JSON.parse(localStorage.getItem(PADRAO_KEY) ?? "{}") as Partial<PadraoConfig>) }; }
@@ -3015,6 +3017,7 @@ export default function HplcSimulator() {
   const [analiseSubTab, setAnaliseSubTab] = useState<"sessions" | "pdfs">("sessions");
   const [analysisSearch, setAnalysisSearch] = useState("");
   const [saveConfirmId, setSaveConfirmId] = useState<string | null>(null);
+  const [showPreSaveDialog, setShowPreSaveDialog] = useState(false);
 
   // Restore the full document state from a SavedAnalysis record so the user can
   // reopen, verify, edit and re-save exactly where they left off.
@@ -5821,11 +5824,18 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                             return (
                               <div key={a.id} style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "7px 10px", background: "#f8fafc" }}>
                                 <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, fontWeight: "bold", color: "#1e293b", marginBottom: 2 }}>
-                                  {a.certTitle || "Certificado de Análise"}
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <span>{a.certTitle || "Certificado de Análise"}</span>
+                                  {a.certNumber && (
+                                    <span style={{ background: "#dbeafe", color: "#1d4ed8", fontFamily: "Courier New, monospace", fontSize: 9, padding: "1px 7px", borderRadius: 3, fontWeight: "bold", letterSpacing: 0.3 }}>
+                                      Nº {a.certNumber}
+                                    </span>
+                                  )}
+                                </div>
                                 </div>
                                 <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#475569", marginBottom: 4 }}>
-                                  {a.productName && <span>{a.productName}</span>}
-                                  {a.productLot && <span> · Lote: {a.productLot}</span>}
+                                  {a.productName && <span style={{ fontWeight: "bold", color: "#1e293b" }}>{a.productName}</span>}
+                                  {a.productLot && <span> · <span style={{ color: "#7c3aed", fontWeight: "bold" }}>Lote: {a.productLot}</span></span>}
                                   {a.compoundName && <span> · {a.compoundName}</span>}
                                   <span style={{ marginLeft: 6, color: "#94a3b8" }}>{date}</span>
                                 </div>
@@ -8649,11 +8659,11 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                   — aparece no PDF
                 </span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px 14px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "8px 14px" }}>
                 {/* 1 — Identificação do Produto */}
                 <div>
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b", marginBottom: 3 }}>
-                    <strong style={{ color: "#1e3a5f" }}>1.</strong> Identificação do Produto
+                    <strong style={{ color: "#1e3a5f" }}>1.</strong> Nome do Produto
                   </div>
                   <input
                     type="text"
@@ -8676,10 +8686,23 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                     style={INP}
                   />
                 </div>
-                {/* 3 — Título do Certificado */}
+                {/* 3 — Número do Certificado */}
                 <div>
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b", marginBottom: 3 }}>
-                    <strong style={{ color: "#1e3a5f" }}>3.</strong> Certificado de Análise
+                    <strong style={{ color: "#1e3a5f" }}>3.</strong> Nº do Certificado
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Ex: CA-2025-001"
+                    value={padraoConfig.certNumber ?? ""}
+                    onChange={e => updatePadrao({ certNumber: e.target.value })}
+                    style={INP}
+                  />
+                </div>
+                {/* 4 — Título do Certificado */}
+                <div>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#64748b", marginBottom: 3 }}>
+                    <strong style={{ color: "#1e3a5f" }}>4.</strong> Título do Certificado
                   </div>
                   <input
                     type="text"
@@ -8710,70 +8733,94 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               </div>
               {/* Botão Salvar */}
               <div style={{ marginTop: 12 }}>
-                {!saveConfirmId ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <button
-                      onClick={() => {
-                        // 1. Captura SVG do cromatograma ao vivo
-                        const svgEl = document.getElementById("padrao-chrom-svg-live");
-                        const chromSvgData = svgEl ? new XMLSerializer().serializeToString(svgEl) : "";
+                {/* Helper: executa o save e retorna o record */}
+                {(() => {
+                  const doSave = () => {
+                    const svgEl = document.getElementById("padrao-chrom-svg-live");
+                    const chromSvgData = svgEl ? new XMLSerializer().serializeToString(svgEl) : "";
+                    const _foundMgAnv = padraoConfig.anvisaFoundMgOverride > 0 ? padraoConfig.anvisaFoundMgOverride : foundAmountMg;
+                    const _inMin = padraoConfig.anvisaMinMg > 0 ? _foundMgAnv >= padraoConfig.anvisaMinMg : null;
+                    const _inMax = padraoConfig.anvisaMaxMg > 0 ? _foundMgAnv <= padraoConfig.anvisaMaxMg : null;
+                    const _inSpec: boolean | null = (_inMin !== null || _inMax !== null) ? (_inMin !== false && _inMax !== false) : null;
+                    let _htmlContent = "";
+                    try { _htmlContent = buildPadraoHtml(); } catch { /* salva sem HTML */ }
+                    const record: SavedAnalysis = {
+                      id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+                      savedAt: new Date().toISOString(),
+                      certTitle: padraoConfig.certTitle || "Certificado de Análise",
+                      certNumber: padraoConfig.certNumber || "",
+                      productName: padraoConfig.productName || "",
+                      productLot: padraoConfig.productLot || "",
+                      compoundName: padraoConfig.compoundName || "",
+                      foundAmountMg,
+                      purity: displaySmpPurity,
+                      inSpec: _inSpec,
+                      sampleName: sample.sampleName || "",
+                      operator: sample.acqOperator || "",
+                      injDate: sample.injectionDate || "",
+                      chromSvgData,
+                      config: { ...padraoConfig },
+                      htmlContent: _htmlContent,
+                      peaks: [...peaks],
+                      sample: { ...sample },
+                      detector: { ...detector },
+                      standards: [...standards],
+                      calib: { ...calib },
+                      activeCompounds: [...activeCompounds],
+                    };
+                    const updated = [record, ...savedAnalyses];
+                    setSavedAnalyses(updated);
+                    persistSavedAnalyses(updated);
+                    return record;
+                  };
 
-                        // 2. Computa inSpec (ANVISA)
-                        const _foundMgAnv = padraoConfig.anvisaFoundMgOverride > 0 ? padraoConfig.anvisaFoundMgOverride : foundAmountMg;
-                        const _inMin = padraoConfig.anvisaMinMg > 0 ? _foundMgAnv >= padraoConfig.anvisaMinMg : null;
-                        const _inMax = padraoConfig.anvisaMaxMg > 0 ? _foundMgAnv <= padraoConfig.anvisaMaxMg : null;
-                        const _inSpec: boolean | null = (_inMin !== null || _inMax !== null) ? (_inMin !== false && _inMax !== false) : null;
+                  if (showPreSaveDialog) {
+                    /* Dialog de confirmação pré-salvar */
+                    return (
+                      <div style={{ border: "1.5px solid #1e3a5f", borderRadius: 8, padding: "12px 16px", background: "#f0f4ff" }}>
+                        <div style={{ fontFamily: "Courier New, monospace", fontSize: 12, fontWeight: "bold", color: "#1e3a5f", marginBottom: 4 }}>
+                          💾 Deseja salvar o documento?
+                        </div>
+                        <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#475569", marginBottom: 10 }}>
+                          {padraoConfig.productName && <span><b>{padraoConfig.productName}</b></span>}
+                          {padraoConfig.productLot && <span> · Lote: <b>{padraoConfig.productLot}</b></span>}
+                          {padraoConfig.certNumber && <span> · Nº: <b>{padraoConfig.certNumber}</b></span>}
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            onClick={() => {
+                              doSave();
+                              setShowPreSaveDialog(false);
+                              setSaveConfirmId(null);
+                              setAnaliseSubTab("pdfs");
+                              setPage("analise");
+                            }}
+                            style={{
+                              fontFamily: "Courier New, monospace", fontSize: 11, padding: "6px 20px",
+                              border: "2px solid #16a34a", borderRadius: 5, background: "#16a34a",
+                              cursor: "pointer", color: "#fff", fontWeight: "bold",
+                            }}
+                          >
+                            💾 Salvar apenas
+                          </button>
+                          <button
+                            onClick={() => setShowPreSaveDialog(false)}
+                            style={{
+                              fontFamily: "Courier New, monospace", fontSize: 11, padding: "6px 16px",
+                              border: "1.5px solid #94a3b8", borderRadius: 5, background: "#fff",
+                              cursor: "pointer", color: "#475569",
+                            }}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
 
-                        // 3. Cria registro com HTML idêntico ao impresso
-                        // buildPadraoHtml() pode falhar silenciosamente — captura o erro
-                        let _htmlContent = "";
-                        try { _htmlContent = buildPadraoHtml(); } catch { /* salva sem HTML */ }
-
-                        const record: SavedAnalysis = {
-                          id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-                          savedAt: new Date().toISOString(),
-                          certTitle: padraoConfig.certTitle || "Certificado de Análise",
-                          productName: padraoConfig.productName || "",
-                          productLot: padraoConfig.productLot || "",
-                          compoundName: padraoConfig.compoundName || "",
-                          foundAmountMg,
-                          purity: displaySmpPurity,
-                          inSpec: _inSpec,
-                          sampleName: sample.sampleName || "",
-                          operator: sample.acqOperator || "",
-                          injDate: sample.injectionDate || "",
-                          chromSvgData,
-                          config: { ...padraoConfig },
-                          htmlContent: _htmlContent,
-                          // Full document snapshot so the entire session can be restored
-                          peaks: [...peaks],
-                          sample: { ...sample },
-                          detector: { ...detector },
-                          standards: [...standards],
-                          calib: { ...calib },
-                          activeCompounds: [...activeCompounds],
-                        };
-
-                        // 4. Persiste — fica na aba Standard, sem download automático
-                        const updated = [record, ...savedAnalyses];
-                        setSavedAnalyses(updated);
-                        persistSavedAnalyses(updated);
-                        setSaveConfirmId(record.id);
-                      }}
-                      style={{
-                        fontFamily: "Courier New, monospace", fontSize: 11, padding: "6px 20px",
-                        border: "2px solid #1e3a5f", borderRadius: 5, background: "#1e3a5f",
-                        cursor: "pointer", color: "#fff", fontWeight: "bold",
-                      }}
-                    >
-                      💾 Salvar
-                    </button>
-                    <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8" }}>
-                      Salva na aba Análise sem baixar nada
-                    </span>
-                  </div>
-                ) : (
-                  /* Ações pós-salvar */
+                  if (saveConfirmId) {
+                    /* Ações pós-salvar (fallback — não deve aparecer normalmente) */
+                    return (
                   <div style={{ border: "1.5px solid #16a34a", borderRadius: 8, padding: "10px 14px", background: "#f0fdf4" }}>
                     <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: "#16a34a", marginBottom: 8 }}>
                       ✓ Análise salva com sucesso!
@@ -8828,7 +8875,28 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                       </button>
                     </div>
                   </div>
-                )}
+                    );
+                  }
+
+                  /* Default: botão Salvar */
+                  return (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <button
+                        onClick={() => setShowPreSaveDialog(true)}
+                        style={{
+                          fontFamily: "Courier New, monospace", fontSize: 11, padding: "6px 20px",
+                          border: "2px solid #1e3a5f", borderRadius: 5, background: "#1e3a5f",
+                          cursor: "pointer", color: "#fff", fontWeight: "bold",
+                        }}
+                      >
+                        💾 Salvar
+                      </button>
+                      <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#94a3b8" }}>
+                        Salva na aba Análise sem baixar nada
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
