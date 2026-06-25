@@ -7567,21 +7567,22 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                   ? cc.standards[Math.floor(cc.standards.length / 2)]
                                   : null;
 
-                                // ── Determinar Area e Amount: espelhar exatamente a tabela de resultados ──
-                                // Prioridade 1: smpArea + padraoFoundUg — os mesmos valores da coluna
-                                //   Area e Amount do relatório (método padrão externo).
-                                // Prioridade 2: fallback ao ponto médio da curva (linha estimada).
+                                // ── Determinar Area e Amount do ◆ ──
+                                // Regra: Y = smpArea (área real medida);
+                                //        X = back-calc da regressão: (smpArea − b) / m
+                                // Isso garante que ◆ fique SEMPRE sobre a reta y=mx+b.
+                                // O label X mostra o amount calculado pela curva (igual ao que aparece na tabela).
                                 const smpAreaVal = padraoConfig.smpArea > 0 ? padraoConfig.smpArea : 0;
                                 let stdArea: number;
                                 let stdAmount: number;
                                 let isAutoLine: boolean;
-                                if (smpAreaVal > 0 && padraoFoundUg > 0) {
-                                  // Área e amount iguais à tabela de resultados
+                                if (smpAreaVal > 0) {
+                                  // Área real → X back-calculado da regressão → ponto sobre a reta
                                   stdArea    = smpAreaVal;
-                                  stdAmount  = padraoFoundUg;
+                                  stdAmount  = Math.max(0, (smpAreaVal - compReg.intercept) / compReg.slope);
                                   isAutoLine = false;
                                 } else {
-                                  // Sem dados da amostra → usar ponto médio, predizer y
+                                  // Sem área da amostra → usar ponto médio, predizer y
                                   const rawAmt = padraoConfig.stdAmountUg > 0
                                     ? padraoConfig.stdAmountUg * stdPurityFrac
                                     : (midStd ? midStd.amount : 0);
