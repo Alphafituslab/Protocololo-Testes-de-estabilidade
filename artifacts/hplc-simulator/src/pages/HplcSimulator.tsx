@@ -148,6 +148,8 @@ interface ActiveCompound {
   anvisaMinMg?: number;     // mg — ANVISA lower limit
   anvisaMaxMg?: number;     // mg — ANVISA upper limit
   anvisaNorm?: string;      // reference norm, e.g. "IN 28/2018"
+  // Pre-registered calibration standards — used instead of auto-generating
+  defaultStandards?: CalibStandard[];
 }
 
 interface LotResult {
@@ -935,6 +937,10 @@ const DEFAULT_STANDARDS: CalibStandard[] = [
 const CALIB_AMOUNTS = [10, 25, 50, 70, 100];
 
 function makeDefaultCompoundStandards(compound: ActiveCompound): CalibStandard[] {
+  // If the compound has pre-registered standards, use them directly
+  if (compound.defaultStandards && compound.defaultStandards.length > 0) {
+    return compound.defaultStandards.map((s, i) => ({ ...s, id: `${compound.id}-std-${i + 1}`, level: i + 1 }));
+  }
   // seed is deterministic per compound — same compound always gets the same "measured" areas
   const seed = compound.id.split("").reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) & 0x7fffffff, 7);
   // noiseScale 2.5–5.5% → r typically 0.9978–0.9997 (realistic HPLC, never 1.00000)
@@ -1945,7 +1951,9 @@ const ANVISA_IN28_DB: Array<{
 
 function compoundToStrings(c: ActiveCompound): Record<keyof ActiveCompound, string> {
   return Object.fromEntries(
-    Object.entries(c).map(([k, v]) => [k, v !== undefined ? String(v) : ""])
+    Object.entries(c)
+      .filter(([k]) => k !== "defaultStandards")
+      .map(([k, v]) => [k, v !== undefined ? String(v) : ""])
   ) as Record<keyof ActiveCompound, string>;
 }
 function stringsToCompound(base: ActiveCompound, s: Record<keyof ActiveCompound, string>): ActiveCompound {
@@ -1967,11 +1975,29 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
   compound: ActiveCompound; onSave: (c: ActiveCompound) => void; children: React.ReactNode;
 }) {
   const [draft, setDraft] = useState<Record<keyof ActiveCompound, string>>(() => compoundToStrings(compound));
+  const [stdDraft, setStdDraft] = useState<CalibStandard[]>(() =>
+    compound.defaultStandards && compound.defaultStandards.length > 0
+      ? compound.defaultStandards
+      : makeDefaultCompoundStandards(compound)
+  );
   const [open, setOpen] = useState(false);
   const field = (key: keyof ActiveCompound) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDraft(d => ({ ...d, [key]: e.target.value }));
+  const regenStds = (amtPerAreaStr: string) => {
+    const amtPerArea = parseFloat(amtPerAreaStr) || compound.amtPerArea;
+    const tmp = makeDefaultCompoundStandards({ ...compound, amtPerArea, defaultStandards: undefined });
+    setStdDraft(tmp);
+  };
   return (
-    <Dialog open={open} onOpenChange={v => { setOpen(v); if (v) setDraft(compoundToStrings(compound)); }}>
+    <Dialog open={open} onOpenChange={v => {
+      setOpen(v);
+      if (v) {
+        setDraft(compoundToStrings(compound));
+        setStdDraft(compound.defaultStandards && compound.defaultStandards.length > 0
+          ? compound.defaultStandards
+          : makeDefaultCompoundStandards(compound));
+      }
+    }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-sm flex flex-col" style={{ maxHeight: "92vh" }}>
         <DialogHeader className="flex-shrink-0">
@@ -1980,7 +2006,7 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
           </DialogTitle>
         </DialogHeader>
         <div className="overflow-y-auto flex-1 pr-1">
-        <form onSubmit={e => { e.preventDefault(); onSave(stringsToCompound(compound, draft)); setOpen(false); }} className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-1">
+        <form onSubmit={e => { e.preventDefault(); onSave({ ...stringsToCompound(compound, draft), defaultStandards: stdDraft }); setOpen(false); }} className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-1">
           {/* Compound name */}
           <div className="col-span-2">
             <Label className="text-xs text-muted-foreground font-mono">Compound Name</Label>
@@ -2099,6 +2125,66 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
                 </div>
               );
             })()}
+          </div>
+
+          {/* ── Calibration Standards ── */}
+          <div className="col-span-2" style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6, padding: "8px 10px", marginTop: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ fontSize: 9, fontWeight: "bold", color: "#166534", letterSpacing: "0.05em" }}>
+                📈 Calibration Standards — Amount [ug/ml] × Area [mAU*s]
+              </span>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => regenStds(draft.amtPerArea)}
+                  style={{ fontSize: 8, padding: "1px 6px", border: "1px solid #166534", borderRadius: 3, background: "#166534", color: "#fff", cursor: "pointer", whiteSpace: "nowrap" }}
+                  title="Regerar a partir do fator Amt/Area"
+                >↺ Auto</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newId = `std-${Date.now()}`;
+                    const last = stdDraft[stdDraft.length - 1];
+                    setStdDraft(d => [...d, { id: newId, level: d.length + 1, amount: last ? last.amount + 10 : 10, area: last ? parseFloat((last.area * 1.2).toFixed(4)) : 100 }]);
+                  }}
+                  style={{ fontSize: 8, padding: "1px 6px", border: "1px solid #166534", borderRadius: 3, background: "#fff", color: "#166534", cursor: "pointer", whiteSpace: "nowrap" }}
+                >+ Ponto</button>
+              </div>
+            </div>
+            {/* header */}
+            <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 1fr 20px", gap: 3, marginBottom: 3 }}>
+              <span style={{ fontSize: 8, color: "#6b7280", fontFamily: "Courier New, monospace", textAlign: "center" }}>Nv</span>
+              <span style={{ fontSize: 8, color: "#6b7280", fontFamily: "Courier New, monospace" }}>Amount (ug/ml)</span>
+              <span style={{ fontSize: 8, color: "#6b7280", fontFamily: "Courier New, monospace" }}>Area (mAU*s)</span>
+              <span></span>
+            </div>
+            {stdDraft.map((s, i) => (
+              <div key={s.id} style={{ display: "grid", gridTemplateColumns: "24px 1fr 1fr 20px", gap: 3, marginBottom: 3, alignItems: "center" }}>
+                <span style={{ fontSize: 9, color: "#9ca3af", fontFamily: "Courier New, monospace", textAlign: "center" }}>{i + 1}</span>
+                <input
+                  type="number" step="any" min="0"
+                  value={s.amount}
+                  onChange={e => setStdDraft(d => d.map((x, j) => j === i ? { ...x, amount: parseFloat(e.target.value) || 0 } : x))}
+                  style={{ width: "100%", height: 22, fontSize: 10, fontFamily: "Courier New, monospace", border: "1px solid #d1fae5", borderRadius: 3, padding: "0 4px", background: "#fff" }}
+                />
+                <input
+                  type="number" step="any" min="0"
+                  value={s.area}
+                  onChange={e => setStdDraft(d => d.map((x, j) => j === i ? { ...x, area: parseFloat(e.target.value) || 0 } : x))}
+                  style={{ width: "100%", height: 22, fontSize: 10, fontFamily: "Courier New, monospace", border: "1px solid #d1fae5", borderRadius: 3, padding: "0 4px", background: "#fff" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setStdDraft(d => d.filter((_, j) => j !== i).map((x, j) => ({ ...x, level: j + 1 })))}
+                  disabled={stdDraft.length <= 2}
+                  style={{ width: 18, height: 18, fontSize: 10, border: "1px solid #fca5a5", borderRadius: 3, background: stdDraft.length <= 2 ? "#f3f4f6" : "#fff", color: stdDraft.length <= 2 ? "#d1d5db" : "#dc2626", cursor: stdDraft.length <= 2 ? "not-allowed" : "pointer", padding: 0, lineHeight: 1 }}
+                  title="Remover ponto"
+                >×</button>
+              </div>
+            ))}
+            <div style={{ fontSize: 8, color: "#6b7280", marginTop: 4, fontFamily: "Courier New, monospace" }}>
+              {stdDraft.length} pontos · clique ↺ Auto para regenerar do fator Amt/Area acima
+            </div>
           </div>
 
           <Button type="submit" className="w-full col-span-2 mt-2" size="sm">
