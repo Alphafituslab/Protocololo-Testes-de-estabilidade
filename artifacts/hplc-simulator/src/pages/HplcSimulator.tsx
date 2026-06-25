@@ -8444,6 +8444,10 @@ footer{font-size:9px;color:#999;margin-top:20px;border-top:1px solid #e2e8f0;pad
         <td style="font-weight:600;color:#475569" class="section-label">4. Nome do Produto (Composto Ativo)</td>
         <td><span class="section-value">${padraoConfig.compoundName || '—'}</span></td>
       </tr>
+      <tr>
+        <td style="font-weight:600;color:#1560bd" class="section-label">5. Data da Análise (Injection Date)</td>
+        <td><span class="section-value" style="color:#1560bd">${sample.injectionDate || '—'}</span></td>
+      </tr>
     </tbody>
   </table>
 </div>
@@ -8505,7 +8509,7 @@ ${anvisaSection}
 ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
 <table><thead><tr><th>Lote</th><th>Data</th><th>Amostra</th><th>Área (mAU·s)</th><th>Conc. (µg/ml)</th><th>Conformidade</th></tr></thead><tbody>${lotsRows}</tbody></table>` : ''}
 
-
+<footer>📅 Data da Análise: <strong>${sample.injectionDate || '—'}</strong> &nbsp;|&nbsp; Amostra: ${sample.sampleName || '—'} &nbsp;|&nbsp; Operador: ${sample.acqOperator || '—'}</footer>
 </body></html>`;
           return html;
         };
@@ -8704,6 +8708,15 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                 </span>
                 <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: padraoConfig.compoundName ? "#1e293b" : "#94a3b8" }}>
                   {padraoConfig.compoundName || "— preencha o campo Compound abaixo —"}
+                </span>
+              </div>
+              {/* 5 — Data da Análise — lida automaticamente do Injection Date */}
+              <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "#eff6ff", borderRadius: 5, border: "1px solid #bfdbfe" }}>
+                <span style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#1d4ed8" }}>
+                  <strong style={{ color: "#1e3a5f" }}>5.</strong> Data da Análise (Injection Date):
+                </span>
+                <span style={{ fontFamily: "Courier New, monospace", fontSize: 11, fontWeight: "bold", color: sample.injectionDate ? "#1560bd" : "#94a3b8" }}>
+                  {sample.injectionDate || "— preencha o Injection Date na aba do cromatograma —"}
                 </span>
               </div>
               {/* Botão Salvar */}
