@@ -3037,6 +3037,8 @@ export default function HplcSimulator() {
   const [preSaveSessionStatus, setPreSaveSessionStatus] = useState<"em_andamento" | "aprovado" | "reprovado">("aprovado");
   // Tracks which saved analysis is currently being edited so re-save updates in place
   const [editingSavedId, setEditingSavedId] = useState<string | null>(null);
+  // Duplicate certNumber warning: holds the conflicting record name when detected
+  const [preSaveDupWarning, setPreSaveDupWarning] = useState<string | null>(null);
 
   // Restore the full document state from a SavedAnalysis record so the user can
   // reopen, verify, edit and re-save exactly where they left off.
@@ -8890,10 +8892,61 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                           </div>
                         )}
 
+                        {/* Aviso de Nº Certificado duplicado */}
+                        {preSaveDupWarning && (
+                          <div style={{ background: "#fffbeb", border: "1.5px solid #f59e0b", borderRadius: 6, padding: "10px 12px", marginBottom: 10 }}>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#92400e", fontWeight: "bold", marginBottom: 4 }}>
+                              ⚠ Nº do Certificado já existe
+                            </div>
+                            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, color: "#78350f", marginBottom: 8, lineHeight: 1.5 }}>
+                              O Nº <b>{padraoConfig.certNumber}</b> já está em uso por:<br />
+                              <b>{preSaveDupWarning}</b><br />
+                              Deseja salvar mesmo assim? O registro ficará duplicado.
+                            </div>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button
+                                onClick={() => {
+                                  doSave();
+                                  if (preSaveSessionId) handleConcludeSession(preSaveSessionId, preSaveSessionStatus);
+                                  setShowPreSaveDialog(false);
+                                  setSaveConfirmId(null);
+                                  setPreSaveSessionId("");
+                                  setEditingSavedId(null);
+                                  setPreSaveDupWarning(null);
+                                  setAnaliseSubTab("pdfs");
+                                  setPage("analise");
+                                }}
+                                style={{ fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 14px", border: "1.5px solid #f59e0b", borderRadius: 5, background: "#f59e0b", color: "#fff", cursor: "pointer", fontWeight: "bold" }}
+                              >
+                                Salvar mesmo assim
+                              </button>
+                              <button
+                                onClick={() => setPreSaveDupWarning(null)}
+                                style={{ fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 12px", border: "1.5px solid #94a3b8", borderRadius: 5, background: "#fff", color: "#475569", cursor: "pointer" }}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Ações */}
+                        {!preSaveDupWarning && (
                         <div style={{ display: "flex", gap: 8 }}>
                           <button
                             onClick={() => {
+                              // Check for duplicate certNumber (skip if editing the same record)
+                              const num = padraoConfig.certNumber?.trim();
+                              if (num) {
+                                const dup = savedAnalyses.find(x =>
+                                  x.id !== editingSavedId &&
+                                  x.certNumber?.trim() === num
+                                );
+                                if (dup) {
+                                  setPreSaveDupWarning(dup.certTitle || dup.productName || `Registro ${dup.id}`);
+                                  return;
+                                }
+                              }
                               doSave();
                               if (preSaveSessionId) {
                                 handleConcludeSession(preSaveSessionId, preSaveSessionStatus);
@@ -8902,6 +8955,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                               setSaveConfirmId(null);
                               setPreSaveSessionId("");
                               setEditingSavedId(null);
+                              setPreSaveDupWarning(null);
                               setAnaliseSubTab("pdfs");
                               setPage("analise");
                             }}
@@ -8914,7 +8968,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                             💾 Salvar
                           </button>
                           <button
-                            onClick={() => { setShowPreSaveDialog(false); setPreSaveSessionId(""); setEditingSavedId(null); }}
+                            onClick={() => { setShowPreSaveDialog(false); setPreSaveSessionId(""); setEditingSavedId(null); setPreSaveDupWarning(null); }}
                             style={{
                               fontFamily: "Courier New, monospace", fontSize: 11, padding: "6px 16px",
                               border: "1.5px solid #94a3b8", borderRadius: 5, background: "#fff",
@@ -8924,6 +8978,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                             Cancelar
                           </button>
                         </div>
+                        )}
                       </div>
                     );
                   }
