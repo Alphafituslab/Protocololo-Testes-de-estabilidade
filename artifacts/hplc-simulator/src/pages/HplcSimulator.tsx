@@ -4070,14 +4070,17 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
         return { ...s, sampleName: val, acqMethod: newAcqMethod, analysisMethod: newAnalysisMethod, lastChanged1: ts, lastChanged2: ts };
       }
       if (k === "dataFile") {
-        // Extract date from path like "…\TESTE Nome 2025-04-23 12-55-35\009-0901.D"
-        const m = val.match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{2})-(\d{2})-(\d{2})/);
+        // Extract date (and optional time) from path.
+        // Accepts:  "…\NOME 2025-04-23 12-55-35\…"  (date + time)
+        //        or "…\NOME 2025-04-23\…"             (date only)
+        const m = val.match(/(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2})-(\d{2})-(\d{2}))?/);
         if (m) {
-          const [, yr, mo, day, hh, mm, ss] = m;
+          const [, yr, mo, day, hh = "00", mm = "00", ss = "00"] = m;
           const h = parseInt(hh, 10);
           const ampm = h >= 12 ? "PM" : "AM";
           const h12 = h % 12 || 12;
-          const dateFormatted = `${mo}/${day}/${yr} ${h12}:${mm}:${ss} ${ampm}`;
+          const h12Str = String(h12).padStart(2, "0");
+          const dateFormatted = `${mo}/${day}/${yr} ${h12Str}:${mm}:${ss} ${ampm}`;
           const byOp = ` by ${s.acqOperator || "LAB"}`;
           return {
             ...s,
