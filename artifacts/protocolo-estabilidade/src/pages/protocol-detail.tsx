@@ -1444,12 +1444,33 @@ const CATEGORY_PRESETS: Record<string, { parameter: string; criterion: string }[
   ],
 };
 
-function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJson, initialParamMethodsJson, initialParamMethodsCitationsJson, protocolFinalStatus, initialAtivoLimitsJson }: { protocolId: number; initialCustomParamsJson?: string | null; initialPeriodDatesJson?: string | null; initialParamMethodsJson?: string | null; initialParamMethodsCitationsJson?: string | null; protocolFinalStatus?: string | null; initialAtivoLimitsJson?: string | null }) {
+function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJson, initialParamMethodsJson, initialParamMethodsCitationsJson, protocolFinalStatus, initialAtivoLimitsJson, initialKineticsOverridesJson }: { protocolId: number; initialCustomParamsJson?: string | null; initialPeriodDatesJson?: string | null; initialParamMethodsJson?: string | null; initialParamMethodsCitationsJson?: string | null; protocolFinalStatus?: string | null; initialAtivoLimitsJson?: string | null; initialKineticsOverridesJson?: string | null }) {
   const protocolIsAR = protocolFinalStatus === "aprovado_com_ressalva";
   const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
   const { data: results = [], isLoading } = useListResults(protocolId, { query: { queryKey: getListResultsQueryKey(protocolId) } });
   const { data: methodologies = [] } = useListMethodologies();
   const { data: ativoRefs = [] } = useListAtivoReferences({ query: { queryKey: getListAtivoReferencesQueryKey(), staleTime: 30_000 } });
+  const { data: kineticsForConf } = useGetKinetics(protocolId, { query: { queryKey: getGetKineticsQueryKey(protocolId), staleTime: 30_000 } });
+
+  // Build T6 map: same merge logic as KineticsTab (API base + DB manual override)
+  const kineticT6Map = useMemo<Record<string, string>>(() => {
+    let dbParams: Record<string, { t6?: string; manualFields?: string[] }> = {};
+    if (initialKineticsOverridesJson) {
+      try {
+        const db = JSON.parse(initialKineticsOverridesJson) as { params?: Record<string, { t6?: string; manualFields?: string[] }> };
+        dbParams = db.params ?? {};
+      } catch { /* ignore */ }
+    }
+    const map: Record<string, string> = {};
+    for (const p of kineticsForConf?.parameters ?? []) {
+      const dbParam = dbParams[p.parameter];
+      const t6 = (dbParam?.manualFields?.includes("t6") && dbParam.t6)
+        ? dbParam.t6
+        : p.t6 != null ? (p.t6 as number).toFixed(2) : "";
+      if (t6) map[p.parameter] = t6;
+    }
+    return map;
+  }, [kineticsForConf, initialKineticsOverridesJson]);
 
   const defaultParams = ANALYSIS_PARAMETERS.map((p, i) => ({ ...p, uid: `${p.category}_${i}` }));
   const [editableParams, setEditableParams] = useState<EditableParam[]>(() => {
@@ -2307,7 +2328,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                 <span className="text-[10px] text-indigo-200">—</span>
                               )}
                             </td>
-                            {/* ── Conf. T6: avgT6% × Mfg vs spec ─────────── */}
+                            {/* ── Conf. T6: avgT6% × Mfg vs spec (T6 from kinetics) ── */}
                             {(() => {
                               const declaredNum = parseFloat(lim.declared.replace(",", "."));
                               const overagePct = lim.overage ? parseFloat(lim.overage.replace(",", ".")) : 0;
@@ -2320,19 +2341,24 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                   </td>
                                 );
                               }
-                              const t6Vals = lots
-                                .map(lot => getResult(lot.id, 6, param.parameter))
-                                .filter((r): r is NonNullable<typeof r> => r != null && r.value != null && r.value.trim() !== "")
-                                .map(r => parseFloat(r.value!.replace(",", ".")))
-                                .filter(v => !isNaN(v));
-                              if (t6Vals.length === 0) {
+                              // Use the already-computed T6 average from the kinetics tab
+                              // (same value shown in "Média T6 (%)" — includes manual overrides)
+                              const kT6Str = kineticT6Map[param.parameter];
+                              if (!kT6Str) {
                                 return (
                                   <td className="py-1 pl-3 border-l border-indigo-100 text-right">
                                     <span className="text-[10px] text-indigo-300 italic">sem T6</span>
                                   </td>
                                 );
                               }
-                              const avgT6 = t6Vals.reduce((a, b) => a + b, 0) / t6Vals.length;
+                              const avgT6 = parseFloat(kT6Str);
+                              if (isNaN(avgT6)) {
+                                return (
+                                  <td className="py-1 pl-3 border-l border-indigo-100 text-right">
+                                    <span className="text-[10px] text-indigo-300 italic">sem T6</span>
+                                  </td>
+                                );
+                              }
                               const hasOvg = !isNaN(overagePct) && overagePct > 0;
                               const mfg = hasOvg ? declaredNum * (1 + overagePct / 100) : declaredNum;
                               const effectiveQty = (avgT6 / 100) * mfg;
@@ -6012,6 +6038,7 @@ export default function ProtocolDetail() {
                 initialParamMethodsCitationsJson={protocol.paramMethodsCitationsJson}
                 protocolFinalStatus={protocol.finalStatus}
                 initialAtivoLimitsJson={protocol.ativoLimitsJson}
+                initialKineticsOverridesJson={protocol.kineticsOverridesJson}
               />
             </CardContent>
           </Card>
