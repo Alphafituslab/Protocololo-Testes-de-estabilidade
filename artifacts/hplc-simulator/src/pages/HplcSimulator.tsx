@@ -7265,20 +7265,20 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
 
                                 const cx = xs(Math.min(stdAmount, compCalibXMax));
                                 const cy = ys(Math.min(Math.max(stdArea, 0), compCalibYMax));
-                                const d = 6;
+                                const d = 3.5;
                                 const diamond = `M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`;
                                 return (
                                   <g key="std-pt">
                                     {/* Horizontal dashed guide: Y-axis → diamond */}
-                                    <line x1={mL} y1={cy} x2={cx} y2={cy} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
+                                    <line x1={mL} y1={cy} x2={cx} y2={cy} stroke="#555" strokeDasharray="2 2" strokeWidth={0.6} opacity={0.5} />
                                     {/* Vertical dashed guide: diamond → X-axis */}
-                                    <line x1={cx} y1={cy} x2={cx} y2={mT + iH} stroke="#333" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
+                                    <line x1={cx} y1={cy} x2={cx} y2={mT + iH} stroke="#555" strokeDasharray="2 2" strokeWidth={0.6} opacity={0.5} />
                                     {/* Diamond — filled if real area, outlined if predicted */}
                                     <path
                                       d={diamond}
                                       fill={isAutoLine ? "none" : "#111"}
                                       stroke="#111"
-                                      strokeWidth={isAutoLine ? 1.5 : 1.5}
+                                      strokeWidth={1}
                                     />
                                     {/* Y label */}
                                     <text x={mL + 4} y={cy - 3} textAnchor="start" fontSize={8.5} fontWeight="bold" fill="#333">
@@ -9529,7 +9529,35 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
 
                 <PeakCapture
                   label="Capture as standard area"
-                  onCapture={p => updatePadrao({ stdArea: parseFloat(getArea(p).toFixed(5)), stdPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}` })}
+                  onCapture={p => {
+                    const capturedArea = parseFloat(getArea(p).toFixed(5));
+                    // Auto back-calc stdAmountUg via calibration regression
+                    // so the diamond ◆ falls exactly on the regression line
+                    const extra: Partial<typeof padraoConfig> = {};
+                    const matchComp = activeCompounds.find(c =>
+                      padraoConfig.compoundName &&
+                      (c.name.toLowerCase() === padraoConfig.compoundName.toLowerCase() ||
+                       padraoConfig.compoundName.toLowerCase().includes(c.name.toLowerCase()) ||
+                       c.name.toLowerCase().includes(padraoConfig.compoundName.toLowerCase()))
+                    );
+                    if (matchComp && capturedArea > 0) {
+                      const ccc = getCC(matchComp.id);
+                      const reg = linearRegression(ccc.standards.map(s => ({ x: s.amount, y: s.area })));
+                      if (reg.slope > 0) {
+                        const purityFrac = (padraoConfig.stdPurity > 0 ? padraoConfig.stdPurity : 100) / 100;
+                        const backCalcUg = (capturedArea - reg.intercept) / reg.slope / purityFrac;
+                        if (backCalcUg > 0) extra.stdAmountUg = parseFloat(backCalcUg.toFixed(5));
+                        // Warn if correlation below threshold
+                        if (reg.r < 0.99020) {
+                          window.alert(
+                            `⚠ Correlação da curva de calibração (r = ${reg.r.toFixed(5)}) está abaixo de 0.99020.\n` +
+                            `Verifique os níveis de calibração antes de usar esses resultados.`
+                          );
+                        }
+                      }
+                    }
+                    updatePadrao({ stdArea: capturedArea, stdPeakName: p.name || `RT ${p.retentionTime.toFixed(3)}`, ...extra });
+                  }}
                 />
                 {padraoConfig.stdPeakName && (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
