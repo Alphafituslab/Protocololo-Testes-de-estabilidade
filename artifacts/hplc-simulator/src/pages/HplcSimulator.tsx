@@ -1914,10 +1914,36 @@ function SmallField({ label, value, onChange, type = "text" }: {
 const COMPOUND_NUM_KEYS: (keyof ActiveCompound)[] = [
   "wavelength", "waveTol", "expectedRT", "rtTol", "typicalWidth",
   "typicalAsym", "amtPerArea", "specMin", "specMax", "certifiedPurity",
+  "anvisaMinMg", "anvisaMaxMg",
+];
+
+// ─── ANVISA IN 28/2018 — banco de faixas por composto ─────────────────────────
+// Tolerância padrão ANVISA: 80% (mín) a 150% (máx) do valor declarado no rótulo
+// Ref: ANVISA Instrução Normativa nº 28/2018 + RDC 269/2005
+const ANVISA_IN28_DB: Array<{
+  compoundId: string;
+  name: string;
+  labelMg: number;   // valor típico declarado (mg) — referência
+  minMg: number;     // limite mínimo ANVISA (mg) = 80 % do declarado
+  maxMg: number;     // limite máximo ANVISA (mg) = 150 % do declarado
+  norm: string;
+}> = [
+  { compoundId: "cmp-vitc",        name: "Vitamina C — Ácido Ascórbico",  labelMg: 500.000, minMg: 400.000, maxMg: 750.000,  norm: "IN 28/2018" },
+  { compoundId: "cmp-b6",          name: "Vitamina B6 — Piridoxina HCl",  labelMg:   3.500, minMg:   2.800, maxMg:   5.250,  norm: "IN 28/2018" },
+  { compoundId: "cmp-vitd3",       name: "Vitamina D3 — Colecalciferol",  labelMg:   0.010, minMg:   0.008, maxMg:   0.015,  norm: "IN 28/2018" },
+  { compoundId: "cmp-niac",        name: "Niacinamida — Vitamina B3",     labelMg:  16.000, minMg:  12.800, maxMg:  24.000,  norm: "IN 28/2018" },
+  { compoundId: "cmp-riboflavina", name: "Riboflavina — Vitamina B2",     labelMg:   3.250, minMg:   2.600, maxMg:   4.875,  norm: "IN 28/2018" },
+  { compoundId: "cmp-folico",      name: "Ácido Fólico — Vitamina B9",    labelMg:   0.400, minMg:   0.320, maxMg:   0.600,  norm: "IN 28/2018" },
+  { compoundId: "cmp-tiamina",     name: "Tiamina — Vitamina B1",         labelMg:   3.000, minMg:   2.400, maxMg:   4.500,  norm: "IN 28/2018" },
+  { compoundId: "cmp-biotina",     name: "Biotina — Vitamina B7",         labelMg:   0.045, minMg:   0.036, maxMg:   0.0675, norm: "IN 28/2018" },
+  { compoundId: "cmp-pantot",      name: "Pantotenato de Cálcio — B5",    labelMg:  12.500, minMg:  10.000, maxMg:  18.750,  norm: "IN 28/2018" },
+  { compoundId: "cmp-caffeine",    name: "Cafeína",                       labelMg: 200.000, minMg: 160.000, maxMg: 300.000,  norm: "IN 28/2018" },
 ];
 
 function compoundToStrings(c: ActiveCompound): Record<keyof ActiveCompound, string> {
-  return Object.fromEntries(Object.entries(c).map(([k, v]) => [k, String(v)])) as Record<keyof ActiveCompound, string>;
+  return Object.fromEntries(
+    Object.entries(c).map(([k, v]) => [k, v !== undefined ? String(v) : ""])
+  ) as Record<keyof ActiveCompound, string>;
 }
 function stringsToCompound(base: ActiveCompound, s: Record<keyof ActiveCompound, string>): ActiveCompound {
   const result = { ...base };
@@ -1929,6 +1955,8 @@ function stringsToCompound(base: ActiveCompound, s: Record<keyof ActiveCompound,
   result.units = s.units;
   result.method = s.method;
   result.notes = s.notes;
+  // Optional string fields
+  if (s.anvisaNorm !== undefined && s.anvisaNorm !== "undefined" && s.anvisaNorm !== "") result.anvisaNorm = s.anvisaNorm;
   return result;
 }
 
@@ -2007,6 +2035,67 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
                 onChange={field(k)} className="h-7 text-xs font-mono" />
             </div>
           ))}
+
+          {/* ── ANVISA IN 28/2018 ── */}
+          <div className="col-span-2" style={{ background: "#f0f9ff", border: "1px solid #7dd3fc", borderRadius: 6, padding: "8px 10px", marginTop: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 9, fontWeight: "bold", color: "#0369a1", letterSpacing: "0.05em" }}>
+                🇧🇷 ANVISA — Faixas de aceitação (IN 28/2018)
+              </span>
+              {(() => {
+                const dbEntry = ANVISA_IN28_DB.find(d => d.compoundId === compound.id);
+                if (!dbEntry) return null;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setDraft(d => ({
+                      ...d,
+                      anvisaMinMg:  String(dbEntry.minMg),
+                      anvisaMaxMg:  String(dbEntry.maxMg),
+                      anvisaNorm:   dbEntry.norm,
+                    }))}
+                    style={{ fontSize: 8, padding: "1px 7px", border: "1px solid #0369a1", borderRadius: 3, background: "#0369a1", color: "#fff", cursor: "pointer", whiteSpace: "nowrap" }}
+                  >
+                    ↓ Preencher: {dbEntry.minMg}–{dbEntry.maxMg} mg
+                  </button>
+                );
+              })()}
+            </div>
+            <div className="grid grid-cols-3 gap-x-2 gap-y-1">
+              <div>
+                <Label className="text-xs text-muted-foreground font-mono">Faixa mín (mg)</Label>
+                <Input type="number" step="any" min="0"
+                  value={draft.anvisaMinMg && draft.anvisaMinMg !== "0" ? draft.anvisaMinMg : ""}
+                  onChange={e => setDraft(d => ({ ...d, anvisaMinMg: e.target.value }))}
+                  placeholder="ex: 400"
+                  className="h-7 text-xs font-mono" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground font-mono">Faixa máx (mg)</Label>
+                <Input type="number" step="any" min="0"
+                  value={draft.anvisaMaxMg && draft.anvisaMaxMg !== "0" ? draft.anvisaMaxMg : ""}
+                  onChange={e => setDraft(d => ({ ...d, anvisaMaxMg: e.target.value }))}
+                  placeholder="ex: 750"
+                  className="h-7 text-xs font-mono" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground font-mono">Norma</Label>
+                <Input type="text"
+                  value={draft.anvisaNorm && draft.anvisaNorm !== "undefined" ? draft.anvisaNorm : "IN 28/2018"}
+                  onChange={e => setDraft(d => ({ ...d, anvisaNorm: e.target.value }))}
+                  className="h-7 text-xs font-mono" />
+              </div>
+            </div>
+            {(() => {
+              const dbEntry = ANVISA_IN28_DB.find(d => d.compoundId === compound.id);
+              if (!dbEntry) return null;
+              return (
+                <div style={{ fontSize: 8, color: "#64748b", marginTop: 4 }}>
+                  Ref. ANVISA: {dbEntry.name} · rótulo típico {dbEntry.labelMg} mg · 80–150% = {dbEntry.minMg}–{dbEntry.maxMg} mg
+                </div>
+              );
+            })()}
+          </div>
 
           <Button type="submit" className="w-full col-span-2 mt-2" size="sm">
             Save Compound
@@ -10600,6 +10689,67 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                         {inRange ? "✓ dentro da faixa" : "✗ fora da faixa"}
                       </span>
                     )}
+                  </div>
+
+                  {/* ── Compound selector ── */}
+                  <div style={{ background: "#e0f2fe", padding: "6px 14px", borderBottom: "1px solid #bae6fd", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 9, fontWeight: "bold", color: "#0369a1", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>Compound:</span>
+                    <select
+                      value={padraoConfig.compoundName}
+                      onChange={e => {
+                        const name = e.target.value;
+                        const comp = activeCompounds.find(c => c.name === name);
+                        updatePadrao({ compoundName: name });
+                        if (comp) {
+                          const hasCustom = (comp.anvisaMinMg ?? 0) > 0 || (comp.anvisaMaxMg ?? 0) > 0;
+                          const dbEntry = ANVISA_IN28_DB.find(d => d.compoundId === comp.id);
+                          if (hasCustom) {
+                            updatePadrao({
+                              anvisaMinMg: comp.anvisaMinMg ?? 0,
+                              anvisaMaxMg: comp.anvisaMaxMg ?? 0,
+                              anvisaNorm:  comp.anvisaNorm ?? "IN 28/2018",
+                            });
+                          } else if (dbEntry) {
+                            updatePadrao({
+                              anvisaMinMg: dbEntry.minMg,
+                              anvisaMaxMg: dbEntry.maxMg,
+                              anvisaNorm:  dbEntry.norm,
+                            });
+                          }
+                        }
+                      }}
+                      style={{
+                        fontFamily: "Courier New, monospace", fontSize: 10,
+                        padding: "2px 6px", border: "1px solid #7dd3fc",
+                        borderRadius: 4, background: "#fff", color: "#0c4a6e",
+                        flex: 1, minWidth: 140, maxWidth: 280,
+                      }}
+                    >
+                      <option value="">— selecionar compound —</option>
+                      {activeCompounds.map(c => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                    {(() => {
+                      const comp = activeCompounds.find(c => c.name === padraoConfig.compoundName);
+                      const dbEntry = comp ? ANVISA_IN28_DB.find(d => d.compoundId === comp.id) : null;
+                      if (!dbEntry) return null;
+                      return (
+                        <button
+                          onClick={() => updatePadrao({ anvisaMinMg: dbEntry.minMg, anvisaMaxMg: dbEntry.maxMg, anvisaNorm: dbEntry.norm })}
+                          title={`Preencher faixas de ${dbEntry.name}: mín ${dbEntry.minMg} mg / máx ${dbEntry.maxMg} mg`}
+                          style={{
+                            fontFamily: "Courier New, monospace", fontSize: 8.5,
+                            padding: "2px 8px",
+                            border: "1px solid #0369a1", borderRadius: 3,
+                            background: "#0369a1", color: "#fff",
+                            cursor: "pointer", whiteSpace: "nowrap",
+                          }}
+                        >
+                          ↓ IN 28/2018: {dbEntry.minMg}–{dbEntry.maxMg} mg
+                        </button>
+                      );
+                    })()}
                   </div>
 
                   {/* Input row */}
