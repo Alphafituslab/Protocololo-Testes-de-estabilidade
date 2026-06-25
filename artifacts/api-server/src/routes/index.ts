@@ -46,5 +46,6 @@ router.use(bibliographicReferencesRouter);
 router.use(snapshotsRouter);
 router.use(globalSnapshotsRouter);
 router.use(ativoReferencesRouter);
+router.use(hplcSessionsRouter);
 
 export default router;

@@ -2024,12 +2024,49 @@ function saveLots(l: Lot[]) {
 const SESSIONS_KEY = "hplc_analysis_sessions_v1";
 const STANDARDS_KEY = "hplc_formula_standards_v1";
 
+function getAuthToken(): string {
+  return sessionStorage.getItem("alphafitus_token") ?? localStorage.getItem("alphafitus_token") ?? "";
+}
+
 function loadSessions(): AnalysisSession[] {
   try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) ?? "[]") as AnalysisSession[]; }
   catch { return []; }
 }
+
 function saveSessions(s: AnalysisSession[]) {
   try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+  // Fire-and-forget sync to DB
+  const token = getAuthToken();
+  if (token) {
+    fetch("/api/hplc/sessions/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(s),
+    }).catch(() => { /* ignore network errors — localStorage is the fallback */ });
+  }
+}
+
+async function loadSessionsFromServer(): Promise<AnalysisSession[]> {
+  const token = getAuthToken();
+  if (!token) return [];
+  try {
+    const res = await fetch("/api/hplc/sessions", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    return await res.json() as AnalysisSession[];
+  } catch { return []; }
+}
+
+async function archiveSessionOnServer(id: string): Promise<void> {
+  const token = getAuthToken();
+  if (!token) return;
+  try {
+    await fetch(`/api/hplc/sessions/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch { /* ignore */ }
 }
 function loadFormulaStandards(): FormulaStandard[] {
   try { return JSON.parse(localStorage.getItem(STANDARDS_KEY) ?? "[]") as FormulaStandard[]; }
@@ -3110,6 +3147,30 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
   useEffect(() => {
     const imgs = loadSavedImages();
     if (imgs.length > 0) setSavedImages(imgs);
+  }, []);
+
+  // On mount: load sessions from server and merge (server wins — always the most complete set)
+  useEffect(() => {
+    loadSessionsFromServer().then(serverSessions => {
+      if (serverSessions.length === 0) {
+        // No server data yet — push local sessions to server for the first time
+        const local = loadSessions();
+        if (local.length > 0) saveSessions(local);
+        return;
+      }
+      // Merge: build a map from server, overlay any local sessions not yet on server
+      const serverMap = new Map(serverSessions.map(s => [s.id, s]));
+      const local = loadSessions();
+      for (const ls of local) {
+        if (!serverMap.has(ls.id)) serverMap.set(ls.id, ls);
+      }
+      const merged = Array.from(serverMap.values()).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setAnalysisSessions(merged);
+      try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-navigate to sessions tab when coming from dashboard with a session request
@@ -4233,6 +4294,9 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
   };
 
   const handleDeleteSession = (id: string) => {
+    // Soft-archive on server (data is never permanently deleted)
+    archiveSessionOnServer(id);
+    // Remove from local view + localStorage
     setAnalysisSessions(ss => { const u = ss.filter(s => s.id !== id); saveSessions(u); return u; });
     if (currentSessionId === id) setCurrentSessionId(null);
     if (unlockedSessionId === id) setUnlockedSessionId(null);
