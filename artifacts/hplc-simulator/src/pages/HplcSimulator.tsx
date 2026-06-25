@@ -7593,14 +7593,28 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
 
                                 const cx = xs(Math.min(stdAmount, compCalibXMax));
                                 const cy = ys(Math.min(Math.max(stdArea, 0), compCalibYMax));
+
+                                // ── Collision avoidance: shift diamond if it overlaps a black circle ──
+                                const COLLISION_R = 13; // px — soma do raio do círculo (5) + meio-diamante (3.5) + folga
+                                const SHIFT_PX   = 15;
+                                let adjCy = cy;
+                                for (const s of sorted) {
+                                  const bx = xs(s.amount);
+                                  const by = ys(s.area);
+                                  if (Math.sqrt((cx - bx) ** 2 + (adjCy - by) ** 2) < COLLISION_R) {
+                                    const upY = adjCy - SHIFT_PX;
+                                    adjCy = upY >= mT + 4 ? upY : adjCy + SHIFT_PX;
+                                  }
+                                }
+
                                 const d = 3.5;
-                                const diamond = `M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`;
+                                const diamond = `M${cx},${adjCy - d} L${cx + d},${adjCy} L${cx},${adjCy + d} L${cx - d},${adjCy} Z`;
                                 return (
                                   <g key="std-pt">
                                     {/* Horizontal dashed guide: Y-axis → diamond */}
-                                    <line x1={mL} y1={cy} x2={cx} y2={cy} stroke="#555" strokeDasharray="2 2" strokeWidth={0.6} opacity={0.5} />
+                                    <line x1={mL} y1={adjCy} x2={cx} y2={adjCy} stroke="#555" strokeDasharray="2 2" strokeWidth={0.6} opacity={0.5} />
                                     {/* Vertical dashed guide: diamond → X-axis */}
-                                    <line x1={cx} y1={cy} x2={cx} y2={mT + iH} stroke="#555" strokeDasharray="2 2" strokeWidth={0.6} opacity={0.5} />
+                                    <line x1={cx} y1={adjCy} x2={cx} y2={mT + iH} stroke="#555" strokeDasharray="2 2" strokeWidth={0.6} opacity={0.5} />
                                     {/* Diamond — filled if real area, outlined if predicted */}
                                     <path
                                       d={diamond}
@@ -7608,8 +7622,8 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                       stroke="#111"
                                       strokeWidth={1}
                                     />
-                                    {/* Y label */}
-                                    <text x={mL + 4} y={cy - 3} textAnchor="start" fontSize={8.5} fontWeight="bold" fill="#333">
+                                    {/* Y label — posicionado junto ao diamante deslocado */}
+                                    <text x={mL + 4} y={adjCy - 3} textAnchor="start" fontSize={8.5} fontWeight="bold" fill="#333">
                                       {stdArea.toFixed(5)}{isAutoLine ? "*" : ""}
                                     </text>
                                     {/* X label */}
