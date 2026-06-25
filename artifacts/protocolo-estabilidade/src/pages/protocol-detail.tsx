@@ -3649,9 +3649,10 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       const qtyAtEndPct = hasValidOverage && !isNaN(validadeMeses) && validadeMeses > 0
                         ? (100 + overagePct) * Math.exp(-k * validadeMeses)
                         : null;
+                      // Epsilon de 0.005 mg para evitar falso negativo por ponto flutuante
                       const qtyOk = qtyAtEnd != null
-                        ? (!isNaN(minRaw) ? qtyAtEnd >= minRaw : true) && (!isNaN(maxRaw) ? qtyAtEnd <= maxRaw : true)
-                        : qtyAtEndPct != null && specMinPct != null ? qtyAtEndPct >= specMinPct : null;
+                        ? (!isNaN(minRaw) ? qtyAtEnd >= minRaw - 0.005 : true) && (!isNaN(maxRaw) ? qtyAtEnd <= maxRaw + 0.005 : true)
+                        : qtyAtEndPct != null && specMinPct != null ? qtyAtEndPct >= specMinPct - 0.001 : null;
 
                       return (
                         <div className="flex flex-col items-end gap-0.5">
@@ -3872,9 +3873,10 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       const projectedWithOverage = t0WithOverage * Math.exp(-k * validadeMeses);
                       const qtyWithOverage = !isNaN(declaredNum) && declaredNum > 0
                         ? (projectedWithOverage / 100) * declaredNum : null;
+                      // Epsilon de 0.001% para evitar falso negativo por ponto flutuante
                       const configuredOverageOk = currentOveragePct > 0
-                        && projectedWithOverage >= specMinPct
-                        && (specMaxPct == null || projectedWithOverage <= specMaxPct);
+                        && projectedWithOverage >= specMinPct - 0.001
+                        && (specMaxPct == null || projectedWithOverage <= specMaxPct + 0.001);
 
                       if (overageRequired === 0 || measuredT0Ok) {
                         if (currentOveragePct > 0 && configuredOverageOk) {
@@ -3905,7 +3907,9 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                         );
                       }
 
-                      const recStr = overageRequired.toFixed(1);
+                      // Arredondar para CIMA (teto) em 1 casa decimal para garantir
+                      // que o overage aplicado sempre entregue ≥ specMin no prazo.
+                      const recStr = (Math.ceil(overageRequired * 10) / 10).toFixed(1);
 
                       if (currentOveragePct > 0 && !configuredOverageOk) {
                         return (
@@ -5502,6 +5506,10 @@ export default function ProtocolDetail() {
 
   const updateProtocol = useUpdateProtocol();
 
+  // Estado local para refletir overages aplicados na cinética IMEDIATAMENTE,
+  // sem esperar refetch do DB. Sobrescreve protocol.ativoLimitsJson no KineticsTab.
+  const [localAtivoLimitsJson, setLocalAtivoLimitsJson] = useState<string | null>(null);
+
   const deleteProtocol = useDeleteProtocol({
     mutation: {
       onSuccess: () => {
@@ -5526,33 +5534,23 @@ export default function ProtocolDetail() {
   });
 
   // Called by KineticsTab when the user applies an overage % to a parameter.
-  // Updates ativoLimitsJson in DB (ResultsTab will see it on next refetch).
+  // Atualiza localAtivoLimitsJson IMEDIATAMENTE (KineticsTab re-renderiza na hora)
+  // e persiste no DB em segundo plano.
   const handleApplyOverage = (param: string, overage: string) => {
     if (!protocol) return;
     type LimEntry = { min: string; max: string; unit: string; declared: string; overage: string };
-    const lsKey = `ativo_limits_${numId}`;
-    let fromStorage: Record<string, LimEntry> = {};
-    let fromDb: Record<string, LimEntry> = {};
-    try { const raw = localStorage.getItem(lsKey); if (raw) fromStorage = JSON.parse(raw); } catch { /* ignore */ }
-    if (protocol.ativoLimitsJson) {
-      try { fromDb = JSON.parse(protocol.ativoLimitsJson); } catch { /* ignore */ }
-    }
-    // Merge: localStorage wins per-field (most recent user edits) over potentially-stale DB cache.
-    const limits: Record<string, LimEntry> = { ...fromDb };
-    for (const [p, sl] of Object.entries(fromStorage)) {
-      const db = fromDb[p];
-      limits[p] = {
-        min: sl.min || db?.min || "",
-        max: sl.max || db?.max || "",
-        unit: sl.unit || db?.unit || "mg",
-        declared: sl.declared || db?.declared || "",
-        overage: sl.overage || db?.overage || "",
-      };
-    }
-    const existing = limits[param] ?? { min: "", max: "", unit: "mg", declared: "", overage: "" };
-    const next = { ...limits, [param]: { ...existing, overage } };
+    // Base: usa o estado local já aplicado (se houver) ou o DB
+    let base: Record<string, LimEntry> = {};
+    const src = localAtivoLimitsJson ?? protocol.ativoLimitsJson;
+    if (src) { try { base = JSON.parse(src); } catch { /* ignore */ } }
+    const existing = base[param] ?? { min: "", max: "", unit: "mg", declared: "", overage: "" };
+    const next = { ...base, [param]: { ...existing, overage } };
+    const nextJson = JSON.stringify(next);
+    // Atualiza estado local imediatamente — KineticsTab reage sem delay
+    setLocalAtivoLimitsJson(nextJson);
+    // Persiste no DB em background
     updateProtocol.mutate(
-      { id: protocol.id, data: { ativoLimitsJson: JSON.stringify(next) } },
+      { id: protocol.id, data: { ativoLimitsJson: nextJson } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocol.id) });
@@ -5903,7 +5901,7 @@ export default function ProtocolDetail() {
                 initialValidityMonths={protocol.validityMonths}
                 customParamsJson={protocol.customParamsJson}
                 initialKineticsOverridesJson={protocol.kineticsOverridesJson}
-                ativoLimitsJson={protocol.ativoLimitsJson}
+                ativoLimitsJson={localAtivoLimitsJson ?? protocol.ativoLimitsJson}
                 onApplyOverage={handleApplyOverage}
                 onSyncCertificate={handleSyncCertificate}
                 isSyncingCertificate={isSyncingCertificate}
