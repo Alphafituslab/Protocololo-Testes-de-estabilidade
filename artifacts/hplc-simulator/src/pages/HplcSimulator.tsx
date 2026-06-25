@@ -6850,54 +6850,6 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                 return (
                   <div key={compound.id} style={{ marginTop: 24 }}>
 
-                    {/* Method line */}
-                    <div style={{ whiteSpace: "pre", wordBreak: "break-all" }}>{"Method " + sample.analysisMethod}</div>
-                    <div style={{ whiteSpace: "pre" }}>{""}</div>
-
-                    {/* ====== Calibration Table ====== */}
-                    <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
-                    <div style={{ whiteSpace: "pre" }}>{"    " + " ".repeat(26) + "Calibration Table"}</div>
-                    <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
-                    <div style={{ whiteSpace: "pre" }}>{""}</div>
-                    <div style={{ whiteSpace: "pre" }}>{""}</div>
-
-                    {/* Parameters block */}
-                    <div style={{ whiteSpace: "pre" }}>{"    Calib. Data Modified   :      " + cc.calib.calibDataModified}</div>
-                    <div style={{ whiteSpace: "pre" }}>{""}</div>
-                    <div style={{ whiteSpace: "pre" }}>{""}</div>
-                    <div style={{ whiteSpace: "pre" }}>{"    Signal 1: " + signalLabel}</div>
-                    <div style={{ whiteSpace: "pre" }}>{""}</div>
-
-                    {/* Data table */}
-                    <div style={{ whiteSpace: "pre" }}>{"    RetTime    Lvl  Amount      Area     Amt/Area Ref Grp Name"}</div>
-                    <div style={{ whiteSpace: "pre" }}>{"     [min] Sig     [ug/ml]"}</div>
-                    <div style={{ whiteSpace: "pre" }}>{"    -------|--|--|----------|----------|----------|---|--|---------------"}</div>
-                    {[...cc.standards].sort((a, b) => a.amount - b.amount).map((s, i) => {
-                      const amtPerArea = s.area > 0 ? s.amount / s.area : 0;
-                      if (i === 0) {
-                        return (
-                          <div key={s.id} style={{ whiteSpace: "pre" }}>
-                            {"    " + expRT.toFixed(3).padStart(7) + " 1 " + (i + 1).toString() + " " + s.amount.toFixed(5).padStart(12) + " " + s.area.toFixed(5) + " " + fmtSci2(amtPerArea, -2) + "         " + compound.name}
-                          </div>
-                        );
-                      }
-                      return (
-                        <div key={s.id} style={{ whiteSpace: "pre" }}>
-                          {"                 " + (i + 1).toString() + " " + s.amount.toFixed(5).padStart(9) + " " + s.area.toFixed(5) + " " + fmtSci2(amtPerArea, -2)}
-                        </div>
-                      );
-                    })}
-
-                    {/* === Peak Sum Table === */}
-                    <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
-                    <div style={{ whiteSpace: "pre" }}>{"    " + " ".repeat(27) + "Peak Sum Table"}</div>
-                    <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
-                    <div style={{ whiteSpace: "pre" }}>{""}</div>
-                    <div style={{ whiteSpace: "pre" }}>{"    ***No Entries in table***"}</div>
-                    <div style={{ whiteSpace: "pre" }}>{"    " + "=".repeat(69)}</div>
-                    <div style={{ whiteSpace: "pre" }}>{""}</div>
-                    <div style={{ whiteSpace: "pre" }}>{""}</div>
-                    <div style={{ whiteSpace: "pre" }}>{""}</div>
 
 
                     {/* ══════════════════════════════════════════════════════════════ */}
