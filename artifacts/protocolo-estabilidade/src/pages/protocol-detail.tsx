@@ -1481,8 +1481,8 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
 
   // ── Limites ANVISA por ativo (min/max/unidade/declarado) ─────────────────
   const ATIVO_LIMITS_KEY = `ativo_limits_${protocolId}`;
-  const [ativoLimits, setAtivoLimitsState] = useState<Record<string, { min: string; max: string; unit: string; declared: string; overage: string }>>(() => {
-    type LimEntry = { min: string; max: string; unit: string; declared: string; overage: string };
+  const [ativoLimits, setAtivoLimitsState] = useState<Record<string, { min: string; max: string; unit: string; declared: string; overage: string; norma: string }>>(() => {
+    type LimEntry = { min: string; max: string; unit: string; declared: string; overage: string; norma?: string };
     let fromDb: Record<string, LimEntry> = {};
     let fromStorage: Record<string, LimEntry> = {};
     if (initialAtivoLimitsJson) {
@@ -1504,6 +1504,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
         unit: dbLim.unit || sl?.unit || "mg",
         declared: dbLim.declared || sl?.declared || "",
         overage: dbLim.overage || sl?.overage || "",
+        norma: dbLim.norma || sl?.norma || "",
       };
     }
     return merged;
@@ -1516,12 +1517,12 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   // Timer for debounced protocol save when ativoLimitsJson changes.
   const saveAtivoTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const setAtivoLimit = (param: string, field: "min" | "max" | "unit" | "declared" | "overage", value: string) => {
+  const setAtivoLimit = (param: string, field: "min" | "max" | "unit" | "declared" | "overage" | "norma", value: string) => {
     // 1. Update local state + localStorage immediately (for UI responsiveness).
     setAtivoLimitsState(prev => {
       const next = {
         ...prev,
-        [param]: { ...(prev[param] ?? { min: "", max: "", unit: "mg", declared: "", overage: "" }), [field]: value }
+        [param]: { ...(prev[param] ?? { min: "", max: "", unit: "mg", declared: "", overage: "", norma: "" }), [field]: value }
       };
       try { localStorage.setItem(ATIVO_LIMITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
       // Keep ref in sync so the debounced DB-save picks up the final value.
@@ -1554,7 +1555,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
     }, 600);
 
     // 3. Debounced upsert to global ativo_references bank (1200 ms after last change per ativo)
-    if (field === "min" || field === "max" || field === "unit" || field === "overage") {
+    if (field === "min" || field === "max" || field === "unit" || field === "overage" || field === "norma") {
       const existing = bankSyncTimersRef.current[param];
       if (existing) clearTimeout(existing);
       bankSyncTimersRef.current[param] = setTimeout(() => {
@@ -1571,11 +1572,12 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
               maxValue: limit.max || null,
               unit: limit.unit || "mg",
               overage: limit.overage || null,
+              source: limit.norma || null,
             },
           }, {
             onSuccess: () => queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() }),
           });
-        } else if (limit.min || limit.max || limit.overage) {
+        } else if (limit.min || limit.max || limit.overage || limit.norma) {
           createRef.mutate({
             data: {
               parameter: param,
@@ -1583,6 +1585,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
               maxValue: limit.max || null,
               unit: limit.unit || "mg",
               overage: limit.overage || null,
+              source: limit.norma || null,
             },
           }, {
             onSuccess: () => queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() }),
@@ -1608,6 +1611,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
             unit: ref.unit ?? "mg",
             declared: existing?.declared ?? "",
             overage: existing?.overage ?? ref.overage ?? "",
+            norma: existing?.norma ?? ref.source ?? "",
           };
           changed = true;
         }
@@ -1651,8 +1655,8 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   }, []);
 
   // ── Reference bank management state ───────────────────────────────────────
-  type RefForm = { parameter: string; minValue: string; maxValue: string; unit: string; overage: string; notes: string };
-  const emptyRefForm: RefForm = { parameter: "", minValue: "", maxValue: "", unit: "mg", overage: "", notes: "" };
+  type RefForm = { parameter: string; minValue: string; maxValue: string; unit: string; overage: string; source: string; notes: string };
+  const emptyRefForm: RefForm = { parameter: "", minValue: "", maxValue: "", unit: "mg", overage: "", source: "", notes: "" };
   const [refBankOpen, setRefBankOpen] = useState(false);
   const [refEditingId, setRefEditingId] = useState<number | null>(null);
   const [refForm, setRefForm] = useState<RefForm>(emptyRefForm);
@@ -1673,6 +1677,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
         maxValue: refForm.maxValue || null,
         unit: refForm.unit || "mg",
         overage: refForm.overage || null,
+        source: refForm.source || null,
         notes: refForm.notes || null,
       };
       if (refEditingId !== null) {
@@ -1696,6 +1701,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
             max: payload.maxValue ?? "",
             unit: payload.unit ?? "mg",
             overage: payload.overage ?? existing.overage ?? "",
+            norma: payload.source ?? existing.norma ?? "",
           },
         };
         try { localStorage.setItem(ATIVO_LIMITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
@@ -1721,7 +1727,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
 
   const applyRefToLimit = (ref: AtivoReference) => {
     setAtivoLimitsState(prev => {
-      const existing = prev[ref.parameter] ?? { min: "", max: "", unit: "mg", declared: "", overage: "" };
+      const existing = prev[ref.parameter] ?? { min: "", max: "", unit: "mg", declared: "", overage: "", norma: "" };
       const next = {
         ...prev,
         [ref.parameter]: {
@@ -1730,6 +1736,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
           max: ref.maxValue ?? "",
           unit: ref.unit ?? "mg",
           overage: ref.overage ?? "",
+          norma: ref.source ?? "",
         },
       };
       try { localStorage.setItem(ATIVO_LIMITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
@@ -2167,6 +2174,10 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                           Máx. ANVISA
                           <span className="block text-[9px] font-normal text-indigo-400 normal-case">opcional</span>
                         </th>
+                        <th className="text-left pr-2 pb-1.5">
+                          Norma
+                          <span className="block text-[9px] font-normal text-indigo-400 normal-case">salva no banco</span>
+                        </th>
                         <th className="text-left pb-1.5 pl-1">Unidade</th>
                         <th className="text-left pb-1.5 pl-2"></th>
                         <th className="text-right pb-1.5 pl-3 border-l border-indigo-200">
@@ -2257,6 +2268,16 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                     ? "border-indigo-300 focus:ring-indigo-400"
                                     : "border-dashed border-indigo-200 text-indigo-300 focus:ring-indigo-300"
                                 }`}
+                              />
+                            </td>
+                            <td className="pr-2 py-1">
+                              <input
+                                type="text"
+                                value={lim.norma ?? ""}
+                                onChange={e => setAtivoLimit(param.parameter, "norma", e.target.value)}
+                                placeholder="ex: IN 28/2018"
+                                title="Norma de referência ANVISA (salva no banco do composto)"
+                                className="w-28 border border-violet-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-violet-400 bg-violet-50 placeholder:text-violet-300"
                               />
                             </td>
                             <td className="py-1 pl-1">
@@ -2438,11 +2459,20 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                           </div>
                         </div>
                         <div className="flex flex-col gap-0.5">
+                          <label className="text-[9px] text-violet-600 uppercase font-semibold">Norma de referência</label>
+                          <input
+                            value={refForm.source}
+                            onChange={e => setRefForm(f => ({ ...f, source: e.target.value }))}
+                            placeholder="ex: IN 28/2018, RDC 269/2005"
+                            className="border border-violet-300 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-violet-400 w-44 bg-violet-50"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
                           <label className="text-[9px] text-indigo-500 uppercase">Observações</label>
                           <input
                             value={refForm.notes}
                             onChange={e => setRefForm(f => ({ ...f, notes: e.target.value }))}
-                            placeholder="RDC 269/2005..."
+                            placeholder="observações livres..."
                             className="border border-indigo-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 w-40"
                           />
                         </div>
@@ -2501,6 +2531,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                               <th className="text-right pr-2 pb-1">Máx.</th>
                               <th className="text-left pr-2 pb-1">Unidade</th>
                               <th className="text-right pr-2 pb-1 text-amber-500">Overage</th>
+                              <th className="text-left pr-2 pb-1 text-violet-600">Norma</th>
                               <th className="text-left pb-1">Observações</th>
                               <th className="pb-1"></th>
                             </tr>
@@ -2521,7 +2552,10 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                     <span className="text-indigo-200 text-[10px]">—</span>
                                   )}
                                 </td>
-                                <td className="py-1 text-indigo-400 text-[10px] max-w-[160px] truncate">{ref.notes ?? ""}</td>
+                                <td className="pr-2 py-1 text-violet-700 text-[10px] max-w-[140px] truncate font-medium" title={ref.source ?? ""}>
+                                  {ref.source ?? <span className="text-indigo-200">—</span>}
+                                </td>
+                                <td className="py-1 text-indigo-400 text-[10px] max-w-[120px] truncate">{ref.notes ?? ""}</td>
                                 <td className="py-1 pl-2 flex gap-1 whitespace-nowrap">
                                   <button
                                     type="button"
@@ -2533,6 +2567,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                         maxValue: ref.maxValue ?? "",
                                         unit: ref.unit ?? "mg",
                                         overage: ref.overage ?? "",
+                                        source: ref.source ?? "",
                                         notes: ref.notes ?? "",
                                       });
                                     }}
