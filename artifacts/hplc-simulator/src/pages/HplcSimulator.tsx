@@ -6857,8 +6857,8 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                     </div>
 
                     {(() => {
-                      const svgW = 540, svgH = 300;
-                      const mL = 62, mR = 20, mT = 14, mB = 46;
+                      const svgW = 340, svgH = 250;
+                      const mL = 52, mR = 10, mT = 12, mB = 38;
                       const iW = svgW - mL - mR;
                       const iH = svgH - mT - mB;
                       const xs = (v: number) => mL + (v / compCalibXMax) * iW;
@@ -6885,7 +6885,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                           {/* Chart */}
                           <div style={{ flex: "none" }}>
                             <div style={{ fontSize: 10, marginBottom: 3, fontFamily: "Courier New, monospace", color: "#333" }}>Area</div>
-                            <svg width={svgW} height={svgH} style={{ fontFamily: "Courier New, monospace", overflow: "visible", display: "block" }}>
+                            <svg width={svgW} height={svgH} style={{ fontFamily: "Courier New, monospace", overflow: "visible", display: "block", border: "1px solid #555" }}>
                               {/* Y grid lines */}
                               {yTicks.map(t => (
                                 <line key={`yg-${t}`} x1={mL} y1={ys(t)} x2={mL + iW} y2={ys(t)} stroke="#e0e0e0" strokeWidth={0.6} />
@@ -6917,7 +6917,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                               {/* X axis label */}
                               <text x={mL + iW / 2} y={svgH - 4} textAnchor="middle" fontSize={10} fill="#222">Amount[ug/ml]</text>
                               {/* Regression line */}
-                              <line x1={xs(0)} y1={ys(ry0)} x2={xs(compCalibXMax)} y2={ys(ry1)} stroke="#111" strokeWidth={1.4} />
+                              <line x1={xs(0)} y1={ys(ry0)} x2={xs(compCalibXMax)} y2={ys(ry1)} stroke="#1560bd" strokeWidth={1.4} />
                               {/* Residual lines — vertical dashed segment from each point to the regression line */}
                               {sorted.map(s => {
                                 const predictedArea = compReg.slope * s.amount + compReg.intercept;
@@ -7009,8 +7009,8 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                             return (
                               <div style={{ paddingTop: 14, fontSize: 10, fontFamily: "Courier New, monospace", lineHeight: 2, color: "#111", minWidth: 260 }}>
                                 <div>{compound.name + " at exp. RT: " + expRT.toFixed(3)}</div>
-                                <div style={{ color: "#444" }}>{"(modified after loading)"}</div>
-                                <div>{"Correlation (r²):      " + r2val.toFixed(5)}</div>
+                                <div style={{ color: "#444" }}>{signalLabel}</div>
+                                <div>{"Correlation:             " + compReg.r.toFixed(5)}</div>
                                 <div>{"Residual Std. Dev.:    " + compReg.residStdDev.toFixed(5)}</div>
                                 <div>{"Formula: y = mx + b"}</div>
                                 <div>{"     m:      " + compReg.slope.toFixed(5)}</div>
