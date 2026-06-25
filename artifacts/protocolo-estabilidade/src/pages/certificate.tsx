@@ -1,10 +1,10 @@
 import { useParams, Link } from "wouter";
 import { fmtDate, addMonthsToIso } from "@/lib/utils";
-import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey, useListSignatures, useAddSignature, useDeleteSignature, getListSignaturesQueryKey, useUpdateProtocol, useListProtocolBibliographicReferences, getListProtocolBibliographicReferencesQueryKey, type BibliographicReference } from "@workspace/api-client-react";
+import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey, useListSignatures, useAddSignature, useDeleteSignature, getListSignaturesQueryKey, useUpdateProtocol, useListProtocolBibliographicReferences, getListProtocolBibliographicReferencesQueryKey, useListAttachments, type BibliographicReference } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, History, Lock, Unlock, Save, ShieldCheck, PenLine, Trash2, UserCheck } from "lucide-react";
+import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, History, Lock, Unlock, Save, ShieldCheck, PenLine, Trash2, UserCheck, Paperclip, FileText, File } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -337,7 +337,7 @@ export default function CertificatePage() {
   const _savedPrintPrefs = (() => {
     try {
       const raw = localStorage.getItem(CERT_PRINT_PREFS_KEY);
-      return raw ? (JSON.parse(raw) as { includePhotos?: boolean; includeHistory?: boolean; show?: Partial<ShowSections>; rowVisibility?: Record<string, boolean>; datePeriodsVisible?: number[] }) : null;
+      return raw ? (JSON.parse(raw) as { includePhotos?: boolean; includeHistory?: boolean; includeAttachments?: boolean; show?: Partial<ShowSections>; rowVisibility?: Record<string, boolean>; datePeriodsVisible?: number[] }) : null;
     } catch { return null; }
   })();
 
@@ -372,6 +372,9 @@ export default function CertificatePage() {
   const [photosExpanded, setPhotosExpanded] = useState(false);
   const [includeHistory, setIncludeHistory] = useState(() => _savedPrintPrefs?.includeHistory ?? true);
   const [historyExpanded, setHistoryExpanded] = useState(false);
+  const [includeAttachments, setIncludeAttachments] = useState(() => _savedPrintPrefs?.includeAttachments ?? true);
+  const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
+  const [attachmentBlobUrls, setAttachmentBlobUrls] = useState<Record<number, string>>({});
   const [cineticaExpanded, setCineticaExpanded] = useState(true);
   const [fundamentacaoExpanded, setFundamentacaoExpanded] = useState(true);
 
@@ -393,14 +396,14 @@ export default function CertificatePage() {
         const existing = (() => {
           try { return JSON.parse(localStorage.getItem(CERT_PRINT_PREFS_KEY) ?? "{}"); } catch { return {}; }
         })();
-        localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ ...existing, includePhotos, includeHistory, show, datePeriodsVisible: certDatePeriods }));
+        localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ ...existing, includePhotos, includeHistory, includeAttachments, show, datePeriodsVisible: certDatePeriods }));
         return;
       }
       const rowVisibility: Record<string, boolean> = {};
       for (const a of analyses) rowVisibility[a.parameter] = a.visible;
-      localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ includePhotos, includeHistory, show, rowVisibility, datePeriodsVisible: certDatePeriods }));
+      localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ includePhotos, includeHistory, includeAttachments, show, rowVisibility, datePeriodsVisible: certDatePeriods }));
     } catch { /* ignore */ }
-  }, [includePhotos, includeHistory, show, analyses, certDatePeriods, CERT_PRINT_PREFS_KEY]);
+  }, [includePhotos, includeHistory, includeAttachments, show, analyses, certDatePeriods, CERT_PRINT_PREFS_KEY]);
 
   // ── Notify user when print preferences were restored from localStorage ──────
   const DEFAULT_SHOW: ShowSections = {
@@ -724,6 +727,41 @@ export default function CertificatePage() {
   const { data: kineticsData } = useGetKinetics(Number(id), {
     query: { enabled: !!id, queryKey: getGetKineticsQueryKey(Number(id)), staleTime: 0, refetchOnWindowFocus: true },
   });
+
+  const { data: attachmentsList = [] } = useListAttachments(Number(id), {
+    query: { enabled: !!id, staleTime: 0 },
+  });
+
+  // Sorted chronologically for the print appendix
+  const sortedAttachments = useMemo(
+    () => [...attachmentsList].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    [attachmentsList]
+  );
+
+  // Pre-fetch image blobs so they render in print (images need auth headers)
+  useEffect(() => {
+    if (!includeAttachments || sortedAttachments.length === 0) return;
+    const token = localStorage.getItem("alphafitus_token");
+    const imageAtts = sortedAttachments.filter(a => a.fileType.startsWith("image/"));
+    if (imageAtts.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const urls: Record<number, string> = {};
+      for (const att of imageAtts) {
+        try {
+          const r = await fetch(`/api/storage${att.objectPath}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (!r.ok || cancelled) continue;
+          const blob = await r.blob();
+          if (cancelled) continue;
+          urls[att.id] = URL.createObjectURL(blob);
+        } catch { /* ignore */ }
+      }
+      if (!cancelled) setAttachmentBlobUrls(urls);
+    })();
+    return () => { cancelled = true; };
+  }, [includeAttachments, sortedAttachments]);
 
   // Sync analyses from API + DB/localStorage every time cert (re)loads.
   // Runs on mount and whenever cert refetches (e.g. after navigating back from
@@ -1328,6 +1366,67 @@ export default function CertificatePage() {
               <span>Data/Hora</span><span>Tipo</span><span>Responsável</span><span>Descrição</span>
             </div>
             <AuditTrail protocolId={Number(id)} printMode />
+          </div>
+        )}
+      </div>
+
+      {/* ─── ATTACHMENTS PANEL — collapsible ─── */}
+      <div className="print:hidden rounded-lg border-2 border-emerald-200 bg-emerald-50 shadow-sm overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setAttachmentsExpanded(v => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-emerald-100 border-b border-emerald-200 hover:bg-emerald-200 transition-colors text-left"
+        >
+          <div className="flex items-center gap-2">
+            <Paperclip className="h-5 w-5 text-emerald-600" />
+            <span className="font-semibold text-emerald-900 text-sm">Documentos Anexos — Anexo de Impressão</span>
+            {!attachmentsExpanded && (
+              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${includeAttachments && sortedAttachments.length > 0 ? "bg-green-50 border-green-300 text-green-700" : "bg-gray-100 border-gray-300 text-gray-500"}`}>
+                {sortedAttachments.length === 0 ? "Nenhum documento" : includeAttachments ? `✓ ${sortedAttachments.length} doc(s) incluído(s)` : "✗ Não incluído"}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {attachmentsExpanded ? <ChevronUp className="h-4 w-4 text-emerald-600" /> : <ChevronDown className="h-4 w-4 text-emerald-600" />}
+          </div>
+        </button>
+
+        {attachmentsExpanded && sortedAttachments.length > 0 && (
+          <div className="px-4 py-3 border-b border-emerald-200">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={includeAttachments}
+                onChange={e => setIncludeAttachments(e.target.checked)}
+                className="w-4 h-4 accent-emerald-600"
+              />
+              <span className="text-sm font-semibold text-emerald-900">Incluir no PDF / Impressão</span>
+            </label>
+          </div>
+        )}
+
+        {attachmentsExpanded && (
+          <div className="p-4">
+            {sortedAttachments.length === 0 ? (
+              <p className="text-sm text-gray-400 italic">Nenhum documento anexado a este protocolo.</p>
+            ) : (
+              <div className="space-y-1">
+                {sortedAttachments.map((att, i) => {
+                  const isImg = att.fileType.startsWith("image/");
+                  const isPdf = att.fileType === "application/pdf";
+                  const isWord = att.fileType.includes("word") || att.fileType.includes("officedocument.wordprocessingml");
+                  return (
+                    <div key={att.id} className="flex items-center gap-3 py-1.5 border-b border-emerald-100 last:border-0">
+                      <span className="text-xs text-emerald-700 font-mono w-5 text-right">{i + 1}.</span>
+                      {isImg ? <ImageIcon className="h-4 w-4 text-green-600 shrink-0" /> : isPdf ? <FileText className="h-4 w-4 text-red-500 shrink-0" /> : isWord ? <FileText className="h-4 w-4 text-blue-600 shrink-0" /> : <File className="h-4 w-4 text-gray-400 shrink-0" />}
+                      <span className="text-sm font-medium text-gray-800 flex-1">{att.fileName}</span>
+                      {att.description && <span className="text-xs text-gray-500 italic">{att.description}</span>}
+                      <span className="text-xs text-gray-400">{new Date(att.createdAt).toLocaleDateString("pt-BR")}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -2507,6 +2606,94 @@ export default function CertificatePage() {
         {includePhotos && allPhotoEntries.length > 0 && visiblePhotoEntries.length === 0 && (
           <div className="mt-8 pt-4 border-t border-dashed border-gray-300 text-center text-xs text-gray-400 print:hidden">
             Nenhuma imagem selecionada no painel acima. O anexo fotográfico não será incluído no PDF.
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════
+            ATTACHMENTS APPENDIX — prints at the end in chronological order
+        ═══════════════════════════════════════════════════════ */}
+        {includeAttachments && sortedAttachments.length > 0 && (
+          <div className="attachments-appendix-section">
+            <div className="pt-8 border-t-2 border-gray-800 mt-8">
+              {/* Header */}
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Alphafitus Laboratório Nutracêutico</p>
+                  <h2 className="text-lg font-bold uppercase tracking-wide mt-0.5 flex items-center gap-2">
+                    Anexo — Documentos do Protocolo
+                  </h2>
+                </div>
+                <div className="text-right text-xs text-gray-500">
+                  <p>{cert.productName}</p>
+                  <p className="font-semibold">{cert.certNumber}</p>
+                  <p>{fmtDate(getEdit("issueDate", cert.issueDate))}</p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 border-b border-gray-300 pb-3 mb-4">
+                Este anexo lista os documentos técnicos associados ao protocolo de estabilidade, organizados em ordem cronológica de inclusão.
+              </p>
+
+              {/* Index table */}
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px", marginBottom: "16px" }}>
+                <thead>
+                  <tr style={{ background: "#1e3a5f", color: "#fff" }}>
+                    <th style={{ padding: "5px 8px", border: "1px solid #1e3a5f", textAlign: "center", width: "28px" }}>#</th>
+                    <th style={{ padding: "5px 8px", border: "1px solid #1e3a5f", textAlign: "left" }}>Nome do Documento</th>
+                    <th style={{ padding: "5px 8px", border: "1px solid #1e3a5f", textAlign: "left", width: "130px" }}>Descrição</th>
+                    <th style={{ padding: "5px 8px", border: "1px solid #1e3a5f", textAlign: "left", width: "52px" }}>Tipo</th>
+                    <th style={{ padding: "5px 8px", border: "1px solid #1e3a5f", textAlign: "left", width: "90px" }}>Responsável</th>
+                    <th style={{ padding: "5px 8px", border: "1px solid #1e3a5f", textAlign: "left", width: "72px" }}>Data</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedAttachments.map((att, i) => {
+                    const typeLabel = att.fileType === "application/pdf" ? "PDF" : (att.fileType.includes("word") || att.fileType.includes("officedocument")) ? "Word" : att.fileType.startsWith("image/") ? "Imagem" : att.fileType;
+                    return (
+                      <tr key={att.id} style={{ background: i % 2 === 0 ? "#f9fafb" : "#fff" }}>
+                        <td style={{ padding: "4px 8px", border: "1px solid #e5e7eb", textAlign: "center", color: "#6b7280" }}>{i + 1}</td>
+                        <td style={{ padding: "4px 8px", border: "1px solid #e5e7eb", fontWeight: 600 }}>{att.fileName}</td>
+                        <td style={{ padding: "4px 8px", border: "1px solid #e5e7eb", color: "#6b7280" }}>{att.description || "—"}</td>
+                        <td style={{ padding: "4px 8px", border: "1px solid #e5e7eb", color: "#6b7280" }}>{typeLabel}</td>
+                        <td style={{ padding: "4px 8px", border: "1px solid #e5e7eb", color: "#6b7280" }}>{att.uploadedByName}</td>
+                        <td style={{ padding: "4px 8px", border: "1px solid #e5e7eb", color: "#6b7280" }}>{new Date(att.createdAt).toLocaleDateString("pt-BR")}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* Inline image previews (images only — PDFs/Word show table entry only) */}
+              {sortedAttachments.some(a => a.fileType.startsWith("image/") && attachmentBlobUrls[a.id]) && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-gray-500 tracking-wide mb-3 border-b border-gray-200 pb-1">Visualização de Imagens</p>
+                  <div className="space-y-6">
+                    {sortedAttachments
+                      .filter(a => a.fileType.startsWith("image/") && attachmentBlobUrls[a.id])
+                      .map((att, i) => (
+                        <div key={att.id} style={{ pageBreakInside: "avoid" }}>
+                          <p className="text-[9px] text-gray-500 mb-1">
+                            <strong>{i + 1}.</strong> {att.fileName}
+                            {att.description ? ` — ${att.description}` : ""}
+                            {" · "}{att.uploadedByName}{" · "}{new Date(att.createdAt).toLocaleDateString("pt-BR")}
+                          </p>
+                          <img
+                            src={attachmentBlobUrls[att.id]}
+                            alt={att.fileName}
+                            style={{ maxWidth: "100%", maxHeight: "260px", objectFit: "contain", border: "1px solid #e5e7eb", borderRadius: "4px", display: "block" }}
+                          />
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="pt-4 border-t border-gray-300 mt-6">
+                <p className="text-[9px] text-gray-400 text-center">
+                  Fim do Anexo de Documentos — {sortedAttachments.length} documento(s) — {cert.certNumber} — {fmtDate(getEdit("issueDate", cert.issueDate))}
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
