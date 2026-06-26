@@ -5822,9 +5822,9 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                               <Input
                                 type="number"
                                 step="0.00001"
-                                value={padraoConfig.stdArea === 0 ? "" : padraoConfig.stdArea}
+                                value={padraoConfig.smpArea === 0 ? "" : padraoConfig.smpArea}
                                 placeholder="0.00000"
-                                onChange={e => updatePadrao({ stdArea: parseFloat(e.target.value) || 0 }, { changedBy: "operator" })}
+                                onChange={e => updatePadrao({ smpArea: parseFloat(e.target.value) || 0 }, { changedBy: "operator" })}
                                 className="h-6 px-1.5"
                                 style={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
                               />
@@ -5834,13 +5834,12 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                 Amount [ug/ml]
                               </Label>
                               <Input
-                                type="number"
-                                step="0.00001"
-                                value={padraoConfig.stdAmountUg === 0 ? "" : padraoConfig.stdAmountUg}
-                                placeholder="0.00000"
-                                onChange={e => updatePadrao({ stdAmountUg: parseFloat(e.target.value) || 0 }, { changedBy: "operator" })}
+                                readOnly
+                                tabIndex={-1}
+                                value={padraoFoundUg > 0 ? padraoFoundUg.toFixed(5) : ""}
+                                placeholder="calculado"
                                 className="h-6 px-1.5"
-                                style={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
+                                style={{ fontFamily: "Courier New, monospace", fontSize: 10, background: "#f8fafc", cursor: "default", color: "#374151" }}
                               />
                             </div>
                           </>
@@ -7637,9 +7636,9 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                     <text x={mL + 4} y={adjCy - 3} textAnchor="start" fontSize={8.5} fontWeight="bold" fill="#333">
                                       {stdArea.toFixed(3)}{isAutoLine ? "*" : ""}
                                     </text>
-                                    {/* X label */}
+                                    {/* X label — mostra padraoFoundUg (igual à tabela de resultados) */}
                                     <text x={cx + 3} y={mT + iH - 4} textAnchor="start" fontSize={8.5} fontWeight="bold" fill="#111">
-                                      {stdAmount.toFixed(3)}
+                                      {(padraoFoundUg > 0 ? padraoFoundUg : stdAmount).toFixed(3)}
                                     </text>
                                   </g>
                                 );
