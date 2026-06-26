@@ -302,6 +302,9 @@ interface PadraoConfig {
   productLot: string;    // Lote do produto
   certNumber: string;    // Número do certificado de análise (ex: CA-2025-001)
   certTitle: string;     // Título do Certificado (default: "Certificado de Análise")
+  // PADRÃO DE REFERÊNCIA display controls
+  smpAreaSaved: boolean;       // true = smpArea locked — requires password to change
+  hideDiamondOnCurve: boolean; // true = hide the ◆ diamond from the calibration curve chart
 }
 
 // ─── Saved Analyses (Standard PDF records) ───────────────────────────────────────
@@ -2392,6 +2395,7 @@ const DEFAULT_PADRAO_CONFIG: PadraoConfig = {
   anvisaLabelAmountMg: 0, anvisaMinMg: 0, anvisaMaxMg: 0, anvisaNorm: "IN 28/2018", anvisaUseUg: false,
   anvisaFoundMgOverride: 0, concInicialUseUg: false,
   productName: "", productLot: "", certNumber: "", certTitle: "Certificado de Análise",
+  smpAreaSaved: false, hideDiamondOnCurve: false,
 };
 function stripLevelPrefix(s: string): string {
   return s.replace(/^Level\s+\d+\s*[—–-]\s*cal\.\s*/i, "");
@@ -5870,26 +5874,48 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                             {/* ── Padrão de Referência (External Standard) ── */}
                             <div style={{
                               borderTop: "1px solid #e2e8f0", marginTop: 8, paddingTop: 7,
-                              fontFamily: "Courier New, monospace", fontSize: 8.5,
-                              color: "#64748b", fontWeight: "bold", marginBottom: 4, letterSpacing: "0.04em",
+                              display: "flex", alignItems: "center", justifyContent: "space-between",
+                              marginBottom: 4,
                             }}>
-                              PADRÃO DE REFERÊNCIA
+                              <span style={{ fontFamily: "Courier New, monospace", fontSize: 8.5, color: "#64748b", fontWeight: "bold", letterSpacing: "0.04em" }}>
+                                PADRÃO DE REFERÊNCIA
+                              </span>
+                              {/* Toggle: Ocultar/Mostrar ◆ na curva */}
+                              <button
+                                type="button"
+                                title={padraoConfig.hideDiamondOnCurve ? "◆ oculto na curva — clique para mostrar" : "◆ visível na curva — clique para ocultar"}
+                                onClick={() => updatePadrao({ hideDiamondOnCurve: !padraoConfig.hideDiamondOnCurve }, { changedBy: "operator" })}
+                                style={{
+                                  fontFamily: "Courier New, monospace", fontSize: 8, padding: "1px 6px",
+                                  border: "1px solid #cbd5e1", borderRadius: 4, cursor: "pointer",
+                                  background: padraoConfig.hideDiamondOnCurve ? "#f1f5f9" : "#e0f2fe",
+                                  color: padraoConfig.hideDiamondOnCurve ? "#94a3b8" : "#0369a1",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                {padraoConfig.hideDiamondOnCurve ? "◆ oculto" : "◆ visível"}
+                              </button>
                             </div>
                             <div className="mb-1.5">
                               <Label style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", display: "block" }}>
-                                Area [mAU*s]
+                                Area [mAU*s] {padraoConfig.smpAreaSaved && <span style={{ color: "#dc2626" }}>🔒</span>}
                               </Label>
                               <Input
                                 type="number"
                                 step="0.00001"
+                                readOnly={padraoConfig.smpAreaSaved}
                                 value={padraoConfig.smpArea === 0 ? "" : padraoConfig.smpArea}
                                 placeholder="0.00000"
                                 onChange={e => updatePadrao({ smpArea: parseFloat(e.target.value) || 0 }, { changedBy: "operator" })}
                                 className="h-6 px-1.5"
-                                style={{ fontFamily: "Courier New, monospace", fontSize: 10 }}
+                                style={{
+                                  fontFamily: "Courier New, monospace", fontSize: 10,
+                                  background: padraoConfig.smpAreaSaved ? "#fef2f2" : undefined,
+                                  cursor: padraoConfig.smpAreaSaved ? "not-allowed" : undefined,
+                                }}
                               />
                             </div>
-                            <div className="mb-1.5">
+                            <div className="mb-2">
                               <Label style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", display: "block" }}>
                                 Amount [ug/ml]
                               </Label>
@@ -5902,6 +5928,66 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                 style={{ fontFamily: "Courier New, monospace", fontSize: 10, background: "#f8fafc", cursor: "default", color: "#374151" }}
                               />
                             </div>
+                            {/* ── Salvar / Alterar buttons ── */}
+                            {!padraoConfig.smpAreaSaved ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (padraoConfig.smpArea <= 0) return;
+                                  updatePadrao({ smpAreaSaved: true }, { changedBy: "operator" });
+                                  // Sync to active compound library (match by compoundName)
+                                  if (padraoConfig.compoundName) {
+                                    setActiveCompounds(cs => cs.map(c =>
+                                      c.name === padraoConfig.compoundName
+                                        ? { ...c, stdArea: padraoConfig.stdArea > 0 ? padraoConfig.stdArea : c.stdArea, stdAmountUg: padraoConfig.stdAmountUg > 0 ? padraoConfig.stdAmountUg : c.stdAmountUg }
+                                        : c
+                                    ));
+                                  }
+                                }}
+                                disabled={padraoConfig.smpArea <= 0}
+                                style={{
+                                  width: "100%", fontFamily: "Courier New, monospace", fontSize: 9,
+                                  padding: "3px 0", border: "1px solid #16a34a", borderRadius: 4,
+                                  background: padraoConfig.smpArea > 0 ? "#dcfce7" : "#f1f5f9",
+                                  color: padraoConfig.smpArea > 0 ? "#15803d" : "#94a3b8",
+                                  cursor: padraoConfig.smpArea > 0 ? "pointer" : "not-allowed",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                💾 Salvar e travar valores
+                              </button>
+                            ) : (
+                              <div style={{ display: "flex", gap: 4 }}>
+                                <div style={{
+                                  flex: 1, fontFamily: "Courier New, monospace", fontSize: 8.5,
+                                  padding: "3px 6px", border: "1px solid #fca5a5", borderRadius: 4,
+                                  background: "#fef2f2", color: "#dc2626", fontWeight: "bold",
+                                  display: "flex", alignItems: "center", gap: 4,
+                                }}>
+                                  🔒 Salvo — travado
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setMasterAuthInput("");
+                                    setMasterAuthError(null);
+                                    setMasterAuthDialog({
+                                      description: "Digite a senha de manager para liberar a edição do PADRÃO DE REFERÊNCIA.",
+                                      buttonLabel: "🔓 Liberar edição",
+                                      onSuccess: () => { updatePadrao({ smpAreaSaved: false }, { changedBy: "manager" }); },
+                                    });
+                                  }}
+                                  style={{
+                                    fontFamily: "Courier New, monospace", fontSize: 8.5,
+                                    padding: "3px 7px", border: "1px solid #f97316", borderRadius: 4,
+                                    background: "#fff7ed", color: "#ea580c",
+                                    cursor: "pointer", fontWeight: "bold", whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  🔓 Alterar
+                                </button>
+                              </div>
+                            )}
                           </>
                         )}
                       </>
@@ -7660,6 +7746,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                   isAutoLine = true;
                                 }
                                 if (stdAmount <= 0 || stdArea <= 0) return null;
+                                if (padraoConfig.hideDiamondOnCurve) return null;
 
                                 const cx = xs(Math.min(stdAmount, compCalibXMax));
                                 const cy = ys(Math.min(Math.max(stdArea, 0), compCalibYMax));
