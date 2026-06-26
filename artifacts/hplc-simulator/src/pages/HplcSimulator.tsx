@@ -9798,14 +9798,27 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                             </div>
                             <div style={{ display: "flex", gap: 6 }}>
                               <button
-                                onClick={() => { setPreSaveSaveMode("update"); setPreSaveDupWarning(null); }}
+                                onClick={() => {
+                                  setPreSaveSaveMode("update");
+                                  setPreSaveDupWarning(null);
+                                  doSave();
+                                  if (preSaveSessionId) handleConcludeSession(preSaveSessionId, preSaveSessionStatus);
+                                  setShowPreSaveDialog(false);
+                                  setSaveConfirmId(null);
+                                  setPreSaveSessionId("");
+                                  setEditingSavedId(null);
+                                  setPreSaveDupWarning(null);
+                                  setPreSaveSaveMode(null);
+                                  setAnaliseSubTab("pdfs");
+                                  setPage("analise");
+                                }}
                                 style={{
                                   fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 12px",
-                                  border: `2px solid ${preSaveSaveMode === "update" ? "#1560bd" : "#1560bd44"}`,
+                                  border: "2px solid #1560bd",
                                   borderRadius: 5,
-                                  background: preSaveSaveMode === "update" ? "#dbeafe" : "#fff",
-                                  color: preSaveSaveMode === "update" ? "#1e3a5f" : "#64748b",
-                                  cursor: "pointer", fontWeight: preSaveSaveMode === "update" ? "bold" : "normal",
+                                  background: "#dbeafe",
+                                  color: "#1e3a5f",
+                                  cursor: "pointer", fontWeight: "bold",
                                 }}
                               >
                                 ✏ Salvar alteração no documento existente
