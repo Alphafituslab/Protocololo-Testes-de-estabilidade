@@ -3891,7 +3891,30 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
   // ── External Standard Result — computed globally, used in Report tab + Peaks table ──
   const padraoExtHasData   = padraoConfig.stdArea > 0 && padraoConfig.smpArea > 0 && padraoConfig.stdAmountUg > 0;
   const padraoExtRatio     = padraoExtHasData ? padraoConfig.smpArea / padraoConfig.stdArea : 0;
-  const padraoFoundUg      = padraoExtRatio * padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100);
+
+  // Prefer calibration-curve regression for back-calc (consistent with ◆ position on graph).
+  // Falls back to the 2-point ratio method when no valid curve exists for the compound.
+  const padraoFoundUg = (() => {
+    if (!padraoExtHasData) return 0;
+    // Find the calibration for the matched compound (by name)
+    const cname = padraoConfig.compoundName?.trim().toLowerCase() ?? "";
+    const matchedCompound = cname
+      ? activeCompounds.find(c => c.name.trim().toLowerCase() === cname)
+      : null;
+    const calib = matchedCompound ? compoundCalibrations[matchedCompound.id] : null;
+    if (calib) {
+      const validPts = calib.standards.filter(s => s.amount > 0 && s.area > 0);
+      if (validPts.length >= 2) {
+        const reg = linearRegression(validPts.map(s => ({ x: s.amount, y: s.area })));
+        if (reg.slope > 0) {
+          // Back-calc from regression: same formula as the ◆ X position on the chart
+          return Math.max(0, (padraoConfig.smpArea - reg.intercept) / reg.slope);
+        }
+      }
+    }
+    // 2-point ratio fallback
+    return padraoExtRatio * padraoConfig.stdAmountUg * (padraoConfig.stdPurity / 100);
+  })();
   const padraoFoundMg      = padraoFoundUg / 1000;
   const padraoFoundPurity  = padraoExtHasData
     ? (padraoConfig.smpPurity > 0 && Math.abs(padraoConfig.smpPurity - 100) > 0.01
