@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Pencil, Trash2, Users, ArrowLeft, Eye, EyeOff, Shield, BookOpen, History, Clock, CheckCircle2, XCircle, UserCheck, X, Award, FileText, Printer, Paperclip } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Users, ArrowLeft, Eye, EyeOff, Shield, BookOpen, History, Clock, CheckCircle2, XCircle, UserCheck, X, Award, FileText, Printer, Paperclip, Mail } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -26,6 +26,7 @@ type User = {
   permissions: string[];
   createdAt: string;
   accessExpiresAt?: string | null;
+  email?: string | null;
 };
 
 type UserFormData = {
@@ -35,6 +36,7 @@ type UserFormData = {
   role: string;
   permissions: string[];
   accessExpiresAt?: string;
+  email?: string;
 };
 
 type Protocol = {
@@ -227,6 +229,7 @@ function UserForm({ initial, onSave, isEdit }: {
     role: initial?.role ?? "analyst",
     permissions: initial?.permissions ?? DEFAULT_PERMS["analyst"] ?? [],
     accessExpiresAt: initial?.accessExpiresAt ?? "",
+    email: initial?.email ?? "",
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -264,6 +267,25 @@ function UserForm({ initial, onSave, isEdit }: {
         <RoleSelect value={form.role} onChange={handleRoleChange} />
         {form.role !== "cliente" && <p className="text-xs text-muted-foreground">Ao trocar o perfil, as permissões são redefinidas para o padrão do novo perfil.</p>}
       </div>
+
+      {/* Client-only: email */}
+      {form.role === "cliente" && (
+        <div className="space-y-2 border rounded-lg p-3 bg-amber-50 border-amber-200">
+          <Label className="text-amber-800 font-semibold text-sm flex items-center gap-1.5">
+            <Mail className="h-3.5 w-3.5" /> E-mail do cliente
+          </Label>
+          <Input
+            type="email"
+            placeholder="cliente@empresa.com.br"
+            value={form.email ?? ""}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            autoComplete="off"
+          />
+          <p className="text-xs text-amber-700">
+            Ao atribuir um protocolo, o sistema enviará automaticamente um e-mail com login, senha e link de acesso.
+          </p>
+        </div>
+      )}
 
       {/* Client-only: expiry date */}
       {form.role === "cliente" && (
@@ -364,8 +386,16 @@ function ProtocolAssignPanel({ user, token }: { user: User; token: string | null
 
   const assign = useMutation({
     mutationFn: (protocolId: number) =>
-      apiFetch(`/api/clients/${user.id}/protocols`, token, { method: "POST", body: JSON.stringify({ protocolId }) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["client-protocols", user.id] }); setSearchId(""); toast({ title: "Protocolo atribuído." }); },
+      apiFetch<{ emailSent?: boolean; emailError?: string }>(`/api/clients/${user.id}/protocols`, token, { method: "POST", body: JSON.stringify({ protocolId }) }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["client-protocols", user.id] });
+      setSearchId("");
+      if (data.emailSent) {
+        toast({ title: "✅ Protocolo atribuído", description: `E-mail enviado para ${user.email ?? "cliente"} com as credenciais de acesso.` });
+      } else {
+        toast({ title: "Protocolo atribuído.", description: data.emailError ? `Aviso: ${data.emailError}` : undefined });
+      }
+    },
     onError: (err) => toast({ variant: "destructive", title: "Erro", description: (err as Error).message }),
   });
 
@@ -565,7 +595,7 @@ export default function UsersPage() {
     onError: (err) => toast({ variant: "destructive", title: "Erro ao criar usuário", description: (err as Error).message }),
   });
 
-  type UserUpdatePayload = { username?: string; displayName?: string; password?: string; role?: string; permissions?: string[]; active?: boolean; accessExpiresAt?: string | null };
+  type UserUpdatePayload = { username?: string; displayName?: string; password?: string; role?: string; permissions?: string[]; active?: boolean; accessExpiresAt?: string | null; email?: string };
   const updateUser = useMutation({
     mutationFn: ({ id, data }: { id: number; data: UserUpdatePayload }) =>
       apiFetch<User>(`/api/users/${id}`, token, { method: "PUT", body: JSON.stringify(data) }),
@@ -666,9 +696,9 @@ export default function UsersPage() {
                           </DialogTrigger>
                           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                             <DialogHeader><DialogTitle>Editar: {u.displayName}</DialogTitle></DialogHeader>
-                            <UserForm isEdit initial={{ username: u.username, displayName: u.displayName, role: u.role, permissions: u.permissions ?? [] }}
+                            <UserForm isEdit initial={{ username: u.username, displayName: u.displayName, role: u.role, permissions: u.permissions ?? [], email: u.email ?? "" }}
                               onSave={async (d) => {
-                                const payload: Partial<UserFormData> & { active?: boolean } = { displayName: d.displayName, role: d.role, permissions: d.permissions };
+                                const payload: Partial<UserFormData> & { active?: boolean } = { displayName: d.displayName, role: d.role, permissions: d.permissions, email: d.email };
                                 if (d.username && d.username !== u.username) payload.username = d.username;
                                 if (d.password) payload.password = d.password;
                                 await updateUser.mutateAsync({ id: u.id, data: payload });
@@ -769,11 +799,12 @@ export default function UsersPage() {
                           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                             <DialogHeader><DialogTitle>Editar cliente: {u.displayName}</DialogTitle></DialogHeader>
                             <UserForm isEdit
-                              initial={{ username: u.username, displayName: u.displayName, role: u.role, permissions: [], accessExpiresAt: u.accessExpiresAt ? new Date(u.accessExpiresAt).toISOString().split("T")[0] : undefined }}
+                              initial={{ username: u.username, displayName: u.displayName, role: u.role, permissions: [], accessExpiresAt: u.accessExpiresAt ? new Date(u.accessExpiresAt).toISOString().split("T")[0] : undefined, email: u.email ?? "" }}
                               onSave={async (d) => {
                                 const payload: UserUpdatePayload = {
                                   displayName: d.displayName, role: d.role, permissions: [],
                                   accessExpiresAt: d.accessExpiresAt ?? null,
+                                  email: d.email,
                                 };
                                 if (d.username && d.username !== u.username) payload.username = d.username;
                                 if (d.password) payload.password = d.password;

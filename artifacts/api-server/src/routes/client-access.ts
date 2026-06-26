@@ -2,6 +2,8 @@ import { Router, type IRouter } from "express";
 import { db, usersTable, clientProtocolAccessTable, protocolsTable, loginLogTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../lib/session";
+import bcrypt from "bcryptjs";
+import { sendClientAccessEmail } from "../lib/mailer.js";
 
 const router: IRouter = Router();
 
@@ -48,25 +50,62 @@ router.post("/clients/:userId/protocols", requireAuth, requireAdmin, async (req,
   if (!protocolId) { res.status(400).json({ error: "protocolId é obrigatório." }); return; }
 
   // Verify user exists and is "cliente"
-  const [user] = await db.select({ id: usersTable.id, role: usersTable.role }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  const [user] = await db.select({
+    id: usersTable.id, role: usersTable.role, email: usersTable.email,
+    displayName: usersTable.displayName, username: usersTable.username,
+    accessExpiresAt: usersTable.accessExpiresAt,
+  }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user) { res.status(404).json({ error: "Usuário não encontrado." }); return; }
   if (user.role !== "cliente") { res.status(400).json({ error: "Apenas usuários do tipo 'cliente' podem ter protocolos atribuídos." }); return; }
 
   // Verify protocol exists
-  const [protocol] = await db.select({ id: protocolsTable.id }).from(protocolsTable).where(eq(protocolsTable.id, protocolId)).limit(1);
+  const [protocol] = await db.select({
+    id: protocolsTable.id, productName: protocolsTable.productName, certNumber: protocolsTable.certNumber,
+  }).from(protocolsTable).where(eq(protocolsTable.id, protocolId)).limit(1);
   if (!protocol) { res.status(404).json({ error: "Protocolo não encontrado." }); return; }
+
+  // Generate a secure random password (12 chars: letters + digits)
+  const charset = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const rawPassword = Array.from({ length: 12 }, () => charset[Math.floor(Math.random() * charset.length)]).join("");
+  const passwordHash = await bcrypt.hash(rawPassword, 10);
+
+  // Update client's password
+  await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, userId));
+
+  const resolvedCert = canViewCertificate ?? true;
+  const resolvedReport = canViewReport ?? true;
 
   try {
     const [row] = await db.insert(clientProtocolAccessTable).values({
       clientUserId: userId,
       protocolId,
-      canViewCertificate: canViewCertificate ?? true,
-      canViewReport: canViewReport ?? true,
+      canViewCertificate: resolvedCert,
+      canViewReport: resolvedReport,
       canPrint: canPrint ?? true,
       canViewHistory: canViewHistory ?? false,
       canViewAttachments: canViewAttachments ?? false,
     }).returning();
-    res.status(201).json(row);
+
+    // Send notification email if client has an email configured
+    let emailResult: { ok: boolean; error?: string } = { ok: false, error: "Cliente sem e-mail cadastrado." };
+    if (user.email) {
+      const domains = process.env.REPLIT_DOMAINS?.split(",") ?? [];
+      const appUrl = domains.length > 0 ? `https://${domains[0].trim()}/client-portal` : "https://seu-dominio.replit.app/client-portal";
+      emailResult = await sendClientAccessEmail({
+        toEmail: user.email,
+        toName: user.displayName,
+        username: user.username,
+        password: rawPassword,
+        productName: protocol.productName,
+        certNumber: protocol.certNumber,
+        accessExpiresAt: user.accessExpiresAt ?? null,
+        appUrl,
+        canViewCertificate: resolvedCert,
+        canViewReport: resolvedReport,
+      });
+    }
+
+    res.status(201).json({ ...row, emailSent: emailResult.ok, emailError: emailResult.error ?? null });
   } catch {
     res.status(409).json({ error: "Este protocolo já está atribuído a este cliente." });
   }

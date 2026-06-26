@@ -14,7 +14,7 @@ const PUBLIC_FIELDS = {
   id: usersTable.id, username: usersTable.username, displayName: usersTable.displayName,
   role: usersTable.role, active: usersTable.active, hplcAccess: usersTable.hplcAccess,
   permissions: usersTable.permissions, createdAt: usersTable.createdAt,
-  accessExpiresAt: usersTable.accessExpiresAt,
+  accessExpiresAt: usersTable.accessExpiresAt, email: usersTable.email,
 };
 
 function sanitizeRole(role: string | undefined): string {
@@ -29,9 +29,9 @@ router.get("/users", requireAuth, requireAdmin, async (_req, res): Promise<void>
 
 // Create user (admin only)
 router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void> => {
-  const { username, displayName, password, role, permissions, accessExpiresAt } = req.body as {
+  const { username, displayName, password, role, permissions, accessExpiresAt, email } = req.body as {
     username?: string; displayName?: string; password?: string; role?: string; permissions?: string[];
-    accessExpiresAt?: string | null;
+    accessExpiresAt?: string | null; email?: string;
   };
   if (!username || !displayName || !password || password.length < 6) {
     res.status(400).json({ error: "Dados inválidos. Senha mínima de 6 caracteres." }); return;
@@ -46,6 +46,7 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
       username: username.trim().toLowerCase(), displayName: displayName.trim(), passwordHash,
       role: sanitizedRole, active: true, permissions: resolvedPermissions,
       ...(expiresAt ? { accessExpiresAt: expiresAt } : {}),
+      ...(email ? { email: email.trim().toLowerCase() } : {}),
     }).returning(PUBLIC_FIELDS);
     res.status(201).json(user);
   } catch { res.status(409).json({ error: "Nome de usuário já existe." }); }
@@ -65,9 +66,9 @@ router.delete("/users/:userId", requireAuth, requireAdmin, async (req, res): Pro
 router.put("/users/:userId", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const userId = parseInt(String(req.params["userId"] ?? ""));
   if (isNaN(userId)) { res.status(400).json({ error: "ID inválido." }); return; }
-  const { username, displayName, password, role, active, hplcAccess, permissions, accessExpiresAt } = req.body as {
+  const { username, displayName, password, role, active, hplcAccess, permissions, accessExpiresAt, email } = req.body as {
     username?: string; displayName?: string; password?: string; role?: string; active?: boolean;
-    hplcAccess?: boolean; permissions?: string[]; accessExpiresAt?: string | null;
+    hplcAccess?: boolean; permissions?: string[]; accessExpiresAt?: string | null; email?: string;
   };
   const updates: Partial<typeof usersTable.$inferInsert> = {};
   if (username) updates.username = username.trim().toLowerCase();
@@ -77,6 +78,7 @@ router.put("/users/:userId", requireAuth, requireAdmin, async (req, res): Promis
   if ("accessExpiresAt" in req.body) {
     updates.accessExpiresAt = accessExpiresAt ? new Date(accessExpiresAt) : null;
   }
+  if ("email" in req.body) updates.email = email ? email.trim().toLowerCase() : null;
   if (typeof active === "boolean") {
     if (!active && req.authUser?.id === userId) { res.status(400).json({ error: "Não é possível desativar o próprio usuário." }); return; }
     updates.active = active;
