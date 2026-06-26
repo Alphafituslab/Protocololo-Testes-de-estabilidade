@@ -2422,6 +2422,24 @@ function saveSavedImages(imgs: HplcSavedImage[]) {
   try { localStorage.setItem(IMAGES_KEY, JSON.stringify(imgs)); } catch { /* ignore */ }
 }
 
+// ── Compound Library — persisted independently so sessions/snapshots never overwrite it ──
+const COMPOUND_LIBRARY_KEY = "hplc_compound_library_v2";
+function loadCompoundLibrary(): ActiveCompound[] {
+  try {
+    const raw = localStorage.getItem(COMPOUND_LIBRARY_KEY);
+    if (raw) { const arr = JSON.parse(raw) as ActiveCompound[]; if (Array.isArray(arr) && arr.length > 0) return arr; }
+  } catch { /* ignore */ }
+  // Fallback: read from the main state key (migration path for existing data)
+  try {
+    const state = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as { activeCompounds?: ActiveCompound[] };
+    if (Array.isArray(state.activeCompounds) && state.activeCompounds.length > 0) return state.activeCompounds;
+  } catch { /* ignore */ }
+  return DEFAULT_ACTIVE_COMPOUNDS;
+}
+function saveCompoundLibrary(compounds: ActiveCompound[]) {
+  try { localStorage.setItem(COMPOUND_LIBRARY_KEY, JSON.stringify(compounds)); } catch { /* ignore */ }
+}
+
 const COMPOUND_CALIBS_KEY = "hplc_compound_calibrations_v1";
 function loadCompoundCalibrations(): Record<string, CompoundCalibration> {
   try { return JSON.parse(localStorage.getItem(COMPOUND_CALIBS_KEY) ?? "{}") as Record<string, CompoundCalibration>; }
@@ -3266,7 +3284,7 @@ export default function HplcSimulator() {
   const [detector, setDetector] = useState<DetectorInfo>(() => loadState()?.detector ?? DEFAULT_DETECTOR);
   const [standards, setStandards] = useState<CalibStandard[]>(() => loadState()?.standards ?? DEFAULT_STANDARDS);
   const [calib, setCalib] = useState<CalibInfo>(() => loadState()?.calib ?? DEFAULT_CALIB);
-  const [activeCompounds, setActiveCompounds] = useState<ActiveCompound[]>(() => loadState()?.activeCompounds ?? DEFAULT_ACTIVE_COMPOUNDS);
+  const [activeCompounds, setActiveCompounds] = useState<ActiveCompound[]>(() => loadCompoundLibrary());
   const [lastIdentified, setLastIdentified] = useState<string[]>([]);
   const [compoundSearch, setCompoundSearch] = useState("");
   const [showControls, setShowControls] = useState(true);
@@ -3361,6 +3379,11 @@ export default function HplcSimulator() {
   const [finalizeNotes, setFinalizeNotes] = useState("");
   const [newAnalysisDialog, setNewAnalysisDialog] = useState(false);
   const [newAnalysisForm, setNewAnalysisForm] = useState<SampleInfo>({ ...DEFAULT_SAMPLE });
+  // Compound library guard (master password before edit / delete)
+  const [compoundGuard, setCompoundGuard] = useState<{
+    action: "edit" | "delete"; compound: ActiveCompound; pw: string; error: string; loading: boolean;
+  } | null>(null);
+  const [compoundEditTarget, setCompoundEditTarget] = useState<ActiveCompound | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
   // Inline lot registration form (Lotes tab) — supports up to 3 simultaneous lots
   const [inlineLots, setInlineLots] = useState([
@@ -3429,7 +3452,7 @@ export default function HplcSimulator() {
     if (saved.detector)                           setDetector(saved.detector);
     if (saved.standards && saved.standards.length > 0) setStandards(saved.standards);
     if (saved.calib)                              setCalib(saved.calib);
-    if (saved.activeCompounds)                    setActiveCompounds(saved.activeCompounds);
+    // NOTE: activeCompounds (compound library) is persisted independently — never overwritten by session load
     // 3. Mark this record as the one being edited so re-save updates in place
     setEditingSavedId(saved.id);
     // Remember the lot that was loaded — changing it forces a new analysis
@@ -4664,7 +4687,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
       stdAmountUg: 0,
     };
 
-    setActiveCompounds(cs => [...cs, newCompound]);
+    setAndSaveCompounds(cs => [...cs, newCompound]);
 
     // ── 6. Add / update the corresponding peak in the chromatogram ─────────────
     if (template) {
@@ -4703,14 +4726,49 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     markDirty();
   };
 
+  // Helper: update compound library AND persist to dedicated key immediately
+  const setAndSaveCompounds = (updater: ActiveCompound[] | ((prev: ActiveCompound[]) => ActiveCompound[])) => {
+    setActiveCompounds(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      saveCompoundLibrary(next);
+      return next;
+    });
+  };
+
   const saveActiveCompound = (updated: ActiveCompound) => {
-    setActiveCompounds(cs => cs.map(c => c.id === updated.id ? updated : c));
+    setAndSaveCompounds(cs => cs.map(c => c.id === updated.id ? updated : c));
     markDirty();
   };
 
   const removeActiveCompound = (id: string) => {
-    setActiveCompounds(cs => cs.filter(c => c.id !== id));
+    setAndSaveCompounds(cs => cs.filter(c => c.id !== id));
     markDirty();
+  };
+
+  // Master password verification → execute pending compound action
+  const handleCompoundGuardSubmit = async () => {
+    if (!compoundGuard) return;
+    setCompoundGuard(g => g ? { ...g, loading: true, error: "" } : null);
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: compoundGuard.pw }),
+      });
+      if (!res.ok) {
+        setCompoundGuard(g => g ? { ...g, loading: false, error: "Senha incorreta." } : null);
+        return;
+      }
+      const { action, compound } = compoundGuard;
+      setCompoundGuard(null);
+      if (action === "delete") {
+        removeActiveCompound(compound.id);
+      } else {
+        setCompoundEditTarget(compound);
+      }
+    } catch {
+      setCompoundGuard(g => g ? { ...g, loading: false, error: "Erro de conexão." } : null);
+    }
   };
 
   const autoIdentifyPeaks = () => {
@@ -4803,7 +4861,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
 
   const handleLoadFormula = (formula: Formula) => {
     setDetector(formula.detector);
-    setActiveCompounds(formula.activeCompounds);
+    setAndSaveCompounds(formula.activeCompounds);
     setStandards(formula.standards);
     setCalib(formula.calib);
     setPage("chromatogram");
@@ -5000,7 +5058,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     setDetector(s.detector ?? DEFAULT_DETECTOR);
     setStandards(s.standards ?? DEFAULT_STANDARDS);
     setCalib(s.calib ?? DEFAULT_CALIB);
-    setActiveCompounds(s.activeCompounds ?? DEFAULT_ACTIVE_COMPOUNDS);
+    // NOTE: compound library is persisted independently — never overwritten by snapshot load
     setProductName(s.productName ?? "");
     setCurrentSnapshotSessionId(session.id);
     setIsDirty(false);
@@ -5014,7 +5072,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     setDetector(DEFAULT_DETECTOR);
     setStandards(DEFAULT_STANDARDS);
     setCalib(DEFAULT_CALIB);
-    setActiveCompounds(DEFAULT_ACTIVE_COMPOUNDS);
+    // NOTE: compound library is NOT reset on New Analysis — library persists globally
     setProductName("");
     prevCalibNameRef.current = DEFAULT_CALIB.compoundName;
     setCurrentSnapshotSessionId(null);
@@ -6135,7 +6193,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                       ...(newStdAmtUg  !== undefined ? { stdAmountUg: newStdAmtUg } : {}),
                                     };
                                   });
-                                  setActiveCompounds(updatedCompounds);
+                                  setAndSaveCompounds(updatedCompounds);
                                   // Force-persist immediately so data survives a quick window close
                                   saveState({ peaks, sample, detector, standards, calib, activeCompounds: updatedCompounds, productName });
 
@@ -8292,15 +8350,16 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                               onClick={() => addCompoundAsPeak(c)}>
                               <Plus className="h-3 w-3" />
                             </Button>
-                            {/* Edit */}
-                            <ActiveCompoundDialog compound={c} onSave={saveActiveCompound}>
-                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-gray-500">
-                                <Settings className="h-3 w-3" />
-                              </Button>
-                            </ActiveCompoundDialog>
-                            {/* Delete */}
+                            {/* Edit — requires master password */}
+                            <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-gray-500"
+                              title="Edit compound (requires master password)"
+                              onClick={() => setCompoundGuard({ action: "edit", compound: c, pw: "", error: "", loading: false })}>
+                              <Settings className="h-3 w-3" />
+                            </Button>
+                            {/* Delete — requires master password */}
                             <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-red-400 hover:text-red-600"
-                              onClick={() => removeActiveCompound(c.id)}>
+                              title="Delete compound (requires master password)"
+                              onClick={() => setCompoundGuard({ action: "delete", compound: c, pw: "", error: "", loading: false })}>
                               <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
@@ -12416,6 +12475,58 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Compound Library — master password guard ────────────────────── */}
+      {compoundGuard && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#fff", borderRadius: 10, padding: "24px 28px", width: 380, maxWidth: "95vw", boxShadow: "0 8px 40px rgba(0,0,0,0.3)", fontFamily: "Courier New, monospace" }}>
+            <div style={{ fontSize: 14, fontWeight: "bold", color: compoundGuard.action === "delete" ? "#b91c1c" : "#1e3a5f", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+              {compoundGuard.action === "delete"
+                ? <><Trash2 style={{ width: 15, height: 15 }} /> Excluir composto</>
+                : <><Settings style={{ width: 15, height: 15 }} /> Editar composto</>}
+            </div>
+            <div style={{ fontSize: 11, color: "#475569", marginBottom: 14 }}>
+              {compoundGuard.action === "delete"
+                ? <>Esta ação é irreversível. Digite a senha mestre para confirmar a exclusão de <strong>{compoundGuard.compound.name}</strong>.</>
+                : <>Digite a senha mestre para editar <strong>{compoundGuard.compound.name}</strong>.</>}
+            </div>
+            <input
+              type="password"
+              autoFocus
+              placeholder="Senha mestre"
+              value={compoundGuard.pw}
+              onChange={e => setCompoundGuard(g => g ? { ...g, pw: e.target.value, error: "" } : null)}
+              onKeyDown={e => { if (e.key === "Enter") handleCompoundGuardSubmit(); if (e.key === "Escape") setCompoundGuard(null); }}
+              style={{ width: "100%", height: 34, border: compoundGuard.error ? "1.5px solid #ef4444" : "1.5px solid #cbd5e1", borderRadius: 6, padding: "0 10px", fontFamily: "Courier New, monospace", fontSize: 13, marginBottom: 6, outline: "none", boxSizing: "border-box" }}
+            />
+            {compoundGuard.error && (
+              <div style={{ fontSize: 11, color: "#ef4444", marginBottom: 8 }}>{compoundGuard.error}</div>
+            )}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
+              <button onClick={() => setCompoundGuard(null)} disabled={compoundGuard.loading}
+                style={{ height: 32, padding: "0 16px", border: "1px solid #cbd5e1", borderRadius: 6, background: "#f8fafc", cursor: "pointer", fontSize: 12, fontFamily: "Courier New, monospace" }}>
+                Cancelar
+              </button>
+              <button onClick={handleCompoundGuardSubmit} disabled={compoundGuard.loading || !compoundGuard.pw}
+                style={{ height: 32, padding: "0 16px", border: "none", borderRadius: 6, background: compoundGuard.action === "delete" ? "#dc2626" : "#1e3a5f", color: "#fff", cursor: compoundGuard.loading || !compoundGuard.pw ? "not-allowed" : "pointer", opacity: compoundGuard.loading || !compoundGuard.pw ? 0.6 : 1, fontSize: 12, fontFamily: "Courier New, monospace", fontWeight: "bold" }}>
+                {compoundGuard.loading ? "Verificando…" : compoundGuard.action === "delete" ? "Excluir" : "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Controlled edit dialog — opens after master password is verified ── */}
+      {compoundEditTarget && (
+        <ActiveCompoundDialog
+          compound={compoundEditTarget}
+          onSave={(updated) => { saveActiveCompound(updated); setCompoundEditTarget(null); }}
+          externalOpen={true}
+          onExternalOpenChange={(v) => { if (!v) setCompoundEditTarget(null); }}
+        >
+          <span />
+        </ActiveCompoundDialog>
       )}
 
       {/* ── Nova Análise dialog ─────────────────────────────────── */}
