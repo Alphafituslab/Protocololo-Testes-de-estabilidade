@@ -12553,43 +12553,39 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
               )}
             </div>
 
-            {/* Form grid */}
-            {(() => {
-              const F = ({ label, field, placeholder }: { label: string; field: keyof SampleInfo; placeholder?: string }) => (
-                <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 9, fontWeight: "bold", color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>{label}</div>
-                  <input
-                    value={String(newAnalysisForm[field] ?? "")}
-                    onChange={e => setNewAnalysisForm(f => ({ ...f, [field]: e.target.value }))}
-                    placeholder={placeholder}
-                    style={{
-                      width: "100%", fontSize: 11, fontFamily: "Courier New, monospace",
-                      border: "1px solid #cbd5e1", borderRadius: 4, padding: "5px 8px",
-                      outline: "none", boxSizing: "border-box", color: "#1e293b",
-                    }}
-                  />
-                </div>
+            {/* Form grid — fields written inline (no helper component) to prevent focus loss on re-render */}
+            {((): React.ReactNode => {
+              const lbl = (text: string) => (
+                <div style={{ fontSize: 9, fontWeight: "bold", color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>{text}</div>
+              );
+              const inp = (field: keyof SampleInfo, placeholder?: string) => (
+                <input
+                  value={String(newAnalysisForm[field] ?? "")}
+                  onChange={e => { const v = e.target.value; setNewAnalysisForm(f => ({ ...f, [field]: v })); }}
+                  placeholder={placeholder}
+                  style={{ width: "100%", fontSize: 11, fontFamily: "Courier New, monospace", border: "1px solid #cbd5e1", borderRadius: 4, padding: "5px 8px", outline: "none", boxSizing: "border-box", color: "#1e293b" }}
+                />
               );
               return (
                 <div>
-                  <F label="Sample Name" field="sampleName" placeholder="Ex: Amostra atual A" />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <F label="Acq. Operator" field="acqOperator" placeholder="Ex: EDSON" />
-                    <F label="Seq. Line" field="seqLine" placeholder="Ex: 9" />
+                  <div style={{ marginBottom: 10 }}>{lbl("Sample Name")}{inp("sampleName", "Ex: Amostra atual A")}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                    <div>{lbl("Acq. Operator")}{inp("acqOperator", "Ex: EDSON")}</div>
+                    <div>{lbl("Seq. Line")}{inp("seqLine", "Ex: 9")}</div>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <F label="Acq. Instrument" field="acqInstrument" placeholder="Ex: Instrument 1" />
-                    <F label="Location" field="location" placeholder="Ex: Vial 9" />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                    <div>{lbl("Acq. Instrument")}{inp("acqInstrument", "Ex: Instrument 1")}</div>
+                    <div>{lbl("Location")}{inp("location", "Ex: Vial 9")}</div>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                    <F label="Injection Date" field="injectionDate" placeholder="Ex: 4/25/2025 12:25:09 PM" />
-                    <F label="Inj" field="inj" placeholder="1" />
-                    <F label="Inj Volume" field="injVolume" placeholder="10.0 µl" />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+                    <div>{lbl("Injection Date")}{inp("injectionDate", "Ex: 4/25/2025 12:25:09 PM")}</div>
+                    <div>{lbl("Inj")}{inp("inj", "1")}</div>
+                    <div>{lbl("Inj Volume")}{inp("injVolume", "10.0 µl")}</div>
                   </div>
-                  <F label="Acq. Method" field="acqMethod" placeholder="C:\CHEM32\1\DATA\..." />
-                  <F label="Last Changed (Acq.)" field="lastChanged1" placeholder="Ex: 4/23/2025 8:27:30 AM by EDSON" />
-                  <F label="Analysis Method" field="analysisMethod" placeholder="C:\CHEM32\1\METHODS\B6.M" />
-                  <F label="Last Changed (Ana.)" field="lastChanged2" placeholder="Ex: 4/25/2025 9:51:12 AM by EDSON" />
+                  <div style={{ marginBottom: 10 }}>{lbl("Acq. Method")}{inp("acqMethod", "C:\\CHEM32\\1\\DATA\\...")}</div>
+                  <div style={{ marginBottom: 10 }}>{lbl("Last Changed (Acq.)")}{inp("lastChanged1", "Ex: 4/23/2025 8:27:30 AM by EDSON")}</div>
+                  <div style={{ marginBottom: 10 }}>{lbl("Analysis Method")}{inp("analysisMethod", "C:\\CHEM32\\1\\METHODS\\B6.M")}</div>
+                  <div style={{ marginBottom: 10 }}>{lbl("Last Changed (Ana.)")}{inp("lastChanged2", "Ex: 4/25/2025 9:51:12 AM by EDSON")}</div>
                 </div>
               );
             })()}
