@@ -760,7 +760,25 @@ export default function CertificatePage() {
     imageUrls: attachmentBlobUrls,
     pdfPages: attachmentPdfPages,
     wordHtml: attachmentWordHtml,
+    isLoading: attachmentsLoading,
   } = useAttachmentRendering(sortedAttachments, sortedAttachments.length > 0);
+
+  const [printPending, setPrintPending] = React.useState(false);
+
+  React.useEffect(() => {
+    if (printPending && !attachmentsLoading) {
+      setPrintPending(false);
+      window.print();
+    }
+  }, [printPending, attachmentsLoading]);
+
+  const handlePrint = () => {
+    if (attachmentsLoading) {
+      setPrintPending(true);
+    } else {
+      window.print();
+    }
+  };
 
   // Sync analyses from API + DB/localStorage every time cert (re)loads.
   // Runs on mount and whenever cert refetches (e.g. after navigating back from
@@ -1111,8 +1129,25 @@ export default function CertificatePage() {
           >
             <Trash2 className="h-4 w-4 mr-2" /> Limpar cache
           </Button>
-          <Button onClick={() => window.print()}>
-            <Printer className="h-4 w-4 mr-2" /> Imprimir / Salvar PDF
+          <Button onClick={handlePrint} disabled={printPending}>
+            {printPending ? (
+              <>
+                <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                Aguardando imagens…
+              </>
+            ) : attachmentsLoading && sortedAttachments.length > 0 ? (
+              <>
+                <Printer className="h-4 w-4 mr-2" /> Imprimir / Salvar PDF
+                <span className="ml-2 text-xs opacity-60">(carregando imagens…)</span>
+              </>
+            ) : (
+              <>
+                <Printer className="h-4 w-4 mr-2" /> Imprimir / Salvar PDF
+              </>
+            )}
           </Button>
         </div>
         {/* Dica: desativar cabeçalhos/rodapés nativos do Chrome */}

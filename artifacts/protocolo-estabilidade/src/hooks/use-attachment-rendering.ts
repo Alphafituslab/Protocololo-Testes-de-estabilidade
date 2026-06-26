@@ -10,6 +10,7 @@ export type AttachmentRenderingResult = {
   imageUrls: Record<number, string>;
   pdfPages: Record<number, string[]>;
   wordHtml: Record<number, string>;
+  isLoading: boolean;
 };
 
 let workerSrcSet = false;
@@ -59,16 +60,20 @@ export function useAttachmentRendering(
   const [imageUrls, setImageUrls] = useState<Record<number, string>>({});
   const [pdfPages, setPdfPages] = useState<Record<number, string[]>>({});
   const [wordHtml, setWordHtml] = useState<Record<number, string>>({});
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!enabled || attachments.length === 0) {
       setImageUrls({});
       setPdfPages({});
       setWordHtml({});
+      setIsLoading(false);
       return;
     }
     const token = localStorage.getItem("alphafitus_token");
     let cancelled = false;
+
+    setIsLoading(true);
 
     (async () => {
       const imgs: Record<number, string> = {};
@@ -105,6 +110,7 @@ export function useAttachmentRendering(
         setImageUrls(imgs);
         setPdfPages(pdfs);
         setWordHtml(words);
+        setIsLoading(false);
       }
     })();
 
@@ -113,5 +119,5 @@ export function useAttachmentRendering(
     };
   }, [attachments, enabled]);
 
-  return { imageUrls, pdfPages, wordHtml };
+  return { imageUrls, pdfPages, wordHtml, isLoading };
 }
