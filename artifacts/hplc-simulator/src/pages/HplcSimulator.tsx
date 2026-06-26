@@ -7840,16 +7840,22 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                     stroke="#111" strokeWidth={1.2} strokeDasharray="3 2" opacity={0.8} />
                                 );
                               })}
-                              {/* Data points — + crosshair, numbered above */}
+                              {/* Data points — + crosshair (thin), numbered inside chart */}
                               {sorted.map((s, idx) => {
                                 const px = xs(s.amount);
                                 const py = ys(s.area);
-                                const arm = 5;
+                                const arm = 4;
+                                const fSz = 8;
+                                // Clamp label Y: prefer above; flip below if too close to top edge
+                                const lblAbove = py - arm - 2 >= mT + fSz;
+                                const lblY = lblAbove ? py - arm - 2 : py + arm + fSz;
+                                // Clamp label X within chart interior (half char-width ~3px guard)
+                                const lblX = Math.min(Math.max(px, mL + 5), mL + iW - 5);
                                 return (
                                   <g key={`pt-${s.id}`}>
-                                    <text x={px} y={py - arm - 3} textAnchor="middle" fontSize={8.5} fontWeight="bold" fill="#111">{idx + 1}</text>
-                                    <line x1={px - arm} y1={py} x2={px + arm} y2={py} stroke="#111" strokeWidth={1.5} />
-                                    <line x1={px} y1={py - arm} x2={px} y2={py + arm} stroke="#111" strokeWidth={1.5} />
+                                    <text x={lblX} y={lblY} textAnchor="middle" fontSize={fSz} fill="#111">{idx + 1}</text>
+                                    <line x1={px - arm} y1={py} x2={px + arm} y2={py} stroke="#111" strokeWidth={0.7} />
+                                    <line x1={px} y1={py - arm} x2={px} y2={py + arm} stroke="#111" strokeWidth={0.7} />
                                   </g>
                                 );
                               })}
