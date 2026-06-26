@@ -5935,14 +5935,38 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                 onClick={() => {
                                   if (padraoConfig.smpArea <= 0) return;
                                   updatePadrao({ smpAreaSaved: true }, { changedBy: "operator" });
-                                  // Sync to active compound library (match by compoundName)
-                                  if (padraoConfig.compoundName) {
-                                    setActiveCompounds(cs => cs.map(c =>
-                                      c.name === padraoConfig.compoundName
-                                        ? { ...c, stdArea: padraoConfig.stdArea > 0 ? padraoConfig.stdArea : c.stdArea, stdAmountUg: padraoConfig.stdAmountUg > 0 ? padraoConfig.stdAmountUg : c.stdAmountUg }
-                                        : c
-                                    ));
-                                  }
+
+                                  // ── Sync to Active Compounds Library ──────────────────────────
+                                  // Case-insensitive match by compound name
+                                  const cname = padraoConfig.compoundName.trim().toLowerCase();
+                                  const newStdArea    = padraoConfig.stdArea    > 0 ? padraoConfig.stdArea    : undefined;
+                                  const newStdAmtUg   = padraoConfig.stdAmountUg > 0 ? padraoConfig.stdAmountUg : undefined;
+                                  let matched = false;
+                                  const updatedCompounds = activeCompounds.map(c => {
+                                    const isMatch = cname
+                                      ? c.name.trim().toLowerCase() === cname
+                                      : false;
+                                    if (!isMatch) return c;
+                                    matched = true;
+                                    return {
+                                      ...c,
+                                      ...(newStdArea   !== undefined ? { stdArea:    newStdArea   } : {}),
+                                      ...(newStdAmtUg  !== undefined ? { stdAmountUg: newStdAmtUg } : {}),
+                                    };
+                                  });
+                                  setActiveCompounds(updatedCompounds);
+                                  // Force-persist immediately so data survives a quick window close
+                                  saveState({ peaks, sample, detector, standards, calib, activeCompounds: updatedCompounds, productName });
+
+                                  toast({
+                                    title: matched ? "✓ Library atualizada" : cname ? "⚠ Composto não encontrado na library" : "⚠ Nenhum composto selecionado",
+                                    description: matched
+                                      ? `${padraoConfig.compoundName}${newStdArea !== undefined ? ` · Std Area: ${newStdArea.toFixed(5)} mAU·s` : ""}${newStdAmtUg !== undefined ? ` · Amt: ${newStdAmtUg.toFixed(5)} µg` : ""}`
+                                      : cname
+                                        ? `"${padraoConfig.compoundName}" não existe na Active Compounds Library. Cadastre o composto primeiro.`
+                                        : "Selecione um composto no Reference Standard antes de salvar.",
+                                    variant: matched ? "default" : "destructive",
+                                  });
                                 }}
                                 disabled={padraoConfig.smpArea <= 0}
                                 style={{
