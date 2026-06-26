@@ -865,6 +865,24 @@ export default function UsersPage() {
                                 if (d.password) payload.password = d.password;
                                 await updateUser.mutateAsync({ id: u.id, data: payload });
                               }} />
+                            {u.email && (
+                              <div className="border-t pt-4 mt-2">
+                                <p className="text-xs text-muted-foreground mb-3">
+                                  Gera uma nova senha e envia as credenciais de acesso para <strong>{u.email}</strong>.
+                                </p>
+                                <Button
+                                  type="button"
+                                  className="w-full gap-2 bg-amber-600 hover:bg-amber-700 text-white"
+                                  disabled={sendingEmailId === u.id}
+                                  onClick={() => sendEmail(u.id, u.email!)}
+                                >
+                                  {sendingEmailId === u.id
+                                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                                    : <Mail className="h-4 w-4" />}
+                                  {sendingEmailId === u.id ? "Enviando e-mail…" : "Enviar e-mail com credenciais"}
+                                </Button>
+                              </div>
+                            )}
                           </DialogContent>
                         </Dialog>
                         {/* Delete */}
