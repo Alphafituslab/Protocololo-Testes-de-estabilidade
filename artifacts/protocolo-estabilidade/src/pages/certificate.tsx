@@ -1,6 +1,6 @@
 import { useParams, Link } from "wouter";
 import { fmtDate, addMonthsToIso } from "@/lib/utils";
-import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey, useListSignatures, useAddSignature, useDeleteSignature, getListSignaturesQueryKey, useUpdateProtocol, useListProtocolBibliographicReferences, getListProtocolBibliographicReferencesQueryKey, useListAttachments, type BibliographicReference } from "@workspace/api-client-react";
+import { useGetCertificate, getGetCertificateQueryKey, useListLots, getListLotsQueryKey, useGetKinetics, getGetKineticsQueryKey, useListSignatures, useAddSignature, useDeleteSignature, getListSignaturesQueryKey, useUpdateProtocol, useListProtocolBibliographicReferences, getListProtocolBibliographicReferencesQueryKey, useListAttachments, getListAttachmentsQueryKey, type BibliographicReference } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -729,7 +729,7 @@ export default function CertificatePage() {
   });
 
   const { data: attachmentsList = [] } = useListAttachments(Number(id), {
-    query: { enabled: !!id, staleTime: 0 },
+    query: { enabled: !!id, staleTime: 0, queryKey: getListAttachmentsQueryKey(Number(id)) },
   });
 
   // Sorted chronologically for the print appendix
@@ -738,16 +738,18 @@ export default function CertificatePage() {
     [attachmentsList]
   );
 
-  // Pre-fetch image blobs so they render in print (images need auth headers)
+  // Pre-fetch image + PDF blobs: images print, PDFs are viewable inline on screen
   useEffect(() => {
     if (!includeAttachments || sortedAttachments.length === 0) return;
     const token = localStorage.getItem("alphafitus_token");
-    const imageAtts = sortedAttachments.filter(a => a.fileType.startsWith("image/"));
-    if (imageAtts.length === 0) return;
+    const fetchableAtts = sortedAttachments.filter(
+      a => a.fileType.startsWith("image/") || a.fileType === "application/pdf"
+    );
+    if (fetchableAtts.length === 0) return;
     let cancelled = false;
     (async () => {
       const urls: Record<number, string> = {};
-      for (const att of imageAtts) {
+      for (const att of fetchableAtts) {
         try {
           const r = await fetch(`/api/storage${att.objectPath}`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -1406,26 +1408,52 @@ export default function CertificatePage() {
         )}
 
         {attachmentsExpanded && (
-          <div className="p-4">
+          <div className="p-4 space-y-4">
             {sortedAttachments.length === 0 ? (
               <p className="text-sm text-gray-400 italic">Nenhum documento anexado a este protocolo.</p>
             ) : (
-              <div className="space-y-1">
-                {sortedAttachments.map((att, i) => {
-                  const isImg = att.fileType.startsWith("image/");
-                  const isPdf = att.fileType === "application/pdf";
-                  const isWord = att.fileType.includes("word") || att.fileType.includes("officedocument.wordprocessingml");
-                  return (
-                    <div key={att.id} className="flex items-center gap-3 py-1.5 border-b border-emerald-100 last:border-0">
-                      <span className="text-xs text-emerald-700 font-mono w-5 text-right">{i + 1}.</span>
+              sortedAttachments.map((att, i) => {
+                const isImg = att.fileType.startsWith("image/");
+                const isPdf = att.fileType === "application/pdf";
+                const isWord = att.fileType.includes("word") || att.fileType.includes("officedocument.wordprocessingml");
+                const blobUrl = attachmentBlobUrls[att.id];
+                return (
+                  <div key={att.id} className="border border-emerald-100 rounded-lg overflow-hidden">
+                    {/* Header row */}
+                    <div className="flex items-center gap-3 px-3 py-2 bg-emerald-50 border-b border-emerald-100">
+                      <span className="text-xs text-emerald-700 font-mono w-5 text-right shrink-0">{i + 1}.</span>
                       {isImg ? <ImageIcon className="h-4 w-4 text-green-600 shrink-0" /> : isPdf ? <FileText className="h-4 w-4 text-red-500 shrink-0" /> : isWord ? <FileText className="h-4 w-4 text-blue-600 shrink-0" /> : <File className="h-4 w-4 text-gray-400 shrink-0" />}
                       <span className="text-sm font-medium text-gray-800 flex-1">{att.fileName}</span>
                       {att.description && <span className="text-xs text-gray-500 italic">{att.description}</span>}
-                      <span className="text-xs text-gray-400">{new Date(att.createdAt).toLocaleDateString("pt-BR")}</span>
+                      <span className="text-xs text-gray-400 shrink-0">{new Date(att.createdAt).toLocaleDateString("pt-BR")}</span>
                     </div>
-                  );
-                })}
-              </div>
+                    {/* Inline viewer — screen only (print:hidden) */}
+                    {blobUrl && isImg && (
+                      <div className="p-2 bg-white">
+                        <img src={blobUrl} alt={att.fileName} className="max-w-full max-h-[480px] object-contain mx-auto block rounded" />
+                      </div>
+                    )}
+                    {blobUrl && isPdf && (
+                      <div className="bg-white print:hidden">
+                        <iframe
+                          src={blobUrl}
+                          title={att.fileName}
+                          className="w-full border-0"
+                          style={{ height: 640 }}
+                        />
+                      </div>
+                    )}
+                    {!blobUrl && (isImg || isPdf) && (
+                      <div className="p-3 text-xs text-gray-400 italic bg-white">Carregando visualização…</div>
+                    )}
+                    {isWord && (
+                      <div className="p-3 text-xs text-gray-500 bg-white">
+                        Documentos Word não podem ser visualizados inline. Baixe pela aba <strong>Documentos</strong> do protocolo.
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
         )}

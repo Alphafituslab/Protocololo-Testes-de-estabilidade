@@ -1,6 +1,6 @@
 import { useParams, Link } from "wouter";
 import { fmtDate, addMonthsToIso } from "@/lib/utils";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   useGetCertificate, getGetCertificateQueryKey,
   useGetProtocol, getGetProtocolQueryKey,
@@ -9,11 +9,12 @@ import {
   useListSignatures, getListSignaturesQueryKey,
   useListProtocolBibliographicReferences,
   getListProtocolBibliographicReferencesQueryKey,
+  useListAttachments, getListAttachmentsQueryKey,
   type BibliographicReference,
 } from "@workspace/api-client-react";
 import { AuditTrail } from "@/components/audit-trail";
 import { Button } from "@/components/ui/button";
-import { Loader2, Printer, ArrowLeft, CheckCircle2, XCircle, AlertCircle, Clock, Settings2 } from "lucide-react";
+import { Loader2, Printer, ArrowLeft, CheckCircle2, XCircle, AlertCircle, Clock, Settings2, Paperclip, FileText, File, Image as ImageIcon } from "lucide-react";
 
 const STATUS_LABEL: Record<string, string> = {
   aprovado: "Aprovado",
@@ -57,6 +58,7 @@ const PRINT_SECTIONS = [
   { key: "s9",  label: "9. Assinaturas Eletrônicas" },
   { key: "s10", label: "10. Histórico de Rastreabilidade" },
   { key: "s11", label: "11. Referências Bibliográficas" },
+  { key: "s12", label: "12. Documentos Anexos" },
 ];
 
 function formatAbntRef(r: BibliographicReference): string {
@@ -214,6 +216,14 @@ export default function ProtocolReportPage() {
   const { data: protocolRefs = [] } = useListProtocolBibliographicReferences(numId, {
     query: { enabled: !!id, staleTime: 0, queryKey: getListProtocolBibliographicReferencesQueryKey(numId) },
   });
+  const { data: attachmentsList = [] } = useListAttachments(numId, {
+    query: { enabled: !!id, staleTime: 0, queryKey: getListAttachmentsQueryKey(numId) },
+  });
+  const sortedAttachments = useMemo(
+    () => [...attachmentsList].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    [attachmentsList]
+  );
+  const [attachmentBlobUrls, setAttachmentBlobUrls] = useState<Record<number, string>>({});
 
   // ── Todos os hooks ANTES de qualquer early return ────────────────────────
 
@@ -275,6 +285,34 @@ export default function ProtocolReportPage() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showPrintSettings]);
+
+  // Pre-fetch image + PDF blobs for inline viewing
+  useEffect(() => {
+    if (!id || sortedAttachments.length === 0) return;
+    if (printSections["s12"] === false) return;
+    const token = localStorage.getItem("alphafitus_token");
+    const fetchable = sortedAttachments.filter(
+      a => a.fileType.startsWith("image/") || a.fileType === "application/pdf"
+    );
+    if (fetchable.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const urls: Record<number, string> = {};
+      for (const att of fetchable) {
+        try {
+          const r = await fetch(`/api/storage${att.objectPath}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (!r.ok || cancelled) continue;
+          const blob = await r.blob();
+          if (cancelled) continue;
+          urls[att.id] = URL.createObjectURL(blob);
+        } catch { /* ignore */ }
+      }
+      if (!cancelled) setAttachmentBlobUrls(urls);
+    })();
+    return () => { cancelled = true; };
+  }, [id, sortedAttachments, printSections]);
 
   // ── Early returns DEPOIS de todos os hooks ───────────────────────────────
   if (certLoading || protLoading) {
@@ -930,6 +968,108 @@ export default function ProtocolReportPage() {
             })()}
           </div>
         </div>
+
+        {/* ══ 12. DOCUMENTOS ANEXOS ══════════════════════════════════ */}
+        {sortedAttachments.length > 0 && ps("s12", (
+          <div className="px-8 pb-6 print:px-0 print:pb-3 mt-4">
+            <div className="report-section border border-gray-200 rounded overflow-hidden">
+              <div className="report-section-header bg-slate-700 px-4 py-1.5 flex items-center gap-2">
+                <Paperclip className="h-3.5 w-3.5 text-slate-300" />
+                <h2 className="text-[10px] font-semibold uppercase tracking-wider text-slate-100">12. Documentos Anexos</h2>
+                <span className="ml-auto text-[9px] text-slate-400">{sortedAttachments.length} documento(s)</span>
+              </div>
+              <div className="px-4 py-3 print:px-3 print:py-2 space-y-4">
+                {/* Index table */}
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
+                  <thead>
+                    <tr style={{ background: "#374151", color: "#fff" }}>
+                      <th style={{ padding: "4px 8px", border: "1px solid #374151", textAlign: "center", width: "28px" }}>#</th>
+                      <th style={{ padding: "4px 8px", border: "1px solid #374151", textAlign: "left" }}>Nome do Documento</th>
+                      <th style={{ padding: "4px 8px", border: "1px solid #374151", textAlign: "left", width: "120px" }}>Descrição</th>
+                      <th style={{ padding: "4px 8px", border: "1px solid #374151", textAlign: "left", width: "48px" }}>Tipo</th>
+                      <th style={{ padding: "4px 8px", border: "1px solid #374151", textAlign: "left", width: "88px" }}>Responsável</th>
+                      <th style={{ padding: "4px 8px", border: "1px solid #374151", textAlign: "left", width: "68px" }}>Data</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedAttachments.map((att, i) => {
+                      const typeLabel = att.fileType === "application/pdf" ? "PDF"
+                        : att.fileType.includes("word") || att.fileType.includes("officedocument") ? "Word"
+                        : att.fileType.startsWith("image/") ? "Imagem"
+                        : att.fileType;
+                      return (
+                        <tr key={att.id} style={{ background: i % 2 === 0 ? "#f9fafb" : "#fff" }}>
+                          <td style={{ padding: "3px 8px", border: "1px solid #e5e7eb", textAlign: "center", color: "#6b7280" }}>{i + 1}</td>
+                          <td style={{ padding: "3px 8px", border: "1px solid #e5e7eb", fontWeight: 600 }}>{att.fileName}</td>
+                          <td style={{ padding: "3px 8px", border: "1px solid #e5e7eb", color: "#6b7280" }}>{att.description || "—"}</td>
+                          <td style={{ padding: "3px 8px", border: "1px solid #e5e7eb", color: "#6b7280" }}>{typeLabel}</td>
+                          <td style={{ padding: "3px 8px", border: "1px solid #e5e7eb", color: "#6b7280" }}>{att.uploadedByName}</td>
+                          <td style={{ padding: "3px 8px", border: "1px solid #e5e7eb", color: "#6b7280" }}>{new Date(att.createdAt).toLocaleDateString("pt-BR")}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                {/* Inline viewers — screen only */}
+                <div className="space-y-4 print:hidden">
+                  {sortedAttachments.map((att, i) => {
+                    const isImg = att.fileType.startsWith("image/");
+                    const isPdf = att.fileType === "application/pdf";
+                    const isWord = att.fileType.includes("word") || att.fileType.includes("officedocument");
+                    const blobUrl = attachmentBlobUrls[att.id];
+                    return (
+                      <div key={att.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200">
+                          {isImg ? <ImageIcon className="h-4 w-4 text-green-600 shrink-0" /> : isPdf ? <FileText className="h-4 w-4 text-red-500 shrink-0" /> : <File className="h-4 w-4 text-gray-400 shrink-0" />}
+                          <span className="text-sm font-semibold text-gray-800">{i + 1}. {att.fileName}</span>
+                          {att.description && <span className="text-xs text-gray-500 italic ml-1">— {att.description}</span>}
+                          <span className="ml-auto text-xs text-gray-400">{att.uploadedByName} · {new Date(att.createdAt).toLocaleDateString("pt-BR")}</span>
+                        </div>
+                        {blobUrl && isImg && (
+                          <div className="p-3 bg-white flex justify-center">
+                            <img src={blobUrl} alt={att.fileName} className="max-w-full max-h-[520px] object-contain border rounded" />
+                          </div>
+                        )}
+                        {blobUrl && isPdf && (
+                          <iframe src={blobUrl} title={att.fileName} className="w-full border-0" style={{ height: 680 }} />
+                        )}
+                        {!blobUrl && (isImg || isPdf) && (
+                          <div className="p-4 text-xs text-gray-400 italic bg-white text-center">Carregando visualização…</div>
+                        )}
+                        {isWord && (
+                          <div className="p-3 text-xs text-gray-500 bg-white">
+                            Documentos Word não podem ser visualizados inline. Abra-os pela aba <strong>Documentos</strong> do protocolo.
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Print note for PDFs */}
+                <div className="hidden print:block mt-2 pt-2 border-t border-gray-200">
+                  <p className="text-[8px] text-gray-400 italic">
+                    Imagens incorporadas acima. PDFs e documentos Word: disponíveis na aba Documentos do sistema.
+                  </p>
+                  {/* Inline image previews in print */}
+                  {sortedAttachments.filter(a => a.fileType.startsWith("image/") && attachmentBlobUrls[a.id]).map((att, i) => (
+                    <div key={att.id} style={{ pageBreakInside: "avoid", marginTop: 12 }}>
+                      <p style={{ fontSize: "9px", color: "#6b7280", marginBottom: 4 }}>
+                        <strong>{i + 1}.</strong> {att.fileName}{att.description ? ` — ${att.description}` : ""}
+                      </p>
+                      <img
+                        src={attachmentBlobUrls[att.id]}
+                        alt={att.fileName}
+                        style={{ maxWidth: "100%", maxHeight: "240px", objectFit: "contain", border: "1px solid #e5e7eb", display: "block" }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* ── CSS de Impressão ─────────────────────────────────────────── */}
