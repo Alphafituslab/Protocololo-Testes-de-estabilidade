@@ -579,6 +579,7 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<User | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
+  const [newClientOpen, setNewClientOpen] = useState(false);
   const [protocolPanelUser, setProtocolPanelUser] = useState<User | null>(null);
   const [historyUser, setHistoryUser] = useState<User | null>(null);
 
@@ -737,8 +738,29 @@ export default function UsersPage() {
       {/* ── Client users ── */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><UserCheck className="h-4 w-4 text-blue-600" /> Clientes com Acesso ao Portal</CardTitle>
-          <CardDescription>{clientUsers.length} cliente(s) cadastrado(s) — acessam apenas certificados e relatórios dos protocolos atribuídos</CardDescription>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2"><UserCheck className="h-4 w-4 text-blue-600" /> Clientes com Acesso ao Portal</CardTitle>
+              <CardDescription>{clientUsers.length} cliente(s) cadastrado(s) — acessam apenas certificados e relatórios dos protocolos atribuídos</CardDescription>
+            </div>
+            <Dialog open={newClientOpen} onOpenChange={setNewClientOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="shrink-0 gap-1.5">
+                  <Plus className="h-4 w-4" /> Novo Cliente
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogHeader><DialogTitle>Cadastrar novo cliente</DialogTitle></DialogHeader>
+                <UserForm
+                  initial={{ role: "cliente" }}
+                  onSave={async (d) => {
+                    await createUser.mutateAsync(d);
+                    setNewClientOpen(false);
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
