@@ -764,6 +764,13 @@ export default function CertificatePage() {
     );
     if (fetchableAtts.length === 0) return;
     let cancelled = false;
+    const blobToDataUrl = (blob: Blob): Promise<string> =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
     (async () => {
       const urls: Record<number, string> = {};
       for (const att of fetchableAtts) {
@@ -774,7 +781,7 @@ export default function CertificatePage() {
           if (!r.ok || cancelled) continue;
           const blob = await r.blob();
           if (cancelled) continue;
-          urls[att.id] = URL.createObjectURL(blob);
+          urls[att.id] = await blobToDataUrl(blob);
         } catch { /* ignore */ }
       }
       if (!cancelled) setAttachmentBlobUrls(urls);

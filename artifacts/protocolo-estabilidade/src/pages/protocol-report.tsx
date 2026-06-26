@@ -304,7 +304,7 @@ export default function ProtocolReportPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showPrintSettings]);
 
-  // Pre-fetch image + PDF blobs for inline viewing
+  // Pre-fetch image + PDF blobs as base64 data URLs (blob URLs are revoked by Chrome on print)
   useEffect(() => {
     if (!id || sortedAttachments.length === 0) return;
     if (printSections["s12"] === false) return;
@@ -314,6 +314,13 @@ export default function ProtocolReportPage() {
     );
     if (fetchable.length === 0) return;
     let cancelled = false;
+    const blobToDataUrl = (blob: Blob): Promise<string> =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
     (async () => {
       const urls: Record<number, string> = {};
       for (const att of fetchable) {
@@ -324,7 +331,7 @@ export default function ProtocolReportPage() {
           if (!r.ok || cancelled) continue;
           const blob = await r.blob();
           if (cancelled) continue;
-          urls[att.id] = URL.createObjectURL(blob);
+          urls[att.id] = await blobToDataUrl(blob);
         } catch { /* ignore */ }
       }
       if (!cancelled) setAttachmentBlobUrls(urls);
