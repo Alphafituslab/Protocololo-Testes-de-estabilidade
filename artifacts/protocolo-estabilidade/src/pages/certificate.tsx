@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Printer, Settings2, Image as ImageIcon, ChevronDown, ChevronUp, CheckSquare, Square, History, Lock, Unlock, Save, ShieldCheck, PenLine, Trash2, UserCheck, Paperclip, FileText, File } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAttachmentRendering } from "@/hooks/use-attachment-rendering";
 import { ToastAction } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import React, { useState, useMemo, useEffect, useContext, useRef } from "react";
@@ -374,7 +375,6 @@ export default function CertificatePage() {
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [includeAttachments, setIncludeAttachments] = useState(() => _savedPrintPrefs?.includeAttachments ?? true);
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
-  const [attachmentBlobUrls, setAttachmentBlobUrls] = useState<Record<number, string>>({});
   const [cineticaExpanded, setCineticaExpanded] = useState(true);
   const [fundamentacaoExpanded, setFundamentacaoExpanded] = useState(true);
 
@@ -754,40 +754,11 @@ export default function CertificatePage() {
     () => [...attachmentsList].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
     [attachmentsList]
   );
-
-  // Pre-fetch image + PDF blobs: images print, PDFs are viewable inline on screen
-  useEffect(() => {
-    if (!includeAttachments || sortedAttachments.length === 0) return;
-    const token = localStorage.getItem("alphafitus_token");
-    const fetchableAtts = sortedAttachments.filter(
-      a => a.fileType.startsWith("image/") || a.fileType === "application/pdf"
-    );
-    if (fetchableAtts.length === 0) return;
-    let cancelled = false;
-    const blobToDataUrl = (blob: Blob): Promise<string> =>
-      new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    (async () => {
-      const urls: Record<number, string> = {};
-      for (const att of fetchableAtts) {
-        try {
-          const r = await fetch(`/api/storage${att.objectPath}`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          });
-          if (!r.ok || cancelled) continue;
-          const blob = await r.blob();
-          if (cancelled) continue;
-          urls[att.id] = await blobToDataUrl(blob);
-        } catch { /* ignore */ }
-      }
-      if (!cancelled) setAttachmentBlobUrls(urls);
-    })();
-    return () => { cancelled = true; };
-  }, [includeAttachments, sortedAttachments]);
+  const {
+    imageUrls: attachmentBlobUrls,
+    pdfPages: attachmentPdfPages,
+    wordHtml: attachmentWordHtml,
+  } = useAttachmentRendering(sortedAttachments, includeAttachments);
 
   // Sync analyses from API + DB/localStorage every time cert (re)loads.
   // Runs on mount and whenever cert refetches (e.g. after navigating back from
@@ -2733,6 +2704,55 @@ export default function CertificatePage() {
                             alt={att.fileName}
                             style={{ maxWidth: "100%", maxHeight: "260px", objectFit: "contain", border: "1px solid #e5e7eb", borderRadius: "4px", display: "block" }}
                           />
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* PDF pages inline */}
+              {sortedAttachments.some(a => a.fileType === "application/pdf" && attachmentPdfPages[a.id]) && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-gray-500 tracking-wide mb-3 border-b border-gray-200 pb-1">Visualização de PDFs</p>
+                  <div className="space-y-8">
+                    {sortedAttachments
+                      .filter(a => a.fileType === "application/pdf" && attachmentPdfPages[a.id])
+                      .map((att) => (
+                        <div key={att.id}>
+                          <p className="text-[9px] text-gray-500 mb-1">
+                            <strong>{att.fileName}</strong>
+                            {att.description ? ` — ${att.description}` : ""}
+                            {" · "}{att.uploadedByName}{" · "}{new Date(att.createdAt).toLocaleDateString("pt-BR")}
+                          </p>
+                          {attachmentPdfPages[att.id].map((page, pi) => (
+                            <img
+                              key={pi}
+                              src={page}
+                              alt={`Página ${pi + 1}`}
+                              style={{ maxWidth: "100%", display: "block", marginBottom: 8, border: "1px solid #e5e7eb" }}
+                            />
+                          ))}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Word docs inline */}
+              {sortedAttachments.some(a => (a.fileType.includes("word") || a.fileType.includes("officedocument.wordprocessingml")) && attachmentWordHtml[a.id]) && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-gray-500 tracking-wide mb-3 border-b border-gray-200 pb-1">Documentos Word</p>
+                  <div className="space-y-6">
+                    {sortedAttachments
+                      .filter(a => (a.fileType.includes("word") || a.fileType.includes("officedocument.wordprocessingml")) && attachmentWordHtml[a.id])
+                      .map((att) => (
+                        <div key={att.id}>
+                          <p className="text-[9px] text-gray-500 mb-2">
+                            <strong>{att.fileName}</strong>
+                            {att.description ? ` — ${att.description}` : ""}
+                            {" · "}{att.uploadedByName}{" · "}{new Date(att.createdAt).toLocaleDateString("pt-BR")}
+                          </p>
+                          <div style={{ fontSize: "10px" }} dangerouslySetInnerHTML={{ __html: attachmentWordHtml[att.id] }} />
                         </div>
                       ))}
                   </div>

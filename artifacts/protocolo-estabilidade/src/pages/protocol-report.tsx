@@ -1,6 +1,7 @@
 import { useParams, Link } from "wouter";
 import { fmtDate, addMonthsToIso } from "@/lib/utils";
 import { useState, useRef, useEffect, useMemo, useContext } from "react";
+import { useAttachmentRendering } from "@/hooks/use-attachment-rendering";
 import {
   useGetCertificate, getGetCertificateQueryKey,
   useGetProtocol, getGetProtocolQueryKey,
@@ -241,7 +242,11 @@ export default function ProtocolReportPage() {
     () => [...attachmentsList].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
     [attachmentsList]
   );
-  const [attachmentBlobUrls, setAttachmentBlobUrls] = useState<Record<number, string>>({});
+  const {
+    imageUrls: attachmentBlobUrls,
+    pdfPages: attachmentPdfPages,
+    wordHtml: attachmentWordHtml,
+  } = useAttachmentRendering(sortedAttachments, !!id);
 
   // ── Todos os hooks ANTES de qualquer early return ────────────────────────
 
@@ -304,40 +309,6 @@ export default function ProtocolReportPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showPrintSettings]);
 
-  // Pre-fetch image + PDF blobs as base64 data URLs (blob URLs are revoked by Chrome on print)
-  useEffect(() => {
-    if (!id || sortedAttachments.length === 0) return;
-    if (printSections["s12"] === false) return;
-    const token = localStorage.getItem("alphafitus_token");
-    const fetchable = sortedAttachments.filter(
-      a => a.fileType.startsWith("image/") || a.fileType === "application/pdf"
-    );
-    if (fetchable.length === 0) return;
-    let cancelled = false;
-    const blobToDataUrl = (blob: Blob): Promise<string> =>
-      new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    (async () => {
-      const urls: Record<number, string> = {};
-      for (const att of fetchable) {
-        try {
-          const r = await fetch(`/api/storage${att.objectPath}`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          });
-          if (!r.ok || cancelled) continue;
-          const blob = await r.blob();
-          if (cancelled) continue;
-          urls[att.id] = await blobToDataUrl(blob);
-        } catch { /* ignore */ }
-      }
-      if (!cancelled) setAttachmentBlobUrls(urls);
-    })();
-    return () => { cancelled = true; };
-  }, [id, sortedAttachments, printSections]);
 
   // ── Early returns DEPOIS de todos os hooks ───────────────────────────────
   if (certLoading || protLoading) {
@@ -1056,28 +1027,35 @@ export default function ProtocolReportPage() {
                             <img src={blobUrl} alt={att.fileName} className="max-w-full max-h-[520px] object-contain border rounded" />
                           </div>
                         )}
-                        {blobUrl && isPdf && (
-                          <iframe src={blobUrl} title={att.fileName} className="w-full border-0" style={{ height: 680 }} />
-                        )}
-                        {!blobUrl && (isImg || isPdf) && (
+                        {!blobUrl && isImg && (
                           <div className="p-4 text-xs text-gray-400 italic bg-white text-center">Carregando visualização…</div>
                         )}
-                        {isWord && (
-                          <div className="p-3 text-xs text-gray-500 bg-white">
-                            Documentos Word não podem ser visualizados inline. Abra-os pela aba <strong>Documentos</strong> do protocolo.
+                        {isPdf && attachmentPdfPages[att.id] && (
+                          <div className="overflow-auto max-h-[680px] bg-gray-50">
+                            {attachmentPdfPages[att.id].map((page, pi) => (
+                              <img key={pi} src={page} alt={`Página ${pi + 1}`} className="w-full block border-b border-gray-200 last:border-0" />
+                            ))}
                           </div>
+                        )}
+                        {isPdf && !attachmentPdfPages[att.id] && (
+                          <div className="p-4 text-xs text-gray-400 italic bg-white text-center">Carregando visualização…</div>
+                        )}
+                        {isWord && attachmentWordHtml[att.id] && (
+                          <div
+                            className="p-4 prose prose-sm max-w-none overflow-auto max-h-[520px] bg-white text-sm"
+                            dangerouslySetInnerHTML={{ __html: attachmentWordHtml[att.id] }}
+                          />
+                        )}
+                        {isWord && !attachmentWordHtml[att.id] && (
+                          <div className="p-4 text-xs text-gray-400 italic bg-white text-center">Carregando visualização…</div>
                         )}
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Print note for PDFs */}
+                {/* Print section: images, PDF pages, Word HTML */}
                 <div className="hidden print:block mt-2 pt-2 border-t border-gray-200">
-                  <p className="text-[8px] text-gray-400 italic">
-                    Imagens incorporadas acima. PDFs e documentos Word: disponíveis na aba Documentos do sistema.
-                  </p>
-                  {/* Inline image previews in print */}
                   {sortedAttachments.filter(a => a.fileType.startsWith("image/") && attachmentBlobUrls[a.id]).map((att, i) => (
                     <div key={att.id} style={{ pageBreakInside: "avoid", marginTop: 12 }}>
                       <p style={{ fontSize: "9px", color: "#6b7280", marginBottom: 4 }}>
@@ -1088,6 +1066,29 @@ export default function ProtocolReportPage() {
                         alt={att.fileName}
                         style={{ maxWidth: "100%", maxHeight: "240px", objectFit: "contain", border: "1px solid #e5e7eb", display: "block" }}
                       />
+                    </div>
+                  ))}
+                  {sortedAttachments.filter(a => a.fileType === "application/pdf" && attachmentPdfPages[a.id]).map((att) => (
+                    <div key={att.id} style={{ pageBreakBefore: "always" }}>
+                      <p style={{ fontSize: "9px", color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>
+                        {att.fileName}{att.description ? ` — ${att.description}` : ""}
+                      </p>
+                      {attachmentPdfPages[att.id].map((page, pi) => (
+                        <img
+                          key={pi}
+                          src={page}
+                          alt={`Página ${pi + 1}`}
+                          style={{ maxWidth: "100%", display: "block", marginBottom: 8, border: "1px solid #e5e7eb" }}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                  {sortedAttachments.filter(a => (a.fileType.includes("word") || a.fileType.includes("officedocument.wordprocessingml")) && attachmentWordHtml[a.id]).map((att) => (
+                    <div key={att.id} style={{ pageBreakBefore: "always" }}>
+                      <p style={{ fontSize: "9px", color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>
+                        {att.fileName}{att.description ? ` — ${att.description}` : ""}
+                      </p>
+                      <div style={{ fontSize: "11px" }} dangerouslySetInnerHTML={{ __html: attachmentWordHtml[att.id] }} />
                     </div>
                   ))}
                 </div>

@@ -1,6 +1,6 @@
 kind = "data-app"
 previewPath = "/hplc-simulator/"
-title = "Simulador HPLC"
+title = "Treinador de  HPLC"
 version = "1.0.0"
 id = "artifacts/hplc-simulator"
 router = "path"
