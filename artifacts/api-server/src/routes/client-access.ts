@@ -18,6 +18,8 @@ router.get("/clients/:userId/protocols", requireAuth, requireAdmin, async (req, 
       canViewCertificate: clientProtocolAccessTable.canViewCertificate,
       canViewReport: clientProtocolAccessTable.canViewReport,
       canPrint: clientProtocolAccessTable.canPrint,
+      canViewHistory: clientProtocolAccessTable.canViewHistory,
+      canViewAttachments: clientProtocolAccessTable.canViewAttachments,
       certNumber: protocolsTable.certNumber,
       productName: protocolsTable.productName,
       status: protocolsTable.status,
@@ -35,11 +37,13 @@ router.post("/clients/:userId/protocols", requireAuth, requireAdmin, async (req,
   const userId = parseInt(String(req.params["userId"] ?? ""));
   if (isNaN(userId)) { res.status(400).json({ error: "ID inválido." }); return; }
 
-  const { protocolId, canViewCertificate, canViewReport, canPrint } = req.body as {
+  const { protocolId, canViewCertificate, canViewReport, canPrint, canViewHistory, canViewAttachments } = req.body as {
     protocolId?: number;
     canViewCertificate?: boolean;
     canViewReport?: boolean;
     canPrint?: boolean;
+    canViewHistory?: boolean;
+    canViewAttachments?: boolean;
   };
   if (!protocolId) { res.status(400).json({ error: "protocolId é obrigatório." }); return; }
 
@@ -59,6 +63,8 @@ router.post("/clients/:userId/protocols", requireAuth, requireAdmin, async (req,
       canViewCertificate: canViewCertificate ?? true,
       canViewReport: canViewReport ?? true,
       canPrint: canPrint ?? true,
+      canViewHistory: canViewHistory ?? false,
+      canViewAttachments: canViewAttachments ?? false,
     }).returning();
     res.status(201).json(row);
   } catch {
@@ -72,16 +78,20 @@ router.put("/clients/:userId/protocols/:accessId", requireAuth, requireAdmin, as
   const accessId = parseInt(String(req.params["accessId"] ?? ""));
   if (isNaN(userId) || isNaN(accessId)) { res.status(400).json({ error: "IDs inválidos." }); return; }
 
-  const { canViewCertificate, canViewReport, canPrint } = req.body as {
+  const { canViewCertificate, canViewReport, canPrint, canViewHistory, canViewAttachments } = req.body as {
     canViewCertificate?: boolean;
     canViewReport?: boolean;
     canPrint?: boolean;
+    canViewHistory?: boolean;
+    canViewAttachments?: boolean;
   };
 
-  const updates: Partial<{ canViewCertificate: boolean; canViewReport: boolean; canPrint: boolean }> = {};
+  const updates: Partial<{ canViewCertificate: boolean; canViewReport: boolean; canPrint: boolean; canViewHistory: boolean; canViewAttachments: boolean }> = {};
   if (canViewCertificate !== undefined) updates.canViewCertificate = canViewCertificate;
   if (canViewReport !== undefined) updates.canViewReport = canViewReport;
   if (canPrint !== undefined) updates.canPrint = canPrint;
+  if (canViewHistory !== undefined) updates.canViewHistory = canViewHistory;
+  if (canViewAttachments !== undefined) updates.canViewAttachments = canViewAttachments;
 
   if (Object.keys(updates).length === 0) { res.status(400).json({ error: "Nenhum campo para atualizar." }); return; }
 
@@ -138,6 +148,8 @@ router.get("/my/protocols", requireAuth, async (req, res): Promise<void> => {
       canViewCertificate: clientProtocolAccessTable.canViewCertificate,
       canViewReport: clientProtocolAccessTable.canViewReport,
       canPrint: clientProtocolAccessTable.canPrint,
+      canViewHistory: clientProtocolAccessTable.canViewHistory,
+      canViewAttachments: clientProtocolAccessTable.canViewAttachments,
       certNumber: protocolsTable.certNumber,
       productName: protocolsTable.productName,
       status: protocolsTable.status,

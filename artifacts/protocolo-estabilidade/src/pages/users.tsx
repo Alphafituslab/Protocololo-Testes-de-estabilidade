@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Pencil, Trash2, Users, ArrowLeft, Eye, EyeOff, Shield, BookOpen, History, Clock, CheckCircle2, XCircle, UserCheck, X, Award, FileText, Printer } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Users, ArrowLeft, Eye, EyeOff, Shield, BookOpen, History, Clock, CheckCircle2, XCircle, UserCheck, X, Award, FileText, Printer, Paperclip } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -54,6 +54,8 @@ type ClientProtocolAccess = {
   canViewCertificate: boolean;
   canViewReport: boolean;
   canPrint: boolean;
+  canViewHistory: boolean;
+  canViewAttachments: boolean;
 };
 
 type LoginLogEntry = {
@@ -328,7 +330,7 @@ function UserForm({ initial, onSave, isEdit }: {
 
 // ── Protocol Assignment Panel ─────────────────────────────────────────────────
 
-type AccessPerms = { canViewCertificate: boolean; canViewReport: boolean; canPrint: boolean };
+type AccessPerms = { canViewCertificate: boolean; canViewReport: boolean; canPrint: boolean; canViewHistory: boolean; canViewAttachments: boolean };
 
 function PermToggle({ label, icon: Icon, checked, onChange }: {
   label: string;
@@ -435,6 +437,18 @@ function ProtocolAssignPanel({ user, token }: { user: User; token: string | null
                     icon={Printer}
                     checked={a.canPrint}
                     onChange={(v) => updatePerms.mutate({ accessId: a.id, perms: { canPrint: v } })}
+                  />
+                  <PermToggle
+                    label="Histórico"
+                    icon={History}
+                    checked={a.canViewHistory}
+                    onChange={(v) => updatePerms.mutate({ accessId: a.id, perms: { canViewHistory: v } })}
+                  />
+                  <PermToggle
+                    label="Anexos"
+                    icon={Paperclip}
+                    checked={a.canViewAttachments}
+                    onChange={(v) => updatePerms.mutate({ accessId: a.id, perms: { canViewAttachments: v } })}
                   />
                 </div>
               </div>

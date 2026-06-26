@@ -1,6 +1,6 @@
 import { useParams, Link } from "wouter";
 import { fmtDate, addMonthsToIso } from "@/lib/utils";
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useContext } from "react";
 import {
   useGetCertificate, getGetCertificateQueryKey,
   useGetProtocol, getGetProtocolQueryKey,
@@ -15,6 +15,8 @@ import {
 import { AuditTrail } from "@/components/audit-trail";
 import { Button } from "@/components/ui/button";
 import { Loader2, Printer, ArrowLeft, CheckCircle2, XCircle, AlertCircle, Clock, Settings2, Paperclip, FileText, File, Image as ImageIcon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { AuthContext } from "@/contexts/auth-context";
 
 const STATUS_LABEL: Record<string, string> = {
   aprovado: "Aprovado",
@@ -195,6 +197,22 @@ const CATEGORY_LABEL: Record<string, string> = {
 export default function ProtocolReportPage() {
   const { id } = useParams<{ id: string }>();
   const numId = Number(id);
+  const auth = useContext(AuthContext);
+  const isCliente = auth?.user?.role === "cliente";
+  const { data: myProtocols = [] } = useQuery<{ protocolId: number; canViewHistory: boolean; canViewAttachments: boolean }[]>({
+    queryKey: ["my-protocols"],
+    queryFn: async () => {
+      const token = localStorage.getItem("alphafitus_token");
+      const res = await fetch("/api/my/protocols", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: isCliente,
+    staleTime: 30000,
+  });
+  const clientAccess = isCliente ? myProtocols.find(p => p.protocolId === numId) : null;
+  const clientCanHistory = !isCliente || (clientAccess?.canViewHistory ?? false);
+  const clientCanAttachments = !isCliente || (clientAccess?.canViewAttachments ?? false);
   const [_showAll, _setShowAll] = useState(true);
   const [showRessalva, setShowRessalva] = useState(true);
 
@@ -884,7 +902,7 @@ export default function ProtocolReportPage() {
           ))}
 
           {/* 10. Histórico */}
-          {ps("s10", (
+          {clientCanHistory && ps("s10", (
             <Section num="10" title="Histórico de Rastreabilidade">
               {/* Cabeçalho com datas replicadas do certificado (editáveis) */}
               <div className="flex items-start justify-between mb-3 pb-3 border-b border-gray-200">
@@ -970,7 +988,7 @@ export default function ProtocolReportPage() {
         </div>
 
         {/* ══ 12. DOCUMENTOS ANEXOS ══════════════════════════════════ */}
-        {sortedAttachments.length > 0 && ps("s12", (
+        {clientCanAttachments && sortedAttachments.length > 0 && ps("s12", (
           <div className="px-8 pb-6 print:px-0 print:pb-3 mt-4">
             <div className="report-section border border-gray-200 rounded overflow-hidden">
               <div className="report-section-header bg-slate-700 px-4 py-1.5 flex items-center gap-2">

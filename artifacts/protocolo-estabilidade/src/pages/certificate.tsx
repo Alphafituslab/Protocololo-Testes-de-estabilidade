@@ -13,7 +13,7 @@ import { AuditTrail } from "@/components/audit-trail";
 import { useUnlock } from "@/hooks/use-unlock";
 import { UnlockDialog } from "@/components/unlock-dialog";
 import { AuthContext } from "@/contexts/auth-context";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 type PhotoEntry = {
   parameter: string;
@@ -449,6 +449,23 @@ export default function CertificatePage() {
   // ── Electronic signatures ─────────────────────────────────────────────────
   const auth = useContext(AuthContext);
   const queryClient = useQueryClient();
+
+  // ── Client portal access flags ────────────────────────────────────────────
+  const isCliente = auth?.user?.role === "cliente";
+  const { data: myProtocols = [] } = useQuery<{ protocolId: number; canViewHistory: boolean; canViewAttachments: boolean }[]>({
+    queryKey: ["my-protocols"],
+    queryFn: async () => {
+      const token = localStorage.getItem("alphafitus_token");
+      const res = await fetch("/api/my/protocols", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: isCliente,
+    staleTime: 30000,
+  });
+  const clientAccess = isCliente ? myProtocols.find(p => p.protocolId === Number(id)) : null;
+  const clientCanHistory = !isCliente || (clientAccess?.canViewHistory ?? false);
+  const clientCanAttachments = !isCliente || (clientAccess?.canViewAttachments ?? false);
   const { data: signatures = [] } = useListSignatures(Number(id), {
     query: { queryKey: getListSignaturesQueryKey(Number(id)), enabled: !!id, staleTime: 0, refetchOnWindowFocus: true },
   });
@@ -1328,7 +1345,7 @@ export default function CertificatePage() {
       )}
 
       {/* ─── HISTORY PANEL — collapsible ─── */}
-      <div className="print:hidden rounded-lg border-2 border-slate-200 bg-slate-50 shadow-sm overflow-hidden">
+      {clientCanHistory && <div className="print:hidden rounded-lg border-2 border-slate-200 bg-slate-50 shadow-sm overflow-hidden">
         <button
           type="button"
           onClick={() => setHistoryExpanded(v => !v)}
@@ -1370,10 +1387,10 @@ export default function CertificatePage() {
             <AuditTrail protocolId={Number(id)} printMode />
           </div>
         )}
-      </div>
+      </div>}
 
       {/* ─── ATTACHMENTS PANEL — collapsible ─── */}
-      <div className="print:hidden rounded-lg border-2 border-emerald-200 bg-emerald-50 shadow-sm overflow-hidden">
+      {clientCanAttachments && <div className="print:hidden rounded-lg border-2 border-emerald-200 bg-emerald-50 shadow-sm overflow-hidden">
         <button
           type="button"
           onClick={() => setAttachmentsExpanded(v => !v)}
@@ -1457,7 +1474,7 @@ export default function CertificatePage() {
             )}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* ─── Certificate document ─── */}
       <div
@@ -2491,7 +2508,7 @@ export default function CertificatePage() {
         {/* ═══════════════════════════════════════════════════════
             AUDIT TRAIL COMPLEMENT — prints after main certificate
         ═══════════════════════════════════════════════════════ */}
-        {includeHistory && (
+        {includeHistory && clientCanHistory && (
           <div className="audit-appendix-section">
             <div className="pt-8 border-t-2 border-gray-800 mt-8">
               <div className="flex items-start justify-between mb-2">
@@ -2640,7 +2657,7 @@ export default function CertificatePage() {
         {/* ═══════════════════════════════════════════════════════
             ATTACHMENTS APPENDIX — prints at the end in chronological order
         ═══════════════════════════════════════════════════════ */}
-        {includeAttachments && sortedAttachments.length > 0 && (
+        {includeAttachments && clientCanAttachments && sortedAttachments.length > 0 && (
           <div className="attachments-appendix-section">
             <div className="pt-8 border-t-2 border-gray-800 mt-8">
               {/* Header */}

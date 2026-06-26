@@ -9,6 +9,8 @@ export const clientProtocolAccessTable = pgTable("client_protocol_access", {
   canViewCertificate: boolean("can_view_certificate").notNull().default(true),
   canViewReport: boolean("can_view_report").notNull().default(true),
   canPrint: boolean("can_print").notNull().default(true),
+  canViewHistory: boolean("can_view_history").notNull().default(false),
+  canViewAttachments: boolean("can_view_attachments").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   uniqueAccess: unique().on(t.clientUserId, t.protocolId),
