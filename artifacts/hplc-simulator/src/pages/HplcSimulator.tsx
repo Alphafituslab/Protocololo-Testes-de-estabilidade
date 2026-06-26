@@ -451,6 +451,37 @@ function syncMethodPeer(changedKey: "acqMethod" | "analysisMethod", newValue: st
   return applyMethodFilename(currentPeer, newFilename);
 }
 
+// ── ChemStation date/time sync helpers ────────────────────────────────────────
+// Parse "M/D/YYYY H:MM:SS AM/PM [...]" OR "M/D/YYYY HH:MM:SS [...]" (24h → 12h auto)
+function parseChemDateTime(val: string): { datePart: string; timePart12: string; ampm: "AM" | "PM" } | null {
+  const m12 = val.match(/^(\d{1,2}\/\d{1,2}\/\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s+(AM|PM)/i);
+  if (m12) return { datePart: m12[1], timePart12: `${m12[2]}:${m12[3]}:${m12[4]}`, ampm: m12[5].toUpperCase() as "AM" | "PM" };
+  const m24 = val.match(/^(\d{1,2}\/\d{1,2}\/\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\b/);
+  if (m24) {
+    const h24 = parseInt(m24[2], 10);
+    const ampm: "AM" | "PM" = h24 >= 12 ? "PM" : "AM";
+    const h12 = h24 % 12 || 12;
+    return { datePart: m24[1], timePart12: `${h12}:${m24[3]}:${m24[4]}`, ampm };
+  }
+  return null;
+}
+// Get the trailing suffix after "date time AM/PM" (e.g. " by EDSON")
+function chemSuffix(val: string): string {
+  const m = val.match(/^\S+\s+\S+\s+(?:AM|PM)(.*)/i);
+  return m ? m[1] : "";
+}
+// Replace date+time in a ChemStation string, keeping any existing " by ..." suffix
+function applyChemDateTime(existing: string, datePart: string, timePart12: string, ampm: "AM" | "PM"): string {
+  return `${datePart} ${timePart12} ${ampm}${chemSuffix(existing)}`;
+}
+// Replace only the date in a ChemStation string, keeping time, AM/PM and suffix
+function applyChemDate(existing: string, datePart: string): string {
+  const parsed = parseChemDateTime(existing);
+  if (!parsed) return existing;
+  return `${datePart} ${parsed.timePart12} ${parsed.ampm}${chemSuffix(existing)}`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Hash peak id string → integer seed for deterministic per-peak noise
 function idSeed(id: string): number {
   let h = 0;
@@ -4462,6 +4493,44 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
         const newAnalysisMethod = `C:\\CHEM32\\1\\METHODS\\${safe}.M`;
         return { ...s, sampleName: val, acqMethod: newAcqMethod, analysisMethod: newAnalysisMethod, lastChanged1: ts, lastChanged2: ts };
       }
+      // ── Date/time sync: editing any of these 3 fields propagates date+time to all
+      //    three, and date-only to reportDate (keeping reportDate's time unchanged).
+      if (k === "lastChanged1" || k === "injectionDate" || k === "lastChanged2") {
+        const parsed = parseChemDateTime(val);
+        if (parsed) {
+          const { datePart, timePart12, ampm } = parsed;
+          // Keep the typed field's own " by OPERATOR" suffix (fall back to existing)
+          const selfSuffix = chemSuffix(val) || (k !== "injectionDate" ? chemSuffix(String(s[k])) : "");
+          const normalizedSelf = `${datePart} ${timePart12} ${ampm}${selfSuffix}`;
+          const plainDT = `${datePart} ${timePart12} ${ampm}`;
+          return {
+            ...s,
+            [k]: normalizedSelf,
+            injectionDate: k === "injectionDate" ? normalizedSelf : plainDT,
+            lastChanged1: k === "lastChanged1" ? normalizedSelf : applyChemDateTime(s.lastChanged1, datePart, timePart12, ampm),
+            lastChanged2: k === "lastChanged2" ? normalizedSelf : applyChemDateTime(s.lastChanged2, datePart, timePart12, ampm),
+            // reportDate: only date changes — time/AM-PM kept as-is
+            reportDate: applyChemDate(s.reportDate, datePart),
+          };
+        }
+        return { ...s, [k]: val };
+      }
+      // ── reportDate: editing it syncs date-only to the other 3 fields
+      if (k === "reportDate") {
+        const parsed = parseChemDateTime(val);
+        if (parsed) {
+          const { datePart, timePart12, ampm } = parsed;
+          const normalizedSelf = `${datePart} ${timePart12} ${ampm}`;
+          return {
+            ...s,
+            reportDate: normalizedSelf,
+            injectionDate: applyChemDate(s.injectionDate, datePart),
+            lastChanged1: applyChemDate(s.lastChanged1, datePart),
+            lastChanged2: applyChemDate(s.lastChanged2, datePart),
+          };
+        }
+        return { ...s, reportDate: val };
+      }
       if (k === "dataFile") {
         // Extract date (and optional time) from path.
         // Accepts:  "…\NOME 2025-04-23 12-55-35\…"  (date + time)
@@ -4481,6 +4550,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
             injectionDate: dateFormatted,
             lastChanged1: dateFormatted + byOp,
             lastChanged2: dateFormatted + byOp,
+            reportDate: applyChemDate(s.reportDate, `${mo}/${day}/${yr}`),
           };
         }
         return { ...s, dataFile: val };
