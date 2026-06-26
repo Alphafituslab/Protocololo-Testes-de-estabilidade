@@ -7483,8 +7483,18 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                         return ticks;
                       };
                       const xTicks = niceXTicks(compCalibXMax);
-                      const ry0 = Math.max(0, compReg.intercept);
-                      const ry1 = compReg.slope * compCalibXMax + compReg.intercept;
+                      // ── Reta de regressão: clip correto nas bordas do gráfico ──
+                      // Borda esquerda (x=0): se intercept < 0, a reta entra em y=0 a x = -b/m
+                      const lineX0 = compReg.intercept < 0 && compReg.slope > 0
+                        ? Math.max(0, -compReg.intercept / compReg.slope)
+                        : 0;
+                      const ry0 = Math.max(0, compReg.slope * lineX0 + compReg.intercept);
+                      // Borda direita: pode ser limitada por x=compCalibXMax ou por y=compCalibYMax
+                      const yAtXMax = compReg.slope * compCalibXMax + compReg.intercept;
+                      const lineX1 = yAtXMax <= compCalibYMax
+                        ? compCalibXMax
+                        : Math.min(compCalibXMax, (compCalibYMax - compReg.intercept) / compReg.slope);
+                      const ry1 = Math.min(compCalibYMax, yAtXMax);
 
                       // Format y-axis labels: integers only (ticks são sempre números bonitos)
                       const fmtY = (v: number) => {
@@ -7536,8 +7546,8 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                               ))}
                               {/* X axis label */}
                               <text x={mL + iW / 2} y={svgH - 4} textAnchor="middle" fontSize={10} fill="#222">Amount[ug/ml]</text>
-                              {/* Regression line */}
-                              <line x1={xs(0)} y1={ys(ry0)} x2={xs(compCalibXMax)} y2={ys(ry1)} stroke="#1560bd" strokeWidth={0.5} />
+                              {/* Regression line — endpoints calculados com clip correto */}
+                              <line x1={xs(lineX0)} y1={ys(ry0)} x2={xs(lineX1)} y2={ys(ry1)} stroke="#1560bd" strokeWidth={0.5} />
                               {/* Residual lines — vertical dashed segment from each point to the regression line */}
                               {sorted.map(s => {
                                 const predictedArea = compReg.slope * s.amount + compReg.intercept;
