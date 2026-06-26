@@ -7731,8 +7731,8 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                     </div>
 
                     {(() => {
-                      const svgW = 360, svgH = 250;
-                      const mL = 70, mR = 10, mT = 12, mB = 38;
+                      const svgW = 360, svgH = 268;
+                      const mL = 70, mR = 10, mT = 12, mB = 56;
                       const iW = svgW - mL - mR;
                       const iH = svgH - mT - mB;
                       const xs = (v: number) => mL + (v / compCalibXMax) * iW;
@@ -7840,13 +7840,19 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                     stroke="#111" strokeWidth={1.2} strokeDasharray="3 2" opacity={0.8} />
                                 );
                               })}
-                              {/* Data point circles — black, numbered above */}
-                              {sorted.map((s, idx) => (
-                                <g key={`pt-${s.id}`}>
-                                  <text x={xs(s.amount)} y={ys(s.area) - 8} textAnchor="middle" fontSize={8.5} fontWeight="bold" fill="#111">{idx + 1}</text>
-                                  <circle cx={xs(s.amount)} cy={ys(s.area)} r={5} fill="#111" stroke="white" strokeWidth={1.5} />
-                                </g>
-                              ))}
+                              {/* Data points — + crosshair, numbered above */}
+                              {sorted.map((s, idx) => {
+                                const px = xs(s.amount);
+                                const py = ys(s.area);
+                                const arm = 5;
+                                return (
+                                  <g key={`pt-${s.id}`}>
+                                    <text x={px} y={py - arm - 3} textAnchor="middle" fontSize={8.5} fontWeight="bold" fill="#111">{idx + 1}</text>
+                                    <line x1={px - arm} y1={py} x2={px + arm} y2={py} stroke="#111" strokeWidth={1.5} />
+                                    <line x1={px} y1={py - arm} x2={px} y2={py + arm} stroke="#111" strokeWidth={1.5} />
+                                  </g>
+                                );
+                              })}
                               {/* Standard point ◆ — padrão na curva de calibração */}
                               {(() => {
                                 if (compReg.slope <= 0) return null;
