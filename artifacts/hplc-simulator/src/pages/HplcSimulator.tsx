@@ -7844,7 +7844,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                               {sorted.map((s, idx) => {
                                 const px = xs(s.amount);
                                 const py = ys(s.area);
-                                const arm = 4;
+                                const arm = 7;
                                 const fSz = 8;
                                 // Clamp label Y: prefer above; flip below if too close to top edge
                                 const lblAbove = py - arm - 2 >= mT + fSz;
@@ -7854,8 +7854,8 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                 return (
                                   <g key={`pt-${s.id}`}>
                                     <text x={lblX} y={lblY} textAnchor="middle" fontSize={fSz} fill="#111">{idx + 1}</text>
-                                    <line x1={px - arm} y1={py} x2={px + arm} y2={py} stroke="#111" strokeWidth={0.7} />
-                                    <line x1={px} y1={py - arm} x2={px} y2={py + arm} stroke="#111" strokeWidth={0.7} />
+                                    <line x1={px - arm} y1={py} x2={px + arm} y2={py} stroke="#111" strokeWidth={0.5} />
+                                    <line x1={px} y1={py - arm} x2={px} y2={py + arm} stroke="#111" strokeWidth={0.5} />
                                   </g>
                                 );
                               })}
@@ -7908,13 +7908,15 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                 // Estimated pixel widths (courier 9px ≈ 5.6px/char)
                                 const yLW = yLabelTxt.length * 5.6 + 6;
                                 const xLW = xLabelTxt.length * 5.6 + 6;
-                                // Y label: just inside the chart from the Y-axis, at cy level
+                                // Y label: just inside chart from Y-axis, at cy level
                                 const yLX = mL + 3;
-                                const yLY = cy + 3;          // baseline just below the guide line
+                                const yLY = cy - 2;          // baseline just above cy guide line
                                 // Horizontal guide starts after Y label text
                                 const hGuideX1 = yLX + yLW + 3;
-                                // X label: below tick labels, centered on diamond
-                                const xLY = mT + iH + 38;   // below tick labels (which are at ~+14px)
+                                // X label: INSIDE the chart area, just above x-axis
+                                // Clamp so it doesn't overlap the diamond (which is at cy)
+                                const xLYBase = mT + iH - 5;          // just above x-axis, inside plot
+                                const xLY = cy + d + 14 < xLYBase ? xLYBase : Math.min(cy + d + 14, mT + iH - 5);
                                 return (
                                   <g key="std-pt">
                                     {/* Horizontal dashed guide: starts AFTER Y label → diamond */}
@@ -7933,7 +7935,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                     <text x={yLX} y={yLY} textAnchor="start" fontSize={9} fontWeight="bold" fill="#111">
                                       {yLabelTxt}
                                     </text>
-                                    {/* X label — clearly below tick labels, centered on diamond, white background */}
+                                    {/* X label — inside chart area just above x-axis, centered on diamond */}
                                     <rect x={cx - xLW / 2 - 1} y={xLY - 9} width={xLW + 2} height={11} fill="white" />
                                     <text x={cx} y={xLY} textAnchor="middle" fontSize={9} fontWeight="bold" fill="#111">
                                       {xLabelTxt}
