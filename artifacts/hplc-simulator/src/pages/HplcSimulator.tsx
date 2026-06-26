@@ -7698,8 +7698,22 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                 const cc = getCC(compound.id);
                 if (cc.standards.length === 0) return null;
                 const compReg = linearRegression(cc.standards.map(s => ({ x: s.amount, y: s.area })));
-                const compCalibXMax = Math.max(...cc.standards.map(s => s.amount), 1) * 1.15;
-                const compCalibYMax = Math.max(...cc.standards.map(s => s.area), 1) * 1.2;
+
+                // Pre-calc diamond position so it's always included in axis bounds
+                const _stdPurityFracPre = (padraoConfig.stdPurity > 0 ? padraoConfig.stdPurity : 100) / 100;
+                const _smpAreaPre = padraoConfig.smpArea > 0 ? padraoConfig.smpArea : 0;
+                let _preDiamondX = 0, _preDiamondY = 0;
+                if (compReg.slope > 0 && !padraoConfig.hideDiamondOnCurve) {
+                  if (_smpAreaPre > 0) {
+                    _preDiamondY = _smpAreaPre;
+                    _preDiamondX = Math.max(0, (_smpAreaPre - compReg.intercept) / compReg.slope);
+                  } else if (padraoConfig.stdAmountUg > 0) {
+                    _preDiamondX = padraoConfig.stdAmountUg * _stdPurityFracPre;
+                    _preDiamondY = Math.max(0, compReg.slope * _preDiamondX + compReg.intercept);
+                  }
+                }
+                const compCalibXMax = Math.max(...cc.standards.map(s => s.amount), _preDiamondX, 1) * 1.15;
+                const compCalibYMax = Math.max(...cc.standards.map(s => s.area), _preDiamondY, 1) * 1.2;
                 const expRT = cc.calib.expRT > 0 ? cc.calib.expRT : compound.expectedRT;
 
                 return (
