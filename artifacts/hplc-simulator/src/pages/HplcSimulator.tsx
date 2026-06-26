@@ -7894,41 +7894,42 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                 const cx = xs(Math.min(stdAmount, compCalibXMax));
                                 const cy = ys(Math.min(Math.max(stdArea, 0), compCalibYMax));
 
-                                const d = 3.5;
+                                const d = 5;
                                 const diamond = `M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`;
                                 // Label texts
                                 const yLabelTxt = stdArea.toFixed(3) + (isAutoLine ? "*" : "");
                                 const xLabelTxt = (padraoFoundUg > 0 ? padraoFoundUg : stdAmount).toFixed(3);
-                                // Estimated pixel widths (8.5px font ≈ 5.5px/char)
-                                const yLW = yLabelTxt.length * 5.5 + 4;
-                                const xLW = xLabelTxt.length * 5.5 + 4;
-                                // Y label: just to the right of Y-axis, centered on the guide line
-                                const yLX = mL + 4;
-                                const yLY = cy - 11;   // above horizontal guide line
-                                // X label: centered on diamond, below the X-axis baseline
-                                const xLX = cx - xLW / 2;
-                                const xLY = mT + iH + 10; // below X-axis
+                                // Estimated pixel widths (courier 9px ≈ 5.6px/char)
+                                const yLW = yLabelTxt.length * 5.6 + 6;
+                                const xLW = xLabelTxt.length * 5.6 + 6;
+                                // Y label: just inside the chart from the Y-axis, at cy level
+                                const yLX = mL + 3;
+                                const yLY = cy + 3;          // baseline just below the guide line
+                                // Horizontal guide starts after Y label text
+                                const hGuideX1 = yLX + yLW + 3;
+                                // X label: below tick labels, centered on diamond
+                                const xLY = mT + iH + 38;   // below tick labels (which are at ~+14px)
                                 return (
                                   <g key="std-pt">
-                                    {/* Horizontal dashed guide: Y-axis → diamond */}
-                                    <line x1={mL} y1={cy} x2={cx} y2={cy} stroke="#555" strokeDasharray="2 2" strokeWidth={0.6} opacity={0.5} />
+                                    {/* Horizontal dashed guide: starts AFTER Y label → diamond */}
+                                    <line x1={hGuideX1} y1={cy} x2={cx - d} y2={cy} stroke="#555" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
                                     {/* Vertical dashed guide: diamond → X-axis */}
-                                    <line x1={cx} y1={cy} x2={cx} y2={mT + iH} stroke="#555" strokeDasharray="2 2" strokeWidth={0.6} opacity={0.5} />
-                                    {/* Diamond — filled if real area, outlined if predicted */}
+                                    <line x1={cx} y1={cy + d} x2={cx} y2={mT + iH} stroke="#555" strokeDasharray="3 2" strokeWidth={0.8} opacity={0.7} />
+                                    {/* Diamond ◆ — larger, always on top */}
                                     <path
                                       d={diamond}
                                       fill={isAutoLine ? "none" : "#111"}
                                       stroke="#111"
-                                      strokeWidth={1}
+                                      strokeWidth={1.5}
                                     />
-                                    {/* Y label — white background so it's always readable */}
-                                    <rect x={yLX - 1} y={yLY - 8} width={yLW} height={10} fill="white" opacity={0.92} />
-                                    <text x={yLX} y={yLY} textAnchor="start" fontSize={8.5} fontWeight="bold" fill="#1d4ed8">
+                                    {/* Y label — at left of chart on the guide line level, white background */}
+                                    <rect x={yLX - 1} y={yLY - 9} width={yLW} height={11} fill="white" />
+                                    <text x={yLX} y={yLY} textAnchor="start" fontSize={9} fontWeight="bold" fill="#111">
                                       {yLabelTxt}
                                     </text>
-                                    {/* X label — below the X-axis, centered on diamond, white background */}
-                                    <rect x={xLX - 1} y={xLY - 8} width={xLW + 2} height={10} fill="white" opacity={0.92} />
-                                    <text x={xLX + xLW / 2} y={xLY} textAnchor="middle" fontSize={8.5} fontWeight="bold" fill="#1d4ed8">
+                                    {/* X label — clearly below tick labels, centered on diamond, white background */}
+                                    <rect x={cx - xLW / 2 - 1} y={xLY - 9} width={xLW + 2} height={11} fill="white" />
+                                    <text x={cx} y={xLY} textAnchor="middle" fontSize={9} fontWeight="bold" fill="#111">
                                       {xLabelTxt}
                                     </text>
                                   </g>
