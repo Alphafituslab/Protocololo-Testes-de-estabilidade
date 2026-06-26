@@ -4260,8 +4260,31 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     const thisStd   = allStds.find(s => s.id === stdId);
     const compound  = activeCompounds.find(c => c.id === compoundId);
 
-    // ── 1. Leave-one-out regression ─────────────────────────────────────────────
-    // Use all OTHER standards with valid data to predict the best area for THIS level
+    // ── 1. PADRÃO DE REFERÊNCIA — máxima prioridade ─────────────────────────────
+    // Se padraoConfig tem stdArea e stdAmountUg válidos, calcula a área de cada nível
+    // proporcionalmente: Rf = stdArea / (stdAmountUg × stdPurity%) → área_i = Rf × amount_i
+    if (thisStd && thisStd.amount > 0 &&
+        padraoConfig.stdArea > 0 && padraoConfig.stdAmountUg > 0) {
+      const purity     = padraoConfig.stdPurity > 0 ? padraoConfig.stdPurity / 100 : 1;
+      const effectiveAmt = padraoConfig.stdAmountUg * purity;      // µg real injetado
+      const rf         = padraoConfig.stdArea / effectiveAmt;      // mAU·s / µg·mL⁻¹
+      const predicted  = rf * thisStd.amount;
+      if (predicted > 0) {
+        const finalArea = parseFloat(predicted.toFixed(4));
+        updateCompoundStandard(compoundId, stdId, "area", finalArea);
+        toast({
+          title: "✓ Área calculada pelo Padrão de Referência",
+          description:
+            `Nível ${thisStd.amount} µg/ml → ${finalArea.toFixed(3)} mAU·s` +
+            `  |  Rf = ${rf.toFixed(4)} mAU·s·µg⁻¹` +
+            `  |  Std: ${padraoConfig.stdArea.toFixed(3)} mAU·s / ${effectiveAmt.toFixed(4)} µg`,
+        });
+        return;
+      }
+    }
+
+    // ── 2. Leave-one-out regression ──────────────────────────────────────────────
+    // Sem padrão de referência: usa os outros níveis para prever a área deste
     if (thisStd && thisStd.amount > 0) {
       const others = allStds.filter(s => s.id !== stdId && s.amount > 0 && s.area > 0);
       if (others.length >= 2) {
@@ -4273,9 +4296,9 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
             updateCompoundStandard(compoundId, stdId, "area", finalArea);
             const r2 = (reg.r * reg.r).toFixed(4);
             toast({
-              title: "✓ Área calculada pela regressão",
+              title: "✓ Área calculada pela regressão (L1O)",
               description: `Nível ${thisStd.amount} µg/ml → ${finalArea.toFixed(3)} mAU·s` +
-                ` (L1O com ${others.length} pontos · R²=${r2} · slope=${reg.slope.toFixed(4)})`,
+                ` (${others.length} pontos · R²=${r2} · slope=${reg.slope.toFixed(4)})`,
             });
             return;
           }
@@ -4283,7 +4306,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
       }
     }
 
-    // ── 2. Fallback: capture from chromatogram peak ──────────────────────────────
+    // ── 3. Fallback: capture from chromatogram peak ──────────────────────────────
     if (!compound) return;
     const matchPeak = peaks.find(p => {
       const nameMatch = !!(p.name && (
@@ -4295,9 +4318,11 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     });
     if (!matchPeak) {
       toast({
-        title: "⚠ Pico não encontrado",
-        description: `Configure um pico com RT ≈ ${compound.expectedRT.toFixed(3)} min ou com o nome "${compound.name}" no cromatograma. ` +
-          `Adicione mais pontos à curva para ativar o cálculo automático (mín. 2 outros níveis).`,
+        title: "⚠ Pico não encontrado no cromatograma",
+        description: padraoConfig.stdArea <= 0 || padraoConfig.stdAmountUg <= 0
+          ? `Preencha o PADRÃO DE REFERÊNCIA (stdArea e stdAmountUg) para calcular automaticamente, ` +
+            `ou configure um pico RT ≈ ${compound.expectedRT.toFixed(3)} min no cromatograma.`
+          : `Configure um pico com RT ≈ ${compound.expectedRT.toFixed(3)} min para o composto "${compound.name}".`,
         variant: "destructive",
       });
       return;
@@ -4307,8 +4332,8 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     toast({
       title: "📥 Área capturada do cromatograma",
       description: `${area.toFixed(3)} mAU·s — pico "${matchPeak.name || `RT ${matchPeak.retentionTime.toFixed(3)}`}"` +
-        (allStds.filter(s => s.id !== stdId && s.area > 0).length < 2
-          ? " (adicione ≥2 outros níveis para ativar cálculo pela regressão)"
+        (padraoConfig.stdArea <= 0 || padraoConfig.stdAmountUg <= 0
+          ? " · Preencha o Padrão de Referência para usar o cálculo automático"
           : ""),
     });
   };
