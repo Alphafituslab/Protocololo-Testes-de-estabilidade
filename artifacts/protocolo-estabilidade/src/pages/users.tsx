@@ -610,6 +610,25 @@ export default function UsersPage() {
     onError: (err) => toast({ variant: "destructive", title: "Erro ao excluir usuário", description: (err as Error).message }),
   });
 
+  const [sendingEmailId, setSendingEmailId] = useState<number | null>(null);
+  const sendEmail = async (userId: number, toEmail: string) => {
+    setSendingEmailId(userId);
+    try {
+      const data = await apiFetch<{ emailSent: boolean; emailError?: string | null }>(
+        `/api/clients/${userId}/send-email`, token, { method: "POST" }
+      );
+      if (data.emailSent) {
+        toast({ title: "✅ E-mail enviado com sucesso!", description: `Credenciais enviadas para ${toEmail}` });
+      } else {
+        toast({ variant: "destructive", title: "❌ Falha no envio", description: data.emailError ?? "Erro desconhecido" });
+      }
+    } catch (err) {
+      toast({ variant: "destructive", title: "Erro ao enviar e-mail", description: (err as Error).message });
+    } finally {
+      setSendingEmailId(null);
+    }
+  };
+
   if (!isAdmin) {
     return (
       <div className="p-8 text-center text-muted-foreground">
@@ -793,6 +812,20 @@ export default function UsersPage() {
                       </div>
                       {/* Actions */}
                       <div className="flex items-center gap-1 shrink-0">
+                        {/* Send email */}
+                        {u.email && (
+                          <Button
+                            variant="outline" size="sm"
+                            className="gap-1.5 text-xs text-amber-700 border-amber-300 hover:bg-amber-50"
+                            disabled={sendingEmailId === u.id}
+                            onClick={() => sendEmail(u.id, u.email!)}
+                          >
+                            {sendingEmailId === u.id
+                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              : <Mail className="h-3.5 w-3.5" />}
+                            {sendingEmailId === u.id ? "Enviando…" : "Enviar e-mail"}
+                          </Button>
+                        )}
                         {/* Protocols */}
                         <Dialog open={protocolPanelUser?.id === u.id} onOpenChange={(o) => setProtocolPanelUser(o ? u : null)}>
                           <DialogTrigger asChild>

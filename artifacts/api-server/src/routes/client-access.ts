@@ -174,6 +174,55 @@ router.get("/clients/:userId/login-history", requireAuth, requireAdmin, async (r
   res.json(rows);
 });
 
+// Send / resend credentials email for a client user (generates new password)
+router.post("/clients/:userId/send-email", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const userId = parseInt(String(req.params["userId"] ?? ""));
+  if (isNaN(userId)) { res.status(400).json({ error: "ID inválido." }); return; }
+
+  const [user] = await db.select({
+    id: usersTable.id, role: usersTable.role, email: usersTable.email,
+    displayName: usersTable.displayName, username: usersTable.username,
+    accessExpiresAt: usersTable.accessExpiresAt,
+  }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+
+  if (!user) { res.status(404).json({ error: "Usuário não encontrado." }); return; }
+  if (user.role !== "cliente") { res.status(400).json({ error: "Apenas clientes." }); return; }
+  if (!user.email) { res.status(400).json({ error: "Cliente sem e-mail cadastrado." }); return; }
+
+  // Generate new password and update hash
+  const charset = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const rawPassword = Array.from({ length: 12 }, () => charset[Math.floor(Math.random() * charset.length)]).join("");
+  const passwordHash = await bcrypt.hash(rawPassword, 10);
+  await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, userId));
+
+  // Find most recent protocol for context (optional)
+  const [access] = await db
+    .select({ productName: protocolsTable.productName, certNumber: protocolsTable.certNumber })
+    .from(clientProtocolAccessTable)
+    .innerJoin(protocolsTable, eq(clientProtocolAccessTable.protocolId, protocolsTable.id))
+    .where(eq(clientProtocolAccessTable.clientUserId, userId))
+    .orderBy(desc(clientProtocolAccessTable.createdAt))
+    .limit(1);
+
+  const domains = process.env.REPLIT_DOMAINS?.split(",") ?? [];
+  const appUrl = domains.length > 0 ? `https://${domains[0].trim()}/client-portal` : "https://seu-dominio.replit.app/client-portal";
+
+  const emailResult = await sendClientAccessEmail({
+    toEmail: user.email,
+    toName: user.displayName,
+    username: user.username,
+    password: rawPassword,
+    productName: access?.productName ?? "Protocolo de Estabilidade",
+    certNumber: access?.certNumber ?? null,
+    accessExpiresAt: user.accessExpiresAt ?? null,
+    appUrl,
+    canViewCertificate: true,
+    canViewReport: true,
+  });
+
+  res.json({ emailSent: emailResult.ok, emailError: emailResult.error ?? null });
+});
+
 // My protocols — for "cliente" role to fetch their own assigned protocols
 router.get("/my/protocols", requireAuth, async (req, res): Promise<void> => {
   const user = req.authUser!;
