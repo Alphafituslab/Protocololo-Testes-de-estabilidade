@@ -3254,6 +3254,7 @@ export default function HplcSimulator() {
   const [calib, setCalib] = useState<CalibInfo>(() => loadState()?.calib ?? DEFAULT_CALIB);
   const [activeCompounds, setActiveCompounds] = useState<ActiveCompound[]>(() => loadState()?.activeCompounds ?? DEFAULT_ACTIVE_COMPOUNDS);
   const [lastIdentified, setLastIdentified] = useState<string[]>([]);
+  const [compoundSearch, setCompoundSearch] = useState("");
   const [showControls, setShowControls] = useState(true);
   const [showStdPeak, setShowStdPeak] = useState(false);
   const [showBaselines, setShowBaselines] = useState(false);
@@ -8118,6 +8119,36 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                 </div>
               </div>
               <Div />
+              {/* Search */}
+              <div style={{ marginBottom: 10, position: "relative", maxWidth: 280 }}>
+                <svg style={{ position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)", width: 13, height: 13, color: "#888", pointerEvents: "none" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search compounds…"
+                  value={compoundSearch}
+                  onChange={e => setCompoundSearch(e.target.value)}
+                  style={{
+                    width: "100%", paddingLeft: 26, paddingRight: compoundSearch ? 26 : 8,
+                    paddingTop: 4, paddingBottom: 4, fontSize: 11,
+                    border: "1px solid #ccc", borderRadius: 4,
+                    fontFamily: "Courier New, monospace", outline: "none",
+                    background: "#fff",
+                  }}
+                />
+                {compoundSearch && (
+                  <button
+                    onClick={() => setCompoundSearch("")}
+                    style={{
+                      position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+                      background: "none", border: "none", cursor: "pointer",
+                      color: "#888", fontSize: 13, lineHeight: 1, padding: 0,
+                    }}
+                    title="Limpar busca"
+                  >×</button>
+                )}
+              </div>
               <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
                 <Button size="sm" className="h-7 text-xs gap-1" onClick={addActiveCompound}>
                   <Plus className="h-3 w-3" /> Add Compound
@@ -8168,7 +8199,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                   </tr>
                 </thead>
                 <tbody>
-                  {activeCompounds.map((c, idx) => {
+                  {activeCompounds.filter(c => !compoundSearch.trim() || c.name.toLowerCase().includes(compoundSearch.trim().toLowerCase())).map((c, idx) => {
                     const wavMatch = Math.abs(c.wavelength - detector.sigWavelength) <= c.waveTol;
                     const peakMatch = peaks.find(p => Math.abs(p.retentionTime - c.expectedRT) <= c.rtTol && wavMatch);
                     const amount = peakMatch
