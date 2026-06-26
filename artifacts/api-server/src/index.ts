@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { runAllSeeds } from "./seed";
+import { startBackupScheduler } from "./lib/backup-scheduler";
 
 const rawPort = process.env["PORT"];
 
@@ -24,4 +25,5 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
   runAllSeeds().catch((e) => logger.error({ err: e }, "Seed error"));
+  startBackupScheduler();
 });

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { db, lotsTable } from "@workspace/db";
 import { CreateLotBody, CreateLotParams, UpdateLotParams, DeleteLotParams, ListLotsParams } from "@workspace/api-zod";
 import { logAudit } from "../lib/audit";
@@ -11,7 +11,9 @@ const router: IRouter = Router();
 router.get("/protocols/:id/lots", requireAuth, async (req, res): Promise<void> => {
   const params = ListLotsParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
-  const lots = await db.select().from(lotsTable).where(eq(lotsTable.protocolId, params.data.id)).orderBy(lotsTable.createdAt);
+  const lots = await db.select().from(lotsTable)
+    .where(and(eq(lotsTable.protocolId, params.data.id), isNull(lotsTable.deletedAt)))
+    .orderBy(lotsTable.createdAt);
   res.json(lots);
 });
 
@@ -53,9 +55,13 @@ router.delete("/protocols/:id/lots/:lotId", requireAuth, requirePermission(PERM.
     res.status(403).json({ error: "Protocolo assinado. Apenas o administrador pode excluir lotes." }); return;
   }
 
-  const [deleted] = await db.delete(lotsTable).where(eq(lotsTable.id, params.data.lotId)).returning();
+  const [deleted] = await db
+    .update(lotsTable)
+    .set({ deletedAt: new Date() })
+    .where(and(eq(lotsTable.id, params.data.lotId), isNull(lotsTable.deletedAt)))
+    .returning();
   if (!deleted) { res.status(404).json({ error: "Lot not found" }); return; }
-  await logAudit(req, "EXCLUIR_LOTE", "lote", `Lote "${deleted.lotNumber}" excluído`, { entityId: deleted.id, protocolId: params.data.id });
+  await logAudit(req, "EXCLUIR_LOTE", "lote", `Lote "${deleted.lotNumber}" enviado para a lixeira`, { entityId: deleted.id, protocolId: params.data.id });
   res.sendStatus(204);
 });
 

@@ -12,8 +12,9 @@ export const lotsTable = pgTable("lots", {
   quantity: integer("quantity").notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
-export const insertLotSchema = createInsertSchema(lotsTable).omit({ id: true, createdAt: true });
+export const insertLotSchema = createInsertSchema(lotsTable).omit({ id: true, createdAt: true, deletedAt: true });
 export type InsertLot = z.infer<typeof insertLotSchema>;
 export type DbLot = typeof lotsTable.$inferSelect;

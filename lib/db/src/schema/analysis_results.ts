@@ -19,8 +19,9 @@ export const analysisResultsTable = pgTable("analysis_results", {
   observation: text("observation"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
-export const insertAnalysisResultSchema = createInsertSchema(analysisResultsTable).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertAnalysisResultSchema = createInsertSchema(analysisResultsTable).omit({ id: true, createdAt: true, updatedAt: true, deletedAt: true });
 export type InsertAnalysisResult = z.infer<typeof insertAnalysisResultSchema>;
 export type DbAnalysisResult = typeof analysisResultsTable.$inferSelect;

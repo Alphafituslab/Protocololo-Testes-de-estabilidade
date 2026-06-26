@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, count, and, inArray, ne } from "drizzle-orm";
+import { eq, desc, count, and, inArray, ne, isNull, isNotNull } from "drizzle-orm";
 import { db, protocolsTable, lotsTable, analysisResultsTable, protocolSignaturesTable, clientProtocolAccessTable } from "@workspace/db";
 import {
   CreateProtocolBody,
@@ -63,6 +63,28 @@ async function fetchSigMap(protocolIds: number[]): Promise<Map<number, Set<strin
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
+router.get("/protocols/trash", requireAuth, requirePermission(PERM.PROTOCOLS_DELETE), async (_req, res): Promise<void> => {
+  const protocols = await db
+    .select()
+    .from(protocolsTable)
+    .where(isNotNull(protocolsTable.deletedAt))
+    .orderBy(desc(protocolsTable.deletedAt));
+  res.json(protocols);
+});
+
+router.post("/protocols/:id/restore", requireAuth, requirePermission(PERM.PROTOCOLS_DELETE), async (req, res): Promise<void> => {
+  const params = GetProtocolParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  const [protocol] = await db
+    .update(protocolsTable)
+    .set({ deletedAt: null })
+    .where(and(eq(protocolsTable.id, params.data.id), isNotNull(protocolsTable.deletedAt)))
+    .returning();
+  if (!protocol) { res.status(404).json({ error: "Protocolo não encontrado na lixeira" }); return; }
+  await logAudit(req, "RESTAURAR_PROTOCOLO", "protocolo", `Protocolo "${protocol.productName}" restaurado da lixeira`, { entityId: protocol.id, protocolId: protocol.id });
+  res.json(protocol);
+});
+
 router.get("/protocols", requireAuth, async (req, res): Promise<void> => {
   // "cliente" role can only see their assigned protocols
   if (req.authUser?.role === "cliente") {
@@ -72,7 +94,9 @@ router.get("/protocols", requireAuth, async (req, res): Promise<void> => {
       .where(eq(clientProtocolAccessTable.clientUserId, req.authUser.id));
     const ids = assigned.map(r => r.protocolId);
     if (ids.length === 0) { res.json([]); return; }
-    const protocols = await db.select().from(protocolsTable).where(inArray(protocolsTable.id, ids)).orderBy(desc(protocolsTable.updatedAt));
+    const protocols = await db.select().from(protocolsTable)
+      .where(and(inArray(protocolsTable.id, ids), isNull(protocolsTable.deletedAt)))
+      .orderBy(desc(protocolsTable.updatedAt));
     const sigMap = await fetchSigMap(protocols.map(p => p.id));
     res.json(withPendingSignatures(protocols, sigMap));
     return;
@@ -86,13 +110,13 @@ router.get("/protocols", requireAuth, async (req, res): Promise<void> => {
     const rows = await db
       .select({ protocolId: analysisResultsTable.protocolId })
       .from(analysisResultsTable)
-      .where(eq(analysisResultsTable.status, "nao_conforme"));
+      .where(and(eq(analysisResultsTable.status, "nao_conforme"), isNull(analysisResultsTable.deletedAt)));
     const ids = [...new Set(rows.map((r) => r.protocolId))];
     if (ids.length === 0) { res.json([]); return; }
     const protocols = await db
       .select()
       .from(protocolsTable)
-      .where(inArray(protocolsTable.id, ids))
+      .where(and(inArray(protocolsTable.id, ids), isNull(protocolsTable.deletedAt)))
       .orderBy(desc(protocolsTable.updatedAt));
     const sigMap = await fetchSigMap(protocols.map(p => p.id));
     res.json(withPendingSignatures(protocols, sigMap));
@@ -101,17 +125,21 @@ router.get("/protocols", requireAuth, async (req, res): Promise<void> => {
 
   let protocols;
   if (statusFilter) {
-    protocols = await db.select().from(protocolsTable).where(eq(protocolsTable.status, statusFilter)).orderBy(desc(protocolsTable.updatedAt));
+    protocols = await db.select().from(protocolsTable)
+      .where(and(eq(protocolsTable.status, statusFilter), isNull(protocolsTable.deletedAt)))
+      .orderBy(desc(protocolsTable.updatedAt));
   } else {
-    protocols = await db.select().from(protocolsTable).orderBy(desc(protocolsTable.updatedAt));
+    protocols = await db.select().from(protocolsTable)
+      .where(isNull(protocolsTable.deletedAt))
+      .orderBy(desc(protocolsTable.updatedAt));
   }
   const sigMap = await fetchSigMap(protocols.map(p => p.id));
   res.json(withPendingSignatures(protocols, sigMap));
 });
 
 router.get("/protocols/stats", requireAuth, async (req, res): Promise<void> => {
-  const allProtocols = await db.select().from(protocolsTable);
-  const nonConformities = await db.select({ cnt: count() }).from(analysisResultsTable).where(eq(analysisResultsTable.status, "nao_conforme"));
+  const allProtocols = await db.select().from(protocolsTable).where(isNull(protocolsTable.deletedAt));
+  const nonConformities = await db.select({ cnt: count() }).from(analysisResultsTable).where(and(eq(analysisResultsTable.status, "nao_conforme"), isNull(analysisResultsTable.deletedAt)));
   const recent = allProtocols.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 10);
   const recentSigMap = await fetchSigMap(recent.map(p => p.id));
   res.json({
@@ -194,9 +222,13 @@ router.delete("/protocols/:id", requireAuth, requirePermission(PERM.PROTOCOLS_DE
     res.status(403).json({ error: "Protocolo possui assinaturas. Apenas o administrador pode excluí-lo." }); return;
   }
 
-  const [deleted] = await db.delete(protocolsTable).where(eq(protocolsTable.id, params.data.id)).returning();
+  const [deleted] = await db
+    .update(protocolsTable)
+    .set({ deletedAt: new Date() })
+    .where(and(eq(protocolsTable.id, params.data.id), isNull(protocolsTable.deletedAt)))
+    .returning();
   if (!deleted) { res.status(404).json({ error: "Protocol not found" }); return; }
-  await logAudit(req, "EXCLUIR_PROTOCOLO", "protocolo", `Protocolo "${deleted.productName}" excluído`, { entityId: deleted.id, protocolId: deleted.id });
+  await logAudit(req, "EXCLUIR_PROTOCOLO", "protocolo", `Protocolo "${deleted.productName}" enviado para a lixeira`, { entityId: deleted.id, protocolId: deleted.id });
   notifyProtocolDeleted({
     id: deleted.id,
     productName: deleted.productName,
@@ -210,7 +242,7 @@ router.delete("/protocols/:id", requireAuth, requirePermission(PERM.PROTOCOLS_DE
     issueDate: deleted.issueDate,
     deletedByName: req.authUser?.displayName ?? "Desconhecido",
     deletedByUsername: req.authUser?.username ?? "desconhecido",
-    deletedAt: new Date(),
+    deletedAt: deleted.deletedAt ?? new Date(),
   }).catch(() => {});
   res.sendStatus(204);
 });

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, count } from "drizzle-orm";
+import { eq, and, count, isNull } from "drizzle-orm";
 import { db, analysisResultsTable, lotsTable, protocolsTable } from "@workspace/db";
 import { UpsertResultBody, UpsertResultParams, ListResultsParams, DeleteResultParams } from "@workspace/api-zod";
 import { logAudit } from "../lib/audit";
@@ -126,11 +126,13 @@ router.delete("/protocols/:id/results/:resultId", requireAuth, requirePermission
     res.status(403).json({ error: "Protocolo assinado. Apenas o administrador pode excluir resultados." }); return;
   }
 
-  const [deleted] = await db.delete(analysisResultsTable)
-    .where(and(eq(analysisResultsTable.id, params.data.resultId), eq(analysisResultsTable.protocolId, params.data.id)))
+  const [deleted] = await db
+    .update(analysisResultsTable)
+    .set({ deletedAt: new Date() })
+    .where(and(eq(analysisResultsTable.id, params.data.resultId), eq(analysisResultsTable.protocolId, params.data.id), isNull(analysisResultsTable.deletedAt)))
     .returning();
   if (!deleted) { res.status(404).json({ error: "Result not found" }); return; }
-  await logAudit(req, "EXCLUIR_RESULTADO", "resultado", `Resultado excluído: ${deleted.parameter} — Período ${deleted.period} meses`, { entityId: deleted.id, protocolId: params.data.id });
+  await logAudit(req, "EXCLUIR_RESULTADO", "resultado", `Resultado enviado para lixeira: ${deleted.parameter} — Período ${deleted.period} meses`, { entityId: deleted.id, protocolId: params.data.id });
   await recalcProgress(params.data.id);
   res.sendStatus(204);
 });
