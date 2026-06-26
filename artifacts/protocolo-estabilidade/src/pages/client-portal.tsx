@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, LogOut, FileText, Award, AlertTriangle, Clock, CheckCircle2, XCircle, ShieldAlert } from "lucide-react";
+import { Loader2, LogOut, FileText, Award, AlertTriangle, Clock, CheckCircle2, XCircle, ShieldAlert, Printer } from "lucide-react";
 
 type AssignedProtocol = {
   id: number;
@@ -16,6 +16,9 @@ type AssignedProtocol = {
   studyStart: string | null;
   studyEnd: string | null;
   conclusion: string | null;
+  canViewCertificate: boolean;
+  canViewReport: boolean;
+  canPrint: boolean;
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -131,53 +134,73 @@ export default function ClientPortalPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {protocols.map((p) => (
-              <div key={p.id} className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <StatusIcon status={p.status} />
-                      <h3 className="font-semibold text-gray-900 truncate">{p.productName}</h3>
-                      {p.certNumber && (
-                        <span className="text-xs text-gray-400 font-mono shrink-0">#{p.certNumber}</span>
+            {protocols.map((p) => {
+              const hasAnyAction = p.canViewCertificate || p.canViewReport;
+              return (
+                <div key={p.id} className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <StatusIcon status={p.status} />
+                        <h3 className="font-semibold text-gray-900 truncate">{p.productName}</h3>
+                        {p.certNumber && (
+                          <span className="text-xs text-gray-400 font-mono shrink-0">#{p.certNumber}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <Badge className={`text-xs border ${STATUS_COLOR[p.status] ?? STATUS_COLOR["rascunho"]}`} variant="outline">
+                          {STATUS_LABEL[p.status] ?? p.status}
+                        </Badge>
+                        {p.company && <span className="text-xs text-gray-500">{p.company}</span>}
+                        {p.studyStart && (
+                          <span className="text-xs text-gray-400">
+                            Início: {new Date(p.studyStart).toLocaleDateString("pt-BR")}
+                          </span>
+                        )}
+                      </div>
+                      {p.conclusion && (
+                        <p className="text-xs text-gray-500 mt-2 italic line-clamp-2">{p.conclusion}</p>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <Badge className={`text-xs border ${STATUS_COLOR[p.status] ?? STATUS_COLOR["rascunho"]}`} variant="outline">
-                        {STATUS_LABEL[p.status] ?? p.status}
-                      </Badge>
-                      {p.company && <span className="text-xs text-gray-500">{p.company}</span>}
-                      {p.studyStart && (
-                        <span className="text-xs text-gray-400">
-                          Início: {new Date(p.studyStart).toLocaleDateString("pt-BR")}
-                        </span>
+
+                    {/* Action buttons — only shown if permission is granted */}
+                    <div className="flex flex-col gap-2 shrink-0">
+                      {p.canViewCertificate ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-xs"
+                          onClick={() => navigate(`/protocols/${p.protocolId}/certificate`)}
+                        >
+                          <Award className="h-3.5 w-3.5" /> Certificado
+                        </Button>
+                      ) : null}
+                      {p.canViewReport ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-xs"
+                          onClick={() => navigate(`/protocols/${p.protocolId}/report`)}
+                        >
+                          <FileText className="h-3.5 w-3.5" /> Relatório
+                        </Button>
+                      ) : null}
+                      {!hasAnyAction && (
+                        <span className="text-xs text-gray-400 italic text-right">Sem documentos liberados</span>
                       )}
                     </div>
-                    {p.conclusion && (
-                      <p className="text-xs text-gray-500 mt-2 italic line-clamp-2">{p.conclusion}</p>
-                    )}
                   </div>
-                  <div className="flex flex-col gap-2 shrink-0">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5 text-xs"
-                      onClick={() => navigate(`/protocols/${p.protocolId}/certificate`)}
-                    >
-                      <Award className="h-3.5 w-3.5" /> Certificado
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5 text-xs"
-                      onClick={() => navigate(`/protocols/${p.protocolId}/report`)}
-                    >
-                      <FileText className="h-3.5 w-3.5" /> Relatório
-                    </Button>
-                  </div>
+
+                  {/* Print notice — shown only if print is blocked but viewing is allowed */}
+                  {(p.canViewCertificate || p.canViewReport) && !p.canPrint && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-1.5 text-xs text-amber-600">
+                      <Printer className="h-3.5 w-3.5 shrink-0" />
+                      Visualização apenas — impressão não autorizada neste laudo.
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

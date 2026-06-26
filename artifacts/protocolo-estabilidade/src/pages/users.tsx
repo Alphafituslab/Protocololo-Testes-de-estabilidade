@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Pencil, Trash2, Users, ArrowLeft, Eye, EyeOff, Shield, BookOpen, History, Clock, CheckCircle2, XCircle, UserCheck, X } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Users, ArrowLeft, Eye, EyeOff, Shield, BookOpen, History, Clock, CheckCircle2, XCircle, UserCheck, X, Award, FileText, Printer } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -51,6 +51,9 @@ type ClientProtocolAccess = {
   productName: string;
   status: string;
   createdAt: string;
+  canViewCertificate: boolean;
+  canViewReport: boolean;
+  canPrint: boolean;
 };
 
 type LoginLogEntry = {
@@ -325,6 +328,23 @@ function UserForm({ initial, onSave, isEdit }: {
 
 // ── Protocol Assignment Panel ─────────────────────────────────────────────────
 
+type AccessPerms = { canViewCertificate: boolean; canViewReport: boolean; canPrint: boolean };
+
+function PermToggle({ label, icon: Icon, checked, onChange }: {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer select-none transition-colors text-xs font-medium ${checked ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"}`}>
+      <Switch checked={checked} onCheckedChange={onChange} className="h-3.5 w-7 scale-75 origin-left" />
+      <Icon className="h-3 w-3 shrink-0" />
+      {label}
+    </label>
+  );
+}
+
 function ProtocolAssignPanel({ user, token }: { user: User; token: string | null }) {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -344,6 +364,13 @@ function ProtocolAssignPanel({ user, token }: { user: User; token: string | null
     mutationFn: (protocolId: number) =>
       apiFetch(`/api/clients/${user.id}/protocols`, token, { method: "POST", body: JSON.stringify({ protocolId }) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["client-protocols", user.id] }); setSearchId(""); toast({ title: "Protocolo atribuído." }); },
+    onError: (err) => toast({ variant: "destructive", title: "Erro", description: (err as Error).message }),
+  });
+
+  const updatePerms = useMutation({
+    mutationFn: ({ accessId, perms }: { accessId: number; perms: Partial<AccessPerms> }) =>
+      apiFetch(`/api/clients/${user.id}/protocols/${accessId}`, token, { method: "PUT", body: JSON.stringify(perms) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["client-protocols", user.id] }); },
     onError: (err) => toast({ variant: "destructive", title: "Erro", description: (err as Error).message }),
   });
 
@@ -374,17 +401,41 @@ function ProtocolAssignPanel({ user, token }: { user: User; token: string | null
         ) : assigned.length === 0 ? (
           <p className="text-sm text-muted-foreground italic py-2">Nenhum protocolo atribuído ainda.</p>
         ) : (
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {assigned.map((a) => (
-              <div key={a.id} className="flex items-center gap-2 p-2 bg-muted/40 rounded-md">
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium truncate block">{a.productName}</span>
-                  <span className="text-xs text-muted-foreground">{a.certNumber ? `#${a.certNumber}` : "sem nº"} · {a.status}</span>
+              <div key={a.id} className="border rounded-lg p-3 bg-muted/30 space-y-2">
+                {/* Protocol identity */}
+                <div className="flex items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium truncate block">{a.productName}</span>
+                    <span className="text-xs text-muted-foreground font-mono">{a.certNumber ? `#${a.certNumber}` : "sem nº"} · {a.status}</span>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                    onClick={() => remove.mutate(a.id)} disabled={remove.isPending}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
-                  onClick={() => remove.mutate(a.id)} disabled={remove.isPending}>
-                  <X className="h-3.5 w-3.5" />
-                </Button>
+                {/* Permission toggles */}
+                <div className="flex flex-wrap gap-1.5">
+                  <PermToggle
+                    label="Certificado"
+                    icon={Award}
+                    checked={a.canViewCertificate}
+                    onChange={(v) => updatePerms.mutate({ accessId: a.id, perms: { canViewCertificate: v } })}
+                  />
+                  <PermToggle
+                    label="Relatório"
+                    icon={FileText}
+                    checked={a.canViewReport}
+                    onChange={(v) => updatePerms.mutate({ accessId: a.id, perms: { canViewReport: v } })}
+                  />
+                  <PermToggle
+                    label="Imprimir"
+                    icon={Printer}
+                    checked={a.canPrint}
+                    onChange={(v) => updatePerms.mutate({ accessId: a.id, perms: { canPrint: v } })}
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -394,7 +445,7 @@ function ProtocolAssignPanel({ user, token }: { user: User; token: string | null
       {/* Add protocol */}
       <div>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Adicionar protocolo</p>
-        <Input placeholder="Buscar por nome ou número…" value={searchId} onChange={(e) => setSearchId(e.target.value)} className="mb-2" />
+        <Input placeholder="Buscar por nome ou nº certificado (ex: CERT-AF-…)" value={searchId} onChange={(e) => setSearchId(e.target.value)} className="mb-2" />
         {filtered.length > 0 && (
           <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
             {filtered.map((p) => (
@@ -403,7 +454,7 @@ function ProtocolAssignPanel({ user, token }: { user: User; token: string | null
                 onClick={() => assign.mutate(p.id)} disabled={assign.isPending}>
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium truncate block">{p.productName}</span>
-                  <span className="text-xs text-muted-foreground">{p.certNumber ? `#${p.certNumber}` : "sem nº"} · {p.status}</span>
+                  <span className="text-xs text-muted-foreground font-mono">{p.certNumber ? `#${p.certNumber}` : "sem nº"} · {p.status}</span>
                 </div>
                 <Plus className="h-3.5 w-3.5 text-primary shrink-0" />
               </button>
