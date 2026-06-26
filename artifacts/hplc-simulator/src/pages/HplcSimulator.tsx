@@ -4255,7 +4255,35 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
 
   // Captura a área do pico identificado no cromatograma atual e preenche o nível de calibração
   const captureCalibArea = (compoundId: string, stdId: string) => {
-    const compound = activeCompounds.find(c => c.id === compoundId);
+    const existing = compoundCalibrations[compoundId] ?? getCC(compoundId);
+    const allStds   = existing.standards;
+    const thisStd   = allStds.find(s => s.id === stdId);
+    const compound  = activeCompounds.find(c => c.id === compoundId);
+
+    // ── 1. Leave-one-out regression ─────────────────────────────────────────────
+    // Use all OTHER standards with valid data to predict the best area for THIS level
+    if (thisStd && thisStd.amount > 0) {
+      const others = allStds.filter(s => s.id !== stdId && s.amount > 0 && s.area > 0);
+      if (others.length >= 2) {
+        const reg = linearRegression(others.map(s => ({ x: s.amount, y: s.area })));
+        if (reg.slope !== 0 || reg.intercept !== 0) {
+          const predicted = reg.slope * thisStd.amount + reg.intercept;
+          if (predicted > 0) {
+            const finalArea = parseFloat(predicted.toFixed(4));
+            updateCompoundStandard(compoundId, stdId, "area", finalArea);
+            const r2 = (reg.r * reg.r).toFixed(4);
+            toast({
+              title: "✓ Área calculada pela regressão",
+              description: `Nível ${thisStd.amount} µg/ml → ${finalArea.toFixed(3)} mAU·s` +
+                ` (L1O com ${others.length} pontos · R²=${r2} · slope=${reg.slope.toFixed(4)})`,
+            });
+            return;
+          }
+        }
+      }
+    }
+
+    // ── 2. Fallback: capture from chromatogram peak ──────────────────────────────
     if (!compound) return;
     const matchPeak = peaks.find(p => {
       const nameMatch = !!(p.name && (
@@ -4266,11 +4294,23 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
       return nameMatch || rtMatch;
     });
     if (!matchPeak) {
-      window.alert(`No peak found for "${compound.name}" in the current chromatogram.\nConfigure a peak with RT ≈ ${compound.expectedRT} min or with the compound name.`);
+      toast({
+        title: "⚠ Pico não encontrado",
+        description: `Configure um pico com RT ≈ ${compound.expectedRT.toFixed(3)} min ou com o nome "${compound.name}" no cromatograma. ` +
+          `Adicione mais pontos à curva para ativar o cálculo automático (mín. 2 outros níveis).`,
+        variant: "destructive",
+      });
       return;
     }
     const area = parseFloat((matchPeak.manualArea > 0 ? matchPeak.manualArea : computeArea(matchPeak)).toFixed(4));
     updateCompoundStandard(compoundId, stdId, "area", area);
+    toast({
+      title: "📥 Área capturada do cromatograma",
+      description: `${area.toFixed(3)} mAU·s — pico "${matchPeak.name || `RT ${matchPeak.retentionTime.toFixed(3)}`}"` +
+        (allStds.filter(s => s.id !== stdId && s.area > 0).length < 2
+          ? " (adicione ≥2 outros níveis para ativar cálculo pela regressão)"
+          : ""),
+    });
   };
 
   // Simula curva completa: gera áreas para todos os níveis proporcionalmente ao pico atual
