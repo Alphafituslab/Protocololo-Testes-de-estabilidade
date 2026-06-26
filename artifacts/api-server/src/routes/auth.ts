@@ -1,11 +1,34 @@
-import { Router, type IRouter } from "express";
-import { db, usersTable, sessionsTable } from "@workspace/db";
+import { Router, type IRouter, type Request } from "express";
+import { db, usersTable, sessionsTable, loginLogTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
 import { requireAuth } from "../lib/session";
 
 const router: IRouter = Router();
+
+async function logLogin(opts: {
+  userId: number | null;
+  username: string;
+  success: boolean;
+  failReason?: string;
+  req: Request;
+}) {
+  const ip = (opts.req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim()
+    ?? opts.req.socket.remoteAddress
+    ?? null;
+  const ua = opts.req.headers["user-agent"] ?? null;
+  try {
+    await db.insert(loginLogTable).values({
+      userId: opts.userId,
+      username: opts.username,
+      success: opts.success,
+      failReason: opts.failReason ?? null,
+      ipAddress: ip,
+      userAgent: ua,
+    });
+  } catch { /* non-critical — never fail login because of log error */ }
+}
 
 // Legacy master password verify (UnlockDialog compatibility)
 router.post("/auth/verify", (req, res): void => {
@@ -42,14 +65,26 @@ router.post("/auth/setup", async (req, res): Promise<void> => {
 router.post("/auth/login", async (req, res): Promise<void> => {
   const { username, password } = req.body as { username?: string; password?: string };
   if (!username || !password) { res.status(400).json({ error: "Usuário e senha são obrigatórios." }); return; }
+
   const [user] = await db.select().from(usersTable)
     .where(and(eq(usersTable.username, username.trim().toLowerCase()), eq(usersTable.active, true))).limit(1);
+
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    await logLogin({ userId: user?.id ?? null, username: username.trim().toLowerCase(), success: false, failReason: "Credenciais inválidas.", req });
     res.status(401).json({ error: "Usuário ou senha incorretos." }); return;
   }
+
+  // Check access expiry for "cliente" role
+  if (user.role === "cliente" && user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
+    await logLogin({ userId: user.id, username: user.username, success: false, failReason: "Acesso expirado.", req });
+    res.status(403).json({ error: "Seu acesso ao sistema expirou. Entre em contato com o laboratório." }); return;
+  }
+
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   await db.insert(sessionsTable).values({ token, userId: user.id, expiresAt });
+  await logLogin({ userId: user.id, username: user.username, success: true, req });
+
   res.json({
     token,
     user: {
@@ -59,6 +94,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
       role: user.role,
       hplcAccess: user.hplcAccess,
       permissions: user.permissions ?? [],
+      accessExpiresAt: user.accessExpiresAt ?? null,
     },
   });
 });

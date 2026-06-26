@@ -11,6 +11,7 @@ export const usersTable = pgTable("users", {
   hplcAccess: boolean("hplc_access").notNull().default(true),
   permissions: text("permissions").array().notNull().default(sql`'{}'::text[]`),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  accessExpiresAt: timestamp("access_expires_at", { withTimezone: true }),
 });
 
 export type DbUser = typeof usersTable.$inferSelect;

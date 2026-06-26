@@ -16,6 +16,7 @@ import CatalogPage from "./pages/catalog";
 import BackupPage from "./pages/backup";
 import SnapshotsGlobalPage from "./pages/snapshots-global";
 import AtivoReferencesPage from "./pages/ativo-references";
+import ClientPortalPage from "./pages/client-portal";
 import { AuthProvider } from "@/contexts/auth-context";
 import { useAuth } from "@/contexts/use-auth";
 import { FileText, Home, Users, LogOut, Loader2, AlertTriangle, RefreshCcw, BookOpen, DatabaseBackup, History, FlaskConical } from "lucide-react";
@@ -253,6 +254,11 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
         }
       } catch { /* ignore */ }
       navigate("/login", { replace: true });
+      return;
+    }
+    // Clientes não acessam as páginas internas — vão para o portal
+    if (user.role === "cliente") {
+      navigate("/client-portal", { replace: true });
     }
   }, [user, isLoading]);
 
@@ -263,6 +269,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
       </div>
     );
   }
+  if (user.role === "cliente") return null;
 
   return (
     <AppErrorBoundary>
@@ -306,6 +313,32 @@ function ProtectedDetailRoute({ component: Component }: { component: React.Compo
   );
 }
 
+function ProtectedClientRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user, isLoading } = useAuth();
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!user) { navigate("/login", { replace: true }); return; }
+    if (user.role !== "cliente") { navigate("/", { replace: true }); }
+  }, [user, isLoading]);
+
+  if (isLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  if (user.role !== "cliente") return null;
+
+  return (
+    <AppErrorBoundary>
+      <Component />
+    </AppErrorBoundary>
+  );
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 const DashboardRoute = () => <ProtectedRoute component={Dashboard} />;
@@ -319,6 +352,7 @@ const CatalogRoute = () => <ProtectedRoute component={CatalogPage} />;
 const AtivoReferencesRoute = () => <ProtectedRoute component={AtivoReferencesPage} />;
   const BackupRoute           = () => <ProtectedRoute component={BackupPage} />;
 const SnapshotsGlobalRoute  = () => <ProtectedRoute component={SnapshotsGlobalPage} />;
+const ClientPortalRoute     = () => <ProtectedClientRoute component={ClientPortalPage} />;
 
 const LoginRoute = () => (
   <AppErrorBoundary>
@@ -342,6 +376,7 @@ function Router() {
       <Route path="/ativo-references" component={AtivoReferencesRoute} />
       <Route path="/snapshots" component={SnapshotsGlobalRoute} />
       <Route path="/backup"    component={BackupRoute} />
+      <Route path="/client-portal" component={ClientPortalRoute} />
       <Route component={NotFound} />
     </Switch>
   );

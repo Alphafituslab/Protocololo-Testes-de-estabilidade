@@ -71,8 +71,11 @@ export default function LoginPage() {
     setUsername(actualUsername);
     setPassword(actualPassword);
     try {
-      await login(actualUsername, actualPassword);
-      window.location.replace(dest || "/");
+      const loggedUser = await login(actualUsername, actualPassword);
+      const target = loggedUser?.role === "cliente"
+        ? "/client-portal"
+        : (dest && dest !== "/client-portal" ? dest : "/");
+      window.location.replace(target);
     } catch (err) {
       const msg = (err as Error).message ?? "Erro ao fazer login.";
       setLoginError(msg);

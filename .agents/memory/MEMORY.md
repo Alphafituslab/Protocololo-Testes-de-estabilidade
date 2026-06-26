@@ -2,7 +2,8 @@
 - [CertEditField — contentEditable obrigatório](cert-edit-field.md) — NUNCA substituir contentEditable por <input>: autofill do Chrome destrói campos do certificado silenciosamente.
 - [setCertEdit — sempre gravar no localStorage](cert-edits-persist.md) — setCertEdit deve sempre gravar no localStorage (não só quando bloqueado) pois contentEditable é autofill-proof.
 - [Certificado — edições persistidas no DB](cert-db-persistence.md) — certEditsJson e certAnalysesOverridesJson salvos no banco via updateProtocol (debounce 1.5s); certLocked padrão=true (v !== "0"); DB é fonte primária, localStorage é cópia de trabalho.
-- [Auth login — padrão correto](auth-login-pattern.md) — login() só escreve no localStorage, sem setToken/setUser; handleLogin usa window.location.replace; produção tem DB separado do dev.
+- [Auth login — padrão correto](auth-login-pattern.md) — login() retorna Promise<AuthUser>; handleLogin usa window.location.replace; role "cliente" redireciona para /client-portal.
+- [Portal do Cliente — arquitetura](client-portal-arch.md) — role "cliente": acesso via /client-portal, sem sidebar, protocolos filtrados por client_protocol_access; login_log registra toda tentativa; accessExpiresAt nullable em users.
 - [Sistema de Permissões Granulares](permissions-system.md) — 13 permissões, admin implícito, lock pós-assinatura; como estender e onde estão os arquivos-chave.
 - [Persistência de datas e metodologias](period-dates-methods-persistence.md) — periodDates e paramMethods agora no banco (3 colunas novas); padrão de hidratação localStorage + save debounced 800ms.
 - [Política de dados — nunca apagar](data-deletion-policy.md) — NUNCA deletar dados já cadastrados sem aprovação explícita do usuário; qualquer operação destrutiva exige confirmação antes de executar.

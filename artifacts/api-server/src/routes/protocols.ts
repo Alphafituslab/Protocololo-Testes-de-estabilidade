@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, count, and, inArray, ne } from "drizzle-orm";
-import { db, protocolsTable, lotsTable, analysisResultsTable, protocolSignaturesTable } from "@workspace/db";
+import { db, protocolsTable, lotsTable, analysisResultsTable, protocolSignaturesTable, clientProtocolAccessTable } from "@workspace/db";
 import {
   CreateProtocolBody,
   UpdateProtocolBody,
@@ -64,6 +64,20 @@ async function fetchSigMap(protocolIds: number[]): Promise<Map<number, Set<strin
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 router.get("/protocols", requireAuth, async (req, res): Promise<void> => {
+  // "cliente" role can only see their assigned protocols
+  if (req.authUser?.role === "cliente") {
+    const assigned = await db
+      .select({ protocolId: clientProtocolAccessTable.protocolId })
+      .from(clientProtocolAccessTable)
+      .where(eq(clientProtocolAccessTable.clientUserId, req.authUser.id));
+    const ids = assigned.map(r => r.protocolId);
+    if (ids.length === 0) { res.json([]); return; }
+    const protocols = await db.select().from(protocolsTable).where(inArray(protocolsTable.id, ids)).orderBy(desc(protocolsTable.updatedAt));
+    const sigMap = await fetchSigMap(protocols.map(p => p.id));
+    res.json(withPendingSignatures(protocols, sigMap));
+    return;
+  }
+
   const parsed = ListProtocolsQueryParams.safeParse(req.query);
   const statusFilter = parsed.success ? parsed.data.status : undefined;
   const nonConformesFilter = parsed.success ? parsed.data.nonConformes : undefined;
@@ -132,6 +146,14 @@ router.post("/protocols", requireAuth, requirePermission(PERM.PROTOCOLS_CREATE),
 router.get("/protocols/:id", requireAuth, async (req, res): Promise<void> => {
   const params = GetProtocolParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  // Clientes só podem ver os protocolos atribuídos a eles
+  if (req.authUser?.role === "cliente") {
+    const [access] = await db.select({ id: clientProtocolAccessTable.id })
+      .from(clientProtocolAccessTable)
+      .where(and(eq(clientProtocolAccessTable.clientUserId, req.authUser.id), eq(clientProtocolAccessTable.protocolId, params.data.id)))
+      .limit(1);
+    if (!access) { res.status(403).json({ error: "Acesso não autorizado a este protocolo." }); return; }
+  }
   const [protocol] = await db.select().from(protocolsTable).where(eq(protocolsTable.id, params.data.id));
   if (!protocol) { res.status(404).json({ error: "Protocol not found" }); return; }
   const lots = await db.select().from(lotsTable).where(eq(lotsTable.protocolId, params.data.id)).orderBy(lotsTable.createdAt);

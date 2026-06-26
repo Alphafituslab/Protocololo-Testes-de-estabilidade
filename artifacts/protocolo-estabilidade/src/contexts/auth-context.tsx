@@ -9,13 +9,14 @@ export type AuthUser = {
   role: string;
   hplcAccess?: boolean;
   permissions: string[];
+  accessExpiresAt?: string | null;
 };
 
 export type AuthContextValue = {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<AuthUser>;
   logout: () => Promise<void>;
   isAdmin: boolean;
   hasPermission: (perm: string) => boolean;
@@ -55,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthTokenGetter(token ? () => token : null);
   }, [token]);
 
-  const login = useCallback(async (username: string, password: string) => {
+  const login = useCallback(async (username: string, password: string): Promise<AuthUser> => {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -71,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(data.token);
     setUser(data.user);
     setAuthTokenGetter(() => data.token);
+    return data.user;
   }, []);
 
   const logout = useCallback(async () => {
