@@ -2008,8 +2008,9 @@ function stringsToCompound(base: ActiveCompound, s: Record<keyof ActiveCompound,
   return result;
 }
 
-function ActiveCompoundDialog({ compound, onSave, children }: {
+function ActiveCompoundDialog({ compound, onSave, children, externalOpen, onExternalOpenChange }: {
   compound: ActiveCompound; onSave: (c: ActiveCompound) => void; children: React.ReactNode;
+  externalOpen?: boolean; onExternalOpenChange?: (v: boolean) => void;
 }) {
   const [draft, setDraft] = useState<Record<keyof ActiveCompound, string>>(() => compoundToStrings(compound));
   const [stdDraft, setStdDraft] = useState<CalibStandard[]>(() =>
@@ -2018,6 +2019,9 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
       : makeDefaultCompoundStandards(compound)
   );
   const [open, setOpen] = useState(false);
+  const isControlled = externalOpen !== undefined;
+  const isOpen = isControlled ? externalOpen! : open;
+  const setIsOpen = (v: boolean) => { if (isControlled) onExternalOpenChange?.(v); else setOpen(v); };
   const field = (key: keyof ActiveCompound) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDraft(d => ({ ...d, [key]: e.target.value }));
   const regenStds = (amtPerAreaStr: string) => {
@@ -2025,17 +2029,27 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
     const tmp = makeDefaultCompoundStandards({ ...compound, amtPerArea, defaultStandards: undefined });
     setStdDraft(tmp);
   };
+  // Sync draft when controlled dialog is opened from outside
+  React.useEffect(() => {
+    if (isControlled && externalOpen) {
+      setDraft(compoundToStrings(compound));
+      setStdDraft(compound.defaultStandards && compound.defaultStandards.length > 0
+        ? compound.defaultStandards
+        : makeDefaultCompoundStandards(compound));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalOpen]);
   return (
-    <Dialog open={open} onOpenChange={v => {
-      setOpen(v);
-      if (v) {
+    <Dialog open={isOpen} onOpenChange={v => {
+      setIsOpen(v);
+      if (v && !isControlled) {
         setDraft(compoundToStrings(compound));
         setStdDraft(compound.defaultStandards && compound.defaultStandards.length > 0
           ? compound.defaultStandards
           : makeDefaultCompoundStandards(compound));
       }
     }}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+      {!isControlled && <DialogTrigger asChild>{children}</DialogTrigger>}
       <DialogContent className="max-w-sm flex flex-col" style={{ maxHeight: "92vh" }}>
         <DialogHeader className="flex-shrink-0">
           <DialogTitle style={{ fontFamily: "Courier New, monospace" }}>
