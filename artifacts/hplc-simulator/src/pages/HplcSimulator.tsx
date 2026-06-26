@@ -10108,8 +10108,57 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                 </div>
                 <div id="padrao-row-stdAmountUg" style={ROW}>
                   <span style={LBL}>Injected amount (µg)</span>
-                  {numInput(padraoConfig.stdAmountUg, v => updatePadraoProtected({ stdAmountUg: v }), { step: "0.001", placeholder: "µg" })}
+                  {numInput(padraoConfig.stdAmountUg, v => {
+                    // ── Auto-lookup Standard Area from Compound Calibration curve ────
+                    const cname = padraoConfig.compoundName?.trim().toLowerCase() ?? "";
+                    const matchedCpd = cname
+                      ? activeCompounds.find(c => c.name.trim().toLowerCase() === cname)
+                      : null;
+                    const calib = matchedCpd ? compoundCalibrations[matchedCpd.id] : null;
+                    let autoArea: number | null = null;
+                    if (calib && v > 0) {
+                      const validPts = calib.standards.filter(s => s.amount > 0 && s.area > 0);
+                      // 1) Exact/near match (within 0.1%)
+                      const exact = validPts.find(s => Math.abs(s.amount - v) / Math.max(v, 0.0001) < 0.001);
+                      if (exact) {
+                        autoArea = exact.area;
+                      } else if (validPts.length >= 2) {
+                        // 2) Regression prediction
+                        const reg = linearRegression(validPts.map(s => ({ x: s.amount, y: s.area })));
+                        if (reg.slope > 0) {
+                          const pred = reg.slope * v + reg.intercept;
+                          if (pred > 0) autoArea = parseFloat(pred.toFixed(4));
+                        }
+                      }
+                    }
+                    updatePadraoProtected({
+                      stdAmountUg: v,
+                      ...(autoArea !== null ? { stdArea: autoArea } : {}),
+                    });
+                  }, { step: "0.001", placeholder: "µg" })}
                   {padraoConfig.stdAmountUg <= 0 && <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#dc2626", marginTop: 2 }}>⚠ Required — enter a value &gt; 0</div>}
+                  {/* Auto-fill hint — shows when there is a calibration curve to lookup from */}
+                  {(() => {
+                    const cname = padraoConfig.compoundName?.trim().toLowerCase() ?? "";
+                    const matchedCpd = cname ? activeCompounds.find(c => c.name.trim().toLowerCase() === cname) : null;
+                    const calib = matchedCpd ? compoundCalibrations[matchedCpd.id] : null;
+                    const pts = calib ? calib.standards.filter(s => s.amount > 0 && s.area > 0) : [];
+                    if (pts.length === 0) return null;
+                    const exact = pts.find(s => Math.abs(s.amount - padraoConfig.stdAmountUg) / Math.max(padraoConfig.stdAmountUg, 0.0001) < 0.001);
+                    if (exact) {
+                      return <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#065f46", marginTop: 2 }}>✓ Área da curva: {exact.area.toFixed(4)} mAU·s (nível exato)</div>;
+                    }
+                    if (pts.length >= 2 && padraoConfig.stdAmountUg > 0) {
+                      const reg = linearRegression(pts.map(s => ({ x: s.amount, y: s.area })));
+                      if (reg.slope > 0) {
+                        const pred = reg.slope * padraoConfig.stdAmountUg + reg.intercept;
+                        return pred > 0
+                          ? <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#0369a1", marginTop: 2 }}>⟳ Área predita: {pred.toFixed(4)} mAU·s (regressão R²={(reg.r * reg.r).toFixed(4)})</div>
+                          : null;
+                      }
+                    }
+                    return null;
+                  })()}
                 </div>
                 <div id="padrao-row-stdPurity" style={ROW}>
                   <span style={LBL}>Certified purity (%)</span>
