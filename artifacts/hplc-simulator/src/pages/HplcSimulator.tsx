@@ -7890,6 +7890,18 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
 
                                 const d = 3.5;
                                 const diamond = `M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`;
+                                // Label texts
+                                const yLabelTxt = stdArea.toFixed(3) + (isAutoLine ? "*" : "");
+                                const xLabelTxt = (padraoFoundUg > 0 ? padraoFoundUg : stdAmount).toFixed(3);
+                                // Estimated pixel widths (8.5px font ≈ 5.5px/char)
+                                const yLW = yLabelTxt.length * 5.5 + 4;
+                                const xLW = xLabelTxt.length * 5.5 + 4;
+                                // Y label: just to the right of Y-axis, centered on the guide line
+                                const yLX = mL + 4;
+                                const yLY = cy - 11;   // above horizontal guide line
+                                // X label: centered on diamond, below the X-axis baseline
+                                const xLX = cx - xLW / 2;
+                                const xLY = mT + iH + 10; // below X-axis
                                 return (
                                   <g key="std-pt">
                                     {/* Horizontal dashed guide: Y-axis → diamond */}
@@ -7903,13 +7915,15 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                       stroke="#111"
                                       strokeWidth={1}
                                     />
-                                    {/* Y label */}
-                                    <text x={mL + 4} y={cy - 3} textAnchor="start" fontSize={8.5} fontWeight="bold" fill="#333">
-                                      {stdArea.toFixed(3)}{isAutoLine ? "*" : ""}
+                                    {/* Y label — white background so it's always readable */}
+                                    <rect x={yLX - 1} y={yLY - 8} width={yLW} height={10} fill="white" opacity={0.92} />
+                                    <text x={yLX} y={yLY} textAnchor="start" fontSize={8.5} fontWeight="bold" fill="#1d4ed8">
+                                      {yLabelTxt}
                                     </text>
-                                    {/* X label — mostra padraoFoundUg (igual à tabela de resultados) */}
-                                    <text x={cx + 3} y={mT + iH - 4} textAnchor="start" fontSize={8.5} fontWeight="bold" fill="#111">
-                                      {(padraoFoundUg > 0 ? padraoFoundUg : stdAmount).toFixed(3)}
+                                    {/* X label — below the X-axis, centered on diamond, white background */}
+                                    <rect x={xLX - 1} y={xLY - 8} width={xLW + 2} height={10} fill="white" opacity={0.92} />
+                                    <text x={xLX + xLW / 2} y={xLY} textAnchor="middle" fontSize={8.5} fontWeight="bold" fill="#1d4ed8">
+                                      {xLabelTxt}
                                     </text>
                                   </g>
                                 );
