@@ -754,11 +754,13 @@ export default function CertificatePage() {
     () => [...attachmentsList].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
     [attachmentsList]
   );
+  // Always load attachments for the screen viewer; includeAttachments only
+  // controls whether the print appendix section renders them in the PDF.
   const {
     imageUrls: attachmentBlobUrls,
     pdfPages: attachmentPdfPages,
     wordHtml: attachmentWordHtml,
-  } = useAttachmentRendering(sortedAttachments, includeAttachments);
+  } = useAttachmentRendering(sortedAttachments, sortedAttachments.length > 0);
 
   // Sync analyses from API + DB/localStorage every time cert (re)loads.
   // Runs on mount and whenever cert refetches (e.g. after navigating back from
