@@ -148,6 +148,9 @@ interface ActiveCompound {
   anvisaMinMg?: number;     // mg — ANVISA lower limit
   anvisaMaxMg?: number;     // mg — ANVISA upper limit
   anvisaNorm?: string;      // reference norm, e.g. "IN 28/2018"
+  // Reference Standard — Standard Area and Injected Amount saved per compound
+  stdArea?: number;        // mAU·s — area of the reference standard peak
+  stdAmountUg?: number;    // µg    — certified injected amount of the reference standard
   // Pre-registered calibration standards — used instead of auto-generating
   defaultStandards?: CalibStandard[];
 }
@@ -1923,7 +1926,7 @@ function SmallField({ label, value, onChange, type = "text" }: {
 const COMPOUND_NUM_KEYS: (keyof ActiveCompound)[] = [
   "wavelength", "waveTol", "expectedRT", "rtTol", "typicalWidth",
   "typicalAsym", "amtPerArea", "specMin", "specMax", "certifiedPurity",
-  "anvisaMinMg", "anvisaMaxMg",
+  "anvisaMinMg", "anvisaMaxMg", "stdArea", "stdAmountUg",
 ];
 
 // ─── ANVISA IN 28/2018 — banco de faixas por composto ─────────────────────────
@@ -2065,6 +2068,61 @@ function ActiveCompoundDialog({ compound, onSave, children }: {
                 onChange={field(k)} className="h-7 text-xs font-mono" />
             </div>
           ))}
+
+          {/* ── Reference Standard — Standard Area + Injected Amount ── */}
+          <div className="col-span-2" style={{ background: "#f0fdf4", border: "2px solid #86efac", borderRadius: 6, padding: "10px 12px", marginTop: 4 }}>
+            <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, fontWeight: "bold", color: "#166534", marginBottom: 8, letterSpacing: "0.04em" }}>
+              📊 REFERENCE STANDARD — Valores do Padrão de Referência
+            </div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+              <div>
+                <Label className="text-xs font-mono" style={{ color: "#15803d" }}>
+                  Standard Area (mAU·s)
+                </Label>
+                <Input
+                  type="number" step="0.00001" min="0"
+                  value={draft.stdArea && draft.stdArea !== "0" ? draft.stdArea : ""}
+                  onChange={field("stdArea")}
+                  placeholder="ex: 933.65940"
+                  className="h-7 text-xs font-mono"
+                />
+                <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#6b7280", marginTop: 2 }}>
+                  Área do pico do padrão puro
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs font-mono" style={{ color: "#15803d" }}>
+                  Injected Amount (µg)
+                </Label>
+                <Input
+                  type="number" step="0.00001" min="0"
+                  value={draft.stdAmountUg && draft.stdAmountUg !== "0" ? draft.stdAmountUg : ""}
+                  onChange={field("stdAmountUg")}
+                  placeholder="ex: 50.31663"
+                  className="h-7 text-xs font-mono"
+                />
+                <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#6b7280", marginTop: 2 }}>
+                  µg injetado (do CoA do padrão)
+                </div>
+              </div>
+            </div>
+            {(() => {
+              const sa = parseFloat(draft.stdArea || "0") || 0;
+              const am = parseFloat(draft.stdAmountUg || "0") || 0;
+              if (sa > 0 && am > 0) {
+                return (
+                  <div style={{ marginTop: 6, fontFamily: "Courier New, monospace", fontSize: 9, color: "#166534", background: "#dcfce7", borderRadius: 4, padding: "3px 8px", display: "inline-block" }}>
+                    ✓ Salvo: {sa.toFixed(5)} mAU·s · {am.toFixed(5)} µg
+                  </div>
+                );
+              }
+              return (
+                <div style={{ marginTop: 6, fontFamily: "Courier New, monospace", fontSize: 9, color: "#92400e" }}>
+                  Preencha para usar atalho automático no Reference Standard card
+                </div>
+              );
+            })()}
+          </div>
 
           {/* ── ANVISA IN 28/2018 ── */}
           <div className="col-span-2" style={{ background: "#f0f9ff", border: "1px solid #7dd3fc", borderRadius: 6, padding: "8px 10px", marginTop: 6 }}>
@@ -4417,6 +4475,8 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
       certifiedPurity: 99.5,
       method: sample.analysisMethod || "",
       notes: "",
+      stdArea: 0,
+      stdAmountUg: 0,
     };
 
     setActiveCompounds(cs => [...cs, newCompound]);
@@ -7766,26 +7826,28 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
               {/* Table — table-layout:fixed para caber sem scroll lateral */}
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10, tableLayout: "fixed" }}>
                 <colgroup>
-                  <col style={{ width: "13%" }} /> {/* Compound */}
+                  <col style={{ width: "12%" }} /> {/* Compound */}
                   <col style={{ width: "5%" }} />  {/* λ */}
                   <col style={{ width: "4%" }} />  {/* ±λ */}
-                  <col style={{ width: "6%" }} />  {/* RT */}
+                  <col style={{ width: "5%" }} />  {/* RT */}
                   <col style={{ width: "4%" }} />  {/* ±RT */}
-                  <col style={{ width: "8%" }} />  {/* Amt/Area */}
+                  <col style={{ width: "7%" }} />  {/* Amt/Area */}
                   <col style={{ width: "5%" }} />  {/* Units */}
-                  <col style={{ width: "5%" }} />  {/* Min */}
-                  <col style={{ width: "5%" }} />  {/* Max */}
-                  <col style={{ width: "7%" }} />  {/* Pureza % */}
-                  <col style={{ width: "9%" }} />  {/* Method */}
-                  <col style={{ width: "10%" }} /> {/* Notes */}
-                  <col style={{ width: "19%" }} /> {/* Status + ações */}
+                  <col style={{ width: "4%" }} />  {/* Min */}
+                  <col style={{ width: "4%" }} />  {/* Max */}
+                  <col style={{ width: "6%" }} />  {/* Pureza % */}
+                  <col style={{ width: "8%" }} />  {/* Std Area */}
+                  <col style={{ width: "7%" }} />  {/* Inj. Amt */}
+                  <col style={{ width: "7%" }} />  {/* Method */}
+                  <col style={{ width: "8%" }} />  {/* Notes */}
+                  <col style={{ width: "14%" }} /> {/* Status + ações */}
                 </colgroup>
                 <thead>
                   <tr style={{ borderBottom: "2px solid #333", background: "#f4f4f4" }}>
                     {[
                       "Compound", "λ nm", "±λ", "RT min", "±RT",
                       "Amt/Area", "Units", "Min", "Max",
-                      "Pureza %", "Method", "Notes", "Status / Ações",
+                      "Pureza %", "Std Area\nmAU·s", "Inj. Amt\nµg", "Method", "Notes", "Status / Ações",
                     ].map(h => (
                       <th key={h} style={{
                         textAlign: "left", padding: "3px 5px",
@@ -7835,6 +7897,16 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                           }}>
                             {(c.certifiedPurity || 99.5).toFixed(1)}%
                           </span>
+                        </td>
+                        <td style={{ ...td, textAlign: "right" }}>
+                          {(c.stdArea ?? 0) > 0
+                            ? <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#166534", fontWeight: "bold" }}>{(c.stdArea!).toFixed(3)}</span>
+                            : <span style={{ color: "#ccc" }}>—</span>}
+                        </td>
+                        <td style={{ ...td, textAlign: "right" }}>
+                          {(c.stdAmountUg ?? 0) > 0
+                            ? <span style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#166534", fontWeight: "bold" }}>{(c.stdAmountUg!).toFixed(3)}</span>
+                            : <span style={{ color: "#ccc" }}>—</span>}
                         </td>
                         <td style={{ ...td, color: "#666" }} title={c.method}>{c.method}</td>
                         <td style={{ ...td, color: "#888", fontSize: 9 }} title={c.notes}>{c.notes}</td>
