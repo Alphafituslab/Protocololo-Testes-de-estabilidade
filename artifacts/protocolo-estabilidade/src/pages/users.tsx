@@ -382,14 +382,15 @@ function ProtocolAssignPanel({ user, token }: { user: User; token: string | null
   });
 
   const assignedIds = new Set(assigned.map(a => a.protocolId));
-  const filtered = searchId
-    ? allProtocols.filter(p =>
-        !assignedIds.has(p.id) && (
-          p.productName.toLowerCase().includes(searchId.toLowerCase()) ||
-          (p.certNumber ?? "").toLowerCase().includes(searchId.toLowerCase())
-        )
-      ).slice(0, 8)
-    : [];
+  const APPROVED = new Set(["aprovado", "aprovado_com_ressalva"]);
+  const filtered = allProtocols.filter(p => {
+    if (assignedIds.has(p.id)) return false;
+    if (!searchId) return APPROVED.has(p.status);
+    return (
+      p.productName.toLowerCase().includes(searchId.toLowerCase()) ||
+      (p.certNumber ?? "").toLowerCase().includes(searchId.toLowerCase())
+    );
+  }).slice(0, 30);
 
   return (
     <div className="space-y-4">
@@ -444,25 +445,40 @@ function ProtocolAssignPanel({ user, token }: { user: User; token: string | null
 
       {/* Add protocol */}
       <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Adicionar protocolo</p>
-        <Input placeholder="Buscar por nome ou nº certificado (ex: CERT-AF-…)" value={searchId} onChange={(e) => setSearchId(e.target.value)} className="mb-2" />
-        {filtered.length > 0 && (
-          <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
-            {filtered.map((p) => (
-              <button key={p.id} type="button"
-                className="w-full flex items-center gap-3 px-3 py-2 hover:bg-muted/50 text-left transition-colors"
-                onClick={() => assign.mutate(p.id)} disabled={assign.isPending}>
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium truncate block">{p.productName}</span>
-                  <span className="text-xs text-muted-foreground font-mono">{p.certNumber ? `#${p.certNumber}` : "sem nº"} · {p.status}</span>
-                </div>
-                <Plus className="h-3.5 w-3.5 text-primary shrink-0" />
-              </button>
-            ))}
-          </div>
-        )}
-        {searchId && filtered.length === 0 && (
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          Adicionar protocolo
+        </p>
+        <Input
+          placeholder="Filtrar por nome ou nº certificado (ex: CERT-AF-…)"
+          value={searchId}
+          onChange={(e) => setSearchId(e.target.value)}
+          className="mb-2"
+        />
+        {filtered.length > 0 ? (
+          <>
+            {!searchId && (
+              <p className="text-xs text-muted-foreground mb-1.5">
+                Mostrando protocolos aprovados disponíveis — clique para atribuir:
+              </p>
+            )}
+            <div className="border rounded-md divide-y max-h-60 overflow-y-auto">
+              {filtered.map((p) => (
+                <button key={p.id} type="button"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 text-left transition-colors"
+                  onClick={() => assign.mutate(p.id)} disabled={assign.isPending}>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium truncate block">{p.productName}</span>
+                    <span className="text-xs text-muted-foreground font-mono">{p.certNumber ? `#${p.certNumber}` : "sem nº"} · {p.status}</span>
+                  </div>
+                  <Plus className="h-3.5 w-3.5 text-primary shrink-0" />
+                </button>
+              ))}
+            </div>
+          </>
+        ) : searchId ? (
           <p className="text-xs text-muted-foreground italic">Nenhum protocolo encontrado (ou já atribuído).</p>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">Nenhum protocolo aprovado disponível para atribuir.</p>
         )}
       </div>
     </div>
