@@ -3605,26 +3605,24 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     }
   }, [page, analysisSessions, currentSessionId]);
 
-  // On mount: load sessions from server and merge (server wins — always the most complete set)
+  // On mount: load sessions from server and merge (ADDITIVE ONLY — never lose data)
   useEffect(() => {
     loadSessionsFromServer().then(serverSessions => {
-      if (serverSessions.length === 0) {
-        // No server data yet — push local sessions to server for the first time
-        const local = loadSessions();
-        if (local.length > 0) saveSessions(local);
-        return;
-      }
-      // Merge: build a map from server, overlay any local sessions not yet on server
-      const serverMap = new Map(serverSessions.map(s => [s.id, s]));
       const local = loadSessions();
-      for (const ls of local) {
-        if (!serverMap.has(ls.id)) serverMap.set(ls.id, ls);
+      // Build a union: start from local (already in state), add any server sessions not in local
+      const localMap = new Map(local.map(s => [s.id, s]));
+      for (const ss of serverSessions) {
+        if (!localMap.has(ss.id)) localMap.set(ss.id, ss);
       }
-      const merged = Array.from(serverMap.values()).sort(
+      const merged = Array.from(localMap.values()).sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       setAnalysisSessions(merged);
       try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
+      // Push anything local that server doesn't know about
+      const serverIds = new Set(serverSessions.map(s => s.id));
+      const toSync = local.filter(s => !serverIds.has(s.id));
+      if (toSync.length > 0) saveSessions(toSync);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -6784,6 +6782,43 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                         </Button>
                       </NewSessionDialog>
                     )}
+                    {/* ── Recuperação emergencial ───────────────────── */}
+                    <div style={{ marginBottom: 6, display: "flex", gap: 4 }}>
+                      <Button size="sm" variant="outline" className="flex-1 h-6 text-xs gap-1"
+                        title="Procura sessões salvas localmente e sincroniza para o servidor"
+                        onClick={() => {
+                          const raw = localStorage.getItem("hplc_analysis_sessions_v1");
+                          if (!raw) { toast({ title: "localStorage vazio", description: "Nenhuma sessão encontrada no armazenamento local do browser.", variant: "destructive" }); return; }
+                          try {
+                            const localSessions = JSON.parse(raw) as AnalysisSession[];
+                            if (localSessions.length === 0) { toast({ title: "Nenhuma sessão local", description: "O localStorage não contém sessões.", variant: "destructive" }); return; }
+                            // Merge into current state (add any not already present)
+                            setAnalysisSessions(prev => {
+                              const existingIds = new Set(prev.map(s => s.id));
+                              const toAdd = localSessions.filter(s => !existingIds.has(s.id));
+                              if (toAdd.length === 0) { toast({ title: "Já sincronizado", description: `${localSessions.length} sessões já estão carregadas.` }); return prev; }
+                              const merged = [...prev, ...toAdd].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                              saveSessions(merged);
+                              toast({ title: `✅ ${toAdd.length} sessão(ões) recuperada(s)!`, description: "Os dados foram resgatados do browser e sincronizados para o servidor." });
+                              return merged;
+                            });
+                          } catch { toast({ title: "Erro ao recuperar", description: "Dados no localStorage corrompidos.", variant: "destructive" }); }
+                        }}>
+                        🔄 Recuperar local
+                      </Button>
+                      <Button size="sm" variant="outline" className="flex-1 h-6 text-xs gap-1"
+                        title="Baixa todas as sessões como arquivo JSON de backup"
+                        onClick={() => {
+                          const data = JSON.stringify(analysisSessions, null, 2);
+                          const blob = new Blob([data], { type: "application/json" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a"); a.href = url;
+                          a.download = `hplc-sessions-backup-${new Date().toISOString().slice(0,10)}.json`;
+                          a.click(); URL.revokeObjectURL(url);
+                        }}>
+                        💾 Exportar JSON
+                      </Button>
+                    </div>
                     <div className="space-y-1 mt-1">
                       {analysisSessions.length === 0 && (
                         <div style={{ fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace", textAlign: "center", padding: "6px 0" }}>
