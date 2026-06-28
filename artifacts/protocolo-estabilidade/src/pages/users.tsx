@@ -58,6 +58,14 @@ type ClientProtocolAccess = {
   canPrint: boolean;
   canViewHistory: boolean;
   canViewAttachments: boolean;
+  allowedAttachmentIds: number[];
+};
+
+type ProtocolAttachment = {
+  id: number;
+  fileName: string;
+  fileType: string;
+  description: string | null;
 };
 
 type LoginLogEntry = {
@@ -352,7 +360,7 @@ function UserForm({ initial, onSave, isEdit }: {
 
 // ── Protocol Assignment Panel ─────────────────────────────────────────────────
 
-type AccessPerms = { canViewCertificate: boolean; canViewReport: boolean; canPrint: boolean; canViewHistory: boolean; canViewAttachments: boolean };
+type AccessPerms = { canViewCertificate: boolean; canViewReport: boolean; canPrint: boolean; canViewHistory: boolean; canViewAttachments: boolean; allowedAttachmentIds?: number[] };
 
 function PermToggle({ label, icon: Icon, checked, onChange }: {
   label: string;
@@ -366,6 +374,71 @@ function PermToggle({ label, icon: Icon, checked, onChange }: {
       <Icon className="h-3 w-3 shrink-0" />
       {label}
     </label>
+  );
+}
+
+function AttachmentSelector({ protocolId, allowedAttachmentIds, token, onChange }: {
+  protocolId: number;
+  allowedAttachmentIds: number[];
+  token: string | null;
+  onChange: (ids: number[]) => void;
+}) {
+  const { data: attachments = [], isLoading } = useQuery<ProtocolAttachment[]>({
+    queryKey: ["protocol-attachments-admin", protocolId],
+    queryFn: () => apiFetch(`/api/protocols/${protocolId}/attachments`, token),
+    staleTime: 60000,
+  });
+
+  if (isLoading) return <p className="text-xs text-muted-foreground py-1 pl-1">Carregando documentos…</p>;
+  if (attachments.length === 0) return <p className="text-xs text-muted-foreground italic py-1 pl-1">Nenhum documento anexado a este protocolo.</p>;
+
+  const allowedSet = new Set(allowedAttachmentIds);
+  const allAllowed = allowedAttachmentIds.length === 0;
+
+  function toggle(id: number) {
+    if (allAllowed) {
+      // Switching from "todos" to specific: select all EXCEPT this one
+      onChange(attachments.filter(a => a.id !== id).map(a => a.id));
+    } else if (allowedSet.has(id)) {
+      const next = allowedAttachmentIds.filter(x => x !== id);
+      onChange(next);
+    } else {
+      onChange([...allowedAttachmentIds, id]);
+    }
+  }
+
+  return (
+    <div className="mt-1.5 ml-1 space-y-1">
+      <p className="text-xs text-muted-foreground mb-1">
+        {allAllowed
+          ? "Todos os documentos visíveis — desmarque para restringir:"
+          : `${allowedAttachmentIds.length} de ${attachments.length} documento(s) visível(is):`}
+      </p>
+      {attachments.map(att => {
+        const isChecked = allAllowed || allowedSet.has(att.id);
+        return (
+          <label key={att.id} className="flex items-center gap-2 cursor-pointer group">
+            <Checkbox
+              checked={isChecked}
+              onCheckedChange={() => toggle(att.id)}
+              className="h-3.5 w-3.5"
+            />
+            <span className={`text-xs truncate max-w-[220px] ${isChecked ? "text-foreground" : "text-muted-foreground line-through"}`}>
+              {att.fileName}
+            </span>
+          </label>
+        );
+      })}
+      {!allAllowed && (
+        <button
+          type="button"
+          className="text-xs text-blue-600 hover:underline mt-0.5"
+          onClick={() => onChange([])}
+        >
+          Liberar todos
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -481,6 +554,20 @@ function ProtocolAssignPanel({ user, token }: { user: User; token: string | null
                     onChange={(v) => updatePerms.mutate({ accessId: a.id, perms: { canViewAttachments: v } })}
                   />
                 </div>
+                {/* Per-document attachment selector — only shown when Anexos is enabled */}
+                {a.canViewAttachments && (
+                  <div className="border-t pt-2 mt-1">
+                    <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+                      <Paperclip className="h-3 w-3" /> Documentos visíveis para o cliente:
+                    </p>
+                    <AttachmentSelector
+                      protocolId={a.protocolId}
+                      allowedAttachmentIds={a.allowedAttachmentIds ?? []}
+                      token={token}
+                      onChange={(ids) => updatePerms.mutate({ accessId: a.id, perms: { allowedAttachmentIds: ids } })}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -22,6 +22,7 @@ router.get("/clients/:userId/protocols", requireAuth, requireAdmin, async (req, 
       canPrint: clientProtocolAccessTable.canPrint,
       canViewHistory: clientProtocolAccessTable.canViewHistory,
       canViewAttachments: clientProtocolAccessTable.canViewAttachments,
+      allowedAttachmentIds: clientProtocolAccessTable.allowedAttachmentIds,
       certNumber: protocolsTable.certNumber,
       productName: protocolsTable.productName,
       status: protocolsTable.status,
@@ -117,20 +118,22 @@ router.put("/clients/:userId/protocols/:accessId", requireAuth, requireAdmin, as
   const accessId = parseInt(String(req.params["accessId"] ?? ""));
   if (isNaN(userId) || isNaN(accessId)) { res.status(400).json({ error: "IDs inválidos." }); return; }
 
-  const { canViewCertificate, canViewReport, canPrint, canViewHistory, canViewAttachments } = req.body as {
+  const { canViewCertificate, canViewReport, canPrint, canViewHistory, canViewAttachments, allowedAttachmentIds } = req.body as {
     canViewCertificate?: boolean;
     canViewReport?: boolean;
     canPrint?: boolean;
     canViewHistory?: boolean;
     canViewAttachments?: boolean;
+    allowedAttachmentIds?: number[];
   };
 
-  const updates: Partial<{ canViewCertificate: boolean; canViewReport: boolean; canPrint: boolean; canViewHistory: boolean; canViewAttachments: boolean }> = {};
+  const updates: Partial<{ canViewCertificate: boolean; canViewReport: boolean; canPrint: boolean; canViewHistory: boolean; canViewAttachments: boolean; allowedAttachmentIds: number[] }> = {};
   if (canViewCertificate !== undefined) updates.canViewCertificate = canViewCertificate;
   if (canViewReport !== undefined) updates.canViewReport = canViewReport;
   if (canPrint !== undefined) updates.canPrint = canPrint;
   if (canViewHistory !== undefined) updates.canViewHistory = canViewHistory;
   if (canViewAttachments !== undefined) updates.canViewAttachments = canViewAttachments;
+  if (allowedAttachmentIds !== undefined && Array.isArray(allowedAttachmentIds)) updates.allowedAttachmentIds = allowedAttachmentIds;
 
   if (Object.keys(updates).length === 0) { res.status(400).json({ error: "Nenhum campo para atualizar." }); return; }
 
@@ -238,6 +241,7 @@ router.get("/my/protocols", requireAuth, async (req, res): Promise<void> => {
       canPrint: clientProtocolAccessTable.canPrint,
       canViewHistory: clientProtocolAccessTable.canViewHistory,
       canViewAttachments: clientProtocolAccessTable.canViewAttachments,
+      allowedAttachmentIds: clientProtocolAccessTable.allowedAttachmentIds,
       certNumber: protocolsTable.certNumber,
       productName: protocolsTable.productName,
       status: protocolsTable.status,

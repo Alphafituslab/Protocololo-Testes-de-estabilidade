@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, protocolAttachmentsTable } from "@workspace/db";
+import { db, protocolAttachmentsTable, clientProtocolAccessTable } from "@workspace/db";
 import { z } from "zod/v4";
 import { requireAuth } from "../lib/session";
 import { logAudit } from "../lib/audit";
@@ -21,11 +21,37 @@ const CreateAttachmentBody = z.object({
 router.get("/protocols/:id/attachments", requireAuth, async (req, res): Promise<void> => {
   const params = AttachmentParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
-  const rows = await db
+
+  let rows = await db
     .select()
     .from(protocolAttachmentsTable)
     .where(eq(protocolAttachmentsTable.protocolId, params.data.id))
     .orderBy(protocolAttachmentsTable.createdAt);
+
+  // For "cliente" role: enforce per-document visibility
+  const user = req.authUser!;
+  if (user.role === "cliente") {
+    const [access] = await db
+      .select({
+        canViewAttachments: clientProtocolAccessTable.canViewAttachments,
+        allowedAttachmentIds: clientProtocolAccessTable.allowedAttachmentIds,
+      })
+      .from(clientProtocolAccessTable)
+      .where(and(
+        eq(clientProtocolAccessTable.clientUserId, user.id),
+        eq(clientProtocolAccessTable.protocolId, params.data.id),
+      ))
+      .limit(1);
+
+    if (!access || !access.canViewAttachments) { res.json([]); return; }
+
+    // Non-empty allowedAttachmentIds = filter to only those docs
+    if (access.allowedAttachmentIds && access.allowedAttachmentIds.length > 0) {
+      const allowed = new Set(access.allowedAttachmentIds);
+      rows = rows.filter(r => allowed.has(r.id));
+    }
+  }
+
   res.json(rows);
 });
 
