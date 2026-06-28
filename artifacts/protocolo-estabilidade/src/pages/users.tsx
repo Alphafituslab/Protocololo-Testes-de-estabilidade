@@ -446,6 +446,11 @@ function ProtocolAssignPanel({ user, token }: { user: User; token: string | null
   const qc = useQueryClient();
   const { toast } = useToast();
   const [searchId, setSearchId] = useState("");
+  const [pendingProtocol, setPendingProtocol] = useState<Protocol | null>(null);
+  const [pendingPerms, setPendingPerms] = useState<{
+    canViewCertificate: boolean; canViewReport: boolean; canPrint: boolean;
+    canViewHistory: boolean; canViewAttachments: boolean; allowedAttachmentIds: number[];
+  }>({ canViewCertificate: true, canViewReport: true, canPrint: true, canViewHistory: false, canViewAttachments: false, allowedAttachmentIds: [] });
 
   const { data: assigned = [], isLoading } = useQuery<ClientProtocolAccess[]>({
     queryKey: ["client-protocols", user.id],
@@ -458,11 +463,13 @@ function ProtocolAssignPanel({ user, token }: { user: User; token: string | null
   });
 
   const assign = useMutation({
-    mutationFn: (protocolId: number) =>
-      apiFetch<{ emailSent?: boolean; emailError?: string }>(`/api/clients/${user.id}/protocols`, token, { method: "POST", body: JSON.stringify({ protocolId }) }),
+    mutationFn: (body: { protocolId: number; canViewCertificate: boolean; canViewReport: boolean; canPrint: boolean; canViewHistory: boolean; canViewAttachments: boolean; allowedAttachmentIds: number[] }) =>
+      apiFetch<{ emailSent?: boolean; emailError?: string }>(`/api/clients/${user.id}/protocols`, token, { method: "POST", body: JSON.stringify(body) }),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["client-protocols", user.id] });
       setSearchId("");
+      setPendingProtocol(null);
+      setPendingPerms({ canViewCertificate: true, canViewReport: true, canPrint: true, canViewHistory: false, canViewAttachments: false, allowedAttachmentIds: [] });
       if (data.emailSent) {
         toast({ title: "✅ Protocolo atribuído", description: `E-mail enviado para ${user.email ?? "cliente"} com as credenciais de acesso.` });
       } else {
@@ -579,6 +586,62 @@ function ProtocolAssignPanel({ user, token }: { user: User; token: string | null
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
           Adicionar protocolo
         </p>
+
+        {/* Pre-assignment config panel */}
+        {pendingProtocol ? (
+          <div className="border-2 border-primary/20 rounded-lg p-3 bg-primary/5 space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold">{pendingProtocol.productName}</p>
+                <p className="text-xs text-muted-foreground font-mono">{pendingProtocol.certNumber ? `#${pendingProtocol.certNumber}` : "sem nº"} · {pendingProtocol.status}</p>
+              </div>
+              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setPendingProtocol(null)}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Permissões de acesso:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {([
+                  ["Certificado", Award, "canViewCertificate"],
+                  ["Relatório", FileText, "canViewReport"],
+                  ["Imprimir", Printer, "canPrint"],
+                  ["Histórico", History, "canViewHistory"],
+                  ["Anexos", Paperclip, "canViewAttachments"],
+                ] as const).map(([label, Icon, key]) => (
+                  <PermToggle key={key} label={label} icon={Icon}
+                    checked={pendingPerms[key] as boolean}
+                    onChange={(v) => setPendingPerms(p => ({ ...p, [key]: v, ...(key === "canViewAttachments" && !v ? { allowedAttachmentIds: [] } : {}) }))}
+                  />
+                ))}
+              </div>
+            </div>
+            {pendingPerms.canViewAttachments && (
+              <div className="border-t pt-2">
+                <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+                  <Paperclip className="h-3 w-3" /> Documentos visíveis para o cliente:
+                </p>
+                <AttachmentSelector
+                  protocolId={pendingProtocol.id}
+                  allowedAttachmentIds={pendingPerms.allowedAttachmentIds}
+                  token={token}
+                  onChange={(ids) => setPendingPerms(p => ({ ...p, allowedAttachmentIds: ids }))}
+                />
+              </div>
+            )}
+            <div className="flex gap-2 pt-1">
+              <Button className="flex-1" disabled={assign.isPending}
+                onClick={() => assign.mutate({ protocolId: pendingProtocol.id, ...pendingPerms })}>
+                {assign.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                Atribuir e Enviar Acesso
+              </Button>
+              <Button variant="outline" onClick={() => setPendingProtocol(null)} disabled={assign.isPending}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
         <Input
           placeholder="Filtrar por nome ou nº certificado (ex: CERT-AF-…)"
           value={searchId}
@@ -589,14 +652,14 @@ function ProtocolAssignPanel({ user, token }: { user: User; token: string | null
           <>
             {!searchId && (
               <p className="text-xs text-muted-foreground mb-1.5">
-                Mostrando protocolos aprovados disponíveis — clique para atribuir:
+                Mostrando protocolos aprovados — clique para configurar e atribuir:
               </p>
             )}
             <div className="border rounded-md divide-y max-h-60 overflow-y-auto">
               {filtered.map((p) => (
                 <button key={p.id} type="button"
                   className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 text-left transition-colors"
-                  onClick={() => assign.mutate(p.id)} disabled={assign.isPending}>
+                  onClick={() => { setPendingProtocol(p); setSearchId(""); }}>
                   <div className="flex-1 min-w-0">
                     <span className="text-sm font-medium truncate block">{p.productName}</span>
                     <span className="text-xs text-muted-foreground font-mono">{p.certNumber ? `#${p.certNumber}` : "sem nº"} · {p.status}</span>
@@ -610,6 +673,8 @@ function ProtocolAssignPanel({ user, token }: { user: User; token: string | null
           <p className="text-xs text-muted-foreground italic">Nenhum protocolo encontrado (ou já atribuído).</p>
         ) : (
           <p className="text-xs text-muted-foreground italic">Nenhum protocolo aprovado disponível para atribuir.</p>
+        )}
+          </>
         )}
       </div>
     </div>

@@ -40,13 +40,14 @@ router.post("/clients/:userId/protocols", requireAuth, requireAdmin, async (req,
   const userId = parseInt(String(req.params["userId"] ?? ""));
   if (isNaN(userId)) { res.status(400).json({ error: "ID inválido." }); return; }
 
-  const { protocolId, canViewCertificate, canViewReport, canPrint, canViewHistory, canViewAttachments } = req.body as {
+  const { protocolId, canViewCertificate, canViewReport, canPrint, canViewHistory, canViewAttachments, allowedAttachmentIds } = req.body as {
     protocolId?: number;
     canViewCertificate?: boolean;
     canViewReport?: boolean;
     canPrint?: boolean;
     canViewHistory?: boolean;
     canViewAttachments?: boolean;
+    allowedAttachmentIds?: number[];
   };
   if (!protocolId) { res.status(400).json({ error: "protocolId é obrigatório." }); return; }
 
@@ -85,6 +86,7 @@ router.post("/clients/:userId/protocols", requireAuth, requireAdmin, async (req,
       canPrint: canPrint ?? true,
       canViewHistory: canViewHistory ?? false,
       canViewAttachments: canViewAttachments ?? false,
+      allowedAttachmentIds: Array.isArray(allowedAttachmentIds) ? allowedAttachmentIds : [],
     }).returning();
 
     // Send notification email if client has an email configured
