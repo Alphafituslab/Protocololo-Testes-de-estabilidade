@@ -3679,17 +3679,23 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
         if (local.length > 0) persistSavedAnalyses(local);
         return;
       }
-      // Merge: server is authoritative; add any local entries not yet on server
+      // Merge: union of server + local — neither side loses data
       const serverMap = new Map(serverAnalyses.map(a => [a.id, a]));
       const local = loadSavedAnalyses();
+      const localOnlyEntries: SavedAnalysis[] = [];
       for (const la of local) {
-        if (!serverMap.has(la.id)) serverMap.set(la.id, la);
+        if (!serverMap.has(la.id)) {
+          serverMap.set(la.id, la);
+          localOnlyEntries.push(la);
+        }
       }
       const merged = Array.from(serverMap.values()).sort(
         (a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()
       );
       setSavedAnalyses(merged);
       try { localStorage.setItem(SAVED_ANALYSES_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
+      // Push any local-only entries up to the server so they survive a localStorage clear
+      if (localOnlyEntries.length > 0) persistSavedAnalyses(merged);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
