@@ -3592,6 +3592,19 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     if (imgs.length > 0) setSavedImages(imgs);
   }, []);
 
+  // Auto-select the most recent session when entering the Analysis tab or when sessions first load
+  useEffect(() => {
+    if (page !== "analise") return;
+    const isValid = currentSessionId && analysisSessions.some(s => s.id === currentSessionId);
+    if (!isValid && analysisSessions.length > 0) {
+      // Sessions are already sorted newest-first after the server merge; pick the first
+      const newest = [...analysisSessions].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )[0];
+      setCurrentSessionId(newest.id);
+    }
+  }, [page, analysisSessions, currentSessionId]);
+
   // On mount: load sessions from server and merge (server wins — always the most complete set)
   useEffect(() => {
     loadSessionsFromServer().then(serverSessions => {
