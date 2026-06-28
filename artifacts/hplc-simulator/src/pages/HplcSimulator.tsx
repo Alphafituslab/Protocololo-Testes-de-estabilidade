@@ -5465,7 +5465,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
       <div className="max-w-[1160px] mx-auto flex gap-3 items-start">
 
         {/* ── LEFT: controls ───────────────────────────────────────────────── */}
-        {showControls && (
+        {(showControls || page === "analise") && (
           <div className="no-print w-60 flex-shrink-0 space-y-3" style={{ maxHeight: "calc(100vh - 80px)", overflowY: "auto", paddingRight: 2, position: "sticky", top: 8, alignSelf: "flex-start" }}>
             {page === "chromatogram" && (
               <>
