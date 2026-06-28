@@ -3700,59 +3700,118 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Workspace: load from server on mount and hydrate localStorage with any missing data ──
+  // ── Workspace: load from server on mount — ADDITIVE UNION MERGE (never lose data) ──
   useEffect(() => {
     loadWorkspaceFromServer().then(ws => {
       if (!ws) return;
-      // Hydrate each data type only if localStorage is currently empty for that key
-      if (ws.formulas && Array.isArray(ws.formulas) && ws.formulas.length > 0) {
+
+      // Generic union merge for id-keyed arrays: server wins for same ID, local-only items are
+      // kept AND pushed back to the server so they survive future localStorage clears.
+      function mergeById<T extends { id: string }>(server: T[], local: T[]): { merged: T[]; hadLocalOnly: boolean } {
+        const serverMap = new Map(server.map(item => [item.id, item]));
+        let hadLocalOnly = false;
+        for (const localItem of local) {
+          if (!serverMap.has(localItem.id)) {
+            serverMap.set(localItem.id, localItem);
+            hadLocalOnly = true;
+          }
+        }
+        return { merged: Array.from(serverMap.values()), hadLocalOnly };
+      }
+
+      let needServerPush = false;
+
+      if (ws.formulas && Array.isArray(ws.formulas)) {
         const local = loadFormulas();
-        if (local.length === 0) {
-          try { localStorage.setItem(FORMULAS_KEY, JSON.stringify(ws.formulas)); } catch { /* ignore */ }
-          setFormulas(ws.formulas as Formula[]);
+        const { merged, hadLocalOnly } = mergeById(ws.formulas as Formula[], local);
+        if (merged.length !== local.length || hadLocalOnly || ws.formulas.length !== local.length) {
+          try { localStorage.setItem(FORMULAS_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
+          setFormulas(merged);
+          if (hadLocalOnly) needServerPush = true;
         }
       }
-      if (ws.lots && Array.isArray(ws.lots) && ws.lots.length > 0) {
+
+      if (ws.lots && Array.isArray(ws.lots)) {
         const local = loadLots();
-        if (local.length === 0) {
-          try { localStorage.setItem(LOTS_KEY, JSON.stringify(ws.lots)); } catch { /* ignore */ }
-          setLots(ws.lots as Lot[]);
+        const { merged, hadLocalOnly } = mergeById(ws.lots as Lot[], local);
+        if (merged.length !== local.length || hadLocalOnly || ws.lots.length !== local.length) {
+          try { localStorage.setItem(LOTS_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
+          setLots(merged);
+          if (hadLocalOnly) needServerPush = true;
         }
       }
-      if (ws.formulaStandards && Array.isArray(ws.formulaStandards) && ws.formulaStandards.length > 0) {
+
+      if (ws.formulaStandards && Array.isArray(ws.formulaStandards)) {
         const local = loadFormulaStandards();
-        if (local.length === 0) {
-          try { localStorage.setItem(STANDARDS_KEY, JSON.stringify(ws.formulaStandards)); } catch { /* ignore */ }
-          setFormulaStandards(ws.formulaStandards as FormulaStandard[]);
+        // FormulaStandard uses formulaId as key
+        const serverMap = new Map((ws.formulaStandards as FormulaStandard[]).map(s => [s.formulaId, s]));
+        let hadLocalOnly = false;
+        for (const localItem of local) {
+          if (!serverMap.has(localItem.formulaId)) { serverMap.set(localItem.formulaId, localItem); hadLocalOnly = true; }
+        }
+        const merged = Array.from(serverMap.values());
+        if (merged.length !== local.length || hadLocalOnly) {
+          try { localStorage.setItem(STANDARDS_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
+          setFormulaStandards(merged);
+          if (hadLocalOnly) needServerPush = true;
         }
       }
-      if (ws.compoundLibrary && Array.isArray(ws.compoundLibrary) && ws.compoundLibrary.length > 0) {
+
+      if (ws.compoundLibrary && Array.isArray(ws.compoundLibrary)) {
         const localRaw = localStorage.getItem(COMPOUND_LIBRARY_KEY);
         const local = localRaw ? (JSON.parse(localRaw) as ActiveCompound[]) : [];
-        if (local.length === 0) {
-          try { localStorage.setItem(COMPOUND_LIBRARY_KEY, JSON.stringify(ws.compoundLibrary)); } catch { /* ignore */ }
-          setActiveCompounds(ws.compoundLibrary as ActiveCompound[]);
+        const { merged, hadLocalOnly } = mergeById(ws.compoundLibrary as ActiveCompound[], local);
+        if (merged.length !== local.length || hadLocalOnly || ws.compoundLibrary.length !== local.length) {
+          try { localStorage.setItem(COMPOUND_LIBRARY_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
+          setActiveCompounds(merged);
+          if (hadLocalOnly) needServerPush = true;
         }
       }
+
       if (ws.compoundCalibrations && typeof ws.compoundCalibrations === "object") {
         const local = loadCompoundCalibrations();
-        if (Object.keys(local).length === 0) {
-          try { localStorage.setItem(COMPOUND_CALIBS_KEY, JSON.stringify(ws.compoundCalibrations)); } catch { /* ignore */ }
-          setCompoundCalibrations(ws.compoundCalibrations as Record<string, CompoundCalibration>);
+        const serverCalib = ws.compoundCalibrations as Record<string, CompoundCalibration>;
+        // Merge: server wins per key, but local-only keys are preserved
+        const merged = { ...local, ...serverCalib };
+        const localOnlyKeys = Object.keys(local).filter(k => !(k in serverCalib));
+        if (Object.keys(merged).length !== Object.keys(local).length || localOnlyKeys.length > 0) {
+          try { localStorage.setItem(COMPOUND_CALIBS_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
+          setCompoundCalibrations(merged);
+          if (localOnlyKeys.length > 0) needServerPush = true;
         }
       }
+
       if (ws.padraoConfig && typeof ws.padraoConfig === "object") {
         if (!localStorage.getItem(PADRAO_KEY)) {
           try { localStorage.setItem(PADRAO_KEY, JSON.stringify(ws.padraoConfig)); } catch { /* ignore */ }
           setPadraoConfig(c => ({ ...c, ...(ws.padraoConfig as Partial<PadraoConfig>) }));
         }
       }
-      if (ws.padraoPresets && Array.isArray(ws.padraoPresets) && ws.padraoPresets.length > 0) {
+
+      if (ws.padraoPresets && Array.isArray(ws.padraoPresets)) {
         const local = loadPadraoPresets();
-        if (local.length === 0) {
-          try { localStorage.setItem(PADRAO_PRESETS_KEY, JSON.stringify(ws.padraoPresets)); } catch { /* ignore */ }
-          setPadraoPresets(ws.padraoPresets as PadraoPreset[]);
+        const { merged, hadLocalOnly } = mergeById(ws.padraoPresets as PadraoPreset[], local);
+        if (merged.length !== local.length || hadLocalOnly || ws.padraoPresets.length !== local.length) {
+          try { localStorage.setItem(PADRAO_PRESETS_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
+          setPadraoPresets(merged);
+          if (hadLocalOnly) needServerPush = true;
         }
+      }
+
+      // If local had items the server didn't know about, push the full merged workspace immediately
+      if (needServerPush) {
+        setTimeout(() => {
+          pushWorkspaceToServer({
+            formulas: loadFormulas(),
+            lots: loadLots(),
+            formulaStandards: loadFormulaStandards(),
+            compoundLibrary: (JSON.parse(localStorage.getItem(COMPOUND_LIBRARY_KEY) ?? "[]") as ActiveCompound[]),
+            compoundCalibrations: loadCompoundCalibrations(),
+            padraoConfig: JSON.parse(localStorage.getItem(PADRAO_KEY) ?? "{}") as PadraoConfig,
+            padraoPresets: loadPadraoPresets(),
+            padraoChangelog: [],
+          }).then(() => setWorkspaceSyncStatus("ok")).catch(() => setWorkspaceSyncStatus("error"));
+        }, 500);
       }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
