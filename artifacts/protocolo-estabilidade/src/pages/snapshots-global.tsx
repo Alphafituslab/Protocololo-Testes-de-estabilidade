@@ -51,7 +51,10 @@ async function saveFileAs(blob: Blob, suggestedName: string): Promise<void> {
  * Fetch snapshot data from API and save via "Save As" dialog (or browser default).
  */
 async function downloadSnapshot(id: number, createdAt: string): Promise<void> {
-  const res = await fetch(`/api/global-snapshots/${id}/download`, { credentials: "include" });
+  const token = localStorage.getItem("alphafitus_token");
+  const res = await fetch(`/api/global-snapshots/${id}/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (!res.ok) throw new Error(`Erro ${res.status} ao buscar snapshot`);
   const text = await res.text();
   const blob = new Blob([text], { type: "application/json" });
@@ -82,11 +85,15 @@ function fmtSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
+function getAuthHeader(): Record<string, string> {
+  const token = localStorage.getItem("alphafitus_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function apiFetch<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...(opts?.headers ?? {}) },
     ...opts,
+    headers: { "Content-Type": "application/json", ...getAuthHeader(), ...(opts?.headers ?? {}) },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({})) as { error?: string };
