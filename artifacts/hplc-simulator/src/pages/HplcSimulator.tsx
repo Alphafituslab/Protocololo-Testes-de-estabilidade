@@ -6807,7 +6807,9 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
 
             {page === "analise" && (() => {
               const session = analysisSessions.find(s => s.id === currentSessionId) ?? null;
-              const sessionFormula = session ? formulas.find(f => f.id === session.formulaId) ?? null : null;
+              const sessionFormula = session
+                ? (formulas.find(f => f.id === session.formulaId) ?? formulas[0] ?? null)
+                : null;
               const std = sessionFormula ? formulaStandards.find(s => s.formulaId === sessionFormula.id) ?? null : null;
               const filteredSaved = savedAnalyses.filter(a => {
                 const q = analysisSearch.trim().toLowerCase();
@@ -8578,7 +8580,11 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
           {/* ── ANÁLISE PAGE ──────────────────────────────────────────────── */}
           {page === "analise" && (() => {
             const session = analysisSessions.find(s => s.id === currentSessionId) ?? null;
-            const sessionFormula = session ? formulas.find(f => f.id === session.formulaId) ?? null : null;
+            // Primary lookup — exact formula match; fallback to first available formula so
+            // sessions whose formula was lost still render with the available method params.
+            const sessionFormula = session
+              ? (formulas.find(f => f.id === session.formulaId) ?? formulas[0] ?? null)
+              : null;
             const std = sessionFormula ? formulaStandards.find(s => s.formulaId === sessionFormula.id) ?? null : null;
             const compounds = sessionFormula?.activeCompounds ?? [];
 
@@ -8738,13 +8744,24 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
             }
 
             // ── Sessions sub-tab ─────────────────────────────────────────
-            if (!session || !sessionFormula) {
+            if (!session) {
               return (
                 <div style={{ textAlign: "center", color: "#aaa", padding: "60px 0" }}>
                   <FlaskConical style={{ width: 40, height: 40, margin: "0 auto 12px", opacity: 0.3 }} />
-                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 13, fontWeight: "bold", marginBottom: 6 }}>No session selected</div>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 13, fontWeight: "bold", marginBottom: 6 }}>Nenhuma sessão selecionada</div>
                   <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#bbb" }}>
-                    In the left panel, create or select an analysis session.
+                    Selecione ou crie uma sessão de análise no painel esquerdo.
+                  </div>
+                </div>
+              );
+            }
+            if (!sessionFormula) {
+              return (
+                <div style={{ textAlign: "center", color: "#aaa", padding: "60px 0" }}>
+                  <FlaskConical style={{ width: 40, height: 40, margin: "0 auto 12px", opacity: 0.3 }} />
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 13, fontWeight: "bold", marginBottom: 6 }}>Nenhuma fórmula HPLC disponível</div>
+                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 11, color: "#bbb" }}>
+                    Crie ao menos uma fórmula HPLC na aba Fórmulas para usar esta sessão.
                   </div>
                 </div>
               );
