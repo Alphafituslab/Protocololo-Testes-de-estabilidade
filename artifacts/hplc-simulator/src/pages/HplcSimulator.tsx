@@ -2404,6 +2404,47 @@ function saveFormulaStandards(s: FormulaStandard[]) {
   try { localStorage.setItem(STANDARDS_KEY, JSON.stringify(s)); } catch { /* ignore */ }
 }
 
+// ── Workspace persistence (server-backed) ─────────────────────────────────────
+// Stores all critical data (formulas, lots, standards, compounds, padrão, etc.)
+// in the server DB so nothing is lost if localStorage is cleared.
+
+type WorkspaceSnapshot = {
+  formulas?: unknown[];
+  lots?: unknown[];
+  formulaStandards?: unknown[];
+  compoundLibrary?: unknown[];
+  compoundCalibrations?: unknown;
+  padraoConfig?: unknown;
+  padraoPresets?: unknown[];
+  padraoChangelog?: unknown[];
+};
+
+async function loadWorkspaceFromServer(): Promise<WorkspaceSnapshot | null> {
+  const token = getAuthToken();
+  if (!token) return null;
+  try {
+    const res = await fetch("/api/hplc/workspace", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const json = await res.json() as { workspaceData: WorkspaceSnapshot };
+    return json.workspaceData ?? null;
+  } catch { return null; }
+}
+
+async function pushWorkspaceToServer(data: WorkspaceSnapshot): Promise<boolean> {
+  const token = getAuthToken();
+  if (!token) return false;
+  try {
+    const res = await fetch("/api/hplc/workspace", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
 const SETUP_KEY = "hplc_session_setup_v1";
 function loadLastSetup(): Partial<SessionSetupData> {
   try { return JSON.parse(localStorage.getItem(SETUP_KEY) ?? "{}") as Partial<SessionSetupData>; }
@@ -3302,8 +3343,10 @@ export default function HplcSimulator() {
   const [reportSelectedImageId, setReportSelectedImageId] = useState<string | null>(null);
   const [syncAreasActive, setSyncAreasActive] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [workspaceSyncStatus, setWorkspaceSyncStatus] = useState<"idle" | "syncing" | "ok" | "error">("idle");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileTargetPeakIdRef = useRef<string | null>(null);
+  const workspaceSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Undo stack ───────────────────────────────────────────────────────────
   const undoStackRef = useRef<Array<{ peaks: Peak[]; compoundCalibrations: Record<string, CompoundCalibration>; detector: DetectorInfo }>>([]);
@@ -3650,6 +3693,86 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Workspace: load from server on mount and hydrate localStorage with any missing data ──
+  useEffect(() => {
+    loadWorkspaceFromServer().then(ws => {
+      if (!ws) return;
+      // Hydrate each data type only if localStorage is currently empty for that key
+      if (ws.formulas && Array.isArray(ws.formulas) && ws.formulas.length > 0) {
+        const local = loadFormulas();
+        if (local.length === 0) {
+          try { localStorage.setItem(FORMULAS_KEY, JSON.stringify(ws.formulas)); } catch { /* ignore */ }
+          setFormulas(ws.formulas as Formula[]);
+        }
+      }
+      if (ws.lots && Array.isArray(ws.lots) && ws.lots.length > 0) {
+        const local = loadLots();
+        if (local.length === 0) {
+          try { localStorage.setItem(LOTS_KEY, JSON.stringify(ws.lots)); } catch { /* ignore */ }
+          setLots(ws.lots as Lot[]);
+        }
+      }
+      if (ws.formulaStandards && Array.isArray(ws.formulaStandards) && ws.formulaStandards.length > 0) {
+        const local = loadFormulaStandards();
+        if (local.length === 0) {
+          try { localStorage.setItem(STANDARDS_KEY, JSON.stringify(ws.formulaStandards)); } catch { /* ignore */ }
+          setFormulaStandards(ws.formulaStandards as FormulaStandard[]);
+        }
+      }
+      if (ws.compoundLibrary && Array.isArray(ws.compoundLibrary) && ws.compoundLibrary.length > 0) {
+        const localRaw = localStorage.getItem(COMPOUND_LIBRARY_KEY);
+        const local = localRaw ? (JSON.parse(localRaw) as ActiveCompound[]) : [];
+        if (local.length === 0) {
+          try { localStorage.setItem(COMPOUND_LIBRARY_KEY, JSON.stringify(ws.compoundLibrary)); } catch { /* ignore */ }
+          setActiveCompounds(ws.compoundLibrary as ActiveCompound[]);
+        }
+      }
+      if (ws.compoundCalibrations && typeof ws.compoundCalibrations === "object") {
+        const local = loadCompoundCalibrations();
+        if (Object.keys(local).length === 0) {
+          try { localStorage.setItem(COMPOUND_CALIBS_KEY, JSON.stringify(ws.compoundCalibrations)); } catch { /* ignore */ }
+          setCompoundCalibrations(ws.compoundCalibrations as Record<string, CompoundCalibration>);
+        }
+      }
+      if (ws.padraoConfig && typeof ws.padraoConfig === "object") {
+        if (!localStorage.getItem(PADRAO_KEY)) {
+          try { localStorage.setItem(PADRAO_KEY, JSON.stringify(ws.padraoConfig)); } catch { /* ignore */ }
+          setPadraoConfig(c => ({ ...c, ...(ws.padraoConfig as Partial<PadraoConfig>) }));
+        }
+      }
+      if (ws.padraoPresets && Array.isArray(ws.padraoPresets) && ws.padraoPresets.length > 0) {
+        const local = loadPadraoPresets();
+        if (local.length === 0) {
+          try { localStorage.setItem(PADRAO_PRESETS_KEY, JSON.stringify(ws.padraoPresets)); } catch { /* ignore */ }
+          setPadraoPresets(ws.padraoPresets as PadraoPreset[]);
+        }
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Workspace: debounced sync to server whenever critical data changes ──────
+  useEffect(() => {
+    if (workspaceSyncTimer.current) clearTimeout(workspaceSyncTimer.current);
+    workspaceSyncTimer.current = setTimeout(() => {
+      setWorkspaceSyncStatus("syncing");
+      pushWorkspaceToServer({
+        formulas,
+        lots,
+        formulaStandards,
+        compoundLibrary: activeCompounds,
+        compoundCalibrations,
+        padraoConfig,
+        padraoPresets,
+        padraoChangelog,
+      }).then(ok => {
+        setWorkspaceSyncStatus(ok ? "ok" : "error");
+      });
+    }, 2000);
+    return () => { if (workspaceSyncTimer.current) clearTimeout(workspaceSyncTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formulas, lots, formulaStandards, activeCompounds, compoundCalibrations, padraoConfig, padraoPresets, padraoChangelog]);
 
   // Auto-navigate to sessions tab when coming from dashboard with a session request
   useEffect(() => {
@@ -5246,6 +5369,27 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
         <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => setShowControls(v => !v)}>
           <Settings className="h-3.5 w-3.5" /> {showControls ? "Ocultar" : "Controles"}
         </Button>
+
+        {/* ── Sync status indicator ──────────────────────────────────────── */}
+        {workspaceSyncStatus === "syncing" && (
+          <span className="flex items-center gap-1 text-xs text-slate-400 px-1" title="Salvando no servidor...">
+            <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+            </svg>
+            Salvando…
+          </span>
+        )}
+        {workspaceSyncStatus === "ok" && (
+          <span className="flex items-center gap-1 text-xs text-green-600 px-1" title="Dados salvos no servidor">
+            <CheckCircle2 className="h-3 w-3" /> Salvo
+          </span>
+        )}
+        {workspaceSyncStatus === "error" && (
+          <span className="flex items-center gap-1 text-xs text-red-500 px-1" title="Falha ao salvar no servidor — dados preservados localmente">
+            ⚠ Sem sync
+          </span>
+        )}
 
         {/* ── Confirm / saved feedback ──────────────────────────────────── */}
         {isDirty && (
