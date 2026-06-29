@@ -285,13 +285,11 @@ export default function Dashboard() {
               </button>
             )}
           </div>
-          {!statusFilter && (
-            <Link href="/protocols">
-              <span className="text-xs text-primary hover:underline font-medium flex items-center gap-1">
-                Ver todos <ArrowRight className="h-3 w-3" />
-              </span>
-            </Link>
-          )}
+          <Link href="/protocols">
+            <span className="text-xs text-primary hover:underline font-medium flex items-center gap-1">
+              Ver todos <ArrowRight className="h-3 w-3" />
+            </span>
+          </Link>
         </div>
 
         {/* Search bar */}
