@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
-import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download, Users, ShieldCheck, ShieldOff, ToggleLeft, ToggleRight, LayoutDashboard, ImageDown, ClipboardCheck, ClipboardX, ScrollText, Activity, ImageIcon, Eye, EyeOff, ClipboardPaste, Scale, Lock, LockOpen } from "lucide-react";
+import { Printer, Plus, Trash2, Settings, FlaskConical, BarChart3, FileText, Database, Zap, CheckCircle2, XCircle, LogOut, Check, Layers, Download, Users, ShieldCheck, ShieldOff, ToggleLeft, ToggleRight, LayoutDashboard, ImageDown, ClipboardCheck, ClipboardX, ScrollText, Activity, ImageIcon, Eye, EyeOff, ClipboardPaste, Scale, Lock, LockOpen, Clock, FileCheck2 } from "lucide-react";
 import { useAuth } from "@/contexts/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -7338,245 +7338,269 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
               laudo_emitido: "#7c3aed",
             };
 
+            const SESSION_STATUS_ICON: Record<string, React.ReactNode> = {
+              em_andamento: <Clock className="h-3 w-3" />,
+              aprovado:     <CheckCircle2 className="h-3 w-3" />,
+              reprovado:    <XCircle className="h-3 w-3" />,
+              laudo_emitido:<FileCheck2 className="h-3 w-3" />,
+            };
+            const SESSION_STATUS_BORDER: Record<string, string> = {
+              em_andamento: "#93c5fd",
+              aprovado:     "#86efac",
+              reprovado:    "#fca5a5",
+              laudo_emitido:"#d8b4fe",
+            };
+
             return (
-              <div style={{ fontFamily: "Courier New, monospace" }}>
-                {/* Header */}
-                <div style={{ fontWeight: "bold", fontSize: 15, marginBottom: 18, borderBottom: "1px solid #bbb", paddingBottom: 10, color: "#1d4ed8" }}>
-                  Analysis Sessions
+              <div className="space-y-5">
+
+                {/* ── Header ── */}
+                <div className="flex items-center gap-3 pb-4 border-b border-border">
+                  <div className="bg-blue-100 rounded-xl p-2.5">
+                    <FlaskConical className="h-5 w-5 text-blue-700" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-foreground">Analysis Sessions</h2>
+                    <p className="text-xs text-muted-foreground">{total} session{total !== 1 ? "s" : ""} · {imgCount} image{imgCount !== 1 ? "s" : ""} in library</p>
+                  </div>
                 </div>
 
-                {/* Stat cards — clickable to filter the session list below */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 24 }}>
-                  {[
-                    { label: "Total", value: total, bg: "#f8fafc", color: "#334155", Icon: Activity, filter: null },
-                    { label: "In Progress", value: emAndamento, bg: "#dbeafe", color: "#1d4ed8", Icon: FlaskConical, filter: "em_andamento" },
-                    { label: "Approved", value: aprovados, bg: "#dcfce7", color: "#16a34a", Icon: ClipboardCheck, filter: "aprovado" },
-                    { label: "Rejected", value: reprovados, bg: "#fee2e2", color: "#dc2626", Icon: ClipboardX, filter: "reprovado" },
-                  ].map(({ label, value, bg, color, Icon, filter }) => {
+                {/* ── Stat cards ── */}
+                <div className="grid grid-cols-4 gap-3">
+                  {([
+                    { label: "Total",       value: total,        bgCls: "bg-slate-50",  borderBase: "#cbd5e1", colorHex: "#334155", Icon: Activity,       filter: null },
+                    { label: "In Progress", value: emAndamento,  bgCls: "bg-blue-50",   borderBase: "#93c5fd", colorHex: "#1d4ed8", Icon: FlaskConical,    filter: "em_andamento" },
+                    { label: "Approved",    value: aprovados,    bgCls: "bg-green-50",  borderBase: "#86efac", colorHex: "#16a34a", Icon: ClipboardCheck,  filter: "aprovado" },
+                    { label: "Rejected",    value: reprovados,   bgCls: "bg-red-50",    borderBase: "#fca5a5", colorHex: "#dc2626", Icon: ClipboardX,      filter: "reprovado" },
+                  ] as { label: string; value: number; bgCls: string; borderBase: string; colorHex: string; Icon: React.ComponentType<{ className?: string }>; filter: string | null }[]).map(({ label, value, bgCls, borderBase, colorHex, Icon, filter }) => {
                     const isActive = panelStatusFilter === filter;
                     return (
-                      <div key={label}
+                      <div
+                        key={label}
                         onClick={() => setPanelStatusFilter(isActive ? null : filter)}
+                        className={`${bgCls} rounded-xl p-4 text-center cursor-pointer select-none transition-all hover:shadow-md`}
                         style={{
-                          background: bg, border: `2px solid ${isActive ? color : color + "33"}`,
-                          borderRadius: 8, padding: "14px 12px", textAlign: "center",
-                          cursor: "pointer", transform: isActive ? "scale(1.03)" : "scale(1)",
-                          boxShadow: isActive ? `0 2px 10px ${color}44` : "none",
-                          transition: "all 0.15s",
-                          userSelect: "none",
-                        }}>
-                        <Icon style={{ width: 20, height: 20, color, margin: "0 auto 6px" }} />
-                        <div style={{ fontSize: 22, fontWeight: "bold", color, lineHeight: 1 }}>{value}</div>
-                        <div style={{ fontSize: 9, color: "#666", marginTop: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
-                        {isActive && <div style={{ fontSize: 8, color, marginTop: 3, fontWeight: "bold" }}>filtered ✓</div>}
+                          border: `2px solid ${isActive ? colorHex : borderBase}`,
+                          transform: isActive ? "scale(1.03)" : "scale(1)",
+                          boxShadow: isActive ? `0 4px 14px ${colorHex}33` : undefined,
+                        }}
+                      >
+                        <Icon className="h-5 w-5 mx-auto mb-1.5" style={{ color: colorHex }} />
+                        <div className="text-2xl font-bold leading-none" style={{ color: colorHex }}>{value}</div>
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-wide mt-1.5">{label}</div>
+                        {isActive && <div className="text-[9px] font-bold mt-1" style={{ color: colorHex }}>filtered ✓</div>}
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Imagens salvas banner */}
-                <div style={{ background: imgCount > 0 ? "#f0fdf4" : "#fafaf9", border: `1px solid ${imgCount > 0 ? "#86efac" : "#e5e7eb"}`, borderRadius: 8, padding: "10px 14px", marginBottom: 18, display: "flex", alignItems: "center", gap: 10 }}>
-                  <ImageIcon style={{ width: 16, height: 16, color: imgCount > 0 ? "#16a34a" : "#64748b" }} />
-                  <span style={{ fontSize: 11, color: "#555" }}>
-                    <b style={{ color: imgCount > 0 ? "#16a34a" : "#334155", fontSize: 13 }}>{imgCount}</b>{" "}
-                    chromatogram image{imgCount !== 1 ? "s" : ""} saved and available to attach to the Stability Protocol.
+                {/* ── Image library banner ── */}
+                <div className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${imgCount > 0 ? "bg-green-50 border-green-200" : "bg-muted/30 border-border"}`}>
+                  <ImageIcon className={`h-5 w-5 shrink-0 ${imgCount > 0 ? "text-green-600" : "text-muted-foreground"}`} />
+                  <span className="flex-1 text-sm">
+                    <b className={imgCount > 0 ? "text-green-700" : "text-foreground"}>{imgCount}</b>
+                    {" "}chromatogram image{imgCount !== 1 ? "s" : ""} saved — available to attach to the Stability Protocol.
                   </span>
-                  <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-                    {imgCount > 0 && (
-                      <>
-                        <button style={{ fontSize: 10, padding: "2px 10px", border: "1px solid #16a34a", borderRadius: 4, background: "#dcfce7", cursor: "pointer", color: "#16a34a", fontWeight: "bold", fontFamily: "Courier New, monospace" }}
-                          onClick={() => galleryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-                          View gallery ↓
-                        </button>
-                        <button style={{ fontSize: 10, color: "#dc2626", background: "none", border: "none", cursor: "pointer", fontFamily: "Courier New, monospace" }}
-                          onClick={() => { if (confirm(`Delete all ${imgCount} saved images?`)) { setSavedImages([]); saveSavedImages([]); } }}>
-                          Clear library
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  {imgCount > 0 && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-green-300 text-green-700 hover:bg-green-100"
+                        onClick={() => galleryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+                        View gallery ↓
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => { if (confirm(`Delete all ${imgCount} saved images?`)) { setSavedImages([]); saveSavedImages([]); } }}>
+                        Clear library
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
-                {/* Session list */}
+                {/* ── Session list ── */}
                 {analysisSessions.length === 0 ? (
-                  <div style={{ textAlign: "center", color: "#aaa", fontSize: 12, padding: "40px 0" }}>
-                    No analysis sessions created yet.<br />
-                    <span style={{ fontSize: 10 }}>Go to the "Analysis" tab and create a new session.</span>
+                  <div className="rounded-xl border-2 border-dashed border-border p-14 text-center">
+                    <FlaskConical className="h-11 w-11 text-muted-foreground/25 mx-auto mb-3" />
+                    <p className="text-sm font-medium text-muted-foreground">No analysis sessions yet</p>
+                    <p className="text-xs text-muted-foreground/60 mt-1">Go to the "Analysis" tab and create a new session.</p>
                   </div>
                 ) : (() => {
                   const filtered = [...analysisSessions]
                     .filter(s => !panelStatusFilter || s.status === panelStatusFilter)
                     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
                   return (
-                  <>
-                    {panelStatusFilter && (
-                      <div style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 10, color: "#555", fontFamily: "Courier New, monospace" }}>
-                          Showing {filtered.length} session(s) with filter: <b>{statusLabel[panelStatusFilter]}</b>
-                        </span>
-                        <button style={{ fontSize: 9, padding: "1px 8px", border: "1px solid #94a3b8", borderRadius: 4, background: "#f1f5f9", cursor: "pointer", color: "#475569" }}
-                          onClick={() => setPanelStatusFilter(null)}>
-                          ✕ Clear filter
-                        </button>
+                    <div>
+                      {panelStatusFilter && (
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="text-xs text-muted-foreground">
+                            Showing {filtered.length} session(s) · filter: <b>{statusLabel[panelStatusFilter]}</b>
+                          </span>
+                          <Button size="sm" variant="outline" className="h-6 text-xs px-2"
+                            onClick={() => setPanelStatusFilter(null)}>
+                            ✕ Clear
+                          </Button>
+                        </div>
+                      )}
+                      <div className="rounded-xl border border-border overflow-hidden shadow-sm">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-muted/60 border-b border-border">
+                              {["Session", "Formula", "Runs", "Status", "Date", "Actions"].map(h => (
+                                <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                                  {h}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border bg-card">
+                            {filtered.map(s => {
+                              const formula = formulas.find(f => f.id === s.formulaId);
+                              const goToSession = () => { setCurrentSessionId(s.id); setPagePersist("analise"); };
+                              const sBg    = statusBg[s.status]    ?? "#f1f5f9";
+                              const sColor = statusColor[s.status] ?? "#334155";
+                              const sBorder = SESSION_STATUS_BORDER[s.status] ?? "#cbd5e1";
+                              return (
+                                <tr key={s.id}
+                                  onClick={goToSession}
+                                  className="hover:bg-blue-50/50 cursor-pointer transition-colors">
+                                  <td className="px-4 py-3 font-semibold text-blue-700 max-w-[200px]">
+                                    <span className="block truncate underline underline-offset-2" title={s.name}>{s.name}</span>
+                                  </td>
+                                  <td className="px-4 py-3 text-xs text-muted-foreground">{formula?.name ?? <span className="italic opacity-50">—</span>}</td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className="inline-flex items-center justify-center bg-blue-100 text-blue-700 rounded-full text-xs font-bold min-w-[24px] h-6 px-2">
+                                      {s.runs.length}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                                      style={{ background: sBg, color: sColor, border: `1px solid ${sBorder}` }}>
+                                      {SESSION_STATUS_ICON[s.status]}
+                                      {statusLabel[s.status] ?? s.status}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                                    {new Date(s.createdAt).toLocaleDateString("en-US")}
+                                  </td>
+                                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                                    <div className="flex gap-1.5 flex-wrap items-center">
+                                      <Button size="sm" variant="outline" className="h-7 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+                                        onClick={goToSession}>
+                                        Open →
+                                      </Button>
+
+                                      {s.snapshotState && (
+                                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                                          onClick={() => {
+                                            if (s.status !== "em_andamento") {
+                                              setMasterAuthDialog({
+                                                onSuccess: () => {
+                                                  setUnlockedSessionId(s.id);
+                                                  handleLoadSnapshotSession(s);
+                                                },
+                                              });
+                                              setMasterAuthInput("");
+                                              setMasterAuthError(null);
+                                            } else {
+                                              handleLoadSnapshotSession(s);
+                                            }
+                                          }}>
+                                          {s.status !== "em_andamento" ? <Lock className="h-3 w-3" /> : null}
+                                          Review
+                                        </Button>
+                                      )}
+
+                                      {s.status === "em_andamento" && (
+                                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-green-200 text-green-700 hover:bg-green-50"
+                                          onClick={() => {
+                                            setFinalizeStatus("aprovado");
+                                            setFinalizeNotes(s.conclusionNotes ?? "");
+                                            setFinalizeDialog({ id: s.id, name: s.name });
+                                          }}>
+                                          <ClipboardCheck className="h-3 w-3" /> Conclude
+                                        </Button>
+                                      )}
+
+                                      {(s.status === "aprovado" || s.status === "reprovado") && (
+                                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-amber-200 text-amber-700 hover:bg-amber-50"
+                                          onClick={() => {
+                                            setFinalizeStatus("em_andamento");
+                                            setFinalizeNotes(s.conclusionNotes ?? "");
+                                            setFinalizeDialog({ id: s.id, name: s.name });
+                                          }}>
+                                          Change Status
+                                        </Button>
+                                      )}
+
+                                      {(s.status === "aprovado" || s.status === "reprovado") && (
+                                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-violet-200 text-violet-700 hover:bg-violet-50"
+                                          onClick={() => { if (confirm(`Issue report for "${s.name}"?`)) handleEmitLaudo(s.id); }}>
+                                          <ScrollText className="h-3 w-3" /> Issue Report
+                                        </Button>
+                                      )}
+
+                                      {s.runs.length > 0 && (
+                                        <>
+                                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                                            onClick={() => handleSavePng(s.id, false)}>
+                                            <ImageDown className="h-3 w-3" /> PNG
+                                          </Button>
+                                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-green-200 text-green-700 hover:bg-green-50"
+                                            onClick={() => handleSavePng(s.id, true)}>
+                                            <ImageIcon className="h-3 w-3" /> → Library
+                                          </Button>
+                                        </>
+                                      )}
+
+                                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        onClick={() => openDeleteSessionDialog(s.id, s.name)}>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
-                    )}
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10.5 }}>
-                    <thead>
-                      <tr style={{ background: "#f1f5f9" }}>
-                        {["Session", "Formula", "Runs", "Status", "Date", "Actions"].map(h => (
-                          <th key={h} style={{ padding: "6px 10px", textAlign: "left", fontWeight: "bold", color: "#334155", borderBottom: "1px solid #cbd5e1", fontFamily: "Courier New, monospace", fontSize: 10 }}>
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filtered.map((s, i) => {
-                        const formula = formulas.find(f => f.id === s.formulaId);
-                        const bg = i % 2 === 0 ? "#fff" : "#f9fafb";
-                        const goToSession = () => { setCurrentSessionId(s.id); setPagePersist("analise"); };
-                        return (
-                          <tr key={s.id}
-                            onClick={goToSession}
-                            style={{ background: bg, borderBottom: "1px solid #f0f0f0", cursor: "pointer", transition: "background 0.1s" }}
-                            onMouseEnter={e => (e.currentTarget.style.background = "#eff6ff")}
-                            onMouseLeave={e => (e.currentTarget.style.background = bg)}>
-                            <td style={{ padding: "8px 10px" }}>
-                              <span style={{ fontWeight: "bold", color: "#1d4ed8", textDecoration: "underline", textUnderlineOffset: 2, cursor: "pointer" }}>
-                                {s.name}
-                              </span>
-                            </td>
-                            <td style={{ padding: "8px 10px", color: "#475569" }}>{formula?.name ?? "—"}</td>
-                            <td style={{ padding: "8px 10px", textAlign: "center" }}>
-                              <span style={{ background: "#e0f2fe", color: "#0369a1", padding: "1px 7px", borderRadius: 10, fontSize: 10, fontWeight: "bold" }}>
-                                {s.runs.length}
-                              </span>
-                            </td>
-                            <td style={{ padding: "8px 10px" }}>
-                              <span style={{ background: statusBg[s.status] ?? "#f1f5f9", color: statusColor[s.status] ?? "#334155", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: "bold", whiteSpace: "nowrap" }}>
-                                {statusLabel[s.status] ?? s.status}
-                              </span>
-                            </td>
-                            <td style={{ padding: "8px 10px", color: "#64748b", whiteSpace: "nowrap" }}>
-                              {new Date(s.createdAt).toLocaleDateString("en-US")}
-                            </td>
-                            <td style={{ padding: "8px 6px" }} onClick={e => e.stopPropagation()}>
-                              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                                {/* Go to analysis */}
-                                <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #1d4ed8", borderRadius: 4, background: "#eff6ff", cursor: "pointer", color: "#1d4ed8", fontWeight: "bold" }}
-                                  onClick={goToSession}>
-                                  → Open
-                                </button>
-
-                                {/* Revisar — loads snapshot; concluded sessions require Master password */}
-                                {s.snapshotState && (
-                                  <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #0284c7", borderRadius: 4, background: "#e0f2fe", cursor: "pointer", color: "#0284c7" }}
-                                    onClick={() => {
-                                      if (s.status !== "em_andamento") {
-                                        setMasterAuthDialog({
-                                          onSuccess: () => {
-                                            setUnlockedSessionId(s.id);
-                                            handleLoadSnapshotSession(s);
-                                          },
-                                        });
-                                        setMasterAuthInput("");
-                                        setMasterAuthError(null);
-                                      } else {
-                                        handleLoadSnapshotSession(s);
-                                      }
-                                    }}>
-                                    {s.status !== "em_andamento" ? "🔒 Review" : "↩ Review"}
-                                  </button>
-                                )}
-
-                                {/* Concluir — opens proper dialog for em_andamento sessions */}
-                                {s.status === "em_andamento" && (
-                                  <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #16a34a", borderRadius: 4, background: "#dcfce7", cursor: "pointer", color: "#16a34a" }}
-                                    onClick={() => {
-                                      setFinalizeStatus("aprovado");
-                                      setFinalizeNotes(s.conclusionNotes ?? "");
-                                      setFinalizeDialog({ id: s.id, name: s.name });
-                                    }}>
-                                    <ClipboardCheck style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Conclude
-                                  </button>
-                                )}
-
-                                {/* Reopen — move back to em_andamento */}
-                                {(s.status === "aprovado" || s.status === "reprovado") && (
-                                  <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #f59e0b", borderRadius: 4, background: "#fef9c3", cursor: "pointer", color: "#92400e" }}
-                                    onClick={() => {
-                                      setFinalizeStatus("em_andamento");
-                                      setFinalizeNotes(s.conclusionNotes ?? "");
-                                      setFinalizeDialog({ id: s.id, name: s.name });
-                                    }}>
-                                    ✎ Change Status
-                                  </button>
-                                )}
-
-                                {/* Emit Laudo */}
-                                {(s.status === "aprovado" || s.status === "reprovado") && (
-                                  <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #7c3aed", borderRadius: 4, background: "#f3e8ff", cursor: "pointer", color: "#7c3aed" }}
-                                    onClick={() => { if (confirm(`Issue report for "${s.name}"?`)) handleEmitLaudo(s.id); }}>
-                                    <ScrollText style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Issue Report
-                                  </button>
-                                )}
-
-                                {/* Save PNG */}
-                                {s.runs.length > 0 && (
-                                  <>
-                                    <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #0284c7", borderRadius: 4, background: "#e0f2fe", cursor: "pointer", color: "#0284c7" }}
-                                      onClick={() => handleSavePng(s.id, false)}>
-                                      <ImageDown style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />PNG
-                                    </button>
-                                    <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #16a34a", borderRadius: 4, background: "#dcfce7", cursor: "pointer", color: "#16a34a" }}
-                                      onClick={() => handleSavePng(s.id, true)}>
-                                      <ImageIcon style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />→ Biblioteca
-                                    </button>
-                                  </>
-                                )}
-
-                                {/* Delete with password */}
-                                <button style={{ fontSize: 9, padding: "2px 7px", border: "1px solid #dc2626", borderRadius: 4, background: "#fee2e2", cursor: "pointer", color: "#dc2626" }}
-                                  onClick={() => openDeleteSessionDialog(s.id, s.name)}>
-                                  <Trash2 style={{ width: 9, height: 9, display: "inline", marginRight: 2 }} />Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  </>
+                    </div>
                   );
                 })()}
 
-                {/* Saved images gallery */}
+                {/* ── Image gallery ── */}
                 <div ref={galleryRef} />
                 {savedImages.length > 0 && (
-                  <div style={{ marginTop: 28 }}>
-                    <div style={{ fontWeight: "bold", fontSize: 12, marginBottom: 12, borderBottom: "1px solid #bbb", paddingBottom: 6, color: "#334155" }}>
-                      Biblioteca de Imagens — disponíveis para o Protocolo de Estabilidade
+                  <div className="space-y-4 pt-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                        Image Library
+                        <span className="bg-green-100 text-green-700 rounded-full px-2 py-0.5 text-[10px] font-bold normal-case tracking-normal">
+                          {savedImages.length}
+                        </span>
+                      </h3>
+                      <span className="text-xs text-muted-foreground">Available to attach to the Stability Protocol</span>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                    <div className="grid grid-cols-3 gap-4">
                       {savedImages.map(img => (
-                        <div key={img.id} style={{ border: img.certificateNumber ? "1.5px solid #16a34a" : "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
-                          <div style={{ position: "relative" }}>
-                            <img src={img.imageData} alt={img.sessionName} style={{ width: "100%", height: 120, objectFit: "cover", borderBottom: "1px solid #e2e8f0", display: "block" }} />
+                        <div key={img.id}
+                          className={`rounded-xl overflow-hidden border bg-card shadow-sm transition-shadow hover:shadow-md ${img.certificateNumber ? "border-green-400" : "border-border"}`}>
+                          <div className="relative">
+                            <img src={img.imageData} alt={img.sessionName} className="w-full h-28 object-cover block border-b border-border" />
                             {img.certificateNumber && (
-                              <span style={{ position: "absolute", top: 4, right: 4, background: "#16a34a", color: "#fff", fontSize: 7, fontWeight: "bold", padding: "2px 5px", borderRadius: 3 }}>
+                              <span className="absolute top-2 right-2 bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded">
                                 CERT: {img.certificateNumber}
                               </span>
                             )}
                           </div>
-                          <div style={{ padding: "6px 8px" }}>
-                            <div style={{ fontSize: 9, fontWeight: "bold", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{img.sessionName}</div>
-                            <div style={{ fontSize: 8, color: "#64748b" }}>{img.formulaName} · {new Date(img.createdAt).toLocaleDateString("en-US")}</div>
-                            <div style={{ display: "flex", gap: 4, marginTop: 5 }}>
-                              <a href={img.imageData} download={`${img.sessionName}.png`} style={{ flex: 1, fontSize: 8, padding: "2px 0", border: "1px solid #0284c7", borderRadius: 3, background: "#e0f2fe", color: "#0284c7", textAlign: "center", textDecoration: "none", display: "block" }}>
+                          <div className="p-3 space-y-1">
+                            <div className="text-xs font-semibold text-foreground truncate" title={img.sessionName}>{img.sessionName}</div>
+                            <div className="text-[10px] text-muted-foreground">{img.formulaName} · {new Date(img.createdAt).toLocaleDateString("en-US")}</div>
+                            <div className="flex gap-2 pt-1">
+                              <a href={img.imageData} download={`${img.sessionName}.png`}
+                                className="flex-1 text-center text-[10px] py-1 border border-blue-200 rounded text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors no-underline">
                                 Download
                               </a>
-                              <button style={{ fontSize: 8, padding: "2px 6px", border: "1px solid #dc2626", borderRadius: 3, background: "#fee2e2", cursor: "pointer", color: "#dc2626" }}
+                              <button
+                                className="text-[10px] px-2 py-1 border border-red-200 rounded bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer transition-colors"
                                 onClick={() => { if (confirm("Excluir esta imagem?")) handleDeleteSavedImage(img.id); }}>
                                 ✕
                               </button>
@@ -7587,6 +7611,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                     </div>
                   </div>
                 )}
+
               </div>
             );
           })()}
