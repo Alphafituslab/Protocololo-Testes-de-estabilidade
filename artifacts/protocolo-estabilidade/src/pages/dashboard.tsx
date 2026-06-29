@@ -40,8 +40,8 @@ function SkeletonDash() {
   return (
     <div className="space-y-8 animate-pulse">
       <div className="h-32 rounded-2xl bg-muted" />
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[1,2,3,4].map(i => <div key={i} className="h-28 rounded-xl bg-muted" />)}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {[1,2,3,4,5].map(i => <div key={i} className="h-28 rounded-xl bg-muted" />)}
       </div>
       <div className="h-64 rounded-xl bg-muted" />
     </div>
@@ -91,6 +91,7 @@ export default function Dashboard() {
         normalize(p.companyName ?? "").includes(q)
       );
     }
+    if (statusFilter === "all") return allProtocols;
     if (statusFilter) {
       return allProtocols.filter((p) => p.status === statusFilter);
     }
@@ -118,6 +119,23 @@ export default function Dashboard() {
   const conformRate = total > 0 ? Math.round(((aprovado + aprovadoComRessalva) / total) * 100) : 0;
 
   const cards = [
+    {
+      status: "all",
+      label: "Todos",
+      value: total,
+      Icon: Activity,
+      ring: "focus:ring-primary/40",
+      activeBorder: "border-primary",
+      inactiveBorder: "border-slate-200",
+      activeFrom: "from-primary/10",
+      inactiveFrom: "from-slate-50",
+      numColor: "text-primary",
+      labelColor: "text-primary/70",
+      iconBg: "bg-primary/10",
+      iconColor: "text-primary",
+      arrowActive: "text-primary",
+      arrowInactive: "text-slate-300",
+    },
     {
       status: "em_andamento",
       label: "Em Andamento",
@@ -191,9 +209,11 @@ export default function Dashboard() {
   const isFiltered = statusFilter !== null || q.length > 0;
   const listTitle = q
     ? "Resultado da Pesquisa"
-    : statusFilter
-      ? STATUS_LABELS[statusFilter] ?? statusFilter
-      : "Protocolos Recentes";
+    : statusFilter === "all"
+      ? "Todos os Protocolos"
+      : statusFilter
+        ? STATUS_LABELS[statusFilter] ?? statusFilter
+        : "Protocolos Recentes";
 
   return (
     <>
@@ -241,7 +261,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Stat cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {cards.map(({ status, label, value, Icon, ring, activeBorder, inactiveBorder, activeFrom, inactiveFrom, numColor, labelColor, iconBg, iconColor, arrowActive, arrowInactive }) => {
           const active = statusFilter === status;
           return (
