@@ -90,7 +90,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("hplc_sessions_v1");
+      const raw = localStorage.getItem("hplc_analysis_sessions_v1");
       const parsed = raw ? (JSON.parse(raw) as StoredSession[]) : [];
       setSessions(Array.isArray(parsed) ? parsed : []);
     } catch { /* ignore */ }

@@ -5417,6 +5417,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
             <LayoutDashboard style={{ width: 13, height: 13 }} /> Dashboard
           </button>
           {(([
+            ["sessoes", "Sessions", ScrollText, false],
             ["chromatogram", "Chromatogram", BarChart3, false],
             ["ativos", "Compounds", Database, false],
 
