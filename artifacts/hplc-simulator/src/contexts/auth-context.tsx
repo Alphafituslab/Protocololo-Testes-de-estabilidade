@@ -25,13 +25,13 @@ const TOKEN_KEY = "alphafitus_token";
 const USER_KEY = "alphafitus_user";
 
 const store = {
-  get: (key: string) => sessionStorage.getItem(key),
-  set: (key: string, value: string) => sessionStorage.setItem(key, value),
-  remove: (key: string) => sessionStorage.removeItem(key),
+  get: (key: string) => localStorage.getItem(key),
+  set: (key: string, value: string) => localStorage.setItem(key, value),
+  remove: (key: string) => localStorage.removeItem(key),
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Read sessionStorage synchronously so the protected routes never see a
+  // Read localStorage synchronously so the protected routes never see a
   // "not authenticated" flash after login + window.location.replace().
   const [user, setUser] = useState<AuthUser | null>(() => {
     try {
