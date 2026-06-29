@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/use-auth";
 import {
@@ -82,11 +82,19 @@ export default function DashboardPage() {
   const [formulas, setFormulas] = useState<Record<string, string>>({});
 
   /* Sessions panel state */
+  const sessionsRef = useRef<HTMLDivElement>(null);
   const [sessionSearch, setSessionSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortCol>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+
+  const handleStatCardClick = (filter: string | null, isActive: boolean) => {
+    setStatusFilter(isActive ? null : filter);
+    setTimeout(() => {
+      sessionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  };
 
   useEffect(() => {
     try {
@@ -377,7 +385,7 @@ export default function DashboardPage() {
                 const isActive = statusFilter === filter;
                 return (
                   <div key={label}
-                    onClick={() => setStatusFilter(isActive ? null : filter)}
+                    onClick={() => handleStatCardClick(filter, isActive)}
                     className={`${bgCls} rounded-xl p-3 text-center cursor-pointer select-none transition-all duration-150 hover:shadow-md`}
                     style={{
                       border: `2px solid ${isActive ? colorHex : borderBase}`,
@@ -418,6 +426,7 @@ export default function DashboardPage() {
           )}
 
           {/* Table */}
+          <div ref={sessionsRef} />
           {sessions.length === 0 ? (
             <div className="rounded-xl border-2 border-dashed border-border p-12 text-center">
               <FlaskConical className="h-11 w-11 text-muted-foreground/20 mx-auto mb-3" />
