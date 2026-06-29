@@ -4234,7 +4234,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       </div>
 
       <div className="rounded-md border border-slate-200 bg-white p-4 space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Observações</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Conclusão</p>
         <textarea
           value={kineticsObs}
           onChange={(e) => {
@@ -4246,7 +4246,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
             } catch { /* ignore */ }
             debouncedSave({ kineticsNotes: val });
           }}
-          placeholder="Descreva observações sobre os dados cinéticos: desvios encontrados, condições especiais de armazenamento, lotes atípicos, interferências analíticas ou qualquer informação relevante para o laudo."
+          placeholder="Descreva a conclusão sobre os dados cinéticos: desvios encontrados, condições especiais de armazenamento, lotes atípicos, interferências analíticas ou qualquer informação relevante para o laudo."
           rows={5}
           className="w-full text-sm border border-input rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary resize-y placeholder:text-muted-foreground/40"
         />

@@ -1909,14 +1909,14 @@ export default function CertificatePage() {
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Conclusão</h2>
             </div>
             <div className="px-5 py-5 text-base font-medium" style={{ textAlign: "justify", hyphens: "auto", overflowWrap: "anywhere", wordBreak: "break-word" }}>
-              {/* Always editable — conclusion is a key narrative field */}
+              {/* Always editable — uses kineticsNotes as primary source, falls back to conclusion */}
               <CertEditField
-                value={getEdit("conclusion", cert.conclusion)}
+                value={getEdit("conclusion", cert.kineticsNotes || cert.conclusion)}
                 onChange={v => setCertEdit("conclusion", v)}
                 multiline
                 className="w-full text-base font-medium"
               />
-              {!getEdit("conclusion", cert.conclusion) && (
+              {!getEdit("conclusion", cert.kineticsNotes || cert.conclusion) && (
                 <span className="print:hidden pointer-events-none text-gray-400 text-sm italic select-none">
                   Clique aqui para digitar a conclusão do protocolo…
                 </span>
@@ -2111,7 +2111,7 @@ export default function CertificatePage() {
                       </div>
                     </div>
                     <div className="mt-2 border-l-2 border-blue-300 pl-3 bg-blue-50/50 py-1.5 pr-2 rounded-r text-[10px] text-gray-700">
-                      <span className="font-semibold text-gray-500 uppercase tracking-wide text-[9px]">Observações: </span>
+                      <span className="font-semibold text-gray-500 uppercase tracking-wide text-[9px]">Conclusão: </span>
                       {ef("kineticsNotes", cert.kineticsNotes, { multiline: true })}
                     </div>
                   </>
