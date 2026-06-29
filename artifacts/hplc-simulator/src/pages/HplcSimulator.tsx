@@ -3316,12 +3316,18 @@ export default function HplcSimulator() {
   const { user, token, logout, isAdmin } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const VALID_PAGES: PageMode[] = ["chromatogram","padrao","lotes","analise","sessoes","metodologia","admin"];
   const [page, setPage] = useState<PageMode>(() => {
+    const hash = window.location.hash.slice(1) as PageMode;
+    if (VALID_PAGES.includes(hash)) return hash;
     const saved = localStorage.getItem("hplc_page") as PageMode | null;
-    const valid: PageMode[] = ["chromatogram","padrao","lotes","analise","sessoes","metodologia","admin"];
-    return saved && valid.includes(saved) ? saved : "chromatogram";
+    return saved && VALID_PAGES.includes(saved) ? saved : "chromatogram";
   });
-  const setPagePersist = (p: PageMode) => { localStorage.setItem("hplc_page", p); setPage(p); };
+  const setPagePersist = (p: PageMode) => {
+    localStorage.setItem("hplc_page", p);
+    window.history.replaceState(null, "", window.location.pathname + window.location.search + "#" + p);
+    setPage(p);
+  };
   const [isDirty, setIsDirty] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [peaks, setPeaks] = useState<Peak[]>(() => loadState()?.peaks ?? DEFAULT_PEAKS);
