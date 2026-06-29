@@ -3316,7 +3316,12 @@ export default function HplcSimulator() {
   const { user, token, logout, isAdmin } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [page, setPage] = useState<PageMode>("chromatogram");
+  const [page, setPage] = useState<PageMode>(() => {
+    const saved = localStorage.getItem("hplc_page") as PageMode | null;
+    const valid: PageMode[] = ["chromatogram","padrao","lotes","analise","sessoes","metodologia","admin"];
+    return saved && valid.includes(saved) ? saved : "chromatogram";
+  });
+  const setPagePersist = (p: PageMode) => { localStorage.setItem("hplc_page", p); setPage(p); };
   const [isDirty, setIsDirty] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [peaks, setPeaks] = useState<Peak[]>(() => loadState()?.peaks ?? DEFAULT_PEAKS);
@@ -3505,7 +3510,7 @@ export default function HplcSimulator() {
     setPreSaveDupWarning(null);
     // 4. Navigate to Standard tab so user sees the restored document immediately
     setSaveConfirmId(null);
-    setPage("padrao");
+    setPagePersist("padrao");
   }, []);
 
   const openSavedPdf = useCallback((saved: SavedAnalysis) => {
@@ -3844,7 +3849,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     const targetId = localStorage.getItem("hplc_dashboard_open_session");
     if (targetId) {
       localStorage.removeItem("hplc_dashboard_open_session");
-      setPage("sessoes");
+      setPagePersist("sessoes");
     }
   }, []);
 
@@ -3855,7 +3860,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
       localStorage.removeItem("hplc_dashboard_target_page");
       const validPages: PageMode[] = ["sessoes", "chromatogram", "ativos", "lotes", "analise", "padrao", "report", "usuarios"];
       if (validPages.includes(targetPage)) {
-        setPage(targetPage);
+        setPagePersist(targetPage);
         if (targetPage === "usuarios") fetchUsers();
       }
     }
@@ -5049,7 +5054,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     };
     setFormulas(fs => { const updated = [...fs, formula]; saveFormulas(updated); return updated; });
     setSelectedFormulaId(formula.id);
-    setPage("lotes");
+    setPagePersist("lotes");
   };
 
   const handleDeleteFormula = (id: string) => {
@@ -5063,7 +5068,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     setAndSaveCompounds(formula.activeCompounds);
     setStandards(formula.standards);
     setCalib(formula.calib);
-    setPage("chromatogram");
+    setPagePersist("chromatogram");
     markDirty();
   };
 
@@ -5121,7 +5126,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     };
     setAnalysisSessions(ss => { const u = [...ss, session]; saveSessions(u); return u; });
     setCurrentSessionId(session.id);
-    setPage("analise");
+    setPagePersist("analise");
   };
 
   const handleRegisterRun = () => {
@@ -5262,7 +5267,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     setCurrentSnapshotSessionId(session.id);
     setIsDirty(false);
     saveState(s);
-    setPage("chromatogram");
+    setPagePersist("chromatogram");
   };
 
   const handleNewAnalysis = () => {
@@ -5279,7 +5284,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     setIsDirty(false);
     setConfirmed(false);
     saveState({ peaks: DEFAULT_PEAKS, sample: DEFAULT_SAMPLE, detector: DEFAULT_DETECTOR, standards: DEFAULT_STANDARDS, calib: DEFAULT_CALIB, activeCompounds: DEFAULT_ACTIVE_COMPOUNDS, productName: "" });
-    setPage("sessoes");
+    setPagePersist("sessoes");
     setNewAnalysisDialog(false);
   };
 
@@ -5324,7 +5329,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     setSavePngDialog(null);
     // Optionally redirect to sessoes gallery
     if (redirectToGallery) {
-      setPage("sessoes");
+      setPagePersist("sessoes");
       setTimeout(() => galleryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
     }
   };
@@ -5361,7 +5366,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
       manualArea: 0,
       peakNoise: 0,
     }]);
-    setPage("chromatogram");
+    setPagePersist("chromatogram");
     markDirty();
   };
 
@@ -5412,7 +5417,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
             ["usuarios", "Usuários", Users, true],
           ] as [PageMode, string, React.ElementType, boolean][]).filter(([,, , adminOnly]) => !adminOnly || isAdmin)).map(([mode, label, Icon], idx) => (
             <button key={mode} onClick={() => {
-              setPage(mode);
+              setPagePersist(mode);
               if (mode === "usuarios") fetchUsers();
             }} style={{
               ...MONO, fontSize: 11, padding: "4px 12px", cursor: "pointer",
@@ -7338,7 +7343,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                   🔑 Unlock with Master Password
                 </button>
                 <button
-                  onClick={() => setPage("sessoes")}
+                  onClick={() => setPagePersist("sessoes")}
                   style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 10, fontFamily: "Courier New, monospace", textDecoration: "underline" }}
                 >
                   ← Back to Sessions
@@ -7471,7 +7476,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                       {filtered.map((s, i) => {
                         const formula = formulas.find(f => f.id === s.formulaId);
                         const bg = i % 2 === 0 ? "#fff" : "#f9fafb";
-                        const goToSession = () => { setCurrentSessionId(s.id); setPage("analise"); };
+                        const goToSession = () => { setCurrentSessionId(s.id); setPagePersist("analise"); };
                         return (
                           <tr key={s.id}
                             onClick={goToSession}
@@ -10258,7 +10263,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                                   setPreSaveDupWarning(null);
                                   setPreSaveSaveMode(null);
                                   setAnaliseSubTab("pdfs");
-                                  setPage("analise");
+                                  setPagePersist("analise");
                                 }}
                                 style={{
                                   fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 12px",
@@ -10313,7 +10318,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                                   setPreSaveDupWarning(null);
                                   setPreSaveSaveMode(null);
                                   setAnaliseSubTab("pdfs");
-                                  setPage("analise");
+                                  setPagePersist("analise");
                                 }}
                                 style={{ fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 14px", border: "1.5px solid #f59e0b", borderRadius: 5, background: "#f59e0b", color: "#fff", cursor: "pointer", fontWeight: "bold" }}
                               >
@@ -10360,7 +10365,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                               setPreSaveDupWarning(null);
                               setPreSaveSaveMode(null);
                               setAnaliseSubTab("pdfs");
-                              setPage("analise");
+                              setPagePersist("analise");
                             }}
                             style={{
                               fontFamily: "Courier New, monospace", fontSize: 11, padding: "6px 20px",
@@ -10440,7 +10445,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                         🆕 Iniciar Novo
                       </button>
                       <button
-                        onClick={() => { setAnaliseSubTab("pdfs"); setPage("analise"); }}
+                        onClick={() => { setAnaliseSubTab("pdfs"); setPagePersist("analise"); }}
                         style={{
                           fontFamily: "Courier New, monospace", fontSize: 10, padding: "5px 14px",
                           border: "1.5px solid #64748b", borderRadius: 5, background: "#fff",
@@ -10739,7 +10744,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                       ✓ Peak captured: {padraoConfig.stdPeakName}
                     </div>
                     <button
-                      onClick={() => setPage("chromatogram")}
+                      onClick={() => setPagePersist("chromatogram")}
                       title="Ir ao cromatograma onde esta área foi capturada"
                       style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "1px 7px", border: "1px solid #1560bd", borderRadius: 4, background: "#eff6ff", cursor: "pointer", color: "#1560bd", whiteSpace: "nowrap" }}
                     >
@@ -11277,7 +11282,7 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                       ✓ Peak captured: {padraoConfig.smpPeakName}
                     </div>
                     <button
-                      onClick={() => setPage("chromatogram")}
+                      onClick={() => setPagePersist("chromatogram")}
                       title="Ir ao cromatograma onde esta área foi capturada"
                       style={{ fontFamily: "Courier New, monospace", fontSize: 9, padding: "1px 7px", border: "1px solid #f97316", borderRadius: 4, background: "#fff7ed", cursor: "pointer", color: "#ea580c", whiteSpace: "nowrap" }}
                     >
