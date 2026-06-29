@@ -3316,7 +3316,7 @@ export default function HplcSimulator() {
   const { user, token, logout, isAdmin } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const VALID_PAGES: PageMode[] = ["chromatogram","padrao","lotes","analise","sessoes","metodologia","admin"];
+  const VALID_PAGES: PageMode[] = ["chromatogram","padrao","analise","sessoes","metodologia","admin"];
   const [page, setPage] = useState<PageMode>(() => {
     const hash = window.location.hash.slice(1) as PageMode;
     if (VALID_PAGES.includes(hash)) return hash;
@@ -3864,7 +3864,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
     const targetPage = localStorage.getItem("hplc_dashboard_target_page") as PageMode | null;
     if (targetPage) {
       localStorage.removeItem("hplc_dashboard_target_page");
-      const validPages: PageMode[] = ["sessoes", "chromatogram", "ativos", "lotes", "analise", "padrao", "report", "usuarios"];
+      const validPages: PageMode[] = ["sessoes", "chromatogram", "ativos", "analise", "padrao", "report", "usuarios"];
       if (validPages.includes(targetPage)) {
         setPagePersist(targetPage);
         if (targetPage === "usuarios") fetchUsers();
@@ -5416,7 +5416,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
             ["sessoes", "Sessions", ScrollText, false],
             ["chromatogram", "Chromatogram", BarChart3, false],
             ["ativos", "Compounds", Database, false],
-            ["lotes", "Lots", Layers, false],
+
             ["analise", "Analysis", FlaskConical, false],
             ["padrao", "Standard", Scale, false],
             ["report", "Calibration Curve", FileText, false],
@@ -7161,54 +7161,6 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
               );
             })()}
 
-            {page === "lotes" && (
-              <>
-                <ControlBox title="Saved Formulas">
-                  <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#888", marginBottom: 6, lineHeight: 1.5 }}>
-                    Save the current method as a formula. Then register analyzed lots to compare results.
-                  </div>
-                  <SaveFormulaDialog onSave={handleSaveFormula}>
-                    <Button size="sm" className="w-full h-7 text-xs gap-1 mb-2">
-                      <Plus className="h-3 w-3" /> Save Current Formula
-                    </Button>
-                  </SaveFormulaDialog>
-                  <div className="space-y-1.5 mt-1">
-                    {formulas.length === 0 && (
-                      <div style={{ fontSize: 9, color: "#aaa", fontFamily: "Courier New, monospace", textAlign: "center", padding: "8px 0" }}>
-                        No formulas saved
-                      </div>
-                    )}
-                    {formulas.map(f => {
-                      const lotCount = lots.filter(l => l.formulaId === f.id).length;
-                      const isSelected = selectedFormulaId === f.id;
-                      return (
-                        <div key={f.id} onClick={() => setSelectedFormulaId(f.id)} style={{
-                          border: isSelected ? "1px solid #1d4ed8" : "1px solid #ddd",
-                          borderRadius: 4, padding: "5px 7px", cursor: "pointer",
-                          background: isSelected ? "#eff6ff" : "#fafafa",
-                        }}>
-                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 10, fontWeight: "bold", color: isSelected ? "#1d4ed8" : "#333" }}>{f.name}</div>
-                          {f.description && <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#666", marginTop: 1 }}>{f.description}</div>}
-                          <div style={{ fontFamily: "Courier New, monospace", fontSize: 9, color: "#999", marginTop: 2 }}>
-                            {lotCount} lot{lotCount !== 1 ? "s" : ""} · {new Date(f.createdAt).toLocaleDateString("en-US")}
-                          </div>
-                          <div className="flex gap-1 mt-1.5">
-                            <Button size="sm" variant="outline" className="h-5 text-xs px-1.5 flex-1"
-                              onClick={e => { e.stopPropagation(); handleLoadFormula(f); }}>
-                              <Download className="h-2.5 w-2.5 mr-0.5" /> Load
-                            </Button>
-                            <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-red-400 hover:text-red-600"
-                              onClick={e => { e.stopPropagation(); handleDeleteFormula(f.id); }}>
-                              <Trash2 className="h-2.5 w-2.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </ControlBox>
-              </>
-            )}
 
             {page === "padrao" && (
               <ControlBox title="📚 Standards Library">
@@ -9199,8 +9151,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
             </div>
           )}
 
-          {/* ── LOTES PAGE ────────────────────────────────────────────────── */}
-          {page === "lotes" && (() => {
+          {false && (() => {
             const formula = formulas.find(f => f.id === selectedFormulaId) ?? null;
             const formulaLots = formula ? lots.filter(l => l.formulaId === formula.id) : [];
             const compounds = formula?.activeCompounds ?? [];
