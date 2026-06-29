@@ -3677,10 +3677,11 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
       );
       setAnalysisSessions(merged);
       try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
-      // Push anything local that server doesn't know about
+      // Push anything local that server doesn't know about.
+      // IMPORTANT: use `merged` (not toSync) so localStorage always holds the full set.
       const serverIds = new Set(serverSessions.map(s => s.id));
       const toSync = local.filter(s => !serverIds.has(s.id));
-      if (toSync.length > 0) saveSessions(toSync);
+      if (toSync.length > 0) saveSessions(merged);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
