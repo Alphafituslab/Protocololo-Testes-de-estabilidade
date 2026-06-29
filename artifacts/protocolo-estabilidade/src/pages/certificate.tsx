@@ -1909,7 +1909,18 @@ export default function CertificatePage() {
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Conclusão</h2>
             </div>
             <div className="px-5 py-5 text-base font-medium" style={{ textAlign: "justify", hyphens: "auto", overflowWrap: "anywhere", wordBreak: "break-word" }}>
-              {ef("conclusion", cert.conclusion, { multiline: true, className: "w-full text-base font-medium" })}
+              {/* Always editable — conclusion is a key narrative field */}
+              <CertEditField
+                value={getEdit("conclusion", cert.conclusion)}
+                onChange={v => setCertEdit("conclusion", v)}
+                multiline
+                className="w-full text-base font-medium"
+              />
+              {!getEdit("conclusion", cert.conclusion) && (
+                <span className="print:hidden pointer-events-none text-gray-400 text-sm italic select-none">
+                  Clique aqui para digitar a conclusão do protocolo…
+                </span>
+              )}
             </div>
           </div>
         )}
@@ -1931,10 +1942,10 @@ export default function CertificatePage() {
             )}
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-3">
-                <div className={`w-5 h-5 border-2 flex items-center justify-center ${effectiveIsApproved ? "border-gray-800 bg-gray-800" : "border-gray-400"}`}>
+                <div className={`w-5 h-5 border-2 flex items-center justify-center ${effectiveIsApproved ? "border-green-700 bg-green-700" : "border-gray-400"}`}>
                   {effectiveIsApproved && <span className="text-white text-xs font-bold">X</span>}
                 </div>
-                <span className="font-medium">
+                <span className={`font-medium ${effectiveIsApproved ? "text-green-700" : ""}`}>
                   APROVADO
                   {cert.finalStatus === "aprovado_com_ressalva" && effectiveIsApproved && (
                     <span className="ml-1 text-amber-700 font-semibold text-xs">(COM RESSALVA)</span>
