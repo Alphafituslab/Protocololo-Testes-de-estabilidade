@@ -3372,6 +3372,10 @@ export default function HplcSimulator() {
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [deleteSessionDialog, setDeleteSessionDialog] = useState<{ id: string; name: string } | null>(null);
   const [panelStatusFilter, setPanelStatusFilter] = useState<string | null>(null);
+  const [panelSearch, setPanelSearch] = useState("");
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  const [panelSortBy, setPanelSortBy] = useState<"name" | "date" | "runs" | "status">("date");
+  const [panelSortDir, setPanelSortDir] = useState<"asc" | "desc">("desc");
   const galleryRef = useRef<HTMLDivElement>(null);
   const [deleteSessionPwd, setDeleteSessionPwd] = useState("");
   const [deleteSessionError, setDeleteSessionError] = useState<string | null>(null);
@@ -7351,220 +7355,327 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
               laudo_emitido:"#d8b4fe",
             };
 
+            /* ── helpers inside the IIFE ── */
+            const toggleSort = (col: typeof panelSortBy) => {
+              if (panelSortBy === col) setPanelSortDir(d => d === "asc" ? "desc" : "asc");
+              else { setPanelSortBy(col); setPanelSortDir("desc"); }
+            };
+            const SortTh = ({ col, label, right }: { col: typeof panelSortBy; label: string; right?: boolean }) => {
+              const active = panelSortBy === col;
+              return (
+                <th onClick={() => toggleSort(col)}
+                  className={`px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide select-none cursor-pointer group whitespace-nowrap ${right ? "text-center" : "text-left"}`}>
+                  <span className={`inline-flex items-center gap-1 ${active ? "text-blue-600" : "group-hover:text-foreground transition-colors"}`}>
+                    {label}
+                    <span className="text-[10px]">{active ? (panelSortDir === "asc" ? "↑" : "↓") : <span className="opacity-30 group-hover:opacity-60">↕</span>}</span>
+                  </span>
+                </th>
+              );
+            };
+
+            const searchQ = panelSearch.trim().toLowerCase();
+            const displayed = [...analysisSessions]
+              .filter(s => !panelStatusFilter || s.status === panelStatusFilter)
+              .filter(s => {
+                if (!searchQ) return true;
+                const fName = formulas.find(f => f.id === s.formulaId)?.name ?? "";
+                return s.name.toLowerCase().includes(searchQ) || fName.toLowerCase().includes(searchQ);
+              })
+              .sort((a, b) => {
+                let cmp = 0;
+                if (panelSortBy === "name")   cmp = a.name.localeCompare(b.name);
+                else if (panelSortBy === "date")   cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                else if (panelSortBy === "runs")   cmp = a.runs.length - b.runs.length;
+                else if (panelSortBy === "status") cmp = (statusLabel[a.status] ?? a.status).localeCompare(statusLabel[b.status] ?? b.status);
+                return panelSortDir === "asc" ? cmp : -cmp;
+              });
+
             return (
               <div className="space-y-5">
 
-                {/* ── Header ── */}
-                <div className="flex items-center gap-3 pb-4 border-b border-border">
-                  <div className="bg-blue-100 rounded-xl p-2.5">
-                    <FlaskConical className="h-5 w-5 text-blue-700" />
+                {/* ── Header + Search ── */}
+                <div className="flex items-center justify-between gap-4 pb-4 border-b border-border">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-100 rounded-xl p-2.5">
+                      <FlaskConical className="h-5 w-5 text-blue-700" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-foreground">Analysis Sessions</h2>
+                      <p className="text-xs text-muted-foreground">{total} session{total !== 1 ? "s" : ""} · {imgCount} image{imgCount !== 1 ? "s" : ""} in library</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-base font-bold text-foreground">Analysis Sessions</h2>
-                    <p className="text-xs text-muted-foreground">{total} session{total !== 1 ? "s" : ""} · {imgCount} image{imgCount !== 1 ? "s" : ""} in library</p>
+                  {/* Live search */}
+                  <div className="relative flex-1 max-w-xs">
+                    <Activity className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
+                    <input
+                      value={panelSearch}
+                      onChange={e => setPanelSearch(e.target.value)}
+                      placeholder="Search by name or formula…"
+                      className="w-full h-8 pl-8 pr-7 text-xs rounded-lg border border-border bg-muted/30 placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-blue-400/40 focus:border-blue-300 transition-all"
+                    />
+                    {panelSearch && (
+                      <button onClick={() => setPanelSearch("")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors text-sm leading-none">
+                        ✕
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* ── Stat cards ── */}
-                <div className="grid grid-cols-4 gap-3">
+                {/* ── Stat cards (5) ── */}
+                <div className="grid grid-cols-5 gap-3">
                   {([
-                    { label: "Total",       value: total,        bgCls: "bg-slate-50",  borderBase: "#cbd5e1", colorHex: "#334155", Icon: Activity,       filter: null },
-                    { label: "In Progress", value: emAndamento,  bgCls: "bg-blue-50",   borderBase: "#93c5fd", colorHex: "#1d4ed8", Icon: FlaskConical,    filter: "em_andamento" },
-                    { label: "Approved",    value: aprovados,    bgCls: "bg-green-50",  borderBase: "#86efac", colorHex: "#16a34a", Icon: ClipboardCheck,  filter: "aprovado" },
-                    { label: "Rejected",    value: reprovados,   bgCls: "bg-red-50",    borderBase: "#fca5a5", colorHex: "#dc2626", Icon: ClipboardX,      filter: "reprovado" },
+                    { label: "Total",       value: total,       bgCls: "bg-slate-50",   borderBase: "#cbd5e1", colorHex: "#334155", Icon: Activity,      filter: null },
+                    { label: "In Progress", value: emAndamento, bgCls: "bg-blue-50",    borderBase: "#93c5fd", colorHex: "#1d4ed8", Icon: FlaskConical,   filter: "em_andamento" },
+                    { label: "Approved",    value: aprovados,   bgCls: "bg-green-50",   borderBase: "#86efac", colorHex: "#16a34a", Icon: ClipboardCheck, filter: "aprovado" },
+                    { label: "Rejected",    value: reprovados,  bgCls: "bg-red-50",     borderBase: "#fca5a5", colorHex: "#dc2626", Icon: ClipboardX,     filter: "reprovado" },
+                    { label: "Reports",     value: laudos,      bgCls: "bg-violet-50",  borderBase: "#d8b4fe", colorHex: "#7c3aed", Icon: FileCheck2,     filter: "laudo_emitido" },
                   ] as { label: string; value: number; bgCls: string; borderBase: string; colorHex: string; Icon: React.ComponentType<{ className?: string }>; filter: string | null }[]).map(({ label, value, bgCls, borderBase, colorHex, Icon, filter }) => {
                     const isActive = panelStatusFilter === filter;
                     return (
-                      <div
-                        key={label}
+                      <div key={label}
                         onClick={() => setPanelStatusFilter(isActive ? null : filter)}
-                        className={`${bgCls} rounded-xl p-4 text-center cursor-pointer select-none transition-all hover:shadow-md`}
+                        className={`${bgCls} rounded-xl p-3 text-center cursor-pointer select-none transition-all duration-150 hover:shadow-md`}
                         style={{
                           border: `2px solid ${isActive ? colorHex : borderBase}`,
-                          transform: isActive ? "scale(1.03)" : "scale(1)",
-                          boxShadow: isActive ? `0 4px 14px ${colorHex}33` : undefined,
-                        }}
-                      >
+                          transform: isActive ? "scale(1.04)" : "scale(1)",
+                          boxShadow: isActive ? `0 4px 16px ${colorHex}30` : undefined,
+                        }}>
                         <Icon className="h-5 w-5 mx-auto mb-1.5" style={{ color: colorHex }} />
-                        <div className="text-2xl font-bold leading-none" style={{ color: colorHex }}>{value}</div>
-                        <div className="text-[10px] text-muted-foreground uppercase tracking-wide mt-1.5">{label}</div>
-                        {isActive && <div className="text-[9px] font-bold mt-1" style={{ color: colorHex }}>filtered ✓</div>}
+                        <div className="text-[22px] font-bold leading-none" style={{ color: colorHex }}>{value}</div>
+                        <div className="text-[9px] text-muted-foreground uppercase tracking-wide mt-1.5">{label}</div>
+                        {isActive && <div className="text-[8px] font-bold mt-0.5" style={{ color: colorHex }}>filtered ✓</div>}
                       </div>
                     );
                   })}
                 </div>
 
+                {/* ── Active filters pill ── */}
+                {(panelStatusFilter || panelSearch) && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] text-muted-foreground">Showing {displayed.length} of {total}:</span>
+                    {panelStatusFilter && (
+                      <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 border border-blue-200 rounded-full px-2.5 py-0.5 text-[11px] font-medium">
+                        Status: {statusLabel[panelStatusFilter]}
+                        <button onClick={() => setPanelStatusFilter(null)} className="ml-1 hover:text-blue-900 leading-none">✕</button>
+                      </span>
+                    )}
+                    {panelSearch && (
+                      <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 border border-slate-200 rounded-full px-2.5 py-0.5 text-[11px] font-medium">
+                        "{panelSearch}"
+                        <button onClick={() => setPanelSearch("")} className="ml-1 hover:text-slate-900 leading-none">✕</button>
+                      </span>
+                    )}
+                    <button onClick={() => { setPanelStatusFilter(null); setPanelSearch(""); }}
+                      className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 ml-1">
+                      Clear all
+                    </button>
+                  </div>
+                )}
+
                 {/* ── Image library banner ── */}
-                <div className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${imgCount > 0 ? "bg-green-50 border-green-200" : "bg-muted/30 border-border"}`}>
-                  <ImageIcon className={`h-5 w-5 shrink-0 ${imgCount > 0 ? "text-green-600" : "text-muted-foreground"}`} />
-                  <span className="flex-1 text-sm">
+                <div className={`flex items-center gap-3 rounded-lg border px-4 py-2.5 ${imgCount > 0 ? "bg-green-50 border-green-200" : "bg-muted/30 border-border"}`}>
+                  <ImageIcon className={`h-4 w-4 shrink-0 ${imgCount > 0 ? "text-green-600" : "text-muted-foreground"}`} />
+                  <span className="flex-1 text-xs">
                     <b className={imgCount > 0 ? "text-green-700" : "text-foreground"}>{imgCount}</b>
                     {" "}chromatogram image{imgCount !== 1 ? "s" : ""} saved — available to attach to the Stability Protocol.
                   </span>
                   {imgCount > 0 && (
                     <div className="flex items-center gap-2 shrink-0">
-                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-green-300 text-green-700 hover:bg-green-100"
+                      <Button size="sm" variant="outline" className="h-6 text-xs gap-1 border-green-300 text-green-700 hover:bg-green-100"
                         onClick={() => galleryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
                         View gallery ↓
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                      <Button size="sm" variant="ghost" className="h-6 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => { if (confirm(`Delete all ${imgCount} saved images?`)) { setSavedImages([]); saveSavedImages([]); } }}>
-                        Clear library
+                        Clear
                       </Button>
                     </div>
                   )}
                 </div>
 
-                {/* ── Session list ── */}
+                {/* ── Session table ── */}
                 {analysisSessions.length === 0 ? (
                   <div className="rounded-xl border-2 border-dashed border-border p-14 text-center">
-                    <FlaskConical className="h-11 w-11 text-muted-foreground/25 mx-auto mb-3" />
-                    <p className="text-sm font-medium text-muted-foreground">No analysis sessions yet</p>
-                    <p className="text-xs text-muted-foreground/60 mt-1">Go to the "Analysis" tab and create a new session.</p>
+                    <FlaskConical className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
+                    <p className="text-sm font-semibold text-muted-foreground">No analysis sessions yet</p>
+                    <p className="text-xs text-muted-foreground/50 mt-1">Go to the "Analysis" tab and create a new session.</p>
                   </div>
-                ) : (() => {
-                  const filtered = [...analysisSessions]
-                    .filter(s => !panelStatusFilter || s.status === panelStatusFilter)
-                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-                  return (
-                    <div>
-                      {panelStatusFilter && (
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-xs text-muted-foreground">
-                            Showing {filtered.length} session(s) · filter: <b>{statusLabel[panelStatusFilter]}</b>
-                          </span>
-                          <Button size="sm" variant="outline" className="h-6 text-xs px-2"
-                            onClick={() => setPanelStatusFilter(null)}>
-                            ✕ Clear
-                          </Button>
-                        </div>
-                      )}
-                      <div className="rounded-xl border border-border overflow-hidden shadow-sm">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="bg-muted/60 border-b border-border">
-                              {["Session", "Formula", "Runs", "Status", "Date", "Actions"].map(h => (
-                                <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
-                                  {h}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border bg-card">
-                            {filtered.map(s => {
-                              const formula = formulas.find(f => f.id === s.formulaId);
-                              const goToSession = () => { setCurrentSessionId(s.id); setPagePersist("analise"); };
-                              const sBg    = statusBg[s.status]    ?? "#f1f5f9";
-                              const sColor = statusColor[s.status] ?? "#334155";
-                              const sBorder = SESSION_STATUS_BORDER[s.status] ?? "#cbd5e1";
-                              return (
-                                <tr key={s.id}
-                                  onClick={goToSession}
-                                  className="hover:bg-blue-50/50 cursor-pointer transition-colors">
-                                  <td className="px-4 py-3 font-semibold text-blue-700 max-w-[200px]">
-                                    <span className="block truncate underline underline-offset-2" title={s.name}>{s.name}</span>
-                                  </td>
-                                  <td className="px-4 py-3 text-xs text-muted-foreground">{formula?.name ?? <span className="italic opacity-50">—</span>}</td>
-                                  <td className="px-4 py-3 text-center">
-                                    <span className="inline-flex items-center justify-center bg-blue-100 text-blue-700 rounded-full text-xs font-bold min-w-[24px] h-6 px-2">
-                                      {s.runs.length}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
-                                      style={{ background: sBg, color: sColor, border: `1px solid ${sBorder}` }}>
-                                      {SESSION_STATUS_ICON[s.status]}
-                                      {statusLabel[s.status] ?? s.status}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                                    {new Date(s.createdAt).toLocaleDateString("en-US")}
-                                  </td>
-                                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                                    <div className="flex gap-1.5 flex-wrap items-center">
-                                      <Button size="sm" variant="outline" className="h-7 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
-                                        onClick={goToSession}>
-                                        Open →
-                                      </Button>
+                ) : displayed.length === 0 ? (
+                  <div className="rounded-xl border-2 border-dashed border-border p-10 text-center">
+                    <p className="text-sm text-muted-foreground">No sessions match your filters.</p>
+                    <button onClick={() => { setPanelStatusFilter(null); setPanelSearch(""); }}
+                      className="text-xs text-blue-600 hover:underline mt-2 block mx-auto">Clear filters</button>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-border overflow-hidden shadow-sm">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted/60 border-b border-border">
+                          <SortTh col="name" label="Session" />
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Formula</th>
+                          <SortTh col="runs" label="Runs" right />
+                          <SortTh col="status" label="Status" />
+                          <SortTh col="date" label="Date" />
+                          <th className="px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide text-right">Details</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-card">
+                        {displayed.map(s => {
+                          const formula = formulas.find(f => f.id === s.formulaId);
+                          const goToSession = () => { setCurrentSessionId(s.id); setPagePersist("analise"); };
+                          const sBg    = statusBg[s.status]    ?? "#f1f5f9";
+                          const sColor = statusColor[s.status] ?? "#334155";
+                          const sBorder = SESSION_STATUS_BORDER[s.status] ?? "#cbd5e1";
+                          const isExpanded = expandedSessionId === s.id;
+                          const toggleExpand = () => setExpandedSessionId(isExpanded ? null : s.id);
 
-                                      {s.snapshotState && (
-                                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
-                                          onClick={() => {
-                                            if (s.status !== "em_andamento") {
-                                              setMasterAuthDialog({
-                                                onSuccess: () => {
-                                                  setUnlockedSessionId(s.id);
-                                                  handleLoadSnapshotSession(s);
-                                                },
-                                              });
-                                              setMasterAuthInput("");
-                                              setMasterAuthError(null);
-                                            } else {
-                                              handleLoadSnapshotSession(s);
-                                            }
-                                          }}>
-                                          {s.status !== "em_andamento" ? <Lock className="h-3 w-3" /> : null}
-                                          Review
-                                        </Button>
+                          return (
+                            <React.Fragment key={s.id}>
+                              <tr
+                                onClick={toggleExpand}
+                                className={`border-b border-border cursor-pointer transition-colors ${isExpanded ? "bg-blue-50/70" : "hover:bg-muted/30"}`}>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`transition-transform duration-200 text-muted-foreground/50 text-xs ${isExpanded ? "rotate-90" : ""}`}>▶</span>
+                                    <span className="font-semibold text-blue-700 truncate max-w-[160px]" title={s.name}>{s.name}</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-xs text-muted-foreground max-w-[140px]">
+                                  <span className="truncate block" title={formula?.name}>{formula?.name ?? <span className="italic opacity-40">—</span>}</span>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <div className="flex items-center justify-center gap-0.5">
+                                    {Array.from({ length: Math.min(s.runs.length, 6) }).map((_, i) => (
+                                      <span key={i} className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
+                                    ))}
+                                    {s.runs.length > 6 && <span className="text-[9px] text-blue-400 ml-0.5">+{s.runs.length - 6}</span>}
+                                    {s.runs.length === 0 && <span className="text-[10px] text-muted-foreground/40 italic">none</span>}
+                                  </div>
+                                  <div className="text-[10px] text-center text-muted-foreground mt-0.5">{s.runs.length}</div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                                    style={{ background: sBg, color: sColor, border: `1px solid ${sBorder}` }}>
+                                    {SESSION_STATUS_ICON[s.status]}
+                                    {statusLabel[s.status] ?? s.status}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                                  {new Date(s.createdAt).toLocaleDateString("en-US")}
+                                </td>
+                                <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
+                                  <Button size="sm" variant={isExpanded ? "default" : "outline"}
+                                    className={`h-7 text-xs gap-1 ${isExpanded ? "bg-blue-600 hover:bg-blue-700 text-white" : "border-blue-200 text-blue-700 hover:bg-blue-50"}`}
+                                    onClick={toggleExpand}>
+                                    {isExpanded ? "Close ▲" : "Details ▼"}
+                                  </Button>
+                                </td>
+                              </tr>
+
+                              {/* ── Expanded detail panel ── */}
+                              {isExpanded && (
+                                <tr className="border-b border-border">
+                                  <td colSpan={6} className="px-0 py-0">
+                                    <div className="bg-blue-50/40 border-t border-blue-100 px-6 py-4 space-y-4">
+
+                                      {/* Info grid */}
+                                      <div className="grid grid-cols-3 gap-4">
+                                        <div className="bg-white rounded-lg border border-border p-3 space-y-1">
+                                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Created</p>
+                                          <p className="text-sm font-medium text-foreground">{new Date(s.createdAt).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" })}</p>
+                                        </div>
+                                        <div className="bg-white rounded-lg border border-border p-3 space-y-1">
+                                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Snapshot</p>
+                                          <p className={`text-sm font-medium ${s.snapshotState ? "text-green-700" : "text-muted-foreground"}`}>
+                                            {s.snapshotState ? "✓ Available" : "— Not saved"}
+                                          </p>
+                                        </div>
+                                        <div className="bg-white rounded-lg border border-border p-3 space-y-1">
+                                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Formula</p>
+                                          <p className="text-sm font-medium text-foreground truncate">{formula?.name ?? <span className="italic text-muted-foreground">None linked</span>}</p>
+                                        </div>
+                                      </div>
+
+                                      {/* Notes */}
+                                      {s.conclusionNotes && (
+                                        <div className="bg-white rounded-lg border border-amber-200 px-4 py-3">
+                                          <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide mb-1">Conclusion Notes</p>
+                                          <p className="text-xs text-foreground leading-relaxed">{s.conclusionNotes}</p>
+                                        </div>
                                       )}
 
-                                      {s.status === "em_andamento" && (
-                                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-green-200 text-green-700 hover:bg-green-50"
-                                          onClick={() => {
-                                            setFinalizeStatus("aprovado");
-                                            setFinalizeNotes(s.conclusionNotes ?? "");
-                                            setFinalizeDialog({ id: s.id, name: s.name });
-                                          }}>
-                                          <ClipboardCheck className="h-3 w-3" /> Conclude
+                                      {/* Actions */}
+                                      <div className="flex flex-wrap gap-2 pt-1">
+                                        <Button size="sm" className="h-8 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+                                          onClick={e => { e.stopPropagation(); goToSession(); }}>
+                                          <FlaskConical className="h-3.5 w-3.5" /> Open Session
                                         </Button>
-                                      )}
 
-                                      {(s.status === "aprovado" || s.status === "reprovado") && (
-                                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-amber-200 text-amber-700 hover:bg-amber-50"
-                                          onClick={() => {
-                                            setFinalizeStatus("em_andamento");
-                                            setFinalizeNotes(s.conclusionNotes ?? "");
-                                            setFinalizeDialog({ id: s.id, name: s.name });
-                                          }}>
-                                          Change Status
-                                        </Button>
-                                      )}
-
-                                      {(s.status === "aprovado" || s.status === "reprovado") && (
-                                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-violet-200 text-violet-700 hover:bg-violet-50"
-                                          onClick={() => { if (confirm(`Issue report for "${s.name}"?`)) handleEmitLaudo(s.id); }}>
-                                          <ScrollText className="h-3 w-3" /> Issue Report
-                                        </Button>
-                                      )}
-
-                                      {s.runs.length > 0 && (
-                                        <>
-                                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
-                                            onClick={() => handleSavePng(s.id, false)}>
-                                            <ImageDown className="h-3 w-3" /> PNG
+                                        {s.snapshotState && (
+                                          <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5"
+                                            onClick={e => {
+                                              e.stopPropagation();
+                                              if (s.status !== "em_andamento") {
+                                                setMasterAuthDialog({ onSuccess: () => { setUnlockedSessionId(s.id); handleLoadSnapshotSession(s); } });
+                                                setMasterAuthInput(""); setMasterAuthError(null);
+                                              } else { handleLoadSnapshotSession(s); }
+                                            }}>
+                                            {s.status !== "em_andamento" ? <Lock className="h-3.5 w-3.5" /> : <LockOpen className="h-3.5 w-3.5" />}
+                                            Review Snapshot
                                           </Button>
-                                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-green-200 text-green-700 hover:bg-green-50"
-                                            onClick={() => handleSavePng(s.id, true)}>
-                                            <ImageIcon className="h-3 w-3" /> → Library
-                                          </Button>
-                                        </>
-                                      )}
+                                        )}
 
-                                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                        onClick={() => openDeleteSessionDialog(s.id, s.name)}>
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </Button>
+                                        {s.status === "em_andamento" && (
+                                          <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 border-green-200 text-green-700 hover:bg-green-50"
+                                            onClick={e => { e.stopPropagation(); setFinalizeStatus("aprovado"); setFinalizeNotes(s.conclusionNotes ?? ""); setFinalizeDialog({ id: s.id, name: s.name }); }}>
+                                            <ClipboardCheck className="h-3.5 w-3.5" /> Conclude Session
+                                          </Button>
+                                        )}
+
+                                        {(s.status === "aprovado" || s.status === "reprovado") && (
+                                          <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 border-amber-200 text-amber-700 hover:bg-amber-50"
+                                            onClick={e => { e.stopPropagation(); setFinalizeStatus("em_andamento"); setFinalizeNotes(s.conclusionNotes ?? ""); setFinalizeDialog({ id: s.id, name: s.name }); }}>
+                                            Change Status
+                                          </Button>
+                                        )}
+
+                                        {(s.status === "aprovado" || s.status === "reprovado") && (
+                                          <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50"
+                                            onClick={e => { e.stopPropagation(); if (confirm(`Issue report for "${s.name}"?`)) handleEmitLaudo(s.id); }}>
+                                            <ScrollText className="h-3.5 w-3.5" /> Issue Report
+                                          </Button>
+                                        )}
+
+                                        {s.runs.length > 0 && (
+                                          <>
+                                            <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5"
+                                              onClick={e => { e.stopPropagation(); handleSavePng(s.id, false); }}>
+                                              <ImageDown className="h-3.5 w-3.5" /> Save PNG
+                                            </Button>
+                                            <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 border-green-200 text-green-700 hover:bg-green-50"
+                                              onClick={e => { e.stopPropagation(); handleSavePng(s.id, true); }}>
+                                              <ImageIcon className="h-3.5 w-3.5" /> → Library
+                                            </Button>
+                                          </>
+                                        )}
+
+                                        <Button size="sm" variant="ghost" className="h-8 text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 ml-auto"
+                                          onClick={e => { e.stopPropagation(); openDeleteSessionDialog(s.id, s.name); }}>
+                                          <Trash2 className="h-3.5 w-3.5" /> Delete
+                                        </Button>
+                                      </div>
                                     </div>
                                   </td>
                                 </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  );
-                })()}
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
                 {/* ── Image gallery ── */}
                 <div ref={galleryRef} />
