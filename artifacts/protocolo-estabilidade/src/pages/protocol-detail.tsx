@@ -1801,6 +1801,49 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
     });
   };
 
+  // Immediately saves current form values for a param to the global bank (ativo_references).
+  // Cancels any pending debounced sync for the same param first.
+  const saveLimitToBank = (param: string) => {
+    const limit = latestAtivoLimitsRef.current[param];
+    if (!limit) return;
+    // Cancel any pending debounced sync so we don't double-save
+    const timer = bankSyncTimersRef.current[param];
+    if (timer) { clearTimeout(timer); delete bankSyncTimersRef.current[param]; }
+
+    const bankEntry = ativoRefs.find(r => r.parameter === param);
+    const payload = {
+      parameter: param,
+      minValue: limit.min || null,
+      maxValue: limit.max || null,
+      unit: limit.unit || "mg",
+      overage: limit.overage || null,
+      source: limit.norma || null,
+    };
+    if (bankEntry) {
+      updateRef.mutate(
+        { id: bankEntry.id, data: payload },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() });
+            toast({ title: "✓ Salvo no banco", description: `Faixa de "${param}" atualizada no banco global.`, duration: 2000 });
+          },
+          onError: () => toast({ variant: "destructive", title: "Erro ao salvar no banco" }),
+        }
+      );
+    } else {
+      createRef.mutate(
+        { data: payload },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: getListAtivoReferencesQueryKey() });
+            toast({ title: "✓ Criado no banco", description: `"${param}" adicionado ao banco global de referências.`, duration: 2000 });
+          },
+          onError: () => toast({ variant: "destructive", title: "Erro ao criar no banco" }),
+        }
+      );
+    }
+  };
+
   // ── Datas por período (T0, T3, T6) — salvas no DB e localStorage ─────────
   const PERIOD_DATES_KEY = `period_analysis_dates_${protocolId}`;
   const [periodDates, setPeriodDatesState] = useState<Record<number, string>>(() => {
@@ -2343,12 +2386,13 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                               </select>
                             </td>
                             <td className="py-1 pl-2">
-                              {bankRef ? (
+                              {(lim.min || lim.max || lim.norma || lim.unit !== "mg") ? (
                                 <button
                                   type="button"
-                                  title={`Usar banco: mín ${bankRef.minValue ?? "—"}, máx ${bankRef.maxValue ?? "—"} ${bankRef.unit}`}
-                                  onClick={() => applyRefToLimit(bankRef)}
-                                  className="text-[10px] px-1.5 py-0.5 rounded border border-indigo-300 bg-white text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 transition-colors whitespace-nowrap"
+                                  title="Salvar estes valores no banco global de referências ANVISA"
+                                  onClick={() => saveLimitToBank(param.parameter)}
+                                  disabled={updateRef.isPending || createRef.isPending}
+                                  className="text-[10px] px-1.5 py-0.5 rounded border border-indigo-300 bg-white text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 transition-colors whitespace-nowrap disabled:opacity-40"
                                 >
                                   ↩ banco
                                 </button>
