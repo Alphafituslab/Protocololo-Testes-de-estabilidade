@@ -774,6 +774,7 @@ function CellImages({ storageKey }: { storageKey: string }) {
 
 function InlineCell({
   lotId, period, param, result, protocolId, lots, periodDate,
+  editUnlocked, onUnlock, onSaved,
 }: {
   lotId: number;
   period: number;
@@ -782,6 +783,9 @@ function InlineCell({
   protocolId: number;
   lots: { id: number; lotNumber: string }[];
   periodDate?: string;
+  editUnlocked: boolean;
+  onUnlock: () => void;
+  onSaved: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(result?.result ?? "");
@@ -812,6 +816,7 @@ function InlineCell({
 
   const openEditing = () => {
     if (!result) { open(); return; }
+    if (editUnlocked) { open(); return; }
     setPwdOpen(true);
     setPwdValue("");
     setPwdError("");
@@ -830,6 +835,7 @@ function InlineCell({
       if (res.ok) {
         setPwdOpen(false);
         setPwdValue("");
+        onUnlock();
         open();
       } else {
         setPwdError("Senha incorreta.");
@@ -857,6 +863,7 @@ function InlineCell({
         queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
         setEditing(false);
+        onSaved();
       },
       onError: (err: unknown) => {
         const apiMsg = (err as { data?: { error?: string } })?.data?.error;
@@ -1075,6 +1082,7 @@ function InlineCell({
               queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
               queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
               setEditing(false);
+              onSaved();
             }}
             disabled={bulkUpsert.isPending}
             className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 w-full mt-0.5 disabled:opacity-50"
@@ -1099,7 +1107,7 @@ function InlineCell({
               <p className="font-semibold text-sm">Alterar resultado já salvo</p>
             </div>
             <p className="text-xs text-muted-foreground">
-              O parâmetro <strong>{param.parameter}</strong> já possui resultado salvo. Digite a senha para autorizar a alteração.
+              O parâmetro <strong>{param.parameter}</strong> já possui resultado salvo. Digite a senha para autorizar a alteração de <strong>todos os resultados</strong> desta análise.
             </p>
             <div className="relative">
               <input
@@ -1131,7 +1139,7 @@ function InlineCell({
         tabIndex={0}
         data-inline-cell
         className="cursor-pointer group flex items-center justify-center min-h-8 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-inset rounded w-full"
-        title={result ? "Clique para alterar (exige senha)" : "Clique para inserir resultado"}
+        title={result ? (editUnlocked ? "Clique para alterar (desbloqueado)" : "Clique para alterar (exige senha)") : "Clique para inserir resultado"}
       >
         {result ? (
           <span className={`inline-flex flex-col items-center gap-0.5 px-1.5 py-0.5 rounded text-xs border font-medium group-hover:opacity-80 transition-opacity ${statusColors[result.status] ?? "text-slate-600 bg-slate-50 border-slate-200"}`}>
@@ -1453,6 +1461,7 @@ const CATEGORY_PRESETS: Record<string, { parameter: string; criterion: string }[
 function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJson, initialParamMethodsJson, initialParamMethodsCitationsJson, protocolFinalStatus, protocolStatus, initialAtivoLimitsJson, initialKineticsOverridesJson }: { protocolId: number; initialCustomParamsJson?: string | null; initialPeriodDatesJson?: string | null; initialParamMethodsJson?: string | null; initialParamMethodsCitationsJson?: string | null; protocolFinalStatus?: string | null; protocolStatus?: string | null; initialAtivoLimitsJson?: string | null; initialKineticsOverridesJson?: string | null }) {
   const protocolIsAR = protocolFinalStatus === "aprovado_com_ressalva";
   const isCriterionLocked = protocolFinalStatus != null || protocolStatus === "aprovado" || protocolStatus === "reprovado" || protocolStatus === "aprovado_com_ressalva";
+  const [editUnlocked, setEditUnlocked] = useState(false);
   const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
   const { data: results = [], isLoading } = useListResults(protocolId, { query: { queryKey: getListResultsQueryKey(protocolId) } });
   const { data: methodologies = [] } = useListMethodologies();
@@ -2859,6 +2868,9 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                 protocolId={protocolId}
                                 lots={lots}
                                 periodDate={periodDates[period] || undefined}
+                                editUnlocked={editUnlocked}
+                                onUnlock={() => setEditUnlocked(true)}
+                                onSaved={() => setEditUnlocked(false)}
                               />
                             </TableCell>
                           );
