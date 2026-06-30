@@ -304,6 +304,7 @@ export default function AtivoReferencesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-xs text-muted-foreground uppercase tracking-wide">
+                    <th className="text-center px-2 py-2 font-medium w-8">#</th>
                     <th className="text-left px-4 py-2 font-medium">Ativo</th>
                     <th className="text-right px-3 py-2 font-medium">Mín.</th>
                     <th className="text-right px-3 py-2 font-medium">Máx.</th>
@@ -315,12 +316,14 @@ export default function AtivoReferencesPage() {
                 </thead>
                 <tbody>
                   {refs
-                    .filter(r => !search.trim() || r.parameter.toLowerCase().includes(search.trim().toLowerCase()))
-                    .map((ref, i) => (
+                    .map((ref, globalIdx) => ({ ref, globalIdx }))
+                    .filter(({ ref }) => !search.trim() || ref.parameter.toLowerCase().includes(search.trim().toLowerCase()))
+                    .map(({ ref, globalIdx }, i) => (
                     <tr
                       key={ref.id}
                       className={`border-b last:border-0 transition-colors ${editingId === ref.id ? "bg-indigo-50" : i % 2 === 0 ? "bg-white" : "bg-muted/20"} hover:bg-indigo-50/60`}
                     >
+                      <td className="px-2 py-2.5 text-center text-xs font-mono text-muted-foreground select-none">{globalIdx + 1}</td>
                       <td className="px-4 py-2.5 font-medium text-foreground">{ref.parameter}</td>
                       <td className="px-3 py-2.5 text-right font-mono text-sm">
                         {ref.minValue ? (
