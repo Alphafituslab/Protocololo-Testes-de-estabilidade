@@ -322,14 +322,14 @@ export default function CertificatePage() {
     const cn = cert.certNumber;
     const prev = document.title;
     document.title = `Certificado ${cn} — Alphafitus`;
-    // Update URL bar to short form /c/<certNumber> (no page reload)
+    // Update URL bar to short form /c/<certNumber> (no page reload, no popstate)
     window.history.replaceState(null, "", `/c/${encodeURIComponent(cn)}`);
     return () => {
       document.title = prev;
-      // Restore the original protocols/:id/certificate path on unmount
-      window.history.replaceState(null, "", `/protocols/${id}/certificate`);
+      // Do NOT call replaceState here — the user has already navigated away
+      // and calling replaceState would corrupt the destination page's URL.
     };
-  }, [cert?.certNumber, id]);
+  }, [cert?.certNumber]);
 
   // certTitle and lbl_capsuleComposition are cleaned synchronously in the
   // useState initializer above (ALWAYS_CLEAR_KEYS). No useEffect needed.
