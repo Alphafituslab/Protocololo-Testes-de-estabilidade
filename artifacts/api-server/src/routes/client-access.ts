@@ -1,14 +1,17 @@
 import { Router, type IRouter } from "express";
 import { db, usersTable, clientProtocolAccessTable, protocolsTable, loginLogTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "../lib/session";
+import { requireAuth } from "../lib/session";
+import { PERM, requirePermission } from "../lib/permissions";
 import bcrypt from "bcryptjs";
 import { sendClientAccessEmail } from "../lib/mailer.js";
 
 const router: IRouter = Router();
 
+const canManageUsers = [requireAuth, requirePermission(PERM.USER_MANAGE)];
+
 // List protocols assigned to a client user
-router.get("/clients/:userId/protocols", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.get("/clients/:userId/protocols", ...canManageUsers, async (req, res): Promise<void> => {
   const userId = parseInt(String(req.params["userId"] ?? ""));
   if (isNaN(userId)) { res.status(400).json({ error: "ID inválido." }); return; }
 
@@ -36,7 +39,7 @@ router.get("/clients/:userId/protocols", requireAuth, requireAdmin, async (req, 
 });
 
 // Assign a protocol to a client user
-router.post("/clients/:userId/protocols", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.post("/clients/:userId/protocols", ...canManageUsers, async (req, res): Promise<void> => {
   const userId = parseInt(String(req.params["userId"] ?? ""));
   if (isNaN(userId)) { res.status(400).json({ error: "ID inválido." }); return; }
 
@@ -115,7 +118,7 @@ router.post("/clients/:userId/protocols", requireAuth, requireAdmin, async (req,
 });
 
 // Update permissions for a specific access entry
-router.put("/clients/:userId/protocols/:accessId", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.put("/clients/:userId/protocols/:accessId", ...canManageUsers, async (req, res): Promise<void> => {
   const userId = parseInt(String(req.params["userId"] ?? ""));
   const accessId = parseInt(String(req.params["accessId"] ?? ""));
   if (isNaN(userId) || isNaN(accessId)) { res.status(400).json({ error: "IDs inválidos." }); return; }
@@ -150,7 +153,7 @@ router.put("/clients/:userId/protocols/:accessId", requireAuth, requireAdmin, as
 });
 
 // Remove a protocol from a client user
-router.delete("/clients/:userId/protocols/:accessId", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.delete("/clients/:userId/protocols/:accessId", ...canManageUsers, async (req, res): Promise<void> => {
   const userId = parseInt(String(req.params["userId"] ?? ""));
   const accessId = parseInt(String(req.params["accessId"] ?? ""));
   if (isNaN(userId) || isNaN(accessId)) { res.status(400).json({ error: "IDs inválidos." }); return; }
@@ -164,8 +167,8 @@ router.delete("/clients/:userId/protocols/:accessId", requireAuth, requireAdmin,
   res.json({ ok: true });
 });
 
-// Login history for a specific client user (admin only)
-router.get("/clients/:userId/login-history", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+// Login history for a specific client user
+router.get("/clients/:userId/login-history", ...canManageUsers, async (req, res): Promise<void> => {
   const userId = parseInt(String(req.params["userId"] ?? ""));
   if (isNaN(userId)) { res.status(400).json({ error: "ID inválido." }); return; }
 
@@ -180,7 +183,7 @@ router.get("/clients/:userId/login-history", requireAuth, requireAdmin, async (r
 });
 
 // Send / resend credentials email for a client user (generates new password)
-router.post("/clients/:userId/send-email", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.post("/clients/:userId/send-email", ...canManageUsers, async (req, res): Promise<void> => {
   const userId = parseInt(String(req.params["userId"] ?? ""));
   if (isNaN(userId)) { res.status(400).json({ error: "ID inválido." }); return; }
 

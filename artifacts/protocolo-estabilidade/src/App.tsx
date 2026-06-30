@@ -354,6 +354,35 @@ const AtivoReferencesRoute = () => <ProtectedRoute component={AtivoReferencesPag
 const SnapshotsGlobalRoute  = () => <ProtectedRoute component={SnapshotsGlobalPage} />;
 const ClientPortalRoute     = () => <ProtectedClientRoute component={ClientPortalPage} />;
 
+// ── /c/:certNumber — short certificate URL (redirects to /protocols/:id/certificate) ──
+function CertByNumberRoute({ params }: { params: { certNumber: string } }) {
+  const [, navigate] = useLocation();
+  const { token } = useAuth();
+  const [error, setError] = React.useState("");
+
+  React.useEffect(() => {
+    const cn = params.certNumber;
+    if (!cn) { setError("Número de certificado inválido."); return; }
+    const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+    fetch(`/api/protocols/by-cert/${encodeURIComponent(cn)}`, { headers: authHeader })
+      .then(r => {
+        if (!r.ok) throw new Error("Certificado não encontrado.");
+        return r.json() as Promise<{ id: number }>;
+      })
+      .then(({ id }) => navigate(`/protocols/${id}/certificate`, { replace: true }))
+      .catch(e => setError((e as Error).message));
+  }, [params.certNumber, token, navigate]);
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 text-muted-foreground">
+      <span className="text-4xl">🔍</span>
+      <p className="text-sm">{error}</p>
+      <Button variant="link" onClick={() => navigate("/")}>Voltar ao início</Button>
+    </div>
+  );
+  return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+}
+
 const LoginRoute = () => (
   <AppErrorBoundary>
     <LoginPage />
@@ -369,6 +398,7 @@ function Router() {
       <Route path="/protocols/new" component={ProtocolFormRoute} />
       <Route path="/protocols/:id/edit" component={ProtocolFormRoute} />
       <Route path="/protocols/:id/certificate" component={CertificateRoute} />
+      <Route path="/c/:certNumber" component={CertByNumberRoute} />
       <Route path="/protocols/:id/report" component={ProtocolReportRoute} />
       <Route path="/protocols/:id" component={ProtocolDetailRoute} />
       <Route path="/users" component={UsersRoute} />

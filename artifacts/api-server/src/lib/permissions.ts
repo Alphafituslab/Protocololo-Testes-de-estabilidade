@@ -18,6 +18,7 @@ export const PERM = {
   CATALOG_MANAGE:     "catalog:manage",
   ATTACHMENTS_MANAGE: "attachments:manage",
   SETTINGS_MANAGE:    "settings:manage",
+  USER_MANAGE:        "user:manage",
 } as const;
 
 export type PermKey = typeof PERM[keyof typeof PERM];
@@ -36,6 +37,7 @@ export const PERM_LABELS: Record<PermKey, string> = {
   "catalog:manage":     "Gerenciar cadastros (catálogo)",
   "attachments:manage": "Gerenciar anexos",
   "settings:manage":    "Configurações do sistema",
+  "user:manage":        "Gerenciar usuários e acesso ao portal do cliente",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -781,10 +781,13 @@ export default function UsersPage() {
     }
   };
 
-  if (!isAdmin) {
+  const { hasPermission } = useAuth();
+  const canManageUsers = isAdmin || hasPermission("user:manage");
+
+  if (!canManageUsers) {
     return (
       <div className="p-8 text-center text-muted-foreground">
-        <p>Acesso restrito a administradores.</p>
+        <p>Acesso restrito a administradores ou usuários com permissão de gerenciamento.</p>
         <Button variant="link" onClick={() => navigate("/")} className="mt-2">Voltar</Button>
       </div>
     );

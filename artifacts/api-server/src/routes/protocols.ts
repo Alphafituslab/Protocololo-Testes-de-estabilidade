@@ -171,6 +171,19 @@ router.post("/protocols", requireAuth, requirePermission(PERM.PROTOCOLS_CREATE),
   res.status(201).json(protocol);
 });
 
+// Lookup protocol ID by cert number — must come BEFORE /:id
+router.get("/protocols/by-cert/:certNumber", requireAuth, async (req, res): Promise<void> => {
+  const cn = String(req.params["certNumber"] ?? "").trim();
+  if (!cn) { res.status(400).json({ error: "certNumber é obrigatório." }); return; }
+  const [row] = await db
+    .select({ id: protocolsTable.id })
+    .from(protocolsTable)
+    .where(eq(protocolsTable.certNumber, cn))
+    .limit(1);
+  if (!row) { res.status(404).json({ error: "Protocolo não encontrado para este número de certificado." }); return; }
+  res.json({ id: row.id });
+});
+
 router.get("/protocols/:id", requireAuth, async (req, res): Promise<void> => {
   const params = GetProtocolParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }

@@ -316,6 +316,21 @@ export default function CertificatePage() {
   });
   const updateProtocol = useUpdateProtocol();
 
+  // ── Update browser title + URL bar to use cert number ────────────────────
+  React.useEffect(() => {
+    if (!cert?.certNumber) return;
+    const cn = cert.certNumber;
+    const prev = document.title;
+    document.title = `Certificado ${cn} — Alphafitus`;
+    // Update URL bar to short form /c/<certNumber> (no page reload)
+    window.history.replaceState(null, "", `/c/${encodeURIComponent(cn)}`);
+    return () => {
+      document.title = prev;
+      // Restore the original protocols/:id/certificate path on unmount
+      window.history.replaceState(null, "", `/protocols/${id}/certificate`);
+    };
+  }, [cert?.certNumber, id]);
+
   // certTitle and lbl_capsuleComposition are cleaned synchronously in the
   // useState initializer above (ALWAYS_CLEAR_KEYS). No useEffect needed.
 
@@ -2977,26 +2992,27 @@ export default function CertificatePage() {
             display: none !important;
           }
 
-          /* ── 5. @page: NUNCA usar !important dentro de @page (CSS inválido →
-             browser ignora a regra inteira, inclusive size: A4).
-             Margens: 15mm topo/base (espaço para header/footer físico do browser)
-                      25mm laterais (estética do documento técnico).            */
+          /* ── 5. @page: margin:0 suprime cabeçalho/rodapé do browser
+             (URL, data, número de página). As margens visuais do documento
+             são geradas pelo padding de #certificate-document abaixo.
+             NUNCA usar !important dentro de @page (CSS inválido →
+             browser ignora a regra inteira, inclusive size: A4). */
           @page {
             size: A4 portrait;
-            margin: 15mm 25mm 10mm 25mm;
+            margin: 0;
           }
 
           /* ── 5a. #certificate-document: display block ────────────────────────
              display:block garante que o conteúdo preencha a largura total
-             da @page (160mm = A4 210mm − 2×25mm margens) sem colapso.
-             display:table foi abandonado — colapsava o corpo em Chrome print. */
+             da @page. Padding compensa o margin:0 da @page, reproduzindo
+             as margens visuais de 15mm topo, 25mm laterais, 10mm base. */
           #certificate-document {
             display: block !important;
             position: static !important;
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
-            padding: 0 !important;
+            padding: 15mm 25mm 10mm 25mm !important;
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
