@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListAtivoReferences,
@@ -10,8 +10,11 @@ import {
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, FlaskConical } from "lucide-react";
+import { Plus, Pencil, Trash2, FlaskConical, AlertTriangle } from "lucide-react";
 import { UnlockDialog } from "@/components/unlock-dialog";
+
+const normParam = (s: string) =>
+  s.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ");
 
 async function verifyMasterPassword(password: string): Promise<{ ok: boolean; error?: string }> {
   try {
@@ -58,6 +61,22 @@ export default function AtivoReferencesPage() {
   const [pendingDelete, setPendingDelete] = useState<AtivoReference | null>(null);
   const [search, setSearch] = useState("");
 
+  // ── Detecção de duplicatas ─────────────────────────────────────────
+  const duplicateGroups = useMemo(() => {
+    const byName: Record<string, AtivoReference[]> = {};
+    for (const r of refs) {
+      const key = normParam(r.parameter);
+      if (!byName[key]) byName[key] = [];
+      byName[key].push(r);
+    }
+    return Object.values(byName).filter(group => group.length > 1);
+  }, [refs]);
+
+  const duplicateIds = useMemo(
+    () => new Set(duplicateGroups.flatMap(g => g.map(r => r.id))),
+    [duplicateGroups],
+  );
+
   const resetForm = () => {
     setForm(emptyForm);
     setEditingId(null);
@@ -67,6 +86,14 @@ export default function AtivoReferencesPage() {
   const handleSave = async () => {
     if (!form.parameter.trim()) {
       setError("O nome do ativo é obrigatório.");
+      return;
+    }
+    // Aviso de duplicata ao criar (não ao editar o mesmo item)
+    const normNew = normParam(form.parameter);
+    const existing = refs.find(r => r.id !== editingId && normParam(r.parameter) === normNew);
+    if (existing) {
+      const idx = refs.indexOf(existing) + 1;
+      setError(`Já existe uma entrada com este nome (#${idx} — "${existing.parameter}"). Verifique e exclua a duplicata antes de salvar.`);
       return;
     }
     setSaving(true);
@@ -262,6 +289,68 @@ export default function AtivoReferencesPage() {
         </CardContent>
       </Card>
 
+      {/* Banner de duplicatas */}
+      {duplicateGroups.length > 0 && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-3">
+          <div className="flex items-center gap-2 text-amber-800">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <p className="font-semibold text-sm">
+              {duplicateGroups.length === 1
+                ? "1 grupo de entradas duplicadas encontrado"
+                : `${duplicateGroups.length} grupos de entradas duplicadas encontrados`}
+            </p>
+          </div>
+          <p className="text-xs text-amber-700">
+            Entradas com o mesmo nome podem causar conflito na seleção automática. Mantenha apenas uma de cada.
+          </p>
+          <div className="space-y-3">
+            {duplicateGroups.map((group) => (
+              <div key={group[0].id} className="rounded border border-amber-200 bg-white overflow-hidden">
+                <div className="px-3 py-1.5 bg-amber-100 border-b border-amber-200">
+                  <span className="text-xs font-bold text-amber-900 uppercase tracking-wide">
+                    Duplicata: "{group[0].parameter}"
+                  </span>
+                </div>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b bg-muted/20 text-muted-foreground">
+                      <th className="px-3 py-1 text-left font-medium">#</th>
+                      <th className="px-3 py-1 text-right font-medium">Mín.</th>
+                      <th className="px-3 py-1 text-right font-medium">Máx.</th>
+                      <th className="px-3 py-1 text-left font-medium">Unidade</th>
+                      <th className="px-3 py-1 text-left font-medium">Observações</th>
+                      <th className="px-3 py-1"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.map((r) => {
+                      const globalIdx = refs.indexOf(r) + 1;
+                      return (
+                        <tr key={r.id} className="border-b last:border-0 hover:bg-amber-50/60">
+                          <td className="px-3 py-1.5 font-mono text-muted-foreground">{globalIdx}</td>
+                          <td className="px-3 py-1.5 text-right font-mono">{r.minValue ?? "—"}</td>
+                          <td className="px-3 py-1.5 text-right font-mono">{r.maxValue ?? "—"}</td>
+                          <td className="px-3 py-1.5 text-muted-foreground">{r.unit}</td>
+                          <td className="px-3 py-1.5 text-muted-foreground max-w-[160px] truncate">{r.notes ?? ""}</td>
+                          <td className="px-3 py-1.5 text-right">
+                            <button
+                              onClick={() => handleDelete(r)}
+                              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-colors"
+                            >
+                              <Trash2 className="h-3 w-3" /> Excluir #{globalIdx}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* List */}
       <Card>
         <CardHeader className="pb-3">
@@ -321,7 +410,7 @@ export default function AtivoReferencesPage() {
                     .map(({ ref, globalIdx }, i) => (
                     <tr
                       key={ref.id}
-                      className={`border-b last:border-0 transition-colors ${editingId === ref.id ? "bg-indigo-50" : i % 2 === 0 ? "bg-white" : "bg-muted/20"} hover:bg-indigo-50/60`}
+                      className={`border-b last:border-0 transition-colors ${editingId === ref.id ? "bg-indigo-50" : duplicateIds.has(ref.id) ? "bg-amber-50" : i % 2 === 0 ? "bg-white" : "bg-muted/20"} hover:bg-indigo-50/60`}
                     >
                       <td className="px-2 py-2.5 text-center text-xs font-mono text-muted-foreground select-none">{globalIdx + 1}</td>
                       <td className="px-4 py-2.5 font-medium text-foreground">{ref.parameter}</td>
