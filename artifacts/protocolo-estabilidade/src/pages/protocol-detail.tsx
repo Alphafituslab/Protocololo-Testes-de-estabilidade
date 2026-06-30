@@ -1639,17 +1639,25 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
       let changed = false;
       const next = { ...prev };
       for (const ref of ativoRefs) {
-        const existing = prev[ref.parameter];
-        const isEmpty = !existing || (!existing.min && !existing.max);
-        if (isEmpty) {
-          next[ref.parameter] = {
-            min: ref.minValue ?? "",
-            max: ref.maxValue ?? "",
-            unit: ref.unit ?? "mg",
-            declared: existing?.declared ?? "",
-            overage: existing?.overage ?? ref.overage ?? "",
-            norma: existing?.norma ?? ref.source ?? "",
-          };
+        const existing = prev[ref.parameter] ?? { min: "", max: "", unit: "mg", declared: "", overage: "", norma: "" };
+        // Bank is the source of truth for all fields except `declared` (user-entered).
+        // Override with bank value whenever bank has a non-null value; keep existing otherwise.
+        const updated = {
+          min:      ref.minValue != null ? ref.minValue : existing.min,
+          max:      ref.maxValue != null ? ref.maxValue : existing.max,
+          unit:     ref.unit     != null ? ref.unit     : existing.unit,
+          declared: existing.declared, // NEVER overridden by bank
+          overage:  ref.overage  != null ? ref.overage  : existing.overage,
+          norma:    ref.source   != null ? ref.source   : existing.norma,
+        };
+        if (
+          updated.min     !== existing.min     ||
+          updated.max     !== existing.max     ||
+          updated.unit    !== existing.unit    ||
+          updated.overage !== existing.overage ||
+          updated.norma   !== existing.norma
+        ) {
+          next[ref.parameter] = updated;
           changed = true;
         }
       }
