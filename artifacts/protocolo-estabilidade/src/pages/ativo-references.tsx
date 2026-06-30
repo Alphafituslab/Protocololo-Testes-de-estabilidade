@@ -37,10 +37,10 @@ type RefForm = {
   maxValue: string;
   unit: string;
   overage: string;
-  notes: string;
+  source: string;
 };
 
-const emptyForm: RefForm = { parameter: "", minValue: "", maxValue: "", unit: "mg", overage: "", notes: "" };
+const emptyForm: RefForm = { parameter: "", minValue: "", maxValue: "", unit: "mg", overage: "", source: "" };
 
 const UNITS = ["mg", "mcg", "UI", "UFC/g", "g", "%"];
 
@@ -105,7 +105,7 @@ export default function AtivoReferencesPage() {
         maxValue: form.maxValue.trim() || null,
         unit: form.unit || "mg",
         overage: form.overage.trim() || null,
-        notes: form.notes.trim() || null,
+        source: form.source.trim() || null,
       };
       if (editingId !== null) {
         await updateRef.mutateAsync({ id: editingId, data: payload });
@@ -129,7 +129,7 @@ export default function AtivoReferencesPage() {
       maxValue: ref.maxValue ?? "",
       unit: ref.unit ?? "mg",
       overage: ref.overage ?? "",
-      notes: ref.notes ?? "",
+      source: ref.source ?? "",
     });
     setError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -259,10 +259,10 @@ export default function AtivoReferencesPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-foreground">Observações / Referência normativa</label>
+            <label className="text-xs font-medium text-foreground">Norma / Referência normativa</label>
             <input
-              value={form.notes}
-              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              value={form.source}
+              onChange={e => setForm(f => ({ ...f, source: e.target.value }))}
               placeholder="ex: RDC 269/2005, Portaria 32/1998…"
               className="border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
@@ -318,7 +318,7 @@ export default function AtivoReferencesPage() {
                       <th className="px-3 py-1 text-right font-medium">Mín.</th>
                       <th className="px-3 py-1 text-right font-medium">Máx.</th>
                       <th className="px-3 py-1 text-left font-medium">Unidade</th>
-                      <th className="px-3 py-1 text-left font-medium">Observações</th>
+                      <th className="px-3 py-1 text-left font-medium">Norma</th>
                       <th className="px-3 py-1"></th>
                     </tr>
                   </thead>
@@ -331,7 +331,7 @@ export default function AtivoReferencesPage() {
                           <td className="px-3 py-1.5 text-right font-mono">{r.minValue ?? "—"}</td>
                           <td className="px-3 py-1.5 text-right font-mono">{r.maxValue ?? "—"}</td>
                           <td className="px-3 py-1.5 text-muted-foreground">{r.unit}</td>
-                          <td className="px-3 py-1.5 text-muted-foreground max-w-[160px] truncate">{r.notes ?? ""}</td>
+                          <td className="px-3 py-1.5 text-muted-foreground max-w-[160px] truncate">{r.source ?? ""}</td>
                           <td className="px-3 py-1.5 text-right">
                             <button
                               onClick={() => handleDelete(r)}
@@ -399,7 +399,7 @@ export default function AtivoReferencesPage() {
                     <th className="text-right px-3 py-2 font-medium">Máx.</th>
                     <th className="text-left px-3 py-2 font-medium">Unidade</th>
                     <th className="text-right px-3 py-2 font-medium text-amber-600">Overage</th>
-                    <th className="text-left px-3 py-2 font-medium">Observações</th>
+                    <th className="text-left px-3 py-2 font-medium">Norma</th>
                     <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
@@ -437,7 +437,7 @@ export default function AtivoReferencesPage() {
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-muted-foreground text-xs max-w-[200px] truncate">
-                        {ref.notes ?? ""}
+                        {ref.source ?? ""}
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="flex gap-1 justify-end">
