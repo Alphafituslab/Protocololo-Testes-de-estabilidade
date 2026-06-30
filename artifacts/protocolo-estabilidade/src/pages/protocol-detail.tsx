@@ -1551,6 +1551,10 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   // Ref tracking the latest ativoLimits value for debounced DB saves (avoids stale closures).
   const latestAtivoLimitsRef = useRef(ativoLimits);
   latestAtivoLimitsRef.current = ativoLimits;
+  // Ref to latest editableParams — lets the bank-sync effect read current params
+  // without adding editableParams to its dependency array (which would re-run on every keystroke).
+  const editableParamsRef = useRef(editableParams);
+  editableParamsRef.current = editableParams;
   // Timer for debounced protocol save when ativoLimitsJson changes.
   const saveAtivoTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
