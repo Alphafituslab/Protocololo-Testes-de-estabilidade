@@ -40,11 +40,14 @@ import {
   useListSignatures,
   getListSignaturesQueryKey,
   useListBibliographicReferences,
+  useCreateBibliographicReference,
+  getListBibliographicReferencesQueryKey,
   useListProtocolBibliographicReferences,
   useAddProtocolBibliographicReference,
   useRemoveProtocolBibliographicReference,
   getListProtocolBibliographicReferencesQueryKey,
   type BibliographicReference,
+  type BibliographicReferenceInput,
   useListAtivoReferences,
   useCreateAtivoReference,
   useUpdateAtivoReference,
@@ -6828,11 +6831,20 @@ function formatAbntRef(r: BibliographicReference): string {
   return parts.join(" ");
 }
 
+const EMPTY_NEW_REF: BibliographicReferenceInput = {
+  titulo: "", autores: "", ano: undefined, fonte: "",
+  tipoReferencia: "regulamentacao", descricao: "", doi: "",
+  volume: "", numero: "", paginas: "",
+};
+
 function ReferencesTab({ protocolId }: { protocolId: number }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [search, setSearch] = useState("");
+  // "select" = browsing existing refs | "create" = new-ref form
+  const [mode, setMode] = useState<"select" | "create">("select");
+  const [newRef, setNewRef] = useState<BibliographicReferenceInput>(EMPTY_NEW_REF);
 
   const { data: protocolRefs = [], isLoading } = useListProtocolBibliographicReferences(protocolId);
   const { data: allRefs = [] } = useListBibliographicReferences();
@@ -6857,11 +6869,41 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
     },
   });
 
+  const createRef = useCreateBibliographicReference({
+    mutation: {
+      onSuccess: (created) => {
+        // Refresh global bank
+        queryClient.invalidateQueries({ queryKey: getListBibliographicReferencesQueryKey() });
+        // Immediately associate the new reference to this protocol
+        addRef.mutate({ id: protocolId, data: { referenceId: created.id } });
+        toast({ title: "Referência cadastrada e adicionada ao protocolo" });
+        closeDialog();
+      },
+      onError: (err) => toast({ title: "Erro ao cadastrar referência", description: (err as Error).message, variant: "destructive" }),
+    },
+  });
+
+  function openDialog(startInCreate = false) {
+    setSearch("");
+    setNewRef(EMPTY_NEW_REF);
+    setMode(startInCreate ? "create" : "select");
+    setSelectorOpen(true);
+  }
+
+  function closeDialog() {
+    setSelectorOpen(false);
+    setMode("select");
+    setSearch("");
+    setNewRef(EMPTY_NEW_REF);
+  }
+
   const linkedIds = new Set(protocolRefs.map(r => r.id));
   const available = allRefs.filter(r =>
     !linkedIds.has(r.id) &&
     (search === "" || r.titulo.toLowerCase().includes(search.toLowerCase()) || (r.autores ?? "").toLowerCase().includes(search.toLowerCase()))
   );
+
+  const noResults = available.length === 0;
 
   return (
     <Card>
@@ -6872,13 +6914,17 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
             <CardTitle className="text-base">Referências Bibliográficas</CardTitle>
             <span className="text-xs text-muted-foreground">(ABNT NBR 6023)</span>
           </div>
-          <Button size="sm" variant="outline" onClick={() => { setSearch(""); setSelectorOpen(true); }}>
-            <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Referência
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => openDialog(true)}>
+              <Plus className="h-3.5 w-3.5 mr-1" /> Nova Referência
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => openDialog(false)}>
+              <BookOpen className="h-3.5 w-3.5 mr-1" /> Selecionar do Banco
+            </Button>
+          </div>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Selecione referências do banco de cadastros para associar a este protocolo.
-          Para cadastrar novas referências, acesse <strong>Cadastros</strong> no menu lateral.
+          Adicione uma nova referência diretamente aqui ou selecione do banco de cadastros já existente.
         </p>
       </CardHeader>
       <CardContent>
@@ -6890,7 +6936,14 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
           <div className="text-center py-10 text-muted-foreground text-sm">
             <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-30" />
             <p>Nenhuma referência associada a este protocolo.</p>
-            <p className="text-xs mt-1">Clique em "Adicionar Referência" para selecionar do banco.</p>
+            <div className="flex items-center justify-center gap-2 mt-3">
+              <Button size="sm" variant="outline" onClick={() => openDialog(false)}>
+                <BookOpen className="h-3.5 w-3.5 mr-1" /> Selecionar do banco
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => openDialog(true)}>
+                <Plus className="h-3.5 w-3.5 mr-1" /> Cadastrar nova
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -6932,7 +6985,7 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Remover referência?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Esta referência será removida permanentemente do protocolo. Esta ação não pode ser desfeita.
+                        Esta referência será removida deste protocolo (continuará no banco de cadastros).
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -6952,54 +7005,193 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
         )}
       </CardContent>
 
-      {/* Selector dialog */}
+      {/* ── Dialog ── */}
       {selectorOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setSelectorOpen(false)}>
-          <div className="bg-background rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col mx-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="font-semibold text-base">Selecionar Referência</h3>
-              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setSelectorOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={closeDialog}>
+          <div
+            className="bg-background rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col mx-4"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header with mode toggle */}
+            <div className="flex items-center justify-between p-4 border-b gap-3">
+              <div className="flex gap-1 bg-muted rounded-lg p-1">
+                <button
+                  className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${mode === "select" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setMode("select")}
+                >
+                  <BookOpen className="h-3 w-3 inline mr-1" />Selecionar do banco
+                </button>
+                <button
+                  className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${mode === "create" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => { setMode("create"); setNewRef(EMPTY_NEW_REF); }}
+                >
+                  <Plus className="h-3 w-3 inline mr-1" />Cadastrar nova
+                </button>
+              </div>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 shrink-0" onClick={closeDialog}>
                 <X className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <div className="p-3 border-b">
-              <Input
-                autoFocus
-                placeholder="Buscar por título ou autor..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="h-8 text-sm"
-              />
-            </div>
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {available.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  {allRefs.length === 0
-                    ? "Nenhuma referência cadastrada. Acesse Cadastros para adicionar."
-                    : "Todas as referências já foram associadas ou nenhuma corresponde à busca."}
-                </p>
-              ) : (
-                available.map(ref => (
-                  <button
-                    key={ref.id}
-                    className="w-full text-left p-3 rounded-lg hover:bg-muted/60 transition-colors group"
-                    onClick={() => {
-                      addRef.mutate({ id: protocolId, data: { referenceId: ref.id } });
-                      setSelectorOpen(false);
-                    }}
-                  >
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                        {TIPO_LABELS_REF[ref.tipoReferencia] ?? ref.tipoReferencia}
-                      </span>
-                      {ref.ano && <span className="text-xs text-muted-foreground">{ref.ano}</span>}
+
+            {/* ── SELECT MODE ── */}
+            {mode === "select" && (
+              <>
+                <div className="p-3 border-b">
+                  <Input
+                    autoFocus
+                    placeholder="Buscar por título ou autor..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                  {available.map(ref => (
+                    <button
+                      key={ref.id}
+                      className="w-full text-left p-3 rounded-lg hover:bg-muted/60 transition-colors"
+                      onClick={() => {
+                        addRef.mutate({ id: protocolId, data: { referenceId: ref.id } });
+                        closeDialog();
+                      }}
+                    >
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                          {TIPO_LABELS_REF[ref.tipoReferencia] ?? ref.tipoReferencia}
+                        </span>
+                        {ref.ano && <span className="text-xs text-muted-foreground">{ref.ano}</span>}
+                      </div>
+                      <p className="text-sm font-medium leading-snug">{ref.titulo}</p>
+                      {ref.autores && <p className="text-xs text-muted-foreground">{ref.autores}</p>}
+                    </button>
+                  ))}
+
+                  {/* Empty state — prompt to create */}
+                  {noResults && (
+                    <div className="text-center py-6 space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        {allRefs.length === 0
+                          ? "Nenhuma referência cadastrada ainda."
+                          : search
+                            ? `Nenhum resultado para "${search}".`
+                            : "Todas as referências do banco já estão neste protocolo."}
+                      </p>
+                      <Button size="sm" variant="outline" onClick={() => { setMode("create"); setNewRef(r => ({ ...r, titulo: search })); }}>
+                        <Plus className="h-3.5 w-3.5 mr-1" />
+                        Cadastrar "{search || "nova referência"}"
+                      </Button>
                     </div>
-                    <p className="text-sm font-medium leading-snug">{ref.titulo}</p>
-                    {ref.autores && <p className="text-xs text-muted-foreground">{ref.autores}</p>}
-                  </button>
-                ))
-              )}
-            </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* ── CREATE MODE ── */}
+            {mode === "create" && (
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  A referência será salva no banco de cadastros e automaticamente associada a este protocolo.
+                </p>
+
+                {/* Tipo */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Tipo *</label>
+                  <select
+                    value={newRef.tipoReferencia ?? "regulamentacao"}
+                    onChange={e => setNewRef(r => ({ ...r, tipoReferencia: e.target.value }))}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    {Object.entries(TIPO_LABELS_REF).map(([v, l]) => (
+                      <option key={v} value={v}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Título */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Título *</label>
+                  <Input
+                    autoFocus
+                    placeholder="Ex: Farmacopeia Brasileira, 6ª Edição"
+                    value={newRef.titulo}
+                    onChange={e => setNewRef(r => ({ ...r, titulo: e.target.value }))}
+                    className="h-8 text-sm"
+                  />
+                </div>
+
+                {/* Autores */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Autores / Órgão emissor</label>
+                  <Input
+                    placeholder="Ex: ANVISA; Ministério da Saúde"
+                    value={newRef.autores ?? ""}
+                    onChange={e => setNewRef(r => ({ ...r, autores: e.target.value }))}
+                    className="h-8 text-sm"
+                  />
+                </div>
+
+                {/* Ano + Fonte na mesma linha */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Ano</label>
+                    <Input
+                      type="number"
+                      placeholder="Ex: 2019"
+                      value={newRef.ano ?? ""}
+                      onChange={e => setNewRef(r => ({ ...r, ano: e.target.value ? Number(e.target.value) : undefined }))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Fonte / Periódico</label>
+                    <Input
+                      placeholder="Ex: Diário Oficial"
+                      value={newRef.fonte ?? ""}
+                      onChange={e => setNewRef(r => ({ ...r, fonte: e.target.value }))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* DOI / URL */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">DOI / URL</label>
+                  <Input
+                    placeholder="https://... ou 10.xxxx/..."
+                    value={newRef.doi ?? ""}
+                    onChange={e => setNewRef(r => ({ ...r, doi: e.target.value }))}
+                    className="h-8 text-sm"
+                  />
+                </div>
+
+                {/* Descrição */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Descrição / Observação</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Contexto de uso, capítulo relevante, etc."
+                    value={newRef.descricao ?? ""}
+                    onChange={e => setNewRef(r => ({ ...r, descricao: e.target.value }))}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                  />
+                </div>
+
+                {/* Actions */}
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button size="sm" variant="outline" onClick={() => setMode("select")}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={!newRef.titulo.trim() || createRef.isPending}
+                    onClick={() => createRef.mutate({ data: { ...newRef, titulo: newRef.titulo.trim() } })}
+                  >
+                    {createRef.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                    Salvar e adicionar
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
