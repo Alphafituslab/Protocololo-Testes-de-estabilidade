@@ -2,6 +2,7 @@ import { useParams, Link, useLocation } from "wouter";
 import { fmtDate } from "@/lib/utils";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useUnlock } from "@/hooks/use-unlock";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { UnlockDialog } from "@/components/unlock-dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -217,6 +218,7 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
   const [issueDateLocal, setIssueDateLocal] = useState(protocol.issueDate ?? "");
   const [isDirty, setIsDirty] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  useUnsavedChangesGuard(isDirty);
 
   // Environmental conditions — now persisted in the database.
   // We clean up the old localStorage key on mount so stale values are gone.
@@ -3111,6 +3113,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     } catch { return {}; }
   });
   const [isDirty, setIsDirty] = useState(false);
+  useUnsavedChangesGuard(isDirty);
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
