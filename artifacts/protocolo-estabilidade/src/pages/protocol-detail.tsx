@@ -4350,6 +4350,20 @@ function MethodologiaTab({
   }, [editableParams]);
 
   const addParam = (category: string, parameter = "", criterion = "") => {
+    if (parameter.trim()) {
+      const norm = (s: string) => s.trim().toLowerCase();
+      const duplicate = editableParams.find(
+        p => p.category === category && norm(p.parameter) === norm(parameter)
+      );
+      if (duplicate) {
+        toast({
+          title: "Parâmetro já cadastrado",
+          description: `"${parameter}" já existe nesta categoria. Não é possível duplicar.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     const uid = `${category}_${Date.now()}`;
     const entries = parameter.trim() ? getCatalogEntries(parameter) : [];
     const autoEntry = entries.length === 1 ? entries[0] : undefined;
@@ -4370,22 +4384,58 @@ function MethodologiaTab({
     const libParam = libEntry?.parameter ?? null;
     const libCriteria = libEntry?.criteria ?? null;
 
-    // Fallback: catálogo local (usado apenas se a biblioteca não tem dados)
+    // Fallback 1: catálogo local (usado apenas se a biblioteca não tem dados)
     const reverseMatches = shortName && !libParam ? getParamsForMethodology(shortName) : [];
     const catalogFill = reverseMatches.length === 1 ? reverseMatches[0] : null;
 
-    setEditableParams(prev => prev.map(p => {
-      if (p.uid !== uid) return p;
-      return {
-        ...p,
-        parameter: libParam ?? catalogFill?.paramName ?? p.parameter,
-        criterion: libCriteria ?? catalogFill?.criterion ?? p.criterion,
-        methodologyShort: shortName ?? undefined,
-        methodologyCitation: citation ?? undefined,
-      };
-    }));
+    // Fallback 2: para teor_ativo sem libParam e sem catálogo, tenta inferir nome pelo shortName
+    const _normKw = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    let inferredName: string | null = null;
 
-    const finalName = libParam ?? catalogFill?.paramName ?? paramName;
+    setEditableParams(prev => {
+      const current = prev.find(p => p.uid === uid);
+      if (current && !libParam && !catalogFill?.paramName && current.category === "teor_ativo" && shortName) {
+        const normShort = _normKw(shortName);
+        const presets = CATEGORY_PRESETS.teor_ativo ?? [];
+        const match = presets.find(preset => {
+          const words = _normKw(preset.parameter)
+            .split(/[\s()/-]+/)
+            .filter(w => w.length > 3);
+          return words.length > 0 && words.some(w => normShort.includes(w));
+        });
+        inferredName = match?.parameter ?? null;
+
+        // Aviso de duplicata quando o nome inferido já existe
+        if (inferredName && inferredName !== current.parameter) {
+          const normName = inferredName.trim().toLowerCase();
+          const dup = prev.find(
+            p => p.uid !== uid && p.category === current.category &&
+            p.parameter.trim().toLowerCase() === normName
+          );
+          if (dup) {
+            toast({
+              title: "Nome duplicado",
+              description: `"${inferredName}" já existe nesta categoria. Renomeie o parâmetro manualmente.`,
+              variant: "destructive",
+            });
+            inferredName = null;
+          }
+        }
+      }
+
+      return prev.map(p => {
+        if (p.uid !== uid) return p;
+        return {
+          ...p,
+          parameter: libParam ?? catalogFill?.paramName ?? inferredName ?? p.parameter,
+          criterion: libCriteria ?? catalogFill?.criterion ?? p.criterion,
+          methodologyShort: shortName ?? undefined,
+          methodologyCitation: citation ?? undefined,
+        };
+      });
+    });
+
+    const finalName = libParam ?? catalogFill?.paramName ?? inferredName ?? paramName;
     if (shortName && citation && finalName.trim()) {
       addToCatalog(finalName, shortName, citation);
     }
@@ -4419,6 +4469,40 @@ function MethodologiaTab({
       );
       return next;
     });
+  };
+
+  // ── Senha para alterar critério (protocolo em_andamento) ──────────
+  const isCriterionPasswordRequired = protocolStatus === "em_andamento";
+  const [criterionUnlockedUids, setCriterionUnlockedUids] = useState<Set<string>>(new Set());
+  const [criterionPwdPending, setCriterionPwdPending] = useState<string | null>(null);
+  const [criterionPwdValue, setCriterionPwdValue] = useState("");
+  const [criterionPwdError, setCriterionPwdError] = useState("");
+  const [criterionPwdLoading, setCriterionPwdLoading] = useState(false);
+  const [criterionPwdShow, setCriterionPwdShow] = useState(false);
+
+  const confirmCriterionPwd = async () => {
+    if (!criterionPwdPending) return;
+    setCriterionPwdLoading(true);
+    setCriterionPwdError("");
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: criterionPwdValue }),
+      });
+      if (res.ok) {
+        setCriterionUnlockedUids(prev => new Set([...prev, criterionPwdPending]));
+        setCriterionPwdPending(null);
+        setCriterionPwdValue("");
+        setCriterionPwdShow(false);
+      } else {
+        setCriterionPwdError("Senha incorreta.");
+        setCriterionPwdValue("");
+      }
+    } catch {
+      setCriterionPwdError("Erro de conexão.");
+    }
+    setCriterionPwdLoading(false);
   };
 
   const [draggingParamUid2, setDraggingParamUid2] = useState<string | null>(null);
@@ -4756,14 +4840,39 @@ function MethodologiaTab({
                             />
                           </td>
                           <td className="px-3 py-1.5">
-                            <input
-                              value={p.criterion}
-                              onChange={e => !isCriterionLocked && updateParam(p.uid, "criterion", e.target.value)}
-                              readOnly={isCriterionLocked}
-                              title={isCriterionLocked ? "Critério bloqueado — protocolo já finalizado" : undefined}
-                              className={`w-full bg-transparent text-xs text-muted-foreground font-mono placeholder:text-muted-foreground/40 border-b transition-colors ${isCriterionLocked ? "border-transparent cursor-default select-text" : "border-transparent focus:outline-none focus:border-primary"}`}
-                              placeholder="Critério de aceitação"
-                            />
+                            {(() => {
+                              const criterionReadOnly = isCriterionLocked ||
+                                (isCriterionPasswordRequired && !criterionUnlockedUids.has(p.uid));
+                              const criterionTitle = isCriterionLocked
+                                ? "Critério bloqueado — protocolo já finalizado"
+                                : isCriterionPasswordRequired && !criterionUnlockedUids.has(p.uid)
+                                  ? "Clique para alterar o critério (requer senha)"
+                                  : undefined;
+                              return (
+                                <input
+                                  value={p.criterion}
+                                  onChange={e => !criterionReadOnly && updateParam(p.uid, "criterion", e.target.value)}
+                                  readOnly={criterionReadOnly}
+                                  onClick={() => {
+                                    if (isCriterionPasswordRequired && !criterionUnlockedUids.has(p.uid)) {
+                                      setCriterionPwdPending(p.uid);
+                                      setCriterionPwdValue("");
+                                      setCriterionPwdError("");
+                                      setCriterionPwdShow(false);
+                                    }
+                                  }}
+                                  title={criterionTitle}
+                                  className={`w-full bg-transparent text-xs text-muted-foreground font-mono placeholder:text-muted-foreground/40 border-b transition-colors ${
+                                    isCriterionLocked
+                                      ? "border-transparent cursor-default select-text"
+                                      : isCriterionPasswordRequired && !criterionUnlockedUids.has(p.uid)
+                                        ? "border-transparent cursor-pointer hover:border-amber-400"
+                                        : "border-transparent focus:outline-none focus:border-primary"
+                                  }`}
+                                  placeholder="Critério de aceitação"
+                                />
+                              );
+                            })()}
                           </td>
                           <td className="px-3 py-1.5 min-w-[200px]">
                             {p.methodologyShort ? (
@@ -5266,6 +5375,42 @@ function MethodologiaTab({
               <button type="button" onClick={() => { setChangeMethodConfirm(null); setChangeMethodPwd(""); setChangeMethodError(""); }} className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted">Cancelar</button>
               <button type="button" onClick={handleChangeMethodology} disabled={changeMethodLoading || !changeMethodPwd.trim()} className="text-xs px-3 py-1.5 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50">
                 {changeMethodLoading ? "Verificando…" : "Confirmar troca"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog — senha para alterar critério em protocolo em_andamento */}
+      {criterionPwdPending && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { setCriterionPwdPending(null); setCriterionPwdError(""); }}>
+          <div className="bg-white rounded-lg shadow-xl w-80 p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-amber-600 shrink-0" />
+              <p className="font-semibold text-sm">Alterar critério de aceitação</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Este protocolo está <strong>em andamento</strong>. Alterações no critério de aceitação exigem senha mestra e serão salvas <strong>apenas neste documento</strong>.
+            </p>
+            <div className="relative">
+              <input
+                type={criterionPwdShow ? "text" : "password"}
+                value={criterionPwdValue}
+                onChange={e => { setCriterionPwdValue(e.target.value); setCriterionPwdError(""); }}
+                onKeyDown={e => { if (e.key === "Enter") confirmCriterionPwd(); if (e.key === "Escape") setCriterionPwdPending(null); }}
+                placeholder="Senha mestra"
+                autoFocus
+                className="w-full border border-border rounded px-3 py-1.5 text-sm pr-9 focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <button type="button" onClick={() => setCriterionPwdShow(s => !s)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">
+                {criterionPwdShow ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {criterionPwdError && <p className="text-xs text-destructive font-medium -mt-2">{criterionPwdError}</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => { setCriterionPwdPending(null); setCriterionPwdError(""); }} className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted">Cancelar</button>
+              <button type="button" onClick={confirmCriterionPwd} disabled={criterionPwdLoading || !criterionPwdValue.trim()} className="text-xs px-3 py-1.5 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50">
+                {criterionPwdLoading ? "Verificando…" : "Desbloquear critério"}
               </button>
             </div>
           </div>
