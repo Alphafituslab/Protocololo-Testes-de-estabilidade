@@ -1448,8 +1448,9 @@ const CATEGORY_PRESETS: Record<string, { parameter: string; criterion: string }[
   ],
 };
 
-function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJson, initialParamMethodsJson, initialParamMethodsCitationsJson, protocolFinalStatus, initialAtivoLimitsJson, initialKineticsOverridesJson }: { protocolId: number; initialCustomParamsJson?: string | null; initialPeriodDatesJson?: string | null; initialParamMethodsJson?: string | null; initialParamMethodsCitationsJson?: string | null; protocolFinalStatus?: string | null; initialAtivoLimitsJson?: string | null; initialKineticsOverridesJson?: string | null }) {
+function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJson, initialParamMethodsJson, initialParamMethodsCitationsJson, protocolFinalStatus, protocolStatus, initialAtivoLimitsJson, initialKineticsOverridesJson }: { protocolId: number; initialCustomParamsJson?: string | null; initialPeriodDatesJson?: string | null; initialParamMethodsJson?: string | null; initialParamMethodsCitationsJson?: string | null; protocolFinalStatus?: string | null; protocolStatus?: string | null; initialAtivoLimitsJson?: string | null; initialKineticsOverridesJson?: string | null }) {
   const protocolIsAR = protocolFinalStatus === "aprovado_com_ressalva";
+  const isCriterionLocked = protocolFinalStatus != null || protocolStatus === "aprovado" || protocolStatus === "reprovado" || protocolStatus === "aprovado_com_ressalva";
   const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
   const { data: results = [], isLoading } = useListResults(protocolId, { query: { queryKey: getListResultsQueryKey(protocolId) } });
   const { data: methodologies = [] } = useListMethodologies();
@@ -2773,14 +2774,16 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                             >
                               <input
                                 value={param.criterion}
-                                onChange={(e) => updateParam(param.uid, "criterion", e.target.value)}
+                                onChange={(e) => !isCriterionLocked && updateParam(param.uid, "criterion", e.target.value)}
+                                readOnly={isCriterionLocked}
                                 autoComplete="new-password"
                                 autoCorrect="off"
                                 autoCapitalize="off"
                                 spellCheck={false}
                                 data-form-type="other"
                                 data-lpignore="true"
-                                className="w-full text-xs text-muted-foreground bg-transparent border-b border-dashed border-transparent hover:border-muted-foreground/30 focus:border-primary focus:outline-none py-0.5 placeholder:text-muted-foreground/40"
+                                title={isCriterionLocked ? "Critério bloqueado — protocolo já finalizado" : undefined}
+                                className={`w-full text-xs text-muted-foreground bg-transparent border-b border-dashed py-0.5 placeholder:text-muted-foreground/40 ${isCriterionLocked ? "border-transparent cursor-default select-text" : "border-transparent hover:border-muted-foreground/30 focus:border-primary focus:outline-none"}`}
                                 placeholder="Critério de aceitação"
                               />
                             </TableCell>
@@ -4266,10 +4269,13 @@ type MethodologyDialogState =
 function MethodologiaTab({
   protocolId,
   initialCustomParamsJson,
+  protocolStatus,
 }: {
   protocolId: number;
   initialCustomParamsJson?: string | null;
+  protocolStatus?: string | null;
 }) {
+  const isCriterionLocked = protocolStatus === "aprovado" || protocolStatus === "reprovado" || protocolStatus === "aprovado_com_ressalva";
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: methodologies = [], isLoading } = useListMethodologies();
@@ -4737,8 +4743,10 @@ function MethodologiaTab({
                           <td className="px-3 py-1.5">
                             <input
                               value={p.criterion}
-                              onChange={e => updateParam(p.uid, "criterion", e.target.value)}
-                              className="w-full bg-transparent focus:outline-none border-b border-transparent focus:border-primary text-xs text-muted-foreground font-mono transition-colors placeholder:text-muted-foreground/40"
+                              onChange={e => !isCriterionLocked && updateParam(p.uid, "criterion", e.target.value)}
+                              readOnly={isCriterionLocked}
+                              title={isCriterionLocked ? "Critério bloqueado — protocolo já finalizado" : undefined}
+                              className={`w-full bg-transparent text-xs text-muted-foreground font-mono placeholder:text-muted-foreground/40 border-b transition-colors ${isCriterionLocked ? "border-transparent cursor-default select-text" : "border-transparent focus:outline-none focus:border-primary"}`}
                               placeholder="Critério de aceitação"
                             />
                           </td>
@@ -6033,6 +6041,7 @@ export default function ProtocolDetail() {
                 initialParamMethodsJson={protocol.paramMethodsJson}
                 initialParamMethodsCitationsJson={protocol.paramMethodsCitationsJson}
                 protocolFinalStatus={protocol.finalStatus}
+                protocolStatus={protocol.status}
                 initialAtivoLimitsJson={protocol.ativoLimitsJson}
                 initialKineticsOverridesJson={protocol.kineticsOverridesJson}
               />
@@ -6060,7 +6069,7 @@ export default function ProtocolDetail() {
         <TabsContent value="metodologia">
           <Card>
             <CardContent className="pt-6">
-              <MethodologiaTab protocolId={numId} initialCustomParamsJson={protocol.customParamsJson} />
+              <MethodologiaTab protocolId={numId} initialCustomParamsJson={protocol.customParamsJson} protocolStatus={protocol.status} />
             </CardContent>
           </Card>
         </TabsContent>
