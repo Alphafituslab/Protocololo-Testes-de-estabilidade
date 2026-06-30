@@ -4294,6 +4294,7 @@ function MethodologiaTab({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: methodologies = [], isLoading } = useListMethodologies();
+  const { data: ativoRefsLib = [] } = useListAtivoReferences({ query: { queryKey: getListAtivoReferencesQueryKey(), staleTime: 60_000 } });
   const updateProtocol = useUpdateProtocol();
   const isMountedRef = useRef(false);
 
@@ -4771,8 +4772,18 @@ function MethodologiaTab({
                 </div>
                 {/* ── Banco de presets — chips de adição rápida ── */}
                 {(() => {
-                  const available = getPresetsForCategory(key).filter(
-                    preset => !catParams.some(c => c.parameter === preset.parameter)
+                  const basePresets = getPresetsForCategory(key);
+                  // Para teor_ativo, mescla com entradas do Banco de Referências de Limites
+                  const extraFromBank: { parameter: string; criterion: string }[] =
+                    key === "teor_ativo"
+                      ? ativoRefsLib
+                          .filter(r => r.parameter?.trim())
+                          .filter(r => !basePresets.some(p => p.parameter.trim().toLowerCase() === r.parameter!.trim().toLowerCase()))
+                          .map(r => ({ parameter: r.parameter!, criterion: "Mín. 80% do valor declarado" }))
+                      : [];
+                  const allPresets = [...basePresets, ...extraFromBank];
+                  const available = allPresets.filter(
+                    preset => !catParams.some(c => c.parameter.trim().toLowerCase() === preset.parameter.trim().toLowerCase())
                   );
                   if (available.length === 0) return null;
                   return (
