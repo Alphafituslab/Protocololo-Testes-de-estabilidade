@@ -172,8 +172,8 @@ router.post("/protocols", requireAuth, requirePermission(PERM.PROTOCOLS_CREATE),
 });
 
 // Lookup protocol ID by cert number — must come BEFORE /:id
-router.get("/protocols/by-cert/:certNumber", requireAuth, async (req, res): Promise<void> => {
-  const cn = String(req.params["certNumber"] ?? "").trim();
+router.get("/protocols/by-cert", requireAuth, async (req, res): Promise<void> => {
+  const cn = String(req.query["cn"] ?? "").trim();
   if (!cn) { res.status(400).json({ error: "certNumber é obrigatório." }); return; }
   const [row] = await db
     .select({ id: protocolsTable.id })

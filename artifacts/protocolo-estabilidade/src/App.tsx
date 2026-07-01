@@ -364,7 +364,7 @@ function CertByNumberRoute({ params }: { params: { certNumber: string } }) {
     const cn = params.certNumber;
     if (!cn) { setError("Número de certificado inválido."); return; }
     const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
-    fetch(`/api/protocols/by-cert/${encodeURIComponent(cn)}`, { headers: authHeader })
+    fetch(`/api/protocols/by-cert?cn=${encodeURIComponent(cn)}`, { headers: authHeader })
       .then(r => {
         if (!r.ok) throw new Error("Certificado não encontrado.");
         return r.json() as Promise<{ id: number }>;
