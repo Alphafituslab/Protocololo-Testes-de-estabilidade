@@ -316,19 +316,13 @@ export default function CertificatePage() {
   });
   const updateProtocol = useUpdateProtocol();
 
-  // ── Update browser title + URL bar to use cert number ────────────────────
+  // ── Update browser title with cert number ────────────────────────────────
   React.useEffect(() => {
     if (!cert?.certNumber) return;
     const cn = cert.certNumber;
     const prev = document.title;
     document.title = `Certificado ${cn} — Alphafitus`;
-    // Update URL bar to short form /c/<certNumber> (no page reload, no popstate)
-    window.history.replaceState(null, "", `/c?n=${encodeURIComponent(cn)}`);
-    return () => {
-      document.title = prev;
-      // Do NOT call replaceState here — the user has already navigated away
-      // and calling replaceState would corrupt the destination page's URL.
-    };
+    return () => { document.title = prev; };
   }, [cert?.certNumber]);
 
   // certTitle and lbl_capsuleComposition are cleaned synchronously in the
