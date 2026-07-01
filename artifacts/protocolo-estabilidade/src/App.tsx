@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter, useLocation, Link } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation, useSearch, Link } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -354,14 +354,15 @@ const AtivoReferencesRoute = () => <ProtectedRoute component={AtivoReferencesPag
 const SnapshotsGlobalRoute  = () => <ProtectedRoute component={SnapshotsGlobalPage} />;
 const ClientPortalRoute     = () => <ProtectedClientRoute component={ClientPortalPage} />;
 
-// ── /c/:certNumber — short certificate URL (redirects to /protocols/:id/certificate) ──
-function CertByNumberRoute({ params }: { params: { certNumber: string } }) {
+// ── /c?n=<certNumber> — short certificate URL (redirects to /protocols/:id/certificate) ──
+function CertByNumberRoute() {
   const [, navigate] = useLocation();
   const { token } = useAuth();
   const [error, setError] = React.useState("");
+  const search = useSearch();
 
   React.useEffect(() => {
-    const cn = params.certNumber;
+    const cn = new URLSearchParams(search).get("n") ?? "";
     if (!cn) { setError("Número de certificado inválido."); return; }
     const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
     fetch(`/api/protocols/by-cert?cn=${encodeURIComponent(cn)}`, { headers: authHeader })
@@ -371,7 +372,7 @@ function CertByNumberRoute({ params }: { params: { certNumber: string } }) {
       })
       .then(({ id }) => navigate(`/protocols/${id}/certificate`, { replace: true }))
       .catch(e => setError((e as Error).message));
-  }, [params.certNumber, token, navigate]);
+  }, [search, token, navigate]);
 
   if (error) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 text-muted-foreground">
@@ -398,7 +399,7 @@ function Router() {
       <Route path="/protocols/new" component={ProtocolFormRoute} />
       <Route path="/protocols/:id/edit" component={ProtocolFormRoute} />
       <Route path="/protocols/:id/certificate" component={CertificateRoute} />
-      <Route path="/c/:certNumber" component={CertByNumberRoute} />
+      <Route path="/c" component={CertByNumberRoute} />
       <Route path="/protocols/:id/report" component={ProtocolReportRoute} />
       <Route path="/protocols/:id" component={ProtocolDetailRoute} />
       <Route path="/users" component={UsersRoute} />

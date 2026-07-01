@@ -323,7 +323,7 @@ export default function CertificatePage() {
     const prev = document.title;
     document.title = `Certificado ${cn} — Alphafitus`;
     // Update URL bar to short form /c/<certNumber> (no page reload, no popstate)
-    window.history.replaceState(null, "", `/c/${encodeURIComponent(cn)}`);
+    window.history.replaceState(null, "", `/c?n=${encodeURIComponent(cn)}`);
     return () => {
       document.title = prev;
       // Do NOT call replaceState here — the user has already navigated away
