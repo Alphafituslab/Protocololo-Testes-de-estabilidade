@@ -28,7 +28,35 @@ router.get("/hplc/analyses", requireAuth, async (req, res): Promise<void> => {
   res.json(rows.map(r => JSON.parse(r.analysisData)));
 });
 
-/** Bulk upsert — sync entire saved analyses array at once. */
+/** Upsert a single saved analysis. Preferred over /sync for routine saves —
+ *  keeps the request body small so it never hits Express's body-size limit. */
+router.post("/hplc/analyses/one", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.authUser!.id;
+  const analysis = req.body as Record<string, unknown>;
+  const id = analysis["id"] as string | undefined;
+
+  if (!id) {
+    res.status(400).json({ error: "Campo 'id' é obrigatório." });
+    return;
+  }
+
+  const analysisData = JSON.stringify(analysis);
+  const name = (analysis["productName"] as string | undefined) ?? (analysis["certTitle"] as string | undefined) ?? "";
+
+  await db
+    .insert(hplcSavedAnalysesTable)
+    .values({ id, userId, name, analysisData, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: hplcSavedAnalysesTable.id,
+      set: { name, analysisData, updatedAt: new Date() },
+    });
+
+  res.json({ ok: true });
+});
+
+/** Bulk upsert — sync entire saved analyses array at once. Used only for the
+ *  initial local→server migration/merge, not for routine per-save syncing
+ *  (the array can grow large since each record embeds full HTML/SVG data). */
 router.post("/hplc/analyses/sync", requireAuth, async (req, res): Promise<void> => {
   const userId = req.authUser!.id;
   const analyses = req.body as unknown[];

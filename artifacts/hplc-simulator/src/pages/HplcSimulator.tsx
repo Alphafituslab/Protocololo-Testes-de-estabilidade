@@ -2527,8 +2527,32 @@ function loadSavedAnalyses(): SavedAnalysis[] {
   }
   catch { return []; }
 }
-function persistSavedAnalyses(list: SavedAnalysis[]) {
+// Writes the full list to localStorage only — no network call. Use this for
+// routine local state updates (save/delete a single record) and pair it with
+// persistOneAnalysisToServer / archiveAnalysisOnServer for the server side.
+function persistLocalAnalyses(list: SavedAnalysis[]) {
   try { localStorage.setItem(SAVED_ANALYSES_KEY, JSON.stringify(list)); } catch { /* ignore */ }
+}
+// Syncs ONE record to the server (small payload — safe even with heavy
+// embedded HTML/SVG data per record). This is the preferred sync path for
+// routine saves; never send the whole array on every save (see persistSavedAnalyses).
+function persistOneAnalysisToServer(record: SavedAnalysis) {
+  const token = getAuthToken();
+  if (!token) return;
+  fetch("/api/hplc/analyses/one", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(record),
+  }).catch(() => { /* ignore — localStorage is the fallback */ });
+}
+// Bulk upsert — sends the ENTIRE array to the server. Only use this for the
+// one-time local→server migration/merge on first load: sending the whole
+// array on every routine save can exceed the request body size limit once
+// enough records accumulate (each embeds full HTML/SVG data), silently
+// failing and letting saved PDFs appear to "disappear" after a localStorage
+// clear. For routine saves/deletes use persistLocalAnalyses + persistOneAnalysisToServer.
+function persistSavedAnalyses(list: SavedAnalysis[]) {
+  persistLocalAnalyses(list);
   const token = getAuthToken();
   if (token) {
     fetch("/api/hplc/analyses/sync", {
@@ -6976,7 +7000,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                       onSuccess: () => {
                                         const upd = savedAnalyses.filter(x => x.id !== a.id);
                                         setSavedAnalyses(upd);
-                                        persistSavedAnalyses(upd);
+                                        persistLocalAnalyses(upd);
                                         void archiveAnalysisOnServer(a.id);
                                       },
                                     });
@@ -8845,7 +8869,7 @@ ${cfg.smpInjVolUl > 0 ? `<tr><th>Vol. injeção (µL)</th><td>${cfg.smpInjVolUl.
                                 onSuccess: () => {
                                   const upd = savedAnalyses.filter(x => x.id !== a.id);
                                   setSavedAnalyses(upd);
-                                  persistSavedAnalyses(upd);
+                                  persistLocalAnalyses(upd);
                                   void archiveAnalysisOnServer(a.id);
                                 },
                               });
@@ -10263,7 +10287,8 @@ ${relevantLots.length > 0 ? `<h2>Lotes Analisados</h2>
                       editingOriginalLotRef.current = padraoConfig.productLot.trim();
                     }
                     setSavedAnalyses(updated);
-                    persistSavedAnalyses(updated);
+                    persistLocalAnalyses(updated);
+                    persistOneAnalysisToServer(record);
                     return record;
                   };
 
