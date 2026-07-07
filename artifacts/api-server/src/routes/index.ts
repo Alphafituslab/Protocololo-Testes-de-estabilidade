@@ -24,6 +24,7 @@ import hplcSessionsRouter from "./hplc-sessions";
 import hplcSavedAnalysesRouter from "./hplc-saved-analyses";
 import hplcWorkspaceRouter from "./hplc-workspace";
 import clientAccessRouter from "./client-access";
+import adminRecoveryRouter from "./admin-recovery";
 
 const router: IRouter = Router();
 
@@ -53,5 +54,6 @@ router.use(hplcSessionsRouter);
 router.use(hplcSavedAnalysesRouter);
 router.use(hplcWorkspaceRouter);
 router.use(clientAccessRouter);
+router.use(adminRecoveryRouter);
 
 export default router;
