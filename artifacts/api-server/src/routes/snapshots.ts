@@ -14,7 +14,7 @@ const router: IRouter = Router();
 
 /** List snapshots for a protocol (lightweight — no snapshotData payload). */
 router.get("/protocols/:id/snapshots", requireAuth, async (req, res): Promise<void> => {
-  const id = parseInt(req.params["id"] ?? "", 10);
+  const id = parseInt(String(req.params["id"] ?? ""), 10);
   if (isNaN(id)) { res.status(400).json({ error: "ID inválido." }); return; }
 
   const snapshots = await db
@@ -34,7 +34,7 @@ router.get("/protocols/:id/snapshots", requireAuth, async (req, res): Promise<vo
 
 /** Create a manual snapshot. */
 router.post("/protocols/:id/snapshots", requireAuth, async (req, res): Promise<void> => {
-  const id = parseInt(req.params["id"] ?? "", 10);
+  const id = parseInt(String(req.params["id"] ?? ""), 10);
   if (isNaN(id)) { res.status(400).json({ error: "ID inválido." }); return; }
 
   const { label } = req.body as { label?: string };
@@ -69,8 +69,8 @@ type SnapshotPayload = {
 
 /** Restore a snapshot. Requires MASTER_PASSWORD in the request body. */
 router.post("/protocols/:id/snapshots/:snapshotId/restore", requireAuth, async (req, res): Promise<void> => {
-  const id = parseInt(req.params["id"] ?? "", 10);
-  const snapshotId = parseInt(req.params["snapshotId"] ?? "", 10);
+  const id = parseInt(String(req.params["id"] ?? ""), 10);
+  const snapshotId = parseInt(String(req.params["snapshotId"] ?? ""), 10);
   if (isNaN(id) || isNaN(snapshotId)) { res.status(400).json({ error: "ID inválido." }); return; }
 
   const { password } = req.body as { password?: string };
@@ -110,24 +110,33 @@ router.post("/protocols/:id/snapshots/:snapshotId/restore", requireAuth, async (
     .set(protocolFields)
     .where(eq(protocolsTable.id, id));
 
-  // Restore lots: delete existing, re-insert from snapshot
+  // Restore lots: delete existing, re-insert one by one to capture new IDs.
+  // Building old→new ID mapping is critical because analysis_results reference lot IDs.
   await db.delete(lotsTable).where(eq(lotsTable.protocolId, id));
+  const lotIdMap = new Map<number, number>(); // old lot ID → new lot ID
   if (payload.lots.length > 0) {
-    const lotsToInsert = payload.lots.map((l) => {
-      const { id: _lid, ...rest } = l as Record<string, unknown>;
-      void _lid;
-      return { ...rest, protocolId: id } as typeof lotsTable.$inferInsert;
-    });
-    await db.insert(lotsTable).values(lotsToInsert);
+    for (const l of payload.lots as Record<string, unknown>[]) {
+      const { id: oldLotId, createdAt: _lc, ...lotRest } = l;
+      void _lc;
+      const [inserted] = await db
+        .insert(lotsTable)
+        .values({ ...lotRest, protocolId: id } as typeof lotsTable.$inferInsert)
+        .returning({ id: lotsTable.id });
+      if (inserted && typeof oldLotId === "number") {
+        lotIdMap.set(oldLotId, inserted.id);
+      }
+    }
   }
 
-  // Restore results: delete existing, re-insert from snapshot
+  // Restore results: delete existing, re-insert with remapped lot IDs.
   await db.delete(analysisResultsTable).where(eq(analysisResultsTable.protocolId, id));
   if (payload.results.length > 0) {
-    const resultsToInsert = payload.results.map((r) => {
-      const { id: _rid, ...rest } = r as Record<string, unknown>;
-      void _rid;
-      return { ...rest, protocolId: id } as typeof analysisResultsTable.$inferInsert;
+    const resultsToInsert = (payload.results as Record<string, unknown>[]).map((r) => {
+      const { id: _rid, createdAt: _rc, updatedAt: _ru, ...resultRest } = r;
+      void _rid; void _rc; void _ru;
+      const oldLotId = typeof resultRest["lotId"] === "number" ? resultRest["lotId"] as number : undefined;
+      const newLotId = oldLotId !== undefined ? (lotIdMap.get(oldLotId) ?? oldLotId) : resultRest["lotId"];
+      return { ...resultRest, lotId: newLotId, protocolId: id } as typeof analysisResultsTable.$inferInsert;
     });
     await db.insert(analysisResultsTable).values(resultsToInsert);
   }

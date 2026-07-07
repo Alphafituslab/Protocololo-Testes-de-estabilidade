@@ -5,6 +5,7 @@ import { CreateLotBody, CreateLotParams, UpdateLotParams, DeleteLotParams, ListL
 import { logAudit } from "../lib/audit";
 import { requireAuth } from "../lib/session";
 import { PERM, requirePermission, isProtocolSigned } from "../lib/permissions";
+import { createAutoSnapshot } from "../lib/snapshot-helper";
 
 const router: IRouter = Router();
 
@@ -24,6 +25,7 @@ router.post("/protocols/:id/lots", requireAuth, requirePermission(PERM.LOTS_MANA
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const [lot] = await db.insert(lotsTable).values({ ...parsed.data, protocolId: params.data.id }).returning();
   await logAudit(req, "CRIAR_LOTE", "lote", `Lote "${lot.lotNumber}" adicionado`, { entityId: lot.id, protocolId: params.data.id });
+  void createAutoSnapshot(params.data.id, `Auto: após adicionar lote "${lot.lotNumber}"`, req.authUser?.displayName ?? "Sistema");
   res.status(201).json(lot);
 });
 
@@ -62,6 +64,7 @@ router.delete("/protocols/:id/lots/:lotId", requireAuth, requirePermission(PERM.
     .returning();
   if (!deleted) { res.status(404).json({ error: "Lot not found" }); return; }
   await logAudit(req, "EXCLUIR_LOTE", "lote", `Lote "${deleted.lotNumber}" enviado para a lixeira`, { entityId: deleted.id, protocolId: params.data.id });
+  void createAutoSnapshot(params.data.id, `Auto: antes de excluir lote "${deleted.lotNumber}"`, req.authUser?.displayName ?? "Sistema");
   res.sendStatus(204);
 });
 
