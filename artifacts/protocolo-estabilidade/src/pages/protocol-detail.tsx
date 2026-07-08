@@ -70,7 +70,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink, Upload, Download, X, File, GripVertical, Search, SaveAll, RotateCcw, ShieldAlert, Eye, EyeOff, Bell, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink, Upload, Download, X, File, GripVertical, Search, SaveAll, RotateCcw, ShieldAlert, Eye, EyeOff, Bell, ShieldCheck, PenLine } from "lucide-react";
 import { AuditTrail } from "@/components/audit-trail";
 import { useToast } from "@/hooks/use-toast";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
@@ -7530,6 +7530,9 @@ type AnvisaNotification = {
   notes: string | null;
   createdByName: string | null;
   createdAt: string;
+  signedByName: string | null;
+  signedByRole: string | null;
+  signedAt: string | null;
 };
 
 type AnvisaProtocolInfo = {
@@ -7563,7 +7566,8 @@ function escHtml(s: string) {
 function buildAnvisaDocHtml(
   n: AnvisaNotification,
   p: AnvisaProtocolInfo,
-  imgs: { protocolo: string | null; rotulo: string | null; padronizacao: string | null }
+  imgs: { protocolo: string | null; rotulo: string | null; padronizacao: string | null },
+  logoSrc?: string
 ) {
   const today = new Date().toLocaleDateString("pt-BR");
   const dt = parseDocText(n.docTextJson);
@@ -7584,27 +7588,34 @@ function buildAnvisaDocHtml(
 <head>
 <meta charset="UTF-8"/>
 <title>Documento ANVISA — ${escHtml(n.companyName)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet"/>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:Arial,sans-serif;font-size:11pt;color:#000;padding:2.5cm 3cm;line-height:1.6}
   h1{font-size:13pt;font-weight:bold;text-align:center;margin-bottom:24px;text-transform:uppercase;letter-spacing:.5px}
   .section{margin-bottom:20px}
-  .section-title{font-size:11pt;font-weight:bold;margin-bottom:8px;border-bottom:1.5px solid #000;padding-bottom:2px}
+  .section-title{font-size:11pt;font-weight:bold;margin-bottom:8px;border-bottom:1.5px solid #1e3a5f;padding-bottom:2px;color:#1e3a5f}
   p{margin-bottom:6px}
   .field-row{display:flex;gap:8px;margin-bottom:4px}
   .field-label{font-weight:bold;min-width:170px;flex-shrink:0}
-  .sig-area{margin-top:50px;display:flex;justify-content:flex-end}
-  .sig-box{text-align:center;min-width:220px}
-  .sig-line{border-top:1px solid #000;margin-top:55px;padding-top:5px}
+  .sig-area{margin-top:40px;display:flex;justify-content:flex-end}
+  .sig-box{text-align:center;min-width:240px}
+  .sig-line{border-top:1.5px solid #1e3a5f;padding-top:8px}
+  .sig-cursiva{font-family:'Dancing Script',cursive;font-size:20pt;font-weight:600;color:#111827;line-height:1.3}
+  .sig-verified{color:#16a34a;font-size:8pt;margin:2px 0 8px}
   @media print{body{padding:1.5cm 2cm}button{display:none!important}}
 </style>
 </head>
 <body>
-<div style="text-align:right;margin-bottom:28px;font-size:10pt;line-height:1.8">
-  ${n.expedienteNumber ? `<strong>EXPEDIENTE Nº ${escHtml(n.expedienteNumber)}</strong><br/>` : ""}
-  ${n.processNumber ? `Número do Processo: ${escHtml(n.processNumber)}<br/>` : ""}
-  ${n.transactionNumber ? `Número de Transação: ${escHtml(n.transactionNumber)}<br/>` : ""}
-  ${n.protocolNumber ? `Número de Protocolo: ${escHtml(n.protocolNumber)}<br/>` : ""}
+<div style="display:flex;align-items:center;justify-content:space-between;border-bottom:2.5px solid #1e3a5f;padding-bottom:12px;margin-bottom:20px">
+  ${logoSrc ? `<img src="${logoSrc}" alt="Alphafitus" style="height:48px;width:auto;object-fit:contain"/>` : `<div style="font-weight:900;font-size:13pt;color:#1e3a5f;letter-spacing:.5px">ALPHAFITUS</div>`}
+  <div style="text-align:right;font-size:9.5pt;line-height:1.8;color:#374151">
+    ${n.expedienteNumber ? `<div><strong>EXPEDIENTE Nº ${escHtml(n.expedienteNumber)}</strong></div>` : ""}
+    ${n.processNumber ? `<div>Nº do Processo: ${escHtml(n.processNumber)}</div>` : ""}
+    ${n.transactionNumber ? `<div>Nº de Transação: ${escHtml(n.transactionNumber)}</div>` : ""}
+    ${n.protocolNumber ? `<div>Nº de Protocolo: ${escHtml(n.protocolNumber)}</div>` : ""}
+    <div style="font-size:8.5pt;color:#9ca3af">Data: ${today}</div>
+  </div>
 </div>
 
 ${(p.certNumber || p.productName) ? `
@@ -7667,10 +7678,14 @@ ${(imgs.protocolo || imgs.rotulo || imgs.padronizacao) ? `
   <p class="section-title">8. Assinatura e Liberação</p>
   <div class="sig-area">
     <div class="sig-box">
+      ${n.signedByName ? `
+      <p class="sig-cursiva">${escHtml(n.signedByName)}</p>
+      <p class="sig-verified">✓ Assinado digitalmente — ${n.signedAt ? new Date(n.signedAt).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}) : today}</p>
+      ` : `<div style="height:55px"></div>`}
       <div class="sig-line">
-        <p><strong>${escHtml(p.approvedBy ?? "Responsável Técnico")}</strong></p>
-        <p>Representante Legal</p>
-        <p style="margin-top:8px">Data: ${today}</p>
+        <p><strong>${escHtml(n.signedByName ?? p.approvedBy ?? "Responsável Técnico")}</strong></p>
+        <p>${escHtml(n.signedByRole ?? "Representante Legal")}</p>
+        <p style="font-size:9pt;color:#6b7280;margin-top:4px">${escHtml(p.companyName)}</p>
       </div>
     </div>
   </div>
@@ -7684,7 +7699,7 @@ ${(imgs.protocolo || imgs.rotulo || imgs.padronizacao) ? `
 }
 
 function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolInfo: AnvisaProtocolInfo }) {
-  const { token } = useAuth();
+  const { token, user: currentUser, isAdmin } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -7694,6 +7709,11 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [generatingDocId, setGeneratingDocId] = useState<number | null>(null);
+  const [sigDialogOpen, setSigDialogOpen] = useState(false);
+  const [sigTargetId, setSigTargetId] = useState<number | null>(null);
+  const [sigRole, setSigRole] = useState("Responsável Técnico");
+  const [signing, setSigning] = useState(false);
+  const [unsigningId, setUnsigningId] = useState<number | null>(null);
 
   const protocoloInputRef = useRef<HTMLInputElement>(null);
   const rotuloInputRef = useRef<HTMLInputElement>(null);
@@ -7782,12 +7802,13 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Carregando…</title></head><body style="font-family:Arial;display:flex;align-items:center;justify-content:center;height:100vh;font-size:14pt;color:#555">⏳ Carregando anexos e gerando documento…</body></html>`);
     setGeneratingDocId(n.id);
     try {
+      const logoSrc = window.location.origin + "/logo-alphafitus.png";
       const [protocolo, rotulo, padronizacao] = await Promise.all([
         n.attachmentObjectPath ? fetchAsDataUrl(n.attachmentObjectPath) : Promise.resolve(null),
         n.rotuloObjectPath ? fetchAsDataUrl(n.rotuloObjectPath) : Promise.resolve(null),
         n.padronizacaoObjectPath ? fetchAsDataUrl(n.padronizacaoObjectPath) : Promise.resolve(null),
       ]);
-      const html = buildAnvisaDocHtml(n, protocolInfo, { protocolo, rotulo, padronizacao });
+      const html = buildAnvisaDocHtml(n, protocolInfo, { protocolo, rotulo, padronizacao }, logoSrc);
       win.document.open();
       win.document.write(html);
       win.document.close();
@@ -7880,13 +7901,57 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Erro ao salvar");
+      const saved: AnvisaNotification = await res.json();
       queryClient.invalidateQueries({ queryKey: ["anvisa-notifications", protocolId] });
       toast({ title: editingId !== null ? "Notificação atualizada" : "Notificação ANVISA registrada" });
+      const wasNew = editingId === null;
       resetForm();
+      if (wasNew) {
+        setSigTargetId(saved.id);
+        setSigRole("Responsável Técnico");
+        setSigDialogOpen(true);
+      }
     } catch {
       toast({ title: "Erro ao salvar notificação", variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSign() {
+    if (!sigTargetId) return;
+    setSigning(true);
+    try {
+      const res = await fetch(`/api/protocols/${protocolId}/anvisa/${sigTargetId}/sign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ role: sigRole }),
+      });
+      if (!res.ok) throw new Error();
+      queryClient.invalidateQueries({ queryKey: ["anvisa-notifications", protocolId] });
+      toast({ title: "Notificação assinada com sucesso" });
+      setSigDialogOpen(false);
+      setSigTargetId(null);
+    } catch {
+      toast({ title: "Erro ao registrar assinatura", variant: "destructive" });
+    } finally {
+      setSigning(false);
+    }
+  }
+
+  async function handleUnsign(notifId: number) {
+    setUnsigningId(notifId);
+    try {
+      await fetch(`/api/protocols/${protocolId}/anvisa/${notifId}/sign`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      queryClient.invalidateQueries({ queryKey: ["anvisa-notifications", protocolId] });
+      toast({ title: "Assinatura removida" });
+    } catch {
+      toast({ title: "Erro ao remover assinatura", variant: "destructive" });
+    } finally {
+      setUnsigningId(null);
     }
   }
 
@@ -7946,6 +8011,65 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
   }
 
   return (
+    <>
+    {/* ── Signature Dialog ─────────────────────────────────────────────────── */}
+    {sigDialogOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { if (!signing) setSigDialogOpen(false); }}>
+        <div className="bg-white rounded-xl shadow-2xl w-[420px] max-w-[95vw] max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
+            <h3 className="font-bold text-base flex items-center gap-2 text-gray-900">
+              <PenLine className="h-4 w-4 text-primary" /> Assinar Digitalmente
+            </h3>
+            <button type="button" onClick={() => setSigDialogOpen(false)} disabled={signing}
+              className="text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 w-7 h-7 flex items-center justify-center transition-colors">
+              <span className="text-xl leading-none">×</span>
+            </button>
+          </div>
+          <div className="px-6 py-4 space-y-4">
+            <p className="text-xs text-gray-500">Confirme para registrar sua assinatura eletrônica nesta notificação ANVISA.</p>
+            {/* User card */}
+            <div className="border border-gray-200 rounded-lg p-3 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                {(currentUser?.displayName ?? "?").split(" ").filter(Boolean).slice(0,2).map(n => n[0]?.toUpperCase()).join("")}
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-sm text-gray-900 truncate">{currentUser?.displayName}</p>
+                <p className="text-xs text-gray-400 capitalize">{currentUser?.role === "admin" ? "Admin" : "Analista"}</p>
+                <p className="text-[10px] text-emerald-600 flex items-center gap-1 mt-0.5"><ShieldCheck className="h-3 w-3" /> Usuário verificado</p>
+              </div>
+            </div>
+            {/* Preview */}
+            <div className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
+              <p className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-1 text-center">Prévia da assinatura</p>
+              <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "1.4rem", lineHeight: 1.4, color: "#111827", fontWeight: 600, textAlign: "center" }}>
+                {currentUser?.displayName}
+              </p>
+            </div>
+            {/* Role */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Cargo / Função nesta assinatura</label>
+              <select value={sigRole} onChange={e => setSigRole(e.target.value)}
+                className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+                {["Responsável Técnico", "Representante Legal", "Elaborador", "Aprovador", "Revisor", "Gestor de Qualidade"].map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={() => setSigDialogOpen(false)} disabled={signing}
+                className="flex-1 text-sm px-4 py-2.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 font-medium transition-colors">
+                Pular por agora
+              </button>
+              <button type="button" onClick={handleSign} disabled={signing}
+                className="flex-1 text-sm px-4 py-2.5 rounded-lg bg-primary text-white hover:bg-primary/90 font-semibold transition-colors flex items-center justify-center gap-2">
+                {signing ? <><Loader2 className="h-4 w-4 animate-spin" /> Assinando…</> : <><PenLine className="h-4 w-4" /> Confirmar Assinatura</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
@@ -8162,6 +8286,42 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
                     )}
                     {n.notes && <p className="text-xs text-slate-600 bg-white rounded px-2 py-1 border border-slate-200">{n.notes}</p>}
 
+                    {/* ── Assinatura eletrônica ── */}
+                    {n.signedByName ? (
+                      <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded px-2.5 py-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <span style={{ fontFamily: "'Dancing Script', cursive", fontSize: "0.95rem", fontWeight: 600, color: "#111827" }}>
+                            {n.signedByName}
+                          </span>
+                          <span className="text-xs text-green-700 ml-2 font-medium">({n.signedByRole})</span>
+                          {n.signedAt && (
+                            <span className="text-[10px] text-green-600 ml-2">
+                              — {new Date(n.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          )}
+                        </div>
+                        {isAdmin && (
+                          <button
+                            className="text-green-400 hover:text-red-500 transition-colors ml-auto"
+                            title="Remover assinatura"
+                            onClick={() => handleUnsign(n.id)}
+                            disabled={unsigningId === n.id}
+                          >
+                            {unsigningId === n.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded border border-primary/30 bg-primary/5 text-primary hover:bg-primary/15 transition-colors font-medium"
+                        onClick={() => { setSigTargetId(n.id); setSigRole("Responsável Técnico"); setSigDialogOpen(true); }}
+                        title="Assinar esta notificação digitalmente"
+                      >
+                        <PenLine className="h-3 w-3" /> Assinar digitalmente
+                      </button>
+                    )}
+
                     {/* Anexos */}
                     {(n.attachmentFileName || n.rotuloFileName || n.padronizacaoFileName) && (
                       <div className="flex flex-wrap gap-3 mt-1">
@@ -8240,5 +8400,6 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
         )}
       </CardContent>
     </Card>
+    </>
   );
 }

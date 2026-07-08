@@ -117,4 +117,42 @@ router.delete("/protocols/:id/anvisa/:notifId", requireAuth, async (req, res) =>
   return res.status(204).send();
 });
 
+// ── POST /protocols/:id/anvisa/:notifId/sign ──────────────────────────────────
+router.post("/protocols/:id/anvisa/:notifId/sign", requireAuth, async (req, res) => {
+  const notifId = Number(req.params.notifId);
+  if (!notifId) return res.status(400).json({ error: "notifId inválido" });
+
+  const { role } = z.object({ role: z.string().min(1).default("Responsável Técnico") }).parse(req.body);
+  const user = (req as any).user;
+
+  const [row] = await db
+    .update(anvisaNotifications)
+    .set({
+      signedByName: user?.fullName ?? user?.username ?? "Usuário",
+      signedByRole: role,
+      signedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(anvisaNotifications.id, notifId))
+    .returning();
+
+  if (!row) return res.status(404).json({ error: "Notificação não encontrada" });
+  return res.json(row);
+});
+
+// ── DELETE /protocols/:id/anvisa/:notifId/sign ────────────────────────────────
+router.delete("/protocols/:id/anvisa/:notifId/sign", requireAuth, async (req, res) => {
+  const notifId = Number(req.params.notifId);
+  if (!notifId) return res.status(400).json({ error: "notifId inválido" });
+
+  const [row] = await db
+    .update(anvisaNotifications)
+    .set({ signedByName: null, signedByRole: null, signedAt: null, updatedAt: new Date() })
+    .where(eq(anvisaNotifications.id, notifId))
+    .returning();
+
+  if (!row) return res.status(404).json({ error: "Notificação não encontrada" });
+  return res.json(row);
+});
+
 export default router;

@@ -32,6 +32,10 @@ export const anvisaNotifications = pgTable("anvisa_notifications", {
   createdByName: text("created_by_name"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  // Assinatura eletrônica
+  signedByName: text("signed_by_name"),
+  signedByRole: text("signed_by_role"),
+  signedAt: timestamp("signed_at"),
 });
 
 export type AnvisaNotification = typeof anvisaNotifications.$inferSelect;
