@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -14,6 +14,8 @@ export const coaDocumentsTable = pgTable("coa_documents", {
   cnpj: text("cnpj").notNull().default(""),
   notes: text("notes"),
   status: text("status").notNull().default("rascunho"),
+  linkedProtocolId: integer("linked_protocol_id"),
+  linkedLotId: integer("linked_lot_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

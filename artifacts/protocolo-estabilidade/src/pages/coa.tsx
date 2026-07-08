@@ -39,6 +39,8 @@ interface CoaDocument {
   status: string;
   createdAt: string;
   updatedAt: string;
+  linkedProtocolId: number | null;
+  linkedLotId: number | null;
 }
 
 interface CoaResult {
@@ -54,8 +56,15 @@ interface CoaResult {
   sortOrder: number;
 }
 
+interface ProtocolOption { id: number; productName: string; }
+interface LotOption { id: number; lotNumber: string; manufacturingDate: string; expiryDate: string | null; }
+interface ProtocolResultItem { id: number; parameter: string; category: string; result: string; status: string; period: number; }
+
 interface CoaWithResults extends CoaDocument {
   results: CoaResult[];
+  linkedProtocol: ProtocolOption | null;
+  linkedLots: LotOption[];
+  protocolResults: ProtocolResultItem[];
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -132,10 +141,25 @@ function CoaList() {
   const qc = useQueryClient();
   const { token } = useAuth();
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [fromProtoOpen, setFromProtoOpen] = useState(false);
+  const [selProtoId, setSelProtoId] = useState<number | null>(null);
+  const [selLotId, setSelLotId] = useState<number | null>(null);
 
   const { data: docs = [], isLoading } = useQuery<CoaDocument[]>({
     queryKey: ["coa-list"],
     queryFn: () => apiFetch("/api/coa", token),
+  });
+
+  const { data: allProtocols = [] } = useQuery<ProtocolOption[]>({
+    queryKey: ["protocols-coa-dialog"],
+    queryFn: () => apiFetch<ProtocolOption[]>("/api/protocols", token),
+    enabled: fromProtoOpen,
+  });
+
+  const { data: protoLots = [] } = useQuery<LotOption[]>({
+    queryKey: ["proto-lots-coa", selProtoId],
+    queryFn: () => apiFetch<LotOption[]>(`/api/protocols/${selProtoId}/lots`, token),
+    enabled: !!selProtoId,
   });
 
   const createMut = useMutation({
@@ -146,6 +170,27 @@ function CoaList() {
     }),
     onSuccess: (doc) => navigate(`/coa/${doc.id}`),
     onError: (e) => toast({ title: "Erro ao criar CoA", description: String(e), variant: "destructive" }),
+  });
+
+  const createFromProtoMut = useMutation({
+    mutationFn: async () => {
+      const lot = protoLots.find(l => l.id === selLotId);
+      const proto = allProtocols.find(p => p.id === selProtoId);
+      return apiFetch<CoaDocument>("/api/coa", token, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productName: proto?.productName ?? "",
+          lotNumber: lot?.lotNumber ?? "",
+          manufacturingDate: lot?.manufacturingDate ?? "",
+          expiryDate: lot?.expiryDate ?? "",
+          linkedProtocolId: selProtoId,
+          linkedLotId: selLotId,
+        }),
+      });
+    },
+    onSuccess: (doc) => { setFromProtoOpen(false); navigate(`/coa/${doc.id}`); },
+    onError: (e) => toast({ title: "Erro", description: String(e), variant: "destructive" }),
   });
 
   const deleteMut = useMutation({
@@ -168,9 +213,14 @@ function CoaList() {
               Certificado de Análise por lote de produção
             </p>
           </div>
-          <Button onClick={() => createMut.mutate()} disabled={createMut.isPending}>
-            <Plus className="h-4 w-4 mr-1" /> Novo Laudo
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => { setSelProtoId(null); setSelLotId(null); setFromProtoOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" /> De Protocolo
+            </Button>
+            <Button onClick={() => createMut.mutate()} disabled={createMut.isPending}>
+              <Plus className="h-4 w-4 mr-1" /> Novo em Branco
+            </Button>
+          </div>
         </div>
 
         {/* Table */}
@@ -247,6 +297,63 @@ function CoaList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Gerar de Protocolo Dialog */}
+      <Dialog open={fromProtoOpen} onOpenChange={setFromProtoOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Gerar CoA a partir de Protocolo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Protocolo</Label>
+              <Select
+                value={selProtoId ? String(selProtoId) : ""}
+                onValueChange={(v) => { setSelProtoId(Number(v)); setSelLotId(null); }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o protocolo…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allProtocols.map(p => (
+                    <SelectItem key={p.id} value={String(p.id)}>{p.productName || `Protocolo #${p.id}`}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selProtoId && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Lote Piloto</Label>
+                <Select
+                  value={selLotId ? String(selLotId) : ""}
+                  onValueChange={(v) => setSelLotId(Number(v))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o lote…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {protoLots.map(l => (
+                      <SelectItem key={l.id} value={String(l.id)}>{l.lotNumber} — {fmtDate(l.manufacturingDate)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              O CoA será vinculado ao protocolo e lote selecionados. Você poderá visualizar o comparativo de resultados e definir se o lote está liberado.
+            </p>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" onClick={() => setFromProtoOpen(false)}>Cancelar</Button>
+              <Button
+                disabled={!selProtoId || !selLotId || createFromProtoMut.isPending}
+                onClick={() => createFromProtoMut.mutate()}
+              >
+                {createFromProtoMut.isPending ? "Criando…" : "Criar CoA"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -517,6 +624,73 @@ function CoaDetail({ id }: { id: number }) {
           </div>
         </div>
       </div>
+
+      {/* ── Comparativo com Protocolo ─────────────────────────────────────── */}
+      {coa.linkedProtocol && coa.protocolResults && coa.protocolResults.length > 0 && (() => {
+        const protoResultsMap = new Map<string, ProtocolResultItem>();
+        coa.protocolResults.forEach(pr => {
+          const existing = protoResultsMap.get(pr.parameter);
+          if (!existing || pr.period > existing.period) protoResultsMap.set(pr.parameter, pr);
+        });
+        const allParams = Array.from(protoResultsMap.values());
+        const matchCount = allParams.filter(pr => {
+          const coaresult = results.find(r => r.parameter === pr.parameter);
+          return coaresult ? coaresult.status === pr.status : pr.status === "conforme";
+        }).length;
+        const allOk = allParams.every(pr => pr.status === "conforme");
+        return (
+          <div className="border rounded-xl bg-card shadow-sm overflow-hidden print:hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b bg-blue-50/60">
+              <div>
+                <h2 className="font-semibold text-sm text-blue-800 uppercase tracking-wide flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4" />
+                  Comparativo — Protocolo: {coa.linkedProtocol.productName}
+                </h2>
+                <p className="text-xs text-blue-600 mt-0.5">
+                  Lote vinculado · Período mais recente
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {allOk
+                  ? <span className="flex items-center gap-1.5 text-green-700 font-semibold text-sm"><CheckCircle2 className="h-4 w-4" /> Todos conformes no protocolo</span>
+                  : <span className="flex items-center gap-1.5 text-amber-600 font-semibold text-sm"><Clock className="h-4 w-4" /> {matchCount}/{allParams.length} conformes</span>}
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/20 text-xs text-muted-foreground">
+                    <th className="px-3 py-2 text-left font-medium">Categoria</th>
+                    <th className="px-3 py-2 text-left font-medium">Parâmetro</th>
+                    <th className="px-3 py-2 text-left font-medium">Resultado Protocolo</th>
+                    <th className="px-3 py-2 text-left font-medium">Status Protocolo</th>
+                    <th className="px-3 py-2 text-left font-medium">Resultado CoA</th>
+                    <th className="px-3 py-2 text-left font-medium">Status CoA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allParams.map((pr, i) => {
+                    const coaR = results.find(r => r.parameter === pr.parameter);
+                    return (
+                      <tr key={pr.id} className={`border-b last:border-0 ${i % 2 === 1 ? "bg-muted/10" : ""}`}>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">{pr.category}</td>
+                        <td className="px-3 py-2 font-medium text-sm">{pr.parameter}</td>
+                        <td className="px-3 py-2 text-sm">{pr.result || "—"}</td>
+                        <td className="px-3 py-2">{statusBadge(pr.status)}</td>
+                        <td className="px-3 py-2 text-sm">{coaR?.result || <span className="text-muted-foreground italic">Não registrado</span>}</td>
+                        <td className="px-3 py-2">{coaR ? statusBadge(coaR.status) : <span className="text-xs text-muted-foreground">—</span>}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-5 py-3 border-t bg-muted/20 text-xs text-muted-foreground">
+              Este comparativo é informativo. A decisão de liberação do lote no CoA é independente.
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Print layout (hidden on screen) ─────────────────────────────────── */}
       <div className="hidden print:block text-[10pt] leading-snug" style={{ fontFamily: "Arial, sans-serif" }}>
@@ -811,7 +985,20 @@ function ResultRow({
   );
 }
 
-// ── Default export ────────────────────────────────────────────────────────────
+// ── Named exports (distinct component types — prevents React hooks mismatch) ──
+
+export function CoaListPage() {
+  return <CoaList />;
+}
+
+export function CoaDetailPage() {
+  const params = useParams<{ id: string }>();
+  const id = Number(params?.id);
+  if (!id || id <= 0) return null;
+  return <CoaDetail id={id} />;
+}
+
+// ── Default export (legacy fallback) ─────────────────────────────────────────
 
 export default function CoaPage() {
   const params = useParams<{ id?: string }>();

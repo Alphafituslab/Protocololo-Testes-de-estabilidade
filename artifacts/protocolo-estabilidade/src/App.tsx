@@ -16,7 +16,7 @@ import CatalogPage from "./pages/catalog";
 import BackupPage from "./pages/backup";
 import SnapshotsGlobalPage from "./pages/snapshots-global";
 import AtivoReferencesPage from "./pages/ativo-references";
-import CoaPage from "./pages/coa";
+import CoaPage, { CoaListPage, CoaDetailPage } from "./pages/coa";
 import ClientPortalPage from "./pages/client-portal";
 import { AuthProvider } from "@/contexts/auth-context";
 import { useAuth } from "@/contexts/use-auth";
@@ -354,7 +354,8 @@ const ProtocolDetailRoute = () => <ProtectedRoute component={ProtocolDetail} />;
 const UsersRoute = () => <ProtectedRoute component={UsersPage} />;
 const CatalogRoute = () => <ProtectedRoute component={CatalogPage} />;
 const AtivoReferencesRoute = () => <ProtectedRoute component={AtivoReferencesPage} />;
-const CoaRoute             = () => <ProtectedRoute component={CoaPage} />;
+const CoaListRoute         = () => <ProtectedRoute component={CoaListPage} />;
+const CoaDetailRoute       = () => <ProtectedRoute component={CoaDetailPage} />;
   const BackupRoute           = () => <ProtectedRoute component={BackupPage} />;
 const SnapshotsGlobalRoute  = () => <ProtectedRoute component={SnapshotsGlobalPage} />;
 const ClientPortalRoute     = () => <ProtectedClientRoute component={ClientPortalPage} />;
@@ -410,8 +411,8 @@ function Router() {
       <Route path="/users" component={UsersRoute} />
       <Route path="/catalog"    component={CatalogRoute} />
       <Route path="/ativo-references" component={AtivoReferencesRoute} />
-      <Route path="/coa" component={CoaRoute} />
-      <Route path="/coa/:id" component={CoaRoute} />
+      <Route path="/coa" component={CoaListRoute} />
+      <Route path="/coa/:id" component={CoaDetailRoute} />
       <Route path="/snapshots" component={SnapshotsGlobalRoute} />
       <Route path="/backup"    component={BackupRoute} />
       <Route path="/client-portal" component={ClientPortalRoute} />
