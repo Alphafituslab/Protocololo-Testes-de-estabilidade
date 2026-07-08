@@ -7525,6 +7525,7 @@ type AnvisaNotification = {
   padronizacaoObjectPath: string | null;
   padronizacaoFileName: string | null;
   padronizacaoFileType: string | null;
+  docTextJson: string | null;
   notes: string | null;
   createdByName: string | null;
   createdAt: string;
@@ -7539,115 +7540,138 @@ type AnvisaProtocolInfo = {
   approvedBy: string | null;
 };
 
-function generateAnvisaDoc(n: AnvisaNotification, p: AnvisaProtocolInfo) {
-  const fmtDate = (iso: string) => {
-    try { return new Date(iso).toLocaleDateString("pt-BR"); } catch { return iso; }
-  };
-  const today = new Date().toLocaleDateString("pt-BR");
+// ── Default doc text values ───────────────────────────────────────────────────
+const DEFAULT_DOC_TEXT = {
+  assunto: "Documento com a descrição das alterações realizadas",
+  descricaoAlteracao: "A presente alteração refere-se à inclusão de nova empresa responsável pela comercialização do produto, previamente notificado junto à ANVISA.\n\nNão houve qualquer modificação em:\nFormulação qualitativa e quantitativa, Composição, Processo produtivo, Especificações técnicas, Métodos analíticos.\n\nO produto permanece tecnicamente idêntico ao originalmente notificado, sendo a alteração restrita exclusivamente à inclusão de empresa comercializadora adicional.",
+  validacao: "Os estudos previamente realizados para o produto original permanecem válidos e aplicáveis, incluindo:\nEstudos de estabilidade, Ensaios de qualidade, Avaliações de segurança, Avaliações de desempenho.\n\nConsiderando que não houve alteração na formulação ou no processo produtivo, não há impacto nos resultados analíticos previamente obtidos, mantendo-se os critérios de aceitação estabelecidos.",
+  justificativa: "A inclusão da empresa comercializadora visa ampliar a distribuição e alcance do produto no mercado, mantendo-se integralmente suas características técnicas e regulatórias.\n\nA presente alteração possui caráter exclusivamente administrativo/comercial, não impactando a qualidade, segurança ou eficácia do produto.",
+};
 
-  const html = `<!DOCTYPE html>
+function parseDocText(json: string | null) {
+  try { return { ...DEFAULT_DOC_TEXT, ...(json ? JSON.parse(json) : {}) }; }
+  catch { return { ...DEFAULT_DOC_TEXT }; }
+}
+
+function escHtml(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+          .replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br/>");
+}
+
+function buildAnvisaDocHtml(
+  n: AnvisaNotification,
+  p: AnvisaProtocolInfo,
+  imgs: { protocolo: string | null; rotulo: string | null; padronizacao: string | null }
+) {
+  const today = new Date().toLocaleDateString("pt-BR");
+  const dt = parseDocText(n.docTextJson);
+
+  const imgBlock = (src: string | null, label: string, mime: string | null) => {
+    if (!src) return "";
+    if (mime && mime.startsWith("image/")) {
+      return `<div style="margin:12px 0"><p style="font-weight:bold;margin-bottom:4px">${label}:</p><img src="${src}" style="max-width:100%;border:1px solid #ccc;"/></div>`;
+    }
+    if (mime === "application/pdf") {
+      return `<div style="margin:12px 0"><p style="font-weight:bold;margin-bottom:4px">${label}:</p><embed src="${src}" type="application/pdf" width="100%" height="600px" style="border:1px solid #ccc;"/></div>`;
+    }
+    return `<p style="color:#555;font-size:10pt">[Arquivo ${label} anexado — formato não pré-visualizável]</p>`;
+  };
+
+  return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/>
-<title>Documento ANVISA — ${n.companyName}</title>
+<title>Documento ANVISA — ${escHtml(n.companyName)}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:Arial,sans-serif;font-size:11pt;color:#000;padding:2.5cm 3cm;line-height:1.5}
-  h1{font-size:13pt;font-weight:bold;text-align:center;margin-bottom:20px;text-transform:uppercase}
-  .section{margin-bottom:18px}
-  .section-title{font-size:11pt;font-weight:bold;margin-bottom:6px;border-bottom:1px solid #000;padding-bottom:3px}
-  .section-num{font-size:11pt;font-weight:bold}
-  p{margin-bottom:4px}
-  .field-row{display:flex;gap:8px;margin-bottom:3px}
-  .field-label{font-weight:bold;min-width:160px;flex-shrink:0}
-  .sig-area{margin-top:40px;display:flex;gap:60px;justify-content:flex-end}
-  .sig-box{text-align:center;min-width:200px}
-  .sig-line{border-top:1px solid #000;margin-top:50px;padding-top:4px}
-  .process-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 20px}
-  @media print{body{padding:1.5cm 2cm}button{display:none}}
+  body{font-family:Arial,sans-serif;font-size:11pt;color:#000;padding:2.5cm 3cm;line-height:1.6}
+  h1{font-size:13pt;font-weight:bold;text-align:center;margin-bottom:24px;text-transform:uppercase;letter-spacing:.5px}
+  .section{margin-bottom:20px}
+  .section-title{font-size:11pt;font-weight:bold;margin-bottom:8px;border-bottom:1.5px solid #000;padding-bottom:2px}
+  p{margin-bottom:6px}
+  .field-row{display:flex;gap:8px;margin-bottom:4px}
+  .field-label{font-weight:bold;min-width:170px;flex-shrink:0}
+  .sig-area{margin-top:50px;display:flex;justify-content:flex-end}
+  .sig-box{text-align:center;min-width:220px}
+  .sig-line{border-top:1px solid #000;margin-top:55px;padding-top:5px}
+  @media print{body{padding:1.5cm 2cm}button{display:none!important}}
 </style>
 </head>
 <body>
-<div style="text-align:right;margin-bottom:24px;font-size:10pt">
-  ${n.expedienteNumber ? `<strong>EXPEDIENTE Nº ${n.expedienteNumber}</strong><br/>` : ""}
-  ${n.processNumber ? `Número do Processo: ${n.processNumber}<br/>` : ""}
-  ${n.transactionNumber ? `Número de Transação: ${n.transactionNumber}<br/>` : ""}
-  ${n.protocolNumber ? `Número de Protocolo: ${n.protocolNumber}<br/>` : ""}
+<div style="text-align:right;margin-bottom:28px;font-size:10pt;line-height:1.8">
+  ${n.expedienteNumber ? `<strong>EXPEDIENTE Nº ${escHtml(n.expedienteNumber)}</strong><br/>` : ""}
+  ${n.processNumber ? `Número do Processo: ${escHtml(n.processNumber)}<br/>` : ""}
+  ${n.transactionNumber ? `Número de Transação: ${escHtml(n.transactionNumber)}<br/>` : ""}
+  ${n.protocolNumber ? `Número de Protocolo: ${escHtml(n.protocolNumber)}<br/>` : ""}
 </div>
 
 <h1>Documento com a Descrição das Alterações Realizadas</h1>
 
 <div class="section">
   <p class="section-title">1. Assunto</p>
-  <p>Documento com a descrição das alterações realizadas</p>
+  <p>${escHtml(dt.assunto)}</p>
 </div>
 
 <div class="section">
   <p class="section-title">2. Identificação do Produto Original</p>
-  <div class="field-row"><span class="field-label">Designação do Produto:</span><span>${p.productType ?? "Suplemento Alimentar"}</span></div>
-  <div class="field-row"><span class="field-label">Nome do Produto:</span><span>${p.productName}</span></div>
-  ${p.activeIngredients ? `<div class="field-row"><span class="field-label">Ativos:</span><span>${p.activeIngredients}</span></div>` : ""}
+  <div class="field-row"><span class="field-label">Designação do Produto (Outros):</span><span>${escHtml(p.productType ?? "Suplemento Alimentar em Cápsula")}</span></div>
+  <div class="field-row"><span class="field-label">Nome do Produto:</span><span>${escHtml(p.productName)}</span></div>
+  ${p.activeIngredients ? `<div class="field-row"><span class="field-label">Ativos:</span><span>${escHtml(p.activeIngredients)}</span></div>` : ""}
 </div>
 
 <div class="section">
   <p class="section-title">3. Descrição da Alteração</p>
-  <p>A presente alteração refere-se à inclusão de nova empresa responsável pela comercialização do produto, previamente notificado junto à ANVISA.</p>
-  <br/>
-  <p>Não houve qualquer modificação em:</p>
-  <p>Formulação qualitativa e quantitativa, Composição, Processo produtivo, Especificações técnicas, Métodos analíticos.</p>
-  <br/>
-  <p>O produto permanece tecnicamente idêntico ao originalmente notificado, sendo a alteração restrita exclusivamente à inclusão de empresa comercializadora adicional.</p>
+  <p>${escHtml(dt.descricaoAlteracao)}</p>
 </div>
 
 <div class="section">
   <p class="section-title">4. Identificação da Empresa Responsável pela Comercialização (Nova Inclusão)</p>
-  <div class="field-row"><span class="field-label">Razão Social:</span><span>${n.companyName}</span></div>
-  ${n.companyCnpj ? `<div class="field-row"><span class="field-label">CNPJ:</span><span>${n.companyCnpj}</span></div>` : ""}
+  <div class="field-row"><span class="field-label">Razão Social:</span><span>${escHtml(n.companyName)}</span></div>
+  ${n.companyCnpj ? `<div class="field-row"><span class="field-label">CNPJ:</span><span>${escHtml(n.companyCnpj)}</span></div>` : ""}
 </div>
 
 <div class="section">
   <p class="section-title">5. Identificação Comercial do Produto</p>
-  <div class="field-row"><span class="field-label">Marca / Produto:</span><span>${n.brandName ?? n.companyName}</span></div>
-  <div class="field-row"><span class="field-label">Nome do Produto:</span><span>${p.productName}</span></div>
+  <div class="field-row"><span class="field-label">Marca / Produto:</span><span>${escHtml(n.brandName ?? n.companyName)}</span></div>
+  <div class="field-row"><span class="field-label">Nome do Produto:</span><span>${escHtml(p.productName)}</span></div>
 </div>
 
 <div class="section">
   <p class="section-title">6. Validação Analítica e Estudos</p>
-  <p>Os estudos previamente realizados para o produto original permanecem válidos e aplicáveis, incluindo:</p>
-  <p>Estudos de estabilidade, Ensaios de qualidade, Avaliações de segurança, Avaliações de desempenho.</p>
-  <br/>
-  <p>Considerando que não houve alteração na formulação ou no processo produtivo, não há impacto nos resultados analíticos previamente obtidos, mantendo-se os critérios de aceitação estabelecidos.</p>
+  <p>${escHtml(dt.validacao)}</p>
 </div>
 
 <div class="section">
   <p class="section-title">7. Justificativa Técnica</p>
-  <p>A inclusão da empresa comercializadora visa ampliar a distribuição e alcance do produto no mercado, mantendo-se integralmente suas características técnicas e regulatórias.</p>
-  <br/>
-  <p>A presente alteração possui caráter exclusivamente administrativo/comercial, não impactando a qualidade, segurança ou eficácia do produto.</p>
+  <p>${escHtml(dt.justificativa)}</p>
 </div>
+
+${(imgs.protocolo || imgs.rotulo || imgs.padronizacao) ? `
+<div class="section">
+  <p class="section-title">Anexos</p>
+  ${imgBlock(imgs.protocolo, "Protocolo ANVISA", n.attachmentFileType)}
+  ${imgBlock(imgs.rotulo, "Rótulo", n.rotuloFileType)}
+  ${imgBlock(imgs.padronizacao, "Padronização", n.padronizacaoFileType)}
+</div>` : ""}
 
 <div class="section">
   <p class="section-title">8. Assinatura e Liberação</p>
   <div class="sig-area">
     <div class="sig-box">
       <div class="sig-line">
-        <p><strong>${p.approvedBy ?? "Responsável Técnico"}</strong></p>
+        <p><strong>${escHtml(p.approvedBy ?? "Responsável Técnico")}</strong></p>
         <p>Representante Legal</p>
-        <br/>
-        <p>Data: ${today}</p>
+        <p style="margin-top:8px">Data: ${today}</p>
       </div>
     </div>
   </div>
 </div>
 
-<div style="text-align:center;margin-top:30px">
-  <button onclick="window.print()" style="padding:8px 20px;background:#1e3a5f;color:#fff;border:none;border-radius:4px;font-size:11pt;cursor:pointer">🖨️ Imprimir / Salvar como PDF</button>
+<div style="text-align:center;margin-top:36px">
+  <button onclick="window.print()" style="padding:10px 28px;background:#1e3a5f;color:#fff;border:none;border-radius:4px;font-size:11pt;cursor:pointer">🖨️ Imprimir / Salvar como PDF</button>
 </div>
 </body>
 </html>`;
-
-  const win = window.open("", "_blank");
-  if (win) { win.document.write(html); win.document.close(); }
 }
 
 function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolInfo: AnvisaProtocolInfo }) {
@@ -7659,6 +7683,8 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
   const [saving, setSaving] = useState(false);
   const [uploadingField, setUploadingField] = useState<"protocolo" | "rotulo" | "padronizacao" | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [generatingDocId, setGeneratingDocId] = useState<number | null>(null);
 
   const protocoloInputRef = useRef<HTMLInputElement>(null);
   const rotuloInputRef = useRef<HTMLInputElement>(null);
@@ -7671,6 +7697,10 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
     attachmentObjectPath: null as string | null, attachmentFileName: null as string | null, attachmentFileType: null as string | null,
     rotuloObjectPath: null as string | null, rotuloFileName: null as string | null, rotuloFileType: null as string | null,
     padronizacaoObjectPath: null as string | null, padronizacaoFileName: null as string | null, padronizacaoFileType: null as string | null,
+    docAssunto: DEFAULT_DOC_TEXT.assunto,
+    docDescricao: DEFAULT_DOC_TEXT.descricaoAlteracao,
+    docValidacao: DEFAULT_DOC_TEXT.validacao,
+    docJustificativa: DEFAULT_DOC_TEXT.justificativa,
   };
   const [form, setForm] = useState(emptyForm);
 
@@ -7685,7 +7715,80 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
     },
   });
 
-  function resetForm() { setForm(emptyForm); setShowForm(false); }
+  function resetForm() { setForm(emptyForm); setShowForm(false); setEditingId(null); }
+
+  function startEdit(n: AnvisaNotification) {
+    const dt = parseDocText(n.docTextJson);
+    const toLocal = (iso: string) => {
+      try { return new Date(iso).toISOString().slice(0, 16); } catch { return ""; }
+    };
+    setForm({
+      companyName: n.companyName,
+      companyCnpj: n.companyCnpj ?? "",
+      brandName: n.brandName ?? "",
+      notifiedAt: toLocal(n.notifiedAt),
+      notes: n.notes ?? "",
+      confirmed: n.confirmed,
+      expedienteNumber: n.expedienteNumber ?? "",
+      processNumber: n.processNumber ?? "",
+      transactionNumber: n.transactionNumber ?? "",
+      protocolNumber: n.protocolNumber ?? "",
+      attachmentObjectPath: n.attachmentObjectPath,
+      attachmentFileName: n.attachmentFileName,
+      attachmentFileType: n.attachmentFileType,
+      rotuloObjectPath: n.rotuloObjectPath,
+      rotuloFileName: n.rotuloFileName,
+      rotuloFileType: n.rotuloFileType,
+      padronizacaoObjectPath: n.padronizacaoObjectPath,
+      padronizacaoFileName: n.padronizacaoFileName,
+      padronizacaoFileType: n.padronizacaoFileType,
+      docAssunto: dt.assunto,
+      docDescricao: dt.descricaoAlteracao,
+      docValidacao: dt.validacao,
+      docJustificativa: dt.justificativa,
+    });
+    setEditingId(n.id);
+    setShowForm(true);
+  }
+
+  async function fetchAsDataUrl(objectPath: string): Promise<string | null> {
+    try {
+      const hdrs: Record<string, string> = {};
+      if (token) hdrs["Authorization"] = `Bearer ${token}`;
+      const res = await fetch(`/api/storage/objects/${objectPath}`, { headers: hdrs });
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch { return null; }
+  }
+
+  async function handleGenerateDoc(n: AnvisaNotification) {
+    const win = window.open("", "_blank");
+    if (!win) { toast({ title: "Popup bloqueado — libere popups para este site", variant: "destructive" }); return; }
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Carregando…</title></head><body style="font-family:Arial;display:flex;align-items:center;justify-content:center;height:100vh;font-size:14pt;color:#555">⏳ Carregando anexos e gerando documento…</body></html>`);
+    setGeneratingDocId(n.id);
+    try {
+      const [protocolo, rotulo, padronizacao] = await Promise.all([
+        n.attachmentObjectPath ? fetchAsDataUrl(n.attachmentObjectPath) : Promise.resolve(null),
+        n.rotuloObjectPath ? fetchAsDataUrl(n.rotuloObjectPath) : Promise.resolve(null),
+        n.padronizacaoObjectPath ? fetchAsDataUrl(n.padronizacaoObjectPath) : Promise.resolve(null),
+      ]);
+      const html = buildAnvisaDocHtml(n, protocolInfo, { protocolo, rotulo, padronizacao });
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+    } catch {
+      win.close();
+      toast({ title: "Erro ao gerar documento", variant: "destructive" });
+    } finally {
+      setGeneratingDocId(null);
+    }
+  }
 
   async function uploadFile(file: File, field: "protocolo" | "rotulo" | "padronizacao") {
     const allowed = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/png", "image/jpeg", "image/webp"];
@@ -7735,29 +7838,41 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
       toast({ title: "Anexe o protocolo gerado pela ANVISA antes de confirmar", variant: "destructive" }); return;
     }
     setSaving(true);
+    const docTextJson = JSON.stringify({
+      assunto: form.docAssunto,
+      descricaoAlteracao: form.docDescricao,
+      validacao: form.docValidacao,
+      justificativa: form.docJustificativa,
+    });
+    const payload = {
+      companyName: form.companyName.trim(),
+      companyCnpj: form.companyCnpj.trim() || null,
+      brandName: form.brandName.trim() || null,
+      notifiedAt: form.notifiedAt,
+      confirmed: form.confirmed,
+      notes: form.notes.trim() || null,
+      expedienteNumber: form.expedienteNumber.trim() || null,
+      processNumber: form.processNumber.trim() || null,
+      transactionNumber: form.transactionNumber.trim() || null,
+      protocolNumber: form.protocolNumber.trim() || null,
+      attachmentObjectPath: form.attachmentObjectPath, attachmentFileName: form.attachmentFileName, attachmentFileType: form.attachmentFileType,
+      rotuloObjectPath: form.rotuloObjectPath, rotuloFileName: form.rotuloFileName, rotuloFileType: form.rotuloFileType,
+      padronizacaoObjectPath: form.padronizacaoObjectPath, padronizacaoFileName: form.padronizacaoFileName, padronizacaoFileType: form.padronizacaoFileType,
+      docTextJson,
+    };
     try {
-      const res = await fetch(`/api/protocols/${protocolId}/anvisa`, {
-        method: "POST",
+      const url = editingId !== null
+        ? `/api/protocols/${protocolId}/anvisa/${editingId}`
+        : `/api/protocols/${protocolId}/anvisa`;
+      const method = editingId !== null ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({
-          companyName: form.companyName.trim(),
-          companyCnpj: form.companyCnpj.trim() || null,
-          brandName: form.brandName.trim() || null,
-          notifiedAt: form.notifiedAt,
-          confirmed: form.confirmed,
-          notes: form.notes.trim() || null,
-          expedienteNumber: form.expedienteNumber.trim() || null,
-          processNumber: form.processNumber.trim() || null,
-          transactionNumber: form.transactionNumber.trim() || null,
-          protocolNumber: form.protocolNumber.trim() || null,
-          attachmentObjectPath: form.attachmentObjectPath, attachmentFileName: form.attachmentFileName, attachmentFileType: form.attachmentFileType,
-          rotuloObjectPath: form.rotuloObjectPath, rotuloFileName: form.rotuloFileName, rotuloFileType: form.rotuloFileType,
-          padronizacaoObjectPath: form.padronizacaoObjectPath, padronizacaoFileName: form.padronizacaoFileName, padronizacaoFileType: form.padronizacaoFileType,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Erro ao salvar");
       queryClient.invalidateQueries({ queryKey: ["anvisa-notifications", protocolId] });
-      toast({ title: "Notificação ANVISA registrada" });
+      toast({ title: editingId !== null ? "Notificação atualizada" : "Notificação ANVISA registrada" });
       resetForm();
     } catch {
       toast({ title: "Erro ao salvar notificação", variant: "destructive" });
@@ -7846,7 +7961,7 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
         {showForm && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-4">
             <p className="text-sm font-semibold text-amber-800 flex items-center gap-1.5">
-              <Bell className="h-4 w-4" /> Nova Notificação ANVISA
+              <Bell className="h-4 w-4" /> {editingId !== null ? "Editar Notificação ANVISA" : "Nova Notificação ANVISA"}
             </p>
 
             {/* Empresa */}
@@ -7908,6 +8023,40 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
 
+            {/* ── Textos do documento (editáveis) ── */}
+            <div className="rounded-md border border-indigo-200 bg-indigo-50 p-3 space-y-3">
+              <p className="text-xs font-semibold text-indigo-800 flex items-center gap-1.5">
+                📄 Textos do Documento — edite conforme necessário
+              </p>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-indigo-700">Seção 1 — Assunto</label>
+                <Textarea rows={2} value={form.docAssunto}
+                  onChange={e => setForm(f => ({ ...f, docAssunto: e.target.value }))}
+                  className="text-xs bg-white" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-indigo-700">Seção 3 — Descrição da Alteração</label>
+                <Textarea rows={5} value={form.docDescricao}
+                  onChange={e => setForm(f => ({ ...f, docDescricao: e.target.value }))}
+                  className="text-xs bg-white" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-indigo-700">Seção 6 — Validação Analítica e Estudos</label>
+                <Textarea rows={4} value={form.docValidacao}
+                  onChange={e => setForm(f => ({ ...f, docValidacao: e.target.value }))}
+                  className="text-xs bg-white" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-indigo-700">Seção 7 — Justificativa Técnica</label>
+                <Textarea rows={4} value={form.docJustificativa}
+                  onChange={e => setForm(f => ({ ...f, docJustificativa: e.target.value }))}
+                  className="text-xs bg-white" />
+              </div>
+              <p className="text-xs text-indigo-600">
+                ℹ️ As seções 2 (Produto), 4 (Empresa), 5 (Identificação Comercial) e 8 (Assinatura) são preenchidas automaticamente com os dados do protocolo e da notificação.
+              </p>
+            </div>
+
             {/* Confirmação + Protocolo ANVISA (obrigatório quando confirmado) */}
             <div className="rounded-md border border-amber-300 bg-amber-100 p-3 space-y-3">
               <label className="flex items-start gap-2.5 cursor-pointer select-none">
@@ -7958,7 +8107,7 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
               <Button size="sm" variant="outline" onClick={resetForm}>Cancelar</Button>
               <Button size="sm" disabled={!canSave || saving} onClick={handleSave}>
                 {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
-                Salvar Notificação
+                {editingId !== null ? "Salvar Alterações" : "Salvar Notificação"}
               </Button>
             </div>
           </div>
@@ -8034,14 +8183,26 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                    <Button
+                      size="sm" variant="outline"
+                      className="h-7 text-xs gap-1 border-amber-300 text-amber-700 hover:bg-amber-50"
+                      onClick={() => { startEdit(n); }}
+                      title="Editar esta notificação"
+                    >
+                      ✏️ Editar
+                    </Button>
                     <Button
                       size="sm" variant="outline"
                       className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/10"
-                      onClick={() => generateAnvisaDoc(n, protocolInfo)}
+                      onClick={() => handleGenerateDoc(n)}
+                      disabled={generatingDocId === n.id}
                       title="Gerar documento ANVISA para imprimir/PDF"
                     >
-                      <FileText className="h-3 w-3" /> Gerar Doc
+                      {generatingDocId === n.id
+                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                        : <FileText className="h-3 w-3" />}
+                      {generatingDocId === n.id ? "Gerando…" : "Gerar Doc"}
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>

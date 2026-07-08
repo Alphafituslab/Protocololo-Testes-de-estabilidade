@@ -30,6 +30,7 @@ const bodySchema = z.object({
   padronizacaoObjectPath: nullableStr,
   padronizacaoFileName: nullableStr,
   padronizacaoFileType: nullableStr,
+  docTextJson: nullableStr,
   notes: nullableStr,
 });
 
@@ -79,6 +80,7 @@ router.post("/protocols/:id/anvisa", requireAuth, async (req, res) => {
       padronizacaoObjectPath: d.padronizacaoObjectPath ?? null,
       padronizacaoFileName: d.padronizacaoFileName ?? null,
       padronizacaoFileType: d.padronizacaoFileType ?? null,
+      docTextJson: d.docTextJson ?? null,
       notes: d.notes ?? null,
       createdBy: user?.username ?? null,
       createdByName: user?.fullName ?? null,

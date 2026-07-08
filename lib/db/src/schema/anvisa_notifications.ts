@@ -26,6 +26,7 @@ export const anvisaNotifications = pgTable("anvisa_notifications", {
   padronizacaoObjectPath: text("padronizacao_object_path"),
   padronizacaoFileName: text("padronizacao_file_name"),
   padronizacaoFileType: text("padronizacao_file_type"),
+  docTextJson: text("doc_text_json"),
   notes: text("notes"),
   createdBy: text("created_by"),
   createdByName: text("created_by_name"),
