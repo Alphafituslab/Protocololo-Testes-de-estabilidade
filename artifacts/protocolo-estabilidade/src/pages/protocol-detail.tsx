@@ -6339,6 +6339,7 @@ export default function ProtocolDetail() {
             productType: protocol.productType ?? null,
             activeIngredients: protocol.activeIngredients ?? null,
             approvedBy: protocol.approvedBy ?? null,
+            certNumber: protocol.certNumber ?? "",
           }} />
         </TabsContent>
       </Tabs>
@@ -7538,6 +7539,7 @@ type AnvisaProtocolInfo = {
   productType: string | null;
   activeIngredients: string | null;
   approvedBy: string | null;
+  certNumber: string;
 };
 
 // ── Default doc text values ───────────────────────────────────────────────────
@@ -7604,6 +7606,13 @@ function buildAnvisaDocHtml(
   ${n.transactionNumber ? `Número de Transação: ${escHtml(n.transactionNumber)}<br/>` : ""}
   ${n.protocolNumber ? `Número de Protocolo: ${escHtml(n.protocolNumber)}<br/>` : ""}
 </div>
+
+${(p.certNumber || p.productName) ? `
+<div style="background:#f0f4f8;border:1.5px solid #1e3a5f;border-radius:4px;padding:10px 16px;margin-bottom:20px;font-size:10pt">
+  <div style="color:#888;font-size:9pt;margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px">Referência do Protocolo</div>
+  <div style="font-weight:bold;color:#1e3a5f;font-size:11pt">${escHtml((p.productType ? p.productType + " — " : "") + p.productName)}</div>
+  ${p.certNumber ? `<div style="font-family:monospace;color:#1e3a5f;font-size:10.5pt;margin-top:3px">${escHtml(p.certNumber)}</div>` : ""}
+</div>` : ""}
 
 <h1>Documento com a Descrição das Alterações Realizadas</h1>
 
