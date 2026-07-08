@@ -1,0 +1,172 @@
+Análises — 21 parâmetros
+Importar do Protocolo
+Adicionar Análise
+Categoria	Parâmetro	Resultado Encontrado	Unidade	Especificação	Método	Situação	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+microbiologica	Bolores e leveduras	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+fisico_quimica	Cinzas	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+microbiologica	Coliformes totais	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+fisico_quimica	Cor	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+microbiologica	Enterobacteriaceae	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+microbiologica	Escherichia coli	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+microbiologica	Estafilococos coagulase+	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+teor_ativo	Gelatina hidrolisada/Colágeno hidrolisado	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+embalagem	Integridade selagem	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+fisico_quimica	Kcal	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+fisico_quimica	Massa média	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+fisico_quimica	Odor	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+fisico_quimica	PH	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+fisico_quimica	Peso médio sachê	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+microbiologica	Salmonella spp.	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+fisico_quimica	Sodio	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+fisico_quimica	Solubilidade	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+fisico_quimica	Umidade	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+teor_ativo	Vitamina C -Acido Ascorbico	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+teor_ativo	Ácido Hialurônico	
+Valor encontrado
+un.
+Ex: 6,0 – 8,0
+AOAC, USP…
+
+Pendente
+
+Conclusão:

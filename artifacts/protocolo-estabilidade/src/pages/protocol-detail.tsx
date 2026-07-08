@@ -1413,6 +1413,55 @@ function getPresetsForCategory(category: string): { parameter: string; criterion
 }
 
 /** Banco de parâmetros pré-definidos por categoria. */
+// ── Tipos e templates de produto ─────────────────────────────────────────
+interface ProductTemplateParam {
+  parameter: string;
+  category: string;
+  criterion: string;
+  methodologyShort: string;
+  methodologyCitation: string;
+}
+interface ProductTemplate {
+  id: string;
+  name: string;
+  description: string;
+  params: ProductTemplateParam[];
+}
+
+const PRODUCT_TEMPLATES: ProductTemplate[] = [
+  {
+    id: "colageno_ha_vitc_sache",
+    name: "Colágeno + Ácido Hialurônico + Vitamina C — Pó / Sachê",
+    description: "Suplemento alimentar em pó — Colágeno hidrolisado, Ácido Hialurônico e Vitamina C em sachê de 10g",
+    params: [
+      // Físico-química
+      { parameter: "Cor", category: "fisico_quimica", criterion: "Característico (branco/creme)", methodologyShort: "Organoléptico", methodologyCitation: "Análise organoléptica — inspeção visual" },
+      { parameter: "Odor", category: "fisico_quimica", criterion: "Característico", methodologyShort: "Organoléptico", methodologyCitation: "Análise organoléptica" },
+      { parameter: "Solubilidade", category: "fisico_quimica", criterion: "≥ 95% em água a 20°C", methodologyShort: "Visual", methodologyCitation: "Avaliação visual — dissolução em água" },
+      { parameter: "pH", category: "fisico_quimica", criterion: "4,5 – 7,5 (solução 1%)", methodologyShort: "AOAC 981.12", methodologyCitation: "AOAC 981.12 / Farmacopeia Brasileira 5ª Ed. — Determinação de pH" },
+      { parameter: "Umidade", category: "fisico_quimica", criterion: "≤ 5,0%", methodologyShort: "AOAC 934.01", methodologyCitation: "AOAC 934.01 / Farmacopeia Brasileira 5ª Ed. — Umidade por dessecação" },
+      { parameter: "Cinzas", category: "fisico_quimica", criterion: "≤ 3,0%", methodologyShort: "AOAC 942.05", methodologyCitation: "AOAC 942.05 — Cinzas totais por incineração" },
+      { parameter: "Kcal", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "Cálculo Atwater", methodologyCitation: "Cálculo pelos fatores de Atwater / AOAC 2011.25" },
+      { parameter: "Sódio", category: "fisico_quimica", criterion: "≤ 5 mg declara 0", methodologyShort: "AOAC 984.27", methodologyCitation: "AOAC 984.27 — Sódio por ICP-OES / absorção atômica" },
+      { parameter: "Massa média", category: "fisico_quimica", criterion: "10,0 g ± 5%", methodologyShort: "FB 5ª Ed.", methodologyCitation: "Farmacopeia Brasileira 5ª Ed. — Determinação de massa média" },
+      { parameter: "Peso médio sachê", category: "fisico_quimica", criterion: "10,0 g ± 5%", methodologyShort: "Gravimétrico", methodologyCitation: "Método gravimétrico — pesagem direta (balança analítica)" },
+      // Microbiológica
+      { parameter: "Coliformes totais", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 331/2019 — Coliformes a 35°C" },
+      { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 331/2019 — Salmonella spp." },
+      { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 331/2019 — Estafilococos coagulase positiva" },
+      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / ABNT NBR — Contagem de bolores e leveduras" },
+      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 331/2019 — E. coli (MPN)" },
+      { parameter: "Enterobacteriaceae", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "ISO 21528-2", methodologyCitation: "ISO 21528-2 / ABNT NBR — Contagem de Enterobacteriaceae" },
+      // Teor do Ativo
+      { parameter: "Gelatina hidrolisada/Colágeno hidrolisado", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "AOAC 990.03", methodologyCitation: "AOAC 990.03 — Proteína total (Kjeldahl) / Colágeno hidrolisado" },
+      { parameter: "Vitamina C - Ácido Ascórbico", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "AOAC 967.21", methodologyCitation: "AOAC 967.21 — Ácido Ascórbico por HPLC / titulação iodométrica" },
+      { parameter: "Ácido Hialurônico", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "HPLC", methodologyCitation: "HPLC / Método colorimétrico (ácido carbazólico) — Ácido Hialurônico" },
+      // Embalagem
+      { parameter: "Integridade selagem", category: "embalagem", criterion: "Íntegra, sem vazamentos", methodologyShort: "Visual", methodologyCitation: "Inspeção visual / Teste de vedação (vácuo ou pressão)" },
+    ],
+  },
+];
+
 const CATEGORY_PRESETS: Record<string, { parameter: string; criterion: string }[]> = {
   teor_ativo: [
     { parameter: "Cálcio", criterion: "Mín. 80% do valor declarado" },
@@ -1462,6 +1511,8 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   const protocolIsAR = protocolFinalStatus === "aprovado_com_ressalva";
   const isCriterionLocked = protocolFinalStatus != null || protocolStatus === "aprovado" || protocolStatus === "reprovado" || protocolStatus === "aprovado_com_ressalva";
   const [editUnlocked, setEditUnlocked] = useState(false);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<ProductTemplate | null>(null);
   const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
   const { data: results = [], isLoading } = useListResults(protocolId, { query: { queryKey: getListResultsQueryKey(protocolId) } });
   const { data: methodologies = [] } = useListMethodologies();
@@ -2138,6 +2189,31 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   const getResult = (lotId: number, period: number, parameter: string) =>
     results.find((r) => r.lotId === lotId && r.period === period && r.parameter === parameter);
 
+  const applyTemplate = (template: ProductTemplate) => {
+    const now = Date.now();
+    const newParams: EditableParam[] = template.params.map((p, i) => ({
+      uid: `tpl_${p.category}_${i}_${now}`,
+      parameter: p.parameter,
+      category: p.category,
+      criterion: p.criterion,
+    }));
+    const newMethods: Record<string, string> = {};
+    const newCitations: Record<string, string> = {};
+    template.params.forEach(p => {
+      if (p.methodologyShort) newMethods[p.parameter] = p.methodologyShort;
+      if (p.methodologyCitation) newCitations[p.parameter] = p.methodologyCitation;
+    });
+    setEditableParams(newParams);
+    setParamMethods(newMethods);
+    setParamMethodsCitations(newCitations);
+    const newParamsJson = JSON.stringify(newParams);
+    updateProtocol.mutate({ id: protocolId, data: { customParamsJson: newParamsJson } });
+    try { localStorage.setItem(`param_methods_${protocolId}`, JSON.stringify(newMethods)); } catch { /* ignore */ }
+    try { localStorage.setItem(`param_methods_citations_${protocolId}`, JSON.stringify(newCitations)); } catch { /* ignore */ }
+    setTemplateDialogOpen(false);
+    setSelectedTemplate(null);
+  };
+
   if (lots.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground border rounded-md">
@@ -2209,6 +2285,64 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
         </p>
         <p className="text-xs text-primary/70 whitespace-nowrap">Parâmetros e critérios são editáveis. Clique para alterar.</p>
       </div>
+
+      {/* ── Template de Produto ──────────────────────────────────────────── */}
+      {!isCriterionLocked && (
+        <div className="flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-3 py-2 gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-amber-800">📋 Template de Produto</p>
+            <p className="text-xs text-amber-600 mt-0.5">Preencha automaticamente os parâmetros, Especificação e Método para um produto padrão — você só precisa digitar os Resultados.</p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-amber-300 text-amber-800 hover:bg-amber-100 text-xs shrink-0"
+            onClick={() => { setSelectedTemplate(null); setTemplateDialogOpen(true); }}
+          >
+            Selecionar Template
+          </Button>
+        </div>
+      )}
+
+      {/* Template selection dialog */}
+      <AlertDialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Selecionar Template de Produto</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <p className="mb-3">Escolha um template para preencher automaticamente os parâmetros, <strong>Especificação</strong> e <strong>Método</strong> de acordo com o produto. Os resultados continuam em branco para preenchimento manual.</p>
+                <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 text-xs">⚠️ Os parâmetros atuais serão substituídos. Resultados já inseridos nos lotes não serão apagados.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 my-1">
+            {PRODUCT_TEMPLATES.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setSelectedTemplate(prev => prev?.id === t.id ? null : t)}
+                className={`w-full text-left rounded-md border px-3 py-2.5 text-sm transition-colors ${selectedTemplate?.id === t.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:bg-muted/60'}`}
+              >
+                <p className="font-medium text-foreground">{t.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
+                {selectedTemplate?.id === t.id && (
+                  <p className="text-xs text-primary font-medium mt-1">✓ {t.params.length} parâmetros · {t.params.filter(p => p.methodologyShort).length} com Método definido</p>
+                )}
+              </button>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedTemplate(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!selectedTemplate}
+              onClick={() => { if (selectedTemplate) applyTemplate(selectedTemplate); }}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              Aplicar Template
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {categories.map(({ label, key }) => {
         const catParams = editableParams.filter((p) => p.category === key);
