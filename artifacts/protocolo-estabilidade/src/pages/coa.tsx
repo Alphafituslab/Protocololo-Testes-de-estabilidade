@@ -462,6 +462,9 @@ function CoaDetail({ id }: { id: number }) {
     },
   });
 
+  // ── Result row debounce (must be before any early returns — Rules of Hooks) ──
+  const resultTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+
   if (isLoading) return <div className="flex items-center justify-center min-h-screen text-muted-foreground">Carregando…</div>;
   if (isError || !coa) return <div className="flex items-center justify-center min-h-screen text-destructive">Laudo não encontrado.</div>;
 
@@ -474,9 +477,6 @@ function CoaDetail({ id }: { id: number }) {
     if (!parameter.trim()) return;
     addResultMut.mutate({ category, parameter: parameter.trim(), sortOrder: results.length });
   };
-
-  // ── Result row debounce ──
-  const resultTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const scheduleResultSave = (resultId: number, data: Partial<CoaResult>) => {
     if (resultTimers.current[resultId]) clearTimeout(resultTimers.current[resultId]);
     resultTimers.current[resultId] = setTimeout(() => updateResultMut.mutate({ resultId, data }), 600);
