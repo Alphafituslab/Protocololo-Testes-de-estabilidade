@@ -59,6 +59,7 @@ interface CoaResult {
 interface ProtocolOption { id: number; productName: string; }
 interface LotOption { id: number; lotNumber: string; manufacturingDate: string; expiryDate: string | null; }
 interface ProtocolResultItem { id: number; parameter: string; category: string; result: string; status: string; period: number; }
+interface LinkedProtocolDetail { id: number; productName: string; companyName: string; cnpj: string; approvedBy: string | null; }
 
 interface CoaWithResults extends CoaDocument {
   results: CoaResult[];
@@ -369,11 +370,24 @@ function CoaDetail({ id }: { id: number }) {
   const [customParam, setCustomParam] = useState("");
   const [customCategory, setCustomCategory] = useState("Físico-Química");
   const [deleteResultId, setDeleteResultId] = useState<number | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [printSections, setPrintSections] = useState({
+    identificacao: true,
+    analises: true,
+    resumo: true,
+  });
 
   const { data: coa, isLoading, isError } = useQuery<CoaWithResults>({
     queryKey: ["coa", id],
     queryFn: () => apiFetch(`/api/coa/${id}`, token),
     enabled: !!id,
+  });
+
+  // Fetch linked protocol for auto-fill
+  const { data: linkedProto } = useQuery<LinkedProtocolDetail>({
+    queryKey: ["protocol-header", coa?.linkedProtocolId],
+    queryFn: () => apiFetch(`/api/protocols/${coa!.linkedProtocolId}`, token),
+    enabled: !!coa?.linkedProtocolId,
   });
 
   // ── Local header state ──
@@ -397,6 +411,17 @@ function CoaDetail({ id }: { id: number }) {
       });
     }
   }, [coa?.id]);
+
+  // ── Auto-fill empty header fields from linked protocol (state only — DB save happens on blur) ──
+  useEffect(() => {
+    if (!linkedProto || !coa) return;
+    setHeader(prev => ({
+      ...prev,
+      company: prev.company || linkedProto.companyName || "",
+      cnpj: prev.cnpj || linkedProto.cnpj || "",
+      responsibleTech: prev.responsibleTech || linkedProto.approvedBy || "",
+    }));
+  }, [linkedProto?.id, coa?.id]);
 
   // ── Auto-save header ──
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -482,6 +507,38 @@ function CoaDetail({ id }: { id: number }) {
     resultTimers.current[resultId] = setTimeout(() => updateResultMut.mutate({ resultId, data }), 600);
   };
 
+  async function handleImportFromProtocol() {
+    if (!coa?.protocolResults?.length) return;
+    setImporting(true);
+    try {
+      const protoMap = new Map<string, ProtocolResultItem>();
+      coa.protocolResults.forEach(pr => {
+        const ex = protoMap.get(pr.parameter);
+        if (!ex || pr.period > ex.period) protoMap.set(pr.parameter, pr);
+      });
+      const toImport = Array.from(protoMap.values()).filter(
+        pr => !results.some(r => r.parameter === pr.parameter)
+      );
+      if (toImport.length === 0) {
+        toast({ title: "Todos os parâmetros já estão no laudo" }); return;
+      }
+      for (let i = 0; i < toImport.length; i++) {
+        const pr = toImport[i];
+        await apiFetch(`/api/coa/${id}/results`, token, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category: pr.category, parameter: pr.parameter, sortOrder: results.length + i }),
+        });
+      }
+      await qc.invalidateQueries({ queryKey: ["coa", id] });
+      toast({ title: `${toImport.length} parâmetro${toImport.length !== 1 ? "s" : ""} importado${toImport.length !== 1 ? "s" : ""} do protocolo` });
+    } catch {
+      toast({ title: "Erro ao importar parâmetros", variant: "destructive" });
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* ── Screen UI (hidden on print) ─────────────────────────────────────── */}
@@ -557,13 +614,27 @@ function CoaDetail({ id }: { id: number }) {
 
           {/* Analysis table */}
           <div className="border rounded-xl bg-card shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b bg-muted/30">
+            <div className="flex items-center justify-between px-5 py-3 border-b bg-muted/30 gap-3 flex-wrap">
               <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
                 Análises — {results.length} parâmetro{results.length !== 1 ? "s" : ""}
               </h2>
-              <Button size="sm" variant="outline" onClick={() => setAddParamOpen(true)} className="gap-1.5">
-                <Plus className="h-3.5 w-3.5" /> Adicionar Análise
-              </Button>
+              <div className="flex items-center gap-2">
+                {coa.linkedProtocol && (coa.protocolResults?.length ?? 0) > 0 && (
+                  <Button size="sm" variant="outline"
+                    className="gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-50"
+                    onClick={handleImportFromProtocol}
+                    disabled={importing}
+                    title="Importa todos os parâmetros do período mais recente do protocolo vinculado"
+                  >
+                    {importing
+                      ? <><span className="h-3.5 w-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin inline-block" /> Importando…</>
+                      : <><ClipboardList className="h-3.5 w-3.5" /> Importar do Protocolo</>}
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" onClick={() => setAddParamOpen(true)} className="gap-1.5">
+                  <Plus className="h-3.5 w-3.5" /> Adicionar Análise
+                </Button>
+              </div>
             </div>
 
             {results.length === 0 ? (
@@ -621,6 +692,45 @@ function CoaDetail({ id }: { id: number }) {
                 )}
               </div>
             )}
+          </div>
+
+          {/* ── Resumo / Observações ── */}
+          <div className="border rounded-xl bg-card shadow-sm p-5 space-y-2">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+              Resumo / Observações do Comparativo
+            </h2>
+            <textarea
+              className="w-full min-h-[100px] text-sm rounded-md border border-input bg-background px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Descreva brevemente o resultado geral das análises, desvios encontrados, conclusões do comparativo com o protocolo, condições especiais ou informações relevantes que devem constar no laudo…"
+              value={header.notes}
+              onChange={e => setField("notes", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Este texto aparece no PDF quando a seção "Resumo" estiver ativada nas configurações abaixo.</p>
+          </div>
+
+          {/* ── Configurar PDF ── */}
+          <div className="border rounded-xl bg-slate-50 p-4 space-y-3">
+            <h2 className="font-semibold text-sm text-slate-600 uppercase tracking-wide flex items-center gap-2">
+              🖨️ Configurar Seções do PDF
+            </h2>
+            <p className="text-xs text-slate-500">Escolha quais seções aparecerão ao imprimir / salvar como PDF:</p>
+            <div className="flex flex-wrap gap-4">
+              {([
+                { key: "identificacao", label: "Identificação do Produto" },
+                { key: "analises",      label: "Tabela de Análises + Conclusão" },
+                { key: "resumo",        label: "Resumo / Observações" },
+              ] as { key: keyof typeof printSections; label: string }[]).map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={printSections[key]}
+                    onChange={e => setPrintSections(prev => ({ ...prev, [key]: e.target.checked }))}
+                    className="h-4 w-4 rounded accent-primary"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -720,38 +830,42 @@ function CoaDetail({ id }: { id: number }) {
             </div>
             <div style={{ textAlign: "right", fontSize: "9pt", color: "#475569" }}>
               <div style={{ fontWeight: 700, fontSize: "11pt", color: "#1e3a5f" }}>
-                {coa.company || "ALPHAFITUS Laboratório Nutracêutico"}
+                {header.company || coa.company || "ALPHAFITUS Laboratório Nutracêutico"}
               </div>
-              {coa.cnpj && <div>CNPJ: {coa.cnpj}</div>}
+              {(header.cnpj || coa.cnpj) && <div>CNPJ: {header.cnpj || coa.cnpj}</div>}
             </div>
           </div>
         </div>
 
         {/* Product info */}
+        {printSections.identificacao && (
         <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "4px", padding: "8px 10px", marginBottom: "10px" }}>
           <table style={{ border: "none" }}>
             <tbody>
               <tr>
                 <td style={{ border: "none", padding: "2px 8px 2px 0", fontWeight: 700, color: "#475569", width: "120px", whiteSpace: "nowrap" }}>Produto</td>
                 <td style={{ border: "none", padding: "2px 24px 2px 0", fontWeight: 700, fontSize: "11pt", color: "#0f172a" }}>
-                  {coa.productName || "—"}
+                  {header.productName || coa.productName || "—"}
                 </td>
                 <td style={{ border: "none", padding: "2px 8px 2px 0", fontWeight: 700, color: "#475569", width: "80px", whiteSpace: "nowrap" }}>Lote</td>
                 <td style={{ border: "none", padding: "2px 0", fontFamily: "monospace", letterSpacing: "0.05em" }}>
-                  {coa.lotNumber || "—"}
+                  {header.lotNumber || coa.lotNumber || "—"}
                 </td>
               </tr>
               <tr>
                 <td style={{ border: "none", padding: "2px 8px 2px 0", fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>Fabricação</td>
-                <td style={{ border: "none", padding: "2px 24px 2px 0" }}>{fmtDate(coa.manufacturingDate)}</td>
+                <td style={{ border: "none", padding: "2px 24px 2px 0" }}>{fmtDate(header.manufacturingDate || coa.manufacturingDate)}</td>
                 <td style={{ border: "none", padding: "2px 8px 2px 0", fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>Validade</td>
-                <td style={{ border: "none", padding: "2px 0" }}>{fmtDate(coa.expiryDate)}</td>
+                <td style={{ border: "none", padding: "2px 0" }}>{fmtDate(header.expiryDate || coa.expiryDate)}</td>
               </tr>
             </tbody>
           </table>
         </div>
+        )}
 
-        {/* Analysis table */}
+        {/* Analysis table + Conclusion */}
+        {printSections.analises && (
+        <div>
         <div style={{ marginBottom: "12px" }}>
           <div style={{ fontWeight: 700, fontSize: "9pt", color: "#1e3a5f", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
             Resultados das Análises
@@ -801,24 +915,38 @@ function CoaDetail({ id }: { id: number }) {
             <span style={{ fontWeight: 700, fontSize: "10pt", color: "#94a3b8" }}>Avaliação Pendente</span>
           )}
         </div>
+        </div>
+        )}
+
+        {/* Notes / Summary */}
+        {printSections.resumo && (header.notes || coa.notes) && (
+        <div style={{ border: "1px solid #e2e8f0", borderRadius: "4px", padding: "8px 10px", marginBottom: "12px", background: "#fafafa" }}>
+          <div style={{ fontWeight: 700, fontSize: "9pt", color: "#1e3a5f", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
+            Resumo / Observações
+          </div>
+          <div style={{ fontSize: "9pt", color: "#374151", whiteSpace: "pre-wrap", lineHeight: "1.5" }}>
+            {header.notes || coa.notes}
+          </div>
+        </div>
+        )}
 
         {/* Signature */}
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "24px" }}>
           <div style={{ textAlign: "center", minWidth: "200px" }}>
             <div style={{ borderTop: "1px solid #475569", paddingTop: "6px" }}>
-              <div style={{ fontWeight: 700 }}>{coa.responsibleTech || "Responsável Técnico"}</div>
-              {coa.responsibleTechCrq && (
-                <div style={{ fontSize: "8pt", color: "#475569" }}>CRQ/CRF/CFQ: {coa.responsibleTechCrq}</div>
+              <div style={{ fontWeight: 700 }}>{header.responsibleTech || coa.responsibleTech || "Responsável Técnico"}</div>
+              {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
+                <div style={{ fontSize: "8pt", color: "#475569" }}>CRQ/CRF/CFQ: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
               )}
-              <div style={{ fontSize: "8pt", color: "#475569" }}>{coa.company || ""}</div>
+              <div style={{ fontSize: "8pt", color: "#475569" }}>{header.company || coa.company || ""}</div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
         <div style={{ borderTop: "1px solid #e2e8f0", marginTop: "16px", paddingTop: "6px", textAlign: "center", fontSize: "7.5pt", color: "#94a3b8" }}>
-          Documento gerado em {todayBR()} — Sistema Protocolo Técnico ANVISA — {coa.company || "ALPHAFITUS Laboratório Nutracêutico"}
-          {coa.cnpj ? ` — CNPJ ${coa.cnpj}` : ""}
+          Documento gerado em {todayBR()} — Sistema Protocolo Técnico ANVISA — {header.company || coa.company || "ALPHAFITUS Laboratório Nutracêutico"}
+          {(header.cnpj || coa.cnpj) ? ` — CNPJ ${header.cnpj || coa.cnpj}` : ""}
         </div>
       </div>
 
