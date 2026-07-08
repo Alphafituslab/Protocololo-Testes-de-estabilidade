@@ -20,3 +20,5 @@ export * from "./hplc_saved_analyses";
 export * from "./hplc_workspace";
 export * from "./client_protocol_access";
 export * from "./login_log";
+export * from "./coa_documents";
+export * from "./coa_results";
