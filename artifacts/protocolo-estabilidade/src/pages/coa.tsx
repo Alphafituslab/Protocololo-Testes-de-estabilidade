@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/use-auth";
 import {
   Plus, Trash2, Printer, ArrowLeft, ClipboardList,
   ChevronDown, CheckCircle2, XCircle, Clock, Save
@@ -90,8 +91,14 @@ function todayBR() {
   return new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-async function apiFetch<T>(url: string, opts?: RequestInit): Promise<T> {
-  const r = await fetch(url, opts);
+async function apiFetch<T>(url: string, token: string | null, opts?: RequestInit): Promise<T> {
+  const r = await fetch(url, {
+    ...opts,
+    headers: {
+      ...(opts?.headers as Record<string, string> | undefined),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
   if (!r.ok) {
     const txt = await r.text().catch(() => r.statusText);
     throw new Error(txt);
@@ -123,15 +130,16 @@ function CoaList() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { token } = useAuth();
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const { data: docs = [], isLoading } = useQuery<CoaDocument[]>({
     queryKey: ["coa-list"],
-    queryFn: () => apiFetch("/api/coa"),
+    queryFn: () => apiFetch("/api/coa", token),
   });
 
   const createMut = useMutation({
-    mutationFn: () => apiFetch<CoaDocument>("/api/coa", {
+    mutationFn: () => apiFetch<CoaDocument>("/api/coa", token, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -141,7 +149,7 @@ function CoaList() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: number) => apiFetch(`/api/coa/${id}`, { method: "DELETE" }),
+    mutationFn: (id: number) => apiFetch(`/api/coa/${id}`, token, { method: "DELETE" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["coa-list"] }); setDeleteId(null); },
     onError: (e) => toast({ title: "Erro ao excluir", description: String(e), variant: "destructive" }),
   });
@@ -249,6 +257,7 @@ function CoaDetail({ id }: { id: number }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { token } = useAuth();
   const [addParamOpen, setAddParamOpen] = useState(false);
   const [customParam, setCustomParam] = useState("");
   const [customCategory, setCustomCategory] = useState("Físico-Química");
@@ -256,7 +265,7 @@ function CoaDetail({ id }: { id: number }) {
 
   const { data: coa, isLoading, isError } = useQuery<CoaWithResults>({
     queryKey: ["coa", id],
-    queryFn: () => apiFetch(`/api/coa/${id}`),
+    queryFn: () => apiFetch(`/api/coa/${id}`, token),
     enabled: !!id,
   });
 
@@ -286,7 +295,7 @@ function CoaDetail({ id }: { id: number }) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const updateDocMut = useMutation({
     mutationFn: (data: Partial<typeof header>) =>
-      apiFetch(`/api/coa/${id}`, {
+      apiFetch(`/api/coa/${id}`, token, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -308,7 +317,7 @@ function CoaDetail({ id }: { id: number }) {
   // ── Mutations ──
   const addResultMut = useMutation({
     mutationFn: (body: { category: string; parameter: string; sortOrder: number }) =>
-      apiFetch(`/api/coa/${id}/results`, {
+      apiFetch(`/api/coa/${id}/results`, token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -319,7 +328,7 @@ function CoaDetail({ id }: { id: number }) {
 
   const updateResultMut = useMutation({
     mutationFn: ({ resultId, data }: { resultId: number; data: Partial<CoaResult> }) =>
-      apiFetch(`/api/coa/${id}/results/${resultId}`, {
+      apiFetch(`/api/coa/${id}/results/${resultId}`, token, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -329,13 +338,13 @@ function CoaDetail({ id }: { id: number }) {
 
   const deleteResultMut = useMutation({
     mutationFn: (resultId: number) =>
-      apiFetch(`/api/coa/${id}/results/${resultId}`, { method: "DELETE" }),
+      apiFetch(`/api/coa/${id}/results/${resultId}`, token, { method: "DELETE" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["coa", id] }); setDeleteResultId(null); },
     onError: (e) => toast({ title: "Erro", description: String(e), variant: "destructive" }),
   });
 
   const emitMut = useMutation({
-    mutationFn: () => apiFetch(`/api/coa/${id}`, {
+    mutationFn: () => apiFetch(`/api/coa/${id}`, token, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "emitido" }),
