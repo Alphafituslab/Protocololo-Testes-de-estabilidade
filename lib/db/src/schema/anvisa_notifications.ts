@@ -5,8 +5,15 @@ export const anvisaNotifications = pgTable("anvisa_notifications", {
   id: serial("id").primaryKey(),
   protocolId: integer("protocol_id").notNull().references(() => protocolsTable.id, { onDelete: "cascade" }),
   companyName: text("company_name").notNull(),
+  companyCnpj: text("company_cnpj"),
+  brandName: text("brand_name"),
   notifiedAt: text("notified_at").notNull(),
   confirmed: boolean("confirmed").notNull().default(false),
+  // Números do processo ANVISA
+  expedienteNumber: text("expediente_number"),
+  processNumber: text("process_number"),
+  transactionNumber: text("transaction_number"),
+  protocolNumber: text("protocol_number"),
   // Protocolo ANVISA (obrigatório quando confirmado)
   attachmentObjectPath: text("attachment_object_path"),
   attachmentFileName: text("attachment_file_name"),

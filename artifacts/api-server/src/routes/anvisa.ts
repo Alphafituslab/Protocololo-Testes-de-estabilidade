@@ -11,8 +11,16 @@ const nullableStr = z.string().nullable().optional();
 
 const bodySchema = z.object({
   companyName: z.string().min(1),
+  companyCnpj: nullableStr,
+  brandName: nullableStr,
   notifiedAt: z.string().min(1),
   confirmed: z.boolean().default(false),
+  // Números do processo ANVISA
+  expedienteNumber: nullableStr,
+  processNumber: nullableStr,
+  transactionNumber: nullableStr,
+  protocolNumber: nullableStr,
+  // Anexos
   attachmentObjectPath: nullableStr,
   attachmentFileName: nullableStr,
   attachmentFileType: nullableStr,
@@ -54,8 +62,14 @@ router.post("/protocols/:id/anvisa", requireAuth, async (req, res) => {
     .values({
       protocolId,
       companyName: d.companyName,
+      companyCnpj: d.companyCnpj ?? null,
+      brandName: d.brandName ?? null,
       notifiedAt: d.notifiedAt,
       confirmed: d.confirmed,
+      expedienteNumber: d.expedienteNumber ?? null,
+      processNumber: d.processNumber ?? null,
+      transactionNumber: d.transactionNumber ?? null,
+      protocolNumber: d.protocolNumber ?? null,
       attachmentObjectPath: d.attachmentObjectPath ?? null,
       attachmentFileName: d.attachmentFileName ?? null,
       attachmentFileType: d.attachmentFileType ?? null,

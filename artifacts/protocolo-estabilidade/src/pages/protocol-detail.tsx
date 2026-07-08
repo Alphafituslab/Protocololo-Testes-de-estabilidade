@@ -6332,7 +6332,14 @@ export default function ProtocolDetail() {
           </Card>
         </TabsContent>
         <TabsContent value="anvisa">
-          <AnvisaTab protocolId={numId} />
+          <AnvisaTab protocolId={numId} protocolInfo={{
+            companyName: protocol.companyName,
+            cnpj: protocol.cnpj,
+            productName: protocol.productName,
+            productType: protocol.productType ?? null,
+            activeIngredients: protocol.activeIngredients ?? null,
+            approvedBy: protocol.approvedBy ?? null,
+          }} />
         </TabsContent>
       </Tabs>
     </div>
@@ -7501,8 +7508,14 @@ type AnvisaNotification = {
   id: number;
   protocolId: number;
   companyName: string;
+  companyCnpj: string | null;
+  brandName: string | null;
   notifiedAt: string;
   confirmed: boolean;
+  expedienteNumber: string | null;
+  processNumber: string | null;
+  transactionNumber: string | null;
+  protocolNumber: string | null;
   attachmentObjectPath: string | null;
   attachmentFileName: string | null;
   attachmentFileType: string | null;
@@ -7517,7 +7530,127 @@ type AnvisaNotification = {
   createdAt: string;
 };
 
-function AnvisaTab({ protocolId }: { protocolId: number }) {
+type AnvisaProtocolInfo = {
+  companyName: string;
+  cnpj: string;
+  productName: string;
+  productType: string | null;
+  activeIngredients: string | null;
+  approvedBy: string | null;
+};
+
+function generateAnvisaDoc(n: AnvisaNotification, p: AnvisaProtocolInfo) {
+  const fmtDate = (iso: string) => {
+    try { return new Date(iso).toLocaleDateString("pt-BR"); } catch { return iso; }
+  };
+  const today = new Date().toLocaleDateString("pt-BR");
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>Documento ANVISA — ${n.companyName}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,sans-serif;font-size:11pt;color:#000;padding:2.5cm 3cm;line-height:1.5}
+  h1{font-size:13pt;font-weight:bold;text-align:center;margin-bottom:20px;text-transform:uppercase}
+  .section{margin-bottom:18px}
+  .section-title{font-size:11pt;font-weight:bold;margin-bottom:6px;border-bottom:1px solid #000;padding-bottom:3px}
+  .section-num{font-size:11pt;font-weight:bold}
+  p{margin-bottom:4px}
+  .field-row{display:flex;gap:8px;margin-bottom:3px}
+  .field-label{font-weight:bold;min-width:160px;flex-shrink:0}
+  .sig-area{margin-top:40px;display:flex;gap:60px;justify-content:flex-end}
+  .sig-box{text-align:center;min-width:200px}
+  .sig-line{border-top:1px solid #000;margin-top:50px;padding-top:4px}
+  .process-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 20px}
+  @media print{body{padding:1.5cm 2cm}button{display:none}}
+</style>
+</head>
+<body>
+<div style="text-align:right;margin-bottom:24px;font-size:10pt">
+  ${n.expedienteNumber ? `<strong>EXPEDIENTE Nº ${n.expedienteNumber}</strong><br/>` : ""}
+  ${n.processNumber ? `Número do Processo: ${n.processNumber}<br/>` : ""}
+  ${n.transactionNumber ? `Número de Transação: ${n.transactionNumber}<br/>` : ""}
+  ${n.protocolNumber ? `Número de Protocolo: ${n.protocolNumber}<br/>` : ""}
+</div>
+
+<h1>Documento com a Descrição das Alterações Realizadas</h1>
+
+<div class="section">
+  <p class="section-title">1. Assunto</p>
+  <p>Documento com a descrição das alterações realizadas</p>
+</div>
+
+<div class="section">
+  <p class="section-title">2. Identificação do Produto Original</p>
+  <div class="field-row"><span class="field-label">Designação do Produto:</span><span>${p.productType ?? "Suplemento Alimentar"}</span></div>
+  <div class="field-row"><span class="field-label">Nome do Produto:</span><span>${p.productName}</span></div>
+  ${p.activeIngredients ? `<div class="field-row"><span class="field-label">Ativos:</span><span>${p.activeIngredients}</span></div>` : ""}
+</div>
+
+<div class="section">
+  <p class="section-title">3. Descrição da Alteração</p>
+  <p>A presente alteração refere-se à inclusão de nova empresa responsável pela comercialização do produto, previamente notificado junto à ANVISA.</p>
+  <br/>
+  <p>Não houve qualquer modificação em:</p>
+  <p>Formulação qualitativa e quantitativa, Composição, Processo produtivo, Especificações técnicas, Métodos analíticos.</p>
+  <br/>
+  <p>O produto permanece tecnicamente idêntico ao originalmente notificado, sendo a alteração restrita exclusivamente à inclusão de empresa comercializadora adicional.</p>
+</div>
+
+<div class="section">
+  <p class="section-title">4. Identificação da Empresa Responsável pela Comercialização (Nova Inclusão)</p>
+  <div class="field-row"><span class="field-label">Razão Social:</span><span>${n.companyName}</span></div>
+  ${n.companyCnpj ? `<div class="field-row"><span class="field-label">CNPJ:</span><span>${n.companyCnpj}</span></div>` : ""}
+</div>
+
+<div class="section">
+  <p class="section-title">5. Identificação Comercial do Produto</p>
+  <div class="field-row"><span class="field-label">Marca / Produto:</span><span>${n.brandName ?? n.companyName}</span></div>
+  <div class="field-row"><span class="field-label">Nome do Produto:</span><span>${p.productName}</span></div>
+</div>
+
+<div class="section">
+  <p class="section-title">6. Validação Analítica e Estudos</p>
+  <p>Os estudos previamente realizados para o produto original permanecem válidos e aplicáveis, incluindo:</p>
+  <p>Estudos de estabilidade, Ensaios de qualidade, Avaliações de segurança, Avaliações de desempenho.</p>
+  <br/>
+  <p>Considerando que não houve alteração na formulação ou no processo produtivo, não há impacto nos resultados analíticos previamente obtidos, mantendo-se os critérios de aceitação estabelecidos.</p>
+</div>
+
+<div class="section">
+  <p class="section-title">7. Justificativa Técnica</p>
+  <p>A inclusão da empresa comercializadora visa ampliar a distribuição e alcance do produto no mercado, mantendo-se integralmente suas características técnicas e regulatórias.</p>
+  <br/>
+  <p>A presente alteração possui caráter exclusivamente administrativo/comercial, não impactando a qualidade, segurança ou eficácia do produto.</p>
+</div>
+
+<div class="section">
+  <p class="section-title">8. Assinatura e Liberação</p>
+  <div class="sig-area">
+    <div class="sig-box">
+      <div class="sig-line">
+        <p><strong>${p.approvedBy ?? "Responsável Técnico"}</strong></p>
+        <p>Representante Legal</p>
+        <br/>
+        <p>Data: ${today}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center;margin-top:30px">
+  <button onclick="window.print()" style="padding:8px 20px;background:#1e3a5f;color:#fff;border:none;border-radius:4px;font-size:11pt;cursor:pointer">🖨️ Imprimir / Salvar como PDF</button>
+</div>
+</body>
+</html>`;
+
+  const win = window.open("", "_blank");
+  if (win) { win.document.write(html); win.document.close(); }
+}
+
+function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolInfo: AnvisaProtocolInfo }) {
   const { token } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -7532,7 +7665,9 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
   const padronizacaoInputRef = useRef<HTMLInputElement>(null);
 
   const emptyForm = {
-    companyName: "", notifiedAt: "", notes: "", confirmed: false,
+    companyName: "", companyCnpj: "", brandName: "",
+    notifiedAt: "", notes: "", confirmed: false,
+    expedienteNumber: "", processNumber: "", transactionNumber: "", protocolNumber: "",
     attachmentObjectPath: null as string | null, attachmentFileName: null as string | null, attachmentFileType: null as string | null,
     rotuloObjectPath: null as string | null, rotuloFileName: null as string | null, rotuloFileType: null as string | null,
     padronizacaoObjectPath: null as string | null, padronizacaoFileName: null as string | null, padronizacaoFileType: null as string | null,
@@ -7605,8 +7740,16 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
-          companyName: form.companyName.trim(), notifiedAt: form.notifiedAt,
-          confirmed: form.confirmed, notes: form.notes.trim() || null,
+          companyName: form.companyName.trim(),
+          companyCnpj: form.companyCnpj.trim() || null,
+          brandName: form.brandName.trim() || null,
+          notifiedAt: form.notifiedAt,
+          confirmed: form.confirmed,
+          notes: form.notes.trim() || null,
+          expedienteNumber: form.expedienteNumber.trim() || null,
+          processNumber: form.processNumber.trim() || null,
+          transactionNumber: form.transactionNumber.trim() || null,
+          protocolNumber: form.protocolNumber.trim() || null,
           attachmentObjectPath: form.attachmentObjectPath, attachmentFileName: form.attachmentFileName, attachmentFileType: form.attachmentFileType,
           rotuloObjectPath: form.rotuloObjectPath, rotuloFileName: form.rotuloFileName, rotuloFileType: form.rotuloFileType,
           padronizacaoObjectPath: form.padronizacaoObjectPath, padronizacaoFileName: form.padronizacaoFileName, padronizacaoFileType: form.padronizacaoFileType,
@@ -7706,16 +7849,56 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
               <Bell className="h-4 w-4" /> Nova Notificação ANVISA
             </p>
 
+            {/* Empresa */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-xs font-medium">Nome da Empresa *</label>
-                <Input placeholder="Razão social da empresa notificada" value={form.companyName}
+                <label className="text-xs font-medium">Razão Social da Empresa *</label>
+                <Input placeholder="Ex: Blumed Distribuidora de Medicamentos Ltda" value={form.companyName}
                   onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">CNPJ da Empresa (opcional)</label>
+                <Input placeholder="Ex: 17.911.303/0001-69" value={form.companyCnpj}
+                  onChange={e => setForm(f => ({ ...f, companyCnpj: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Nome Comercial / Marca (opcional)</label>
+                <Input placeholder="Ex: Blumed-NAC-Acetilcisteína 600mg 30 Cápsulas" value={form.brandName}
+                  onChange={e => setForm(f => ({ ...f, brandName: e.target.value }))} />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium">Data e Hora da Notificação *</label>
                 <Input type="datetime-local" value={form.notifiedAt}
                   onChange={e => setForm(f => ({ ...f, notifiedAt: e.target.value }))} />
+              </div>
+            </div>
+
+            {/* Números do processo ANVISA */}
+            <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-2">
+              <p className="text-xs font-semibold text-blue-800 flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5" /> Números do Processo ANVISA (opcionais)
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-blue-700">Nº do Expediente</label>
+                  <Input placeholder="Ex: 0671387260" value={form.expedienteNumber}
+                    onChange={e => setForm(f => ({ ...f, expedienteNumber: e.target.value }))} className="h-8 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-blue-700">Nº do Processo</label>
+                  <Input placeholder="Ex: 25351119711202645" value={form.processNumber}
+                    onChange={e => setForm(f => ({ ...f, processNumber: e.target.value }))} className="h-8 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-blue-700">Nº de Transação</label>
+                  <Input placeholder="Ex: 8941182026" value={form.transactionNumber}
+                    onChange={e => setForm(f => ({ ...f, transactionNumber: e.target.value }))} className="h-8 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-blue-700">Nº de Protocolo</label>
+                  <Input placeholder="Ex: 20260000000600557" value={form.protocolNumber}
+                    onChange={e => setForm(f => ({ ...f, protocolNumber: e.target.value }))} className="h-8 text-xs" />
+                </div>
               </div>
             </div>
 
@@ -7804,9 +7987,21 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
                         : <Badge variant="outline" className="text-xs text-amber-700 border-amber-300 bg-amber-50">Pendente confirmação</Badge>}
                     </div>
                     <div className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
+                      {n.companyCnpj && <span>CNPJ: <strong>{n.companyCnpj}</strong></span>}
+                      {n.brandName && <span>Marca: {n.brandName}</span>}
+                    </div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
                       <span>📅 Notificado em: <strong>{fmtDateTime(n.notifiedAt)}</strong></span>
                       {n.createdByName && <span>Registrado por: {n.createdByName}</span>}
                     </div>
+                    {(n.expedienteNumber || n.processNumber || n.transactionNumber || n.protocolNumber) && (
+                      <div className="text-xs text-blue-700 bg-blue-50 rounded px-2 py-1 border border-blue-200 space-y-0.5">
+                        {n.expedienteNumber && <div><strong>Expediente:</strong> {n.expedienteNumber}</div>}
+                        {n.processNumber && <div><strong>Processo:</strong> {n.processNumber}</div>}
+                        {n.transactionNumber && <div><strong>Transação:</strong> {n.transactionNumber}</div>}
+                        {n.protocolNumber && <div><strong>Protocolo ANVISA:</strong> {n.protocolNumber}</div>}
+                      </div>
+                    )}
                     {n.notes && <p className="text-xs text-slate-600 bg-white rounded px-2 py-1 border border-slate-200">{n.notes}</p>}
 
                     {/* Anexos */}
@@ -7839,25 +8034,35 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
                       </div>
                     )}
                   </div>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-red-500 shrink-0">
-                        {deletingId === n.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remover notificação?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Isso removerá o registro de notificação ANVISA de <strong>{n.companyName}</strong>. Esta ação não pode ser desfeita.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(n.id)} className="bg-red-600 hover:bg-red-700">Remover</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      size="sm" variant="outline"
+                      className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/10"
+                      onClick={() => generateAnvisaDoc(n, protocolInfo)}
+                      title="Gerar documento ANVISA para imprimir/PDF"
+                    >
+                      <FileText className="h-3 w-3" /> Gerar Doc
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-red-500">
+                          {deletingId === n.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remover notificação?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Isso removerá o registro de notificação ANVISA de <strong>{n.companyName}</strong>. Esta ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(n.id)} className="bg-red-600 hover:bg-red-700">Remover</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               </div>
             ))}
