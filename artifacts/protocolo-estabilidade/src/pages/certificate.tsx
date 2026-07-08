@@ -2199,8 +2199,8 @@ export default function CertificatePage() {
               <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "1.1rem", lineHeight: 1.3, color: "#111827", fontWeight: 600, letterSpacing: "0.01em" }}>
                 {displayName}
               </p>
-              <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5 mb-2">
-                <ShieldCheck className="h-3 w-3 text-gray-400 flex-shrink-0" />
+              <p className="text-[10px] text-green-500 flex items-center gap-1 mt-0.5 mb-2">
+                <ShieldCheck className="h-3 w-3 text-green-500 flex-shrink-0" />
                 {sig.displayDate
                   ? sig.displayDate
                   : new Date(sig.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
@@ -2497,7 +2497,7 @@ export default function CertificatePage() {
                   <div className="mt-6 pt-3 border-t border-gray-200 text-center text-[9px] text-gray-400 leading-relaxed">
                     <span className="font-medium text-gray-500">Documento gerado em</span>
                     <br />
-                    <span>{lastSigDate}</span>
+                    <span className={lastSig ? "text-green-500 font-medium" : ""}>{lastSigDate}</span>
                     <br />
                     <span>— Sistema Protocolo Técnico ANVISA — ALPHAFITUS Laboratório Nutracêutico — CNPJ {cnpjDisplay} —</span>
                   </div>

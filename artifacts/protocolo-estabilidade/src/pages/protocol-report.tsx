@@ -870,7 +870,7 @@ export default function ProtocolReportPage() {
                     <tr key={s.id} className={i % 2 === 0 ? "" : "bg-gray-50/70"}>
                       <Td bold>{s.userDisplay}</Td>
                       <Td>{s.roleLabel}</Td>
-                      <Td>{s.displayDate ?? new Date(s.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</Td>
+                      <Td><span className="text-green-500 font-medium">{s.displayDate ?? new Date(s.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span></Td>
                       <Td center><span className="text-[8.5px] text-emerald-700 font-semibold">✓ Verificada</span></Td>
                     </tr>
                   ))}
@@ -956,7 +956,7 @@ export default function ProtocolReportPage() {
                 <div className="mt-4 pt-3 border-t border-gray-200 text-center text-[9px] text-gray-400 leading-relaxed">
                   <span className="font-medium text-gray-500">Documento gerado em</span>
                   <br />
-                  <span>{lastSigDate}</span>
+                  <span className={lastSig ? "text-green-500 font-medium" : ""}>{lastSigDate}</span>
                   <br />
                   <span>— Sistema Protocolo Técnico ANVISA — ALPHAFITUS Laboratório Nutracêutico — CNPJ {cert.cnpj} —</span>
                 </div>
