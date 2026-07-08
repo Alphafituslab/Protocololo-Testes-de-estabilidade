@@ -7669,7 +7669,7 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
 
-            {/* Confirmação + Anexos */}
+            {/* Confirmação + Protocolo ANVISA (obrigatório quando confirmado) */}
             <div className="rounded-md border border-amber-300 bg-amber-100 p-3 space-y-3">
               <label className="flex items-start gap-2.5 cursor-pointer select-none">
                 <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-amber-400 accent-amber-600"
@@ -7685,31 +7685,33 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
                 </p>
               )}
 
-              {/* 3 campos de anexo */}
-              <div className="pl-6 space-y-2">
+              <div className="pl-6">
                 <AttachRow
                   label="Protocolo ANVISA" required={form.confirmed} field="protocolo"
                   fileName={form.attachmentFileName}
                   onClear={() => setForm(f => ({ ...f, attachmentObjectPath: null, attachmentFileName: null, attachmentFileType: null }))}
                   onPick={() => protocoloInputRef.current?.click()}
                 />
-                <AttachRow
-                  label="Rótulo" field="rotulo"
-                  fileName={form.rotuloFileName}
-                  onClear={() => setForm(f => ({ ...f, rotuloObjectPath: null, rotuloFileName: null, rotuloFileType: null }))}
-                  onPick={() => rotuloInputRef.current?.click()}
-                />
-                <AttachRow
-                  label="Padronização" field="padronizacao"
-                  fileName={form.padronizacaoFileName}
-                  onClear={() => setForm(f => ({ ...f, padronizacaoObjectPath: null, padronizacaoFileName: null, padronizacaoFileType: null }))}
-                  onPick={() => padronizacaoInputRef.current?.click()}
-                />
               </div>
-
-              {/* hidden inputs */}
               <input ref={protocoloInputRef} type="file" accept=".pdf,.doc,.docx,image/*" className="hidden" onChange={makeFileHandler("protocolo")} />
-              <input ref={rotuloInputRef}    type="file" accept=".pdf,.doc,.docx,image/*" className="hidden" onChange={makeFileHandler("rotulo")} />
+            </div>
+
+            {/* Rótulo e Padronização — sempre visíveis, opcionais */}
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3 space-y-2">
+              <p className="text-xs font-medium text-slate-600 mb-1">Documentos adicionais (opcionais)</p>
+              <AttachRow
+                label="Rótulo" field="rotulo"
+                fileName={form.rotuloFileName}
+                onClear={() => setForm(f => ({ ...f, rotuloObjectPath: null, rotuloFileName: null, rotuloFileType: null }))}
+                onPick={() => rotuloInputRef.current?.click()}
+              />
+              <AttachRow
+                label="Padronização" field="padronizacao"
+                fileName={form.padronizacaoFileName}
+                onClear={() => setForm(f => ({ ...f, padronizacaoObjectPath: null, padronizacaoFileName: null, padronizacaoFileType: null }))}
+                onPick={() => padronizacaoInputRef.current?.click()}
+              />
+              <input ref={rotuloInputRef}       type="file" accept=".pdf,.doc,.docx,image/*" className="hidden" onChange={makeFileHandler("rotulo")} />
               <input ref={padronizacaoInputRef} type="file" accept=".pdf,.doc,.docx,image/*" className="hidden" onChange={makeFileHandler("padronizacao")} />
             </div>
 
