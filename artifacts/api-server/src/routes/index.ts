@@ -26,6 +26,8 @@ import hplcWorkspaceRouter from "./hplc-workspace";
 import clientAccessRouter from "./client-access";
 import coaRouter from "./coa";
 import anvisaRouter from "./anvisa";
+import companiesRouter from "./companies";
+import anvisaNumberBankRouter from "./anvisa-number-bank";
 
 const router: IRouter = Router();
 
@@ -57,5 +59,7 @@ router.use(hplcWorkspaceRouter);
 router.use(clientAccessRouter);
 router.use(coaRouter);
 router.use(anvisaRouter);
+router.use(companiesRouter);
+router.use(anvisaNumberBankRouter);
 
 export default router;
