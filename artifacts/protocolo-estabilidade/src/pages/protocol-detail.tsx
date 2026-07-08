@@ -6373,6 +6373,9 @@ function VersionsTab({ protocolId }: { protocolId: number }) {
   const [restoreError, setRestoreError] = useState("");
   const [restoring, setRestoring] = useState(false);
 
+  const [deleteTarget, setDeleteTarget] = useState<ProtocolSnapshot | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const handleCreate = async () => {
     setCreating(true);
     try {
@@ -6393,6 +6396,25 @@ function VersionsTab({ protocolId }: { protocolId: number }) {
       toast({ title: "Erro", description: e instanceof Error ? e.message : "Erro desconhecido.", variant: "destructive" });
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/protocols/${protocolId}/snapshots/${deleteTarget.id}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Erro ao excluir versão.");
+      toast({ title: "Versão excluída", description: `"${deleteTarget.label}" foi removida.` });
+      setDeleteTarget(null);
+      queryClient.invalidateQueries({ queryKey: ["snapshots", protocolId] });
+    } catch (e: unknown) {
+      toast({ title: "Erro", description: e instanceof Error ? e.message : "Erro desconhecido.", variant: "destructive" });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -6492,6 +6514,29 @@ function VersionsTab({ protocolId }: { protocolId: number }) {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Delete dialog */}
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-700">
+              <Trash2 className="h-5 w-5" /> Excluir versão
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>Tem certeza que deseja excluir a versão <strong className="text-foreground">"{deleteTarget?.label}"</strong>?</p>
+                <p className="text-xs text-muted-foreground">Esta ação é permanente e não pode ser desfeita. Os dados do protocolo atual não serão afetados.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting} onClick={() => setDeleteTarget(null)}>Cancelar</AlertDialogCancel>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Excluindo…</> : "Excluir versão"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Restore dialog */}
       <AlertDialog open={restoreTarget !== null} onOpenChange={(o) => { if (!o) { setRestoreTarget(null); setRestorePassword(""); setRestoreError(""); } }}>
         <AlertDialogContent>
@@ -6569,14 +6614,25 @@ function VersionsTab({ protocolId }: { protocolId: number }) {
                   {fmtDate(snap.createdAt)} · {snap.createdBy}
                 </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 h-7 text-xs shrink-0 border-amber-300 text-amber-700 hover:bg-amber-50"
-                onClick={() => { setRestoreTarget(snap); setRestorePassword(""); setRestoreError(""); }}
-              >
-                <RotateCcw className="h-3 w-3" /> Restaurar
-              </Button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-50"
+                  onClick={() => { setRestoreTarget(snap); setRestorePassword(""); setRestoreError(""); }}
+                >
+                  <RotateCcw className="h-3 w-3" /> Restaurar
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-slate-400 hover:text-red-500 hover:bg-red-50"
+                  title="Excluir esta versão"
+                  onClick={() => setDeleteTarget(snap)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>

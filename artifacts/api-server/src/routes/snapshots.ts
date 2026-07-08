@@ -144,4 +144,21 @@ router.post("/protocols/:id/snapshots/:snapshotId/restore", requireAuth, async (
   res.json({ ok: true, restoredLabel: snap.label, restoredAt: snap.createdAt });
 });
 
+/** Delete a snapshot. */
+router.delete("/protocols/:id/snapshots/:snapshotId", requireAuth, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params["id"] ?? ""), 10);
+  const snapshotId = parseInt(String(req.params["snapshotId"] ?? ""), 10);
+  if (isNaN(id) || isNaN(snapshotId)) { res.status(400).json({ error: "ID inválido." }); return; }
+
+  const [snap] = await db
+    .select({ id: protocolSnapshotsTable.id, protocolId: protocolSnapshotsTable.protocolId })
+    .from(protocolSnapshotsTable)
+    .where(eq(protocolSnapshotsTable.id, snapshotId));
+
+  if (!snap || snap.protocolId !== id) { res.status(404).json({ error: "Versão não encontrada." }); return; }
+
+  await db.delete(protocolSnapshotsTable).where(eq(protocolSnapshotsTable.id, snapshotId));
+  res.status(204).send();
+});
+
 export default router;
