@@ -7,14 +7,22 @@ import { requireAuth } from "../lib/session";
 
 const router = Router();
 
+const nullableStr = z.string().nullable().optional();
+
 const bodySchema = z.object({
   companyName: z.string().min(1),
   notifiedAt: z.string().min(1),
   confirmed: z.boolean().default(false),
-  attachmentObjectPath: z.string().nullable().optional(),
-  attachmentFileName: z.string().nullable().optional(),
-  attachmentFileType: z.string().nullable().optional(),
-  notes: z.string().nullable().optional(),
+  attachmentObjectPath: nullableStr,
+  attachmentFileName: nullableStr,
+  attachmentFileType: nullableStr,
+  rotuloObjectPath: nullableStr,
+  rotuloFileName: nullableStr,
+  rotuloFileType: nullableStr,
+  padronizacaoObjectPath: nullableStr,
+  padronizacaoFileName: nullableStr,
+  padronizacaoFileType: nullableStr,
+  notes: nullableStr,
 });
 
 // ── GET /protocols/:id/anvisa ─────────────────────────────────────────────────
@@ -39,18 +47,25 @@ router.post("/protocols/:id/anvisa", requireAuth, async (req, res) => {
   const parsed = bodySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
+  const d = parsed.data;
   const user = (req as any).user;
   const [row] = await db
     .insert(anvisaNotifications)
     .values({
       protocolId,
-      companyName: parsed.data.companyName,
-      notifiedAt: parsed.data.notifiedAt,
-      confirmed: parsed.data.confirmed,
-      attachmentObjectPath: parsed.data.attachmentObjectPath ?? null,
-      attachmentFileName: parsed.data.attachmentFileName ?? null,
-      attachmentFileType: parsed.data.attachmentFileType ?? null,
-      notes: parsed.data.notes ?? null,
+      companyName: d.companyName,
+      notifiedAt: d.notifiedAt,
+      confirmed: d.confirmed,
+      attachmentObjectPath: d.attachmentObjectPath ?? null,
+      attachmentFileName: d.attachmentFileName ?? null,
+      attachmentFileType: d.attachmentFileType ?? null,
+      rotuloObjectPath: d.rotuloObjectPath ?? null,
+      rotuloFileName: d.rotuloFileName ?? null,
+      rotuloFileType: d.rotuloFileType ?? null,
+      padronizacaoObjectPath: d.padronizacaoObjectPath ?? null,
+      padronizacaoFileName: d.padronizacaoFileName ?? null,
+      padronizacaoFileType: d.padronizacaoFileType ?? null,
+      notes: d.notes ?? null,
       createdBy: user?.username ?? null,
       createdByName: user?.fullName ?? null,
     })

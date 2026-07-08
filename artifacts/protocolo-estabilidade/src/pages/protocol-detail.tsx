@@ -7450,6 +7450,12 @@ type AnvisaNotification = {
   attachmentObjectPath: string | null;
   attachmentFileName: string | null;
   attachmentFileType: string | null;
+  rotuloObjectPath: string | null;
+  rotuloFileName: string | null;
+  rotuloFileType: string | null;
+  padronizacaoObjectPath: string | null;
+  padronizacaoFileName: string | null;
+  padronizacaoFileType: string | null;
   notes: string | null;
   createdByName: string | null;
   createdAt: string;
@@ -7462,19 +7468,20 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
 
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploadingField, setUploadingField] = useState<"protocolo" | "rotulo" | "padronizacao" | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState({
-    companyName: "",
-    notifiedAt: "",
-    notes: "",
-    confirmed: false,
-    attachmentObjectPath: null as string | null,
-    attachmentFileName: null as string | null,
-    attachmentFileType: null as string | null,
-  });
+  const protocoloInputRef = useRef<HTMLInputElement>(null);
+  const rotuloInputRef = useRef<HTMLInputElement>(null);
+  const padronizacaoInputRef = useRef<HTMLInputElement>(null);
+
+  const emptyForm = {
+    companyName: "", notifiedAt: "", notes: "", confirmed: false,
+    attachmentObjectPath: null as string | null, attachmentFileName: null as string | null, attachmentFileType: null as string | null,
+    rotuloObjectPath: null as string | null, rotuloFileName: null as string | null, rotuloFileType: null as string | null,
+    padronizacaoObjectPath: null as string | null, padronizacaoFileName: null as string | null, padronizacaoFileType: null as string | null,
+  };
+  const [form, setForm] = useState(emptyForm);
 
   const { data: notifications = [], isLoading } = useQuery<AnvisaNotification[]>({
     queryKey: ["anvisa-notifications", protocolId],
@@ -7487,27 +7494,17 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
     },
   });
 
-  function resetForm() {
-    setForm({ companyName: "", notifiedAt: "", notes: "", confirmed: false, attachmentObjectPath: null, attachmentFileName: null, attachmentFileType: null });
-    setShowForm(false);
-  }
+  function resetForm() { setForm(emptyForm); setShowForm(false); }
 
-  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-
+  async function uploadFile(file: File, field: "protocolo" | "rotulo" | "padronizacao") {
     const allowed = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/png", "image/jpeg", "image/webp"];
     if (!allowed.includes(file.type)) {
-      toast({ title: "Tipo de arquivo não suportado", description: "Aceito: PDF, Word, imagens", variant: "destructive" });
-      return;
+      toast({ title: "Tipo não suportado", description: "Aceito: PDF, Word, imagens", variant: "destructive" }); return;
     }
     if (file.size > 20 * 1024 * 1024) {
-      toast({ title: "Arquivo muito grande (máx 20 MB)", variant: "destructive" });
-      return;
+      toast({ title: "Arquivo muito grande (máx 20 MB)", variant: "destructive" }); return;
     }
-
-    setUploading(true);
+    setUploadingField(field);
     try {
       const urlRes = await fetch("/api/storage/uploads/request-url", {
         method: "POST",
@@ -7516,40 +7513,47 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
       });
       if (!urlRes.ok) throw new Error("Erro ao obter URL de upload");
       const { uploadURL, objectPath } = await urlRes.json() as { uploadURL: string; objectPath: string };
-
       const putRes = await fetch(uploadURL, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
       if (!putRes.ok) throw new Error("Erro ao enviar arquivo");
 
-      setForm(f => ({ ...f, attachmentObjectPath: objectPath, attachmentFileName: file.name, attachmentFileType: file.type }));
-      toast({ title: "Protocolo ANVISA anexado com sucesso" });
+      if (field === "protocolo") setForm(f => ({ ...f, attachmentObjectPath: objectPath, attachmentFileName: file.name, attachmentFileType: file.type }));
+      if (field === "rotulo")    setForm(f => ({ ...f, rotuloObjectPath: objectPath, rotuloFileName: file.name, rotuloFileType: file.type }));
+      if (field === "padronizacao") setForm(f => ({ ...f, padronizacaoObjectPath: objectPath, padronizacaoFileName: file.name, padronizacaoFileType: file.type }));
+
+      const labels = { protocolo: "Protocolo ANVISA", rotulo: "Rótulo", padronizacao: "Padronização" };
+      toast({ title: `${labels[field]} anexado com sucesso` });
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : "Erro no upload", variant: "destructive" });
     } finally {
-      setUploading(false);
+      setUploadingField(null);
     }
+  }
+
+  function makeFileHandler(field: "protocolo" | "rotulo" | "padronizacao") {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (file) uploadFile(file, field);
+    };
   }
 
   async function handleSave() {
     if (!form.companyName.trim()) { toast({ title: "Informe o nome da empresa", variant: "destructive" }); return; }
     if (!form.notifiedAt) { toast({ title: "Informe a data/hora da notificação", variant: "destructive" }); return; }
     if (form.confirmed && !form.attachmentObjectPath) {
-      toast({ title: "Anexe o protocolo gerado pela ANVISA antes de confirmar", variant: "destructive" });
-      return;
+      toast({ title: "Anexe o protocolo gerado pela ANVISA antes de confirmar", variant: "destructive" }); return;
     }
-
     setSaving(true);
     try {
       const res = await fetch(`/api/protocols/${protocolId}/anvisa`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
-          companyName: form.companyName.trim(),
-          notifiedAt: form.notifiedAt,
-          confirmed: form.confirmed,
-          attachmentObjectPath: form.attachmentObjectPath,
-          attachmentFileName: form.attachmentFileName,
-          attachmentFileType: form.attachmentFileType,
-          notes: form.notes.trim() || null,
+          companyName: form.companyName.trim(), notifiedAt: form.notifiedAt,
+          confirmed: form.confirmed, notes: form.notes.trim() || null,
+          attachmentObjectPath: form.attachmentObjectPath, attachmentFileName: form.attachmentFileName, attachmentFileType: form.attachmentFileType,
+          rotuloObjectPath: form.rotuloObjectPath, rotuloFileName: form.rotuloFileName, rotuloFileType: form.rotuloFileType,
+          padronizacaoObjectPath: form.padronizacaoObjectPath, padronizacaoFileName: form.padronizacaoFileName, padronizacaoFileType: form.padronizacaoFileType,
         }),
       });
       if (!res.ok) throw new Error("Erro ao salvar");
@@ -7566,42 +7570,57 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
   async function handleDelete(id: number) {
     setDeletingId(id);
     try {
-      await fetch(`/api/protocols/${protocolId}/anvisa/${id}`, {
-        method: "DELETE",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      await fetch(`/api/protocols/${protocolId}/anvisa/${id}`, { method: "DELETE", headers: token ? { Authorization: `Bearer ${token}` } : {} });
       queryClient.invalidateQueries({ queryKey: ["anvisa-notifications", protocolId] });
       toast({ title: "Registro removido" });
-    } catch {
-      toast({ title: "Erro ao remover", variant: "destructive" });
-    } finally {
-      setDeletingId(null);
-    }
+    } catch { toast({ title: "Erro ao remover", variant: "destructive" }); }
+    finally { setDeletingId(null); }
   }
 
   async function handleDownload(objectPath: string, fileName: string) {
     try {
-      const res = await fetch(`/api/storage/objects/${objectPath}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await fetch(`/api/storage/objects/${objectPath}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error();
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = fileName; a.click();
+      const a = document.createElement("a"); a.href = url; a.download = fileName; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-    } catch {
-      toast({ title: "Erro ao baixar arquivo", variant: "destructive" });
-    }
+    } catch { toast({ title: "Erro ao baixar arquivo", variant: "destructive" }); }
   }
 
   function fmtDateTime(iso: string) {
-    try {
-      return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
-    } catch { return iso; }
+    try { return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); } catch { return iso; }
   }
 
   const canSave = form.companyName.trim() && form.notifiedAt && (!form.confirmed || !!form.attachmentObjectPath);
+  const uploading = uploadingField !== null;
+
+  // ── Reusable inline attachment row ──
+  function AttachRow({ label, required, fileName, onClear, onPick, field }: {
+    label: string; required?: boolean;
+    fileName: string | null;
+    onClear: () => void; onPick: () => void;
+    field: "protocolo" | "rotulo" | "padronizacao";
+  }) {
+    const busy = uploadingField === field;
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-slate-600 w-32 shrink-0">{label}{required ? " *" : " (opcional)"}</span>
+        {fileName ? (
+          <div className="flex flex-1 items-center gap-2 text-xs bg-white rounded px-2 py-1.5 border border-green-300 min-w-0">
+            <FileText className="h-3.5 w-3.5 text-green-600 shrink-0" />
+            <span className="text-green-700 font-medium truncate">{fileName}</span>
+            <button className="ml-auto text-slate-400 hover:text-red-500" onClick={onClear}><X className="h-3.5 w-3.5" /></button>
+          </div>
+        ) : (
+          <Button size="sm" variant="outline" disabled={busy || uploading} onClick={onPick} className="h-7 text-xs">
+            {busy ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />}
+            {busy ? "Enviando…" : "Anexar"}
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <Card>
@@ -7619,13 +7638,12 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
           )}
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Controle das empresas que já foram notificadas na ANVISA sobre este protocolo de estabilidade.
-          Estas informações são exclusivamente para uso interno e não constam no certificado de análise.
+          Controle das empresas notificadas na ANVISA. Exclusivamente para uso interno — não consta no certificado de análise.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
 
-        {/* ── Formulário de nova notificação ── */}
+        {/* ── Formulário ── */}
         {showForm && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-4">
             <p className="text-sm font-semibold text-amber-800 flex items-center gap-1.5">
@@ -7635,74 +7653,64 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-xs font-medium">Nome da Empresa *</label>
-                <Input
-                  placeholder="Razão social da empresa notificada"
-                  value={form.companyName}
-                  onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))}
-                />
+                <Input placeholder="Razão social da empresa notificada" value={form.companyName}
+                  onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))} />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium">Data e Hora da Notificação *</label>
-                <Input
-                  type="datetime-local"
-                  value={form.notifiedAt}
-                  onChange={e => setForm(f => ({ ...f, notifiedAt: e.target.value }))}
-                />
+                <Input type="datetime-local" value={form.notifiedAt}
+                  onChange={e => setForm(f => ({ ...f, notifiedAt: e.target.value }))} />
               </div>
             </div>
 
             <div className="space-y-1">
               <label className="text-xs font-medium">Anotações (opcional)</label>
-              <Textarea
-                placeholder="Observações sobre a notificação..."
-                rows={2}
-                value={form.notes}
-                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              />
+              <Textarea placeholder="Observações sobre a notificação..." rows={2} value={form.notes}
+                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
 
-            {/* Confirmação */}
+            {/* Confirmação + Anexos */}
             <div className="rounded-md border border-amber-300 bg-amber-100 p-3 space-y-3">
               <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded border-amber-400 accent-amber-600"
-                  checked={form.confirmed}
-                  onChange={e => setForm(f => ({ ...f, confirmed: e.target.checked }))}
-                />
+                <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-amber-400 accent-amber-600"
+                  checked={form.confirmed} onChange={e => setForm(f => ({ ...f, confirmed: e.target.checked }))} />
                 <span className="text-sm font-semibold text-amber-900">
                   ✅ Confirmo que a notificação já foi realizada na ANVISA
                 </span>
               </label>
+
               {form.confirmed && (
-                <div className="space-y-2 pl-6">
-                  <p className="text-xs text-amber-700 font-medium">
-                    Para confirmar, é obrigatório anexar o protocolo de petição gerado pela ANVISA.
-                  </p>
-                  {form.attachmentFileName ? (
-                    <div className="flex items-center gap-2 text-xs bg-white rounded px-2 py-1.5 border border-green-300">
-                      <FileText className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                      <span className="text-green-700 font-medium truncate">{form.attachmentFileName}</span>
-                      <button
-                        className="ml-auto text-slate-400 hover:text-red-500"
-                        onClick={() => setForm(f => ({ ...f, attachmentObjectPath: null, attachmentFileName: null, attachmentFileType: null }))}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <Button
-                      size="sm" variant="outline"
-                      disabled={uploading}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
-                      {uploading ? "Enviando…" : "Anexar Protocolo ANVISA"}
-                    </Button>
-                  )}
-                  <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,image/*" className="hidden" onChange={handleFileSelect} />
-                </div>
+                <p className="text-xs text-amber-700 font-medium pl-6">
+                  Para confirmar é obrigatório anexar o protocolo de petição gerado pela ANVISA.
+                </p>
               )}
+
+              {/* 3 campos de anexo */}
+              <div className="pl-6 space-y-2">
+                <AttachRow
+                  label="Protocolo ANVISA" required={form.confirmed} field="protocolo"
+                  fileName={form.attachmentFileName}
+                  onClear={() => setForm(f => ({ ...f, attachmentObjectPath: null, attachmentFileName: null, attachmentFileType: null }))}
+                  onPick={() => protocoloInputRef.current?.click()}
+                />
+                <AttachRow
+                  label="Rótulo" field="rotulo"
+                  fileName={form.rotuloFileName}
+                  onClear={() => setForm(f => ({ ...f, rotuloObjectPath: null, rotuloFileName: null, rotuloFileType: null }))}
+                  onPick={() => rotuloInputRef.current?.click()}
+                />
+                <AttachRow
+                  label="Padronização" field="padronizacao"
+                  fileName={form.padronizacaoFileName}
+                  onClear={() => setForm(f => ({ ...f, padronizacaoObjectPath: null, padronizacaoFileName: null, padronizacaoFileType: null }))}
+                  onPick={() => padronizacaoInputRef.current?.click()}
+                />
+              </div>
+
+              {/* hidden inputs */}
+              <input ref={protocoloInputRef} type="file" accept=".pdf,.doc,.docx,image/*" className="hidden" onChange={makeFileHandler("protocolo")} />
+              <input ref={rotuloInputRef}    type="file" accept=".pdf,.doc,.docx,image/*" className="hidden" onChange={makeFileHandler("rotulo")} />
+              <input ref={padronizacaoInputRef} type="file" accept=".pdf,.doc,.docx,image/*" className="hidden" onChange={makeFileHandler("padronizacao")} />
             </div>
 
             <div className="flex justify-end gap-2">
@@ -7715,7 +7723,7 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
           </div>
         )}
 
-        {/* ── Lista de notificações ── */}
+        {/* ── Lista ── */}
         {isLoading ? (
           <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
             <Loader2 className="h-4 w-4 animate-spin mr-2" /> Carregando…
@@ -7728,41 +7736,49 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
         ) : (
           <div className="space-y-3">
             {notifications.map(n => (
-              <div
-                key={n.id}
-                className={`rounded-lg border p-4 ${n.confirmed ? "border-green-200 bg-green-50" : "border-slate-200 bg-slate-50"}`}
-              >
+              <div key={n.id} className={`rounded-lg border p-4 ${n.confirmed ? "border-green-200 bg-green-50" : "border-slate-200 bg-slate-50"}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0 space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm">{n.companyName}</span>
-                      {n.confirmed ? (
-                        <Badge className="bg-green-100 text-green-800 border-green-300 text-xs">
-                          <CheckCircle2 className="h-3 w-3 mr-1" /> Confirmada
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-xs text-amber-700 border-amber-300 bg-amber-50">
-                          Pendente confirmação
-                        </Badge>
-                      )}
+                      {n.confirmed
+                        ? <Badge className="bg-green-100 text-green-800 border-green-300 text-xs"><CheckCircle2 className="h-3 w-3 mr-1" /> Confirmada</Badge>
+                        : <Badge variant="outline" className="text-xs text-amber-700 border-amber-300 bg-amber-50">Pendente confirmação</Badge>}
                     </div>
                     <div className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
                       <span>📅 Notificado em: <strong>{fmtDateTime(n.notifiedAt)}</strong></span>
                       {n.createdByName && <span>Registrado por: {n.createdByName}</span>}
-                      <span className="text-slate-400">Criado: {fmtDateTime(n.createdAt)}</span>
                     </div>
-                    {n.notes && (
-                      <p className="text-xs text-slate-600 bg-white rounded px-2 py-1 border border-slate-200 mt-1">{n.notes}</p>
-                    )}
-                    {n.attachmentFileName && n.attachmentObjectPath && (
-                      <button
-                        className="flex items-center gap-1.5 text-xs text-blue-700 hover:text-blue-900 hover:underline mt-1"
-                        onClick={() => handleDownload(n.attachmentObjectPath!, n.attachmentFileName!)}
-                      >
-                        <FileText className="h-3.5 w-3.5 shrink-0" />
-                        {n.attachmentFileName}
-                        <Download className="h-3 w-3" />
-                      </button>
+                    {n.notes && <p className="text-xs text-slate-600 bg-white rounded px-2 py-1 border border-slate-200">{n.notes}</p>}
+
+                    {/* Anexos */}
+                    {(n.attachmentFileName || n.rotuloFileName || n.padronizacaoFileName) && (
+                      <div className="flex flex-wrap gap-3 mt-1">
+                        {n.attachmentFileName && n.attachmentObjectPath && (
+                          <button className="flex items-center gap-1 text-xs text-blue-700 hover:text-blue-900 hover:underline"
+                            onClick={() => handleDownload(n.attachmentObjectPath!, n.attachmentFileName!)}>
+                            <FileText className="h-3.5 w-3.5 shrink-0" />
+                            <span>Protocolo ANVISA</span>
+                            <Download className="h-3 w-3" />
+                          </button>
+                        )}
+                        {n.rotuloFileName && n.rotuloObjectPath && (
+                          <button className="flex items-center gap-1 text-xs text-violet-700 hover:text-violet-900 hover:underline"
+                            onClick={() => handleDownload(n.rotuloObjectPath!, n.rotuloFileName!)}>
+                            <FileText className="h-3.5 w-3.5 shrink-0" />
+                            <span>Rótulo</span>
+                            <Download className="h-3 w-3" />
+                          </button>
+                        )}
+                        {n.padronizacaoFileName && n.padronizacaoObjectPath && (
+                          <button className="flex items-center gap-1 text-xs text-teal-700 hover:text-teal-900 hover:underline"
+                            onClick={() => handleDownload(n.padronizacaoObjectPath!, n.padronizacaoFileName!)}>
+                            <FileText className="h-3.5 w-3.5 shrink-0" />
+                            <span>Padronização</span>
+                            <Download className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                   <AlertDialog>
@@ -7780,9 +7796,7 @@ function AnvisaTab({ protocolId }: { protocolId: number }) {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(n.id)} className="bg-red-600 hover:bg-red-700">
-                          Remover
-                        </AlertDialogAction>
+                        <AlertDialogAction onClick={() => handleDelete(n.id)} className="bg-red-600 hover:bg-red-700">Remover</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
