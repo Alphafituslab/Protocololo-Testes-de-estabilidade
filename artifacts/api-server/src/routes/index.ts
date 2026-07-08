@@ -25,6 +25,7 @@ import hplcSavedAnalysesRouter from "./hplc-saved-analyses";
 import hplcWorkspaceRouter from "./hplc-workspace";
 import clientAccessRouter from "./client-access";
 import coaRouter from "./coa";
+import anvisaRouter from "./anvisa";
 
 const router: IRouter = Router();
 
@@ -55,5 +56,6 @@ router.use(hplcSavedAnalysesRouter);
 router.use(hplcWorkspaceRouter);
 router.use(clientAccessRouter);
 router.use(coaRouter);
+router.use(anvisaRouter);
 
 export default router;

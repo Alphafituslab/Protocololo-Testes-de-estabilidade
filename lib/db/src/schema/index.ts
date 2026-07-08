@@ -22,3 +22,4 @@ export * from "./client_protocol_access";
 export * from "./login_log";
 export * from "./coa_documents";
 export * from "./coa_results";
+export * from "./anvisa_notifications";

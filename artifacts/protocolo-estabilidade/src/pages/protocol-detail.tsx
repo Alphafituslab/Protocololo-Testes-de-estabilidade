@@ -70,7 +70,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink, Upload, Download, X, File, GripVertical, Search, SaveAll, RotateCcw, ShieldAlert, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink, Upload, Download, X, File, GripVertical, Search, SaveAll, RotateCcw, ShieldAlert, Eye, EyeOff, Bell, ShieldCheck } from "lucide-react";
 import { AuditTrail } from "@/components/audit-trail";
 import { useToast } from "@/hooks/use-toast";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
@@ -6243,6 +6243,7 @@ export default function ProtocolDetail() {
           <TabsTrigger value="documentos" data-testid="tab-documentos"><Paperclip className="h-3.5 w-3.5 mr-1" />Documentos</TabsTrigger>
           <TabsTrigger value="referencias" data-testid="tab-referencias"><BookOpen className="h-3.5 w-3.5 mr-1" />Referências</TabsTrigger>
           <TabsTrigger value="versoes" data-testid="tab-versoes"><SaveAll className="h-3.5 w-3.5 mr-1" />Versões</TabsTrigger>
+          <TabsTrigger value="anvisa" data-testid="tab-anvisa"><ShieldCheck className="h-3.5 w-3.5 mr-1" />ANVISA</TabsTrigger>
         </TabsList>
         <TabsContent value="info">
           <Card>
@@ -6329,6 +6330,9 @@ export default function ProtocolDetail() {
               <VersionsTab protocolId={numId} />
             </CardContent>
           </Card>
+        </TabsContent>
+        <TabsContent value="anvisa">
+          <AnvisaTab protocolId={numId} />
         </TabsContent>
       </Tabs>
     </div>
@@ -7431,6 +7435,363 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
           </div>
         </div>
       )}
+    </Card>
+  );
+}
+
+// ── AnvisaTab ─────────────────────────────────────────────────────────────────
+
+type AnvisaNotification = {
+  id: number;
+  protocolId: number;
+  companyName: string;
+  notifiedAt: string;
+  confirmed: boolean;
+  attachmentObjectPath: string | null;
+  attachmentFileName: string | null;
+  attachmentFileType: string | null;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+};
+
+function AnvisaTab({ protocolId }: { protocolId: number }) {
+  const { token } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [form, setForm] = useState({
+    companyName: "",
+    notifiedAt: "",
+    notes: "",
+    confirmed: false,
+    attachmentObjectPath: null as string | null,
+    attachmentFileName: null as string | null,
+    attachmentFileType: null as string | null,
+  });
+
+  const { data: notifications = [], isLoading } = useQuery<AnvisaNotification[]>({
+    queryKey: ["anvisa-notifications", protocolId],
+    queryFn: async () => {
+      const res = await fetch(`/api/protocols/${protocolId}/anvisa`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Erro ao carregar notificações ANVISA");
+      return res.json();
+    },
+  });
+
+  function resetForm() {
+    setForm({ companyName: "", notifiedAt: "", notes: "", confirmed: false, attachmentObjectPath: null, attachmentFileName: null, attachmentFileType: null });
+    setShowForm(false);
+  }
+
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    const allowed = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/png", "image/jpeg", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      toast({ title: "Tipo de arquivo não suportado", description: "Aceito: PDF, Word, imagens", variant: "destructive" });
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande (máx 20 MB)", variant: "destructive" });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const urlRes = await fetch("/api/storage/uploads/request-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      if (!urlRes.ok) throw new Error("Erro ao obter URL de upload");
+      const { uploadURL, objectPath } = await urlRes.json() as { uploadURL: string; objectPath: string };
+
+      const putRes = await fetch(uploadURL, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      if (!putRes.ok) throw new Error("Erro ao enviar arquivo");
+
+      setForm(f => ({ ...f, attachmentObjectPath: objectPath, attachmentFileName: file.name, attachmentFileType: file.type }));
+      toast({ title: "Protocolo ANVISA anexado com sucesso" });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Erro no upload", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleSave() {
+    if (!form.companyName.trim()) { toast({ title: "Informe o nome da empresa", variant: "destructive" }); return; }
+    if (!form.notifiedAt) { toast({ title: "Informe a data/hora da notificação", variant: "destructive" }); return; }
+    if (form.confirmed && !form.attachmentObjectPath) {
+      toast({ title: "Anexe o protocolo gerado pela ANVISA antes de confirmar", variant: "destructive" });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/protocols/${protocolId}/anvisa`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          companyName: form.companyName.trim(),
+          notifiedAt: form.notifiedAt,
+          confirmed: form.confirmed,
+          attachmentObjectPath: form.attachmentObjectPath,
+          attachmentFileName: form.attachmentFileName,
+          attachmentFileType: form.attachmentFileType,
+          notes: form.notes.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Erro ao salvar");
+      queryClient.invalidateQueries({ queryKey: ["anvisa-notifications", protocolId] });
+      toast({ title: "Notificação ANVISA registrada" });
+      resetForm();
+    } catch {
+      toast({ title: "Erro ao salvar notificação", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: number) {
+    setDeletingId(id);
+    try {
+      await fetch(`/api/protocols/${protocolId}/anvisa/${id}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      queryClient.invalidateQueries({ queryKey: ["anvisa-notifications", protocolId] });
+      toast({ title: "Registro removido" });
+    } catch {
+      toast({ title: "Erro ao remover", variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleDownload(objectPath: string, fileName: string) {
+    try {
+      const res = await fetch(`/api/storage/objects/${objectPath}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = fileName; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch {
+      toast({ title: "Erro ao baixar arquivo", variant: "destructive" });
+    }
+  }
+
+  function fmtDateTime(iso: string) {
+    try {
+      return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+    } catch { return iso; }
+  }
+
+  const canSave = form.companyName.trim() && form.notifiedAt && (!form.confirmed || !!form.attachmentObjectPath);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            <CardTitle className="text-base">Notificações ANVISA</CardTitle>
+            <Badge variant="secondary" className="text-xs">Uso interno — não aparece no certificado</Badge>
+          </div>
+          {!showForm && (
+            <Button size="sm" onClick={() => setShowForm(true)}>
+              <Plus className="h-3.5 w-3.5 mr-1" /> Registrar Notificação
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Controle das empresas que já foram notificadas na ANVISA sobre este protocolo de estabilidade.
+          Estas informações são exclusivamente para uso interno e não constam no certificado de análise.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+
+        {/* ── Formulário de nova notificação ── */}
+        {showForm && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-4">
+            <p className="text-sm font-semibold text-amber-800 flex items-center gap-1.5">
+              <Bell className="h-4 w-4" /> Nova Notificação ANVISA
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Nome da Empresa *</label>
+                <Input
+                  placeholder="Razão social da empresa notificada"
+                  value={form.companyName}
+                  onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Data e Hora da Notificação *</label>
+                <Input
+                  type="datetime-local"
+                  value={form.notifiedAt}
+                  onChange={e => setForm(f => ({ ...f, notifiedAt: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Anotações (opcional)</label>
+              <Textarea
+                placeholder="Observações sobre a notificação..."
+                rows={2}
+                value={form.notes}
+                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              />
+            </div>
+
+            {/* Confirmação */}
+            <div className="rounded-md border border-amber-300 bg-amber-100 p-3 space-y-3">
+              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-amber-400 accent-amber-600"
+                  checked={form.confirmed}
+                  onChange={e => setForm(f => ({ ...f, confirmed: e.target.checked }))}
+                />
+                <span className="text-sm font-semibold text-amber-900">
+                  ✅ Confirmo que a notificação já foi realizada na ANVISA
+                </span>
+              </label>
+              {form.confirmed && (
+                <div className="space-y-2 pl-6">
+                  <p className="text-xs text-amber-700 font-medium">
+                    Para confirmar, é obrigatório anexar o protocolo de petição gerado pela ANVISA.
+                  </p>
+                  {form.attachmentFileName ? (
+                    <div className="flex items-center gap-2 text-xs bg-white rounded px-2 py-1.5 border border-green-300">
+                      <FileText className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                      <span className="text-green-700 font-medium truncate">{form.attachmentFileName}</span>
+                      <button
+                        className="ml-auto text-slate-400 hover:text-red-500"
+                        onClick={() => setForm(f => ({ ...f, attachmentObjectPath: null, attachmentFileName: null, attachmentFileType: null }))}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm" variant="outline"
+                      disabled={uploading}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                      {uploading ? "Enviando…" : "Anexar Protocolo ANVISA"}
+                    </Button>
+                  )}
+                  <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,image/*" className="hidden" onChange={handleFileSelect} />
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="outline" onClick={resetForm}>Cancelar</Button>
+              <Button size="sm" disabled={!canSave || saving} onClick={handleSave}>
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                Salvar Notificação
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Lista de notificações ── */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
+            <Loader2 className="h-4 w-4 animate-spin mr-2" /> Carregando…
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+            <ShieldCheck className="h-8 w-8 mb-2 opacity-30" />
+            <p className="text-sm">Nenhuma notificação ANVISA registrada ainda.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {notifications.map(n => (
+              <div
+                key={n.id}
+                className={`rounded-lg border p-4 ${n.confirmed ? "border-green-200 bg-green-50" : "border-slate-200 bg-slate-50"}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm">{n.companyName}</span>
+                      {n.confirmed ? (
+                        <Badge className="bg-green-100 text-green-800 border-green-300 text-xs">
+                          <CheckCircle2 className="h-3 w-3 mr-1" /> Confirmada
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs text-amber-700 border-amber-300 bg-amber-50">
+                          Pendente confirmação
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
+                      <span>📅 Notificado em: <strong>{fmtDateTime(n.notifiedAt)}</strong></span>
+                      {n.createdByName && <span>Registrado por: {n.createdByName}</span>}
+                      <span className="text-slate-400">Criado: {fmtDateTime(n.createdAt)}</span>
+                    </div>
+                    {n.notes && (
+                      <p className="text-xs text-slate-600 bg-white rounded px-2 py-1 border border-slate-200 mt-1">{n.notes}</p>
+                    )}
+                    {n.attachmentFileName && n.attachmentObjectPath && (
+                      <button
+                        className="flex items-center gap-1.5 text-xs text-blue-700 hover:text-blue-900 hover:underline mt-1"
+                        onClick={() => handleDownload(n.attachmentObjectPath!, n.attachmentFileName!)}
+                      >
+                        <FileText className="h-3.5 w-3.5 shrink-0" />
+                        {n.attachmentFileName}
+                        <Download className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-red-500 shrink-0">
+                        {deletingId === n.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remover notificação?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Isso removerá o registro de notificação ANVISA de <strong>{n.companyName}</strong>. Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(n.id)} className="bg-red-600 hover:bg-red-700">
+                          Remover
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
     </Card>
   );
 }
