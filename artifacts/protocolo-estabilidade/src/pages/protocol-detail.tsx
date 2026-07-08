@@ -7572,16 +7572,59 @@ function buildAnvisaDocHtml(
   const today = new Date().toLocaleDateString("pt-BR");
   const dt = parseDocText(n.docTextJson);
 
-  const imgBlock = (src: string | null, label: string, mime: string | null) => {
+  const imgBlock = (src: string | null, label: string, mime: string | null, divId: string) => {
     if (!src) return "";
     if (mime && mime.startsWith("image/")) {
-      return `<div style="margin:12px 0"><p style="font-weight:bold;margin-bottom:4px">${label}:</p><img src="${src}" style="max-width:100%;border:1px solid #ccc;"/></div>`;
+      return `<div style="margin:20px 0;page-break-inside:avoid">
+  <p style="font-weight:bold;font-size:10pt;margin-bottom:8px;color:#1e3a5f;border-left:3px solid #1e3a5f;padding-left:8px">${label}</p>
+  <img src="${src}" style="max-width:100%;border:1px solid #d1d5db;border-radius:4px;display:block;box-shadow:0 1px 4px rgba(0,0,0,.08)"/>
+</div>`;
     }
     if (mime === "application/pdf") {
-      return `<div style="margin:12px 0"><p style="font-weight:bold;margin-bottom:4px">${label}:</p><embed src="${src}" type="application/pdf" width="100%" height="600px" style="border:1px solid #ccc;"/></div>`;
+      return `<div style="margin:20px 0">
+  <p style="font-weight:bold;font-size:10pt;margin-bottom:8px;color:#1e3a5f;border-left:3px solid #1e3a5f;padding-left:8px">${label}</p>
+  <div id="${divId}" style="border:1px solid #d1d5db;border-radius:4px;background:#f9fafb;min-height:80px;padding:12px;text-align:center">
+    <p style="color:#9ca3af;font-size:9pt">⏳ Renderizando páginas do PDF…</p>
+  </div>
+</div>`;
     }
-    return `<p style="color:#555;font-size:10pt">[Arquivo ${label} anexado — formato não pré-visualizável]</p>`;
+    return `<p style="color:#9ca3af;font-size:9pt;font-style:italic;margin:8px 0">[${label}: Word/formato não pré-visualizável — abra o arquivo original]</p>`;
   };
+
+  // Build PDF data for JS rendering (only PDFs need canvas rendering)
+  const pdfEntries: string[] = [];
+  if (imgs.protocolo && n.attachmentFileType === "application/pdf") pdfEntries.push(`"pdf-protocolo":"${imgs.protocolo}"`);
+  if (imgs.rotulo && n.rotuloFileType === "application/pdf") pdfEntries.push(`"pdf-rotulo":"${imgs.rotulo}"`);
+  if (imgs.padronizacao && n.padronizacaoFileType === "application/pdf") pdfEntries.push(`"pdf-padronizacao":"${imgs.padronizacao}"`);
+  const pdfRenderScript = pdfEntries.length > 0 ? `<script>
+(async function(){
+  const P={${pdfEntries.join(",")}};
+  const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  document.head.appendChild(s);
+  await new Promise(r=>{s.onload=r;s.onerror=r});
+  const lib=window['pdfjs-dist/build/pdf'];
+  lib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  for(const[id,url]of Object.entries(P)){
+    const el=document.getElementById(id);
+    if(!el)continue;
+    el.innerHTML='';
+    try{
+      const pdfDoc=await lib.getDocument({data:atob(url.split(',')[1])}).promise;
+      for(let pn=1;pn<=pdfDoc.numPages;pn++){
+        const page=await pdfDoc.getPage(pn);
+        const vp=page.getViewport({scale:1.5});
+        const cv=document.createElement('canvas');
+        cv.width=vp.width;cv.height=vp.height;
+        cv.style.cssText='max-width:100%;width:100%;display:block;margin-bottom:3px;border-radius:2px';
+        await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+        el.appendChild(cv);
+        if(pn<pdfDoc.numPages){const hr=document.createElement('div');hr.style.cssText='height:1px;background:#e5e7eb;margin:6px 0';el.appendChild(hr);}
+      }
+    }catch(e){el.innerHTML='<p style="color:#ef4444;font-size:9pt;padding:8px">Erro ao renderizar PDF — verifique se o arquivo não está protegido por senha.</p>';}
+  }
+})();
+</script>` : "";
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -7669,9 +7712,9 @@ ${(p.certNumber || p.productName) ? `
 ${(imgs.protocolo || imgs.rotulo || imgs.padronizacao) ? `
 <div class="section">
   <p class="section-title">Anexos</p>
-  ${imgBlock(imgs.protocolo, "Protocolo ANVISA", n.attachmentFileType)}
-  ${imgBlock(imgs.rotulo, "Rótulo", n.rotuloFileType)}
-  ${imgBlock(imgs.padronizacao, "Padronização", n.padronizacaoFileType)}
+  ${imgBlock(imgs.protocolo, "Protocolo ANVISA", n.attachmentFileType, "pdf-protocolo")}
+  ${imgBlock(imgs.rotulo, "Rótulo", n.rotuloFileType, "pdf-rotulo")}
+  ${imgBlock(imgs.padronizacao, "Padronização", n.padronizacaoFileType, "pdf-padronizacao")}
 </div>` : ""}
 
 <div class="section">
@@ -7694,6 +7737,7 @@ ${(imgs.protocolo || imgs.rotulo || imgs.padronizacao) ? `
 <div style="text-align:center;margin-top:36px">
   <button onclick="window.print()" style="padding:10px 28px;background:#1e3a5f;color:#fff;border:none;border-radius:4px;font-size:11pt;cursor:pointer">🖨️ Imprimir / Salvar como PDF</button>
 </div>
+${pdfRenderScript}
 </body>
 </html>`;
 }
