@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, settingsTable } from "@workspace/db";
 import { requireAuth } from "../lib/session";
 import { PERM, requirePermission } from "../lib/permissions";
-import { runBackup, BACKUP_DIR } from "../lib/backup-scheduler";
+import { runBackup, BACKUP_DIR, listCloudBackups, downloadCloudBackup } from "../lib/backup-scheduler";
 import { runRestore } from "../lib/backup-restore";
 import { logger } from "../lib/logger";
 import fs from "fs";
@@ -51,6 +51,27 @@ router.post("/backup/run", requireAuth, requirePermission(PERM.SETTINGS_MANAGE),
       upsertSetting("backup.last_status", "error"),
     ]).catch(() => {});
     res.status(500).json({ error: message });
+  }
+});
+
+router.get("/backup/cloud-history", requireAuth, requirePermission(PERM.SETTINGS_MANAGE), async (_req, res): Promise<void> => {
+  try {
+    res.json(await listCloudBackups());
+  } catch {
+    res.json([]);
+  }
+});
+
+router.post("/backup/cloud-restore/:filename", requireAuth, requirePermission(PERM.SETTINGS_MANAGE), async (req, res): Promise<void> => {
+  try {
+    const data = await downloadCloudBackup(String(req.params["filename"]));
+    const result = await runRestore(data);
+    logger.info(result, "backup: cloud restore completed");
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error({ err }, "backup: cloud restore error");
+    res.status(500).json({ error: `Erro ao restaurar da nuvem: ${message}` });
   }
 });
 

@@ -13,6 +13,7 @@ import {
 import {
   DatabaseBackup, CloudUpload, Clock, CheckCircle2, XCircle,
   Download, RefreshCw, HardDrive, CalendarClock, UploadCloud, AlertTriangle,
+  Cloud, ShieldCheck, History,
 } from "lucide-react";
 
 interface BackupConfig {
@@ -29,6 +30,12 @@ interface BackupFile {
   filename: string;
   size: number;
   createdAt: string;
+}
+
+interface CloudBackupFile {
+  filename: string;
+  size: number;
+  updatedAt: string;
 }
 
 interface RestoreResult {
@@ -76,6 +83,12 @@ export default function BackupPage() {
   const { data: history = [] } = useQuery<BackupFile[]>({
     queryKey: ["backup-history"],
     queryFn: () => apiFetch("/api/backup/history"),
+    refetchInterval: 30_000,
+  });
+
+  const { data: cloudHistory = [] } = useQuery<CloudBackupFile[]>({
+    queryKey: ["backup-cloud-history"],
+    queryFn: () => apiFetch("/api/backup/cloud-history"),
     refetchInterval: 30_000,
   });
 
@@ -139,6 +152,26 @@ export default function BackupPage() {
     },
   });
 
+  const [cloudRestoreTarget, setCloudRestoreTarget] = useState<CloudBackupFile | null>(null);
+
+  const cloudRestoreMut = useMutation({
+    mutationFn: (filename: string) =>
+      apiFetch<RestoreResult>(`/api/backup/cloud-restore/${encodeURIComponent(filename)}`, { method: "POST" }),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["backup-history"] });
+      qc.invalidateQueries({ queryKey: ["backup-cloud-history"] });
+      setCloudRestoreTarget(null);
+      toast({
+        title: "Restauração da nuvem concluída!",
+        description: `Protocolos: ${r.protocolsRestored} · Lotes: ${r.lotsRestored} · Resultados: ${r.resultsRestored}${r.exportedAt ? ` · Backup de ${fmt(r.exportedAt)}` : ""}`,
+      });
+    },
+    onError: (e: Error) => {
+      setCloudRestoreTarget(null);
+      toast({ title: "Erro no restore da nuvem", description: e.message, variant: "destructive" });
+    },
+  });
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -177,6 +210,15 @@ export default function BackupPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Nenhum dado é excluído permanentemente. Faça backups regulares e restaure sempre que necessário.
+          </p>
+        </div>
+
+        <div className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+          <ShieldCheck className="h-4 w-4 text-emerald-700 mt-0.5 shrink-0" />
+          <p className="text-xs text-emerald-800">
+            O backup automático está <strong>ativo por padrão</strong>, roda sozinho todo dia (nos dois horários abaixo)
+            e cada cópia é enviada também para um armazenamento em nuvem separado do banco de dados — assim, mesmo em
+            caso de invasão ou perda de dados, você tem como restaurar tudo rapidamente pela aba "Restaurar da Nuvem".
           </p>
         </div>
 
@@ -307,6 +349,48 @@ export default function BackupPage() {
           </CardContent>
         </Card>
 
+        {/* Restaurar da Nuvem */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Cloud className="h-4 w-4" /> Restaurar da Nuvem
+            </CardTitle>
+            <CardDescription>
+              Cópia de segurança guardada fora do servidor. Restaure com um clique, sem precisar baixar arquivo nenhum
+              — ideal em caso de ataque ou perda de dados no servidor.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {cloudHistory.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground text-sm">
+                <Cloud className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                <p>Nenhuma cópia na nuvem ainda. Ela é criada automaticamente no próximo backup.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {cloudHistory.map(f => (
+                  <div key={f.filename} className="flex items-center justify-between py-2.5 text-sm">
+                    <div>
+                      <p className="font-mono text-xs">{f.filename}</p>
+                      <p className="text-muted-foreground text-xs mt-0.5">
+                        {fmt(f.updatedAt)} · {fmtSize(f.size)}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 h-7 text-xs text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50"
+                      onClick={() => setCloudRestoreTarget(f)}
+                    >
+                      <History className="h-3.5 w-3.5" /> Restaurar
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Histórico */}
         <Card>
           <CardHeader className="pb-3">
@@ -388,6 +472,44 @@ export default function BackupPage() {
               {restoreMut.isPending
                 ? <><RefreshCw className="h-4 w-4 animate-spin" /> Restaurando...</>
                 : <><UploadCloud className="h-4 w-4" /> Restaurar agora</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cloud restore confirmation dialog */}
+      <Dialog open={!!cloudRestoreTarget} onOpenChange={(open) => !open && setCloudRestoreTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Confirmar Restauração da Nuvem
+            </DialogTitle>
+            <DialogDescription className="space-y-2 pt-2">
+              <p>
+                Você está prestes a restaurar a cópia da nuvem:
+                <span className="block font-mono text-xs mt-1 text-foreground bg-muted px-2 py-1 rounded">{cloudRestoreTarget?.filename}</span>
+              </p>
+              <p>
+                Protocolos, lotes e resultados desse backup serão <strong>inseridos ou atualizados</strong> no banco de dados atual.
+              </p>
+              <p className="text-amber-700 font-medium">
+                Recomendamos fazer um backup atual antes de restaurar.
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCloudRestoreTarget(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => cloudRestoreTarget && cloudRestoreMut.mutate(cloudRestoreTarget.filename)}
+              disabled={cloudRestoreMut.isPending}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+            >
+              {cloudRestoreMut.isPending
+                ? <><RefreshCw className="h-4 w-4 animate-spin" /> Restaurando...</>
+                : <><Cloud className="h-4 w-4" /> Restaurar da nuvem</>}
             </Button>
           </DialogFooter>
         </DialogContent>

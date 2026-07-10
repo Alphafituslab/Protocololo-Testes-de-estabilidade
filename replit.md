@@ -94,3 +94,14 @@ pnpm run typecheck:libs
 ## Status Workflow
 
 `rascunho` → `em_andamento` → (finalize) → `aprovado` | `reprovado`
+
+## Backup e Restauração
+
+Sistema de backup automático diário (protocolos, lotes e resultados de análise), acessível na página "Backup de Dados":
+
+- **Ativado por padrão** — roda sozinho todo dia em 2 horários configuráveis (padrão 08:00 e 20:00), sem precisar solicitar manualmente. Ao subir o servidor pela primeira vez, já roda um backup imediato se nunca houve um.
+- **Dupla cópia**: cada backup é salvo em `backups/` no servidor (local) **e** enviado automaticamente para o Object Storage (nuvem, fora do banco de dados) — garante recuperação mesmo em caso de invasão/perda de dados no servidor.
+- **Rotação automática**: mantém os últimos 60 backups (local e nuvem), apagando os mais antigos.
+- **Restauração com 1 clique** direto da nuvem (`/api/backup/cloud-restore/:filename`), sem precisar baixar/subir arquivo manualmente — ideal para recuperação rápida após um ataque.
+- Também é possível baixar um backup local (.json) e restaurá-lo manualmente por upload, como alternativa.
+- Implementação: `artifacts/api-server/src/lib/backup-scheduler.ts` (agendamento + cópia em nuvem), `backup-restore.ts` (lógica de restore), `routes/backup.ts` (API), `pages/backup.tsx` (UI).

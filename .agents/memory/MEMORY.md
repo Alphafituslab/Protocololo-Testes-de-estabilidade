@@ -13,3 +13,4 @@
 - [Certificado PDF — CSS paged media](cert-pdf-print.md) — position:fixed só renderiza na pág. 1 em Chrome print; usar display:table-header-group/footer-group; @page margin:0 Xmm para suprimir URL/data.
 - [HPLC — IDs estáveis em DEFAULT_ACTIVE_COMPOUNDS](hplc-stable-compound-ids.md) — NUNCA usar uid() em DEFAULT_ACTIVE_COMPOUNDS; IDs mudam a cada reload e quebram a indexação de calibração no localStorage.
 - [Sync de listas — nunca reenviar array inteiro por save](full-array-sync-body-limit.md) — POST do array completo em cada save estoura limite de body JSON e falha silenciosamente; sincronizar só o registro alterado.
+- [Backup automático + cópia em nuvem](backup-system-cloud-default.md) — ativado por padrão desde a v2; cada backup local também vai pro Object Storage p/ sobreviver a invasão do servidor.
