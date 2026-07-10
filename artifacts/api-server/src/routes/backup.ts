@@ -25,6 +25,7 @@ router.get("/backup/config", requireAuth, requirePermission(PERM.SETTINGS_MANAGE
     enabled:    s["backup.enabled"] === "true",
     time:       s["backup.time"]     || "08:00",
     time2:      s["backup.time2"]    || "20:00",
+    time3:      s["backup.time3"]    || "",
     lastRun:    s["backup.last_run"]    || null,
     lastStatus: s["backup.last_status"] || null,
     lastFile:   s["backup.last_file"]   || null,
@@ -33,10 +34,11 @@ router.get("/backup/config", requireAuth, requirePermission(PERM.SETTINGS_MANAGE
 });
 
 router.put("/backup/config", requireAuth, requirePermission(PERM.SETTINGS_MANAGE), async (req, res): Promise<void> => {
-  const { enabled, time, time2 } = req.body as { enabled?: boolean; time?: string; time2?: string };
+  const { enabled, time, time2, time3 } = req.body as { enabled?: boolean; time?: string; time2?: string; time3?: string };
   if (enabled !== undefined) await upsertSetting("backup.enabled", String(enabled));
   if (time)  await upsertSetting("backup.time", time);
   if (time2) await upsertSetting("backup.time2", time2);
+  if (time3 !== undefined) await upsertSetting("backup.time3", time3);
   res.json({ ok: true });
 });
 

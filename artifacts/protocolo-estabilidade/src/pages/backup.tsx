@@ -20,6 +20,7 @@ interface BackupConfig {
   enabled: boolean;
   time: string;
   time2: string;
+  time3: string;
   lastRun: string | null;
   lastStatus: string | null;
   lastFile: string | null;
@@ -94,20 +95,22 @@ export default function BackupPage() {
 
   const [localEnabled, setLocalEnabled] = useState(false);
   const [localTime,    setLocalTime]    = useState("08:00");
-  const [localTime2,   setLocalTime2]   = useState("20:00");
+  const [localTime2,   setLocalTime2]   = useState("14:00");
+  const [localTime3,   setLocalTime3]   = useState("16:30");
 
   useEffect(() => {
     if (!config) return;
     setLocalEnabled(config.enabled);
     setLocalTime(config.time);
     setLocalTime2(config.time2);
+    setLocalTime3(config.time3);
   }, [config]);
 
   const saveMut = useMutation({
     mutationFn: () =>
       apiFetch("/api/backup/config", {
         method: "PUT",
-        body: JSON.stringify({ enabled: localEnabled, time: localTime, time2: localTime2 }),
+        body: JSON.stringify({ enabled: localEnabled, time: localTime, time2: localTime2, time3: localTime3 }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["backup-config"] });
@@ -273,7 +276,7 @@ export default function BackupPage() {
               <CalendarClock className="h-4 w-4" /> Backup Automático Diário
             </CardTitle>
             <CardDescription>
-              O servidor faz backup automaticamente nos dois horários configurados abaixo, todo dia.
+              O servidor faz backup automaticamente nos horários configurados abaixo, todo dia.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -285,9 +288,9 @@ export default function BackupPage() {
               <Switch id="backup-enabled" checked={localEnabled} onCheckedChange={setLocalEnabled} />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="backup-time">1º horário (manhã)</Label>
+                <Label htmlFor="backup-time">1º horário</Label>
                 <Input
                   id="backup-time"
                   type="time"
@@ -297,12 +300,22 @@ export default function BackupPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="backup-time2">2º horário (noite)</Label>
+                <Label htmlFor="backup-time2">2º horário</Label>
                 <Input
                   id="backup-time2"
                   type="time"
                   value={localTime2}
                   onChange={e => setLocalTime2(e.target.value)}
+                  disabled={!localEnabled}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="backup-time3">3º horário</Label>
+                <Input
+                  id="backup-time3"
+                  type="time"
+                  value={localTime3}
+                  onChange={e => setLocalTime3(e.target.value)}
                   disabled={!localEnabled}
                 />
               </div>

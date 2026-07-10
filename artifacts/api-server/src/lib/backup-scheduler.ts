@@ -188,12 +188,13 @@ export function startBackupScheduler() {
 
       const time1 = await getSetting(rows, "backup.time", "08:00");
       const time2 = await getSetting(rows, "backup.time2", "20:00");
+      const time3 = await getSetting(rows, "backup.time3", "");
 
       const now = new Date();
       const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
       const today = now.toDateString();
 
-      for (const t of [time1, time2]) {
+      for (const t of [time1, time2, time3]) {
         if (!t) continue;
         const key = `${today}|${t}`;
         if (hhmm === t && !ran.has(key)) {
