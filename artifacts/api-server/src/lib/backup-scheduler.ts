@@ -101,8 +101,10 @@ async function upsertSetting(key: string, value: string) {
 export async function runBackup(): Promise<{ filename: string; size: number; exportedAt: string }> {
   ensureDir();
   const now = new Date();
-  const ts = now.toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  const filename = `backup_${ts}.json`;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const dateStr = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
+  const timeStr = `${pad(now.getHours())}h${pad(now.getMinutes())}`;
+  const filename = `backup - protocolo de testes de estabilidade - ${dateStr} ${timeStr}.json`;
   const filepath = path.join(BACKUP_DIR, filename);
 
   const [protocols, lots, results] = await Promise.all([
@@ -143,7 +145,7 @@ function pruneOldBackups() {
     ensureDir();
     const files = fs
       .readdirSync(BACKUP_DIR)
-      .filter(f => f.endsWith(".json") && f.startsWith("backup_"))
+      .filter(f => f.endsWith(".json") && f.startsWith("backup"))
       .map(f => ({ f, mt: fs.statSync(path.join(BACKUP_DIR, f)).mtimeMs }))
       .sort((a, b) => b.mt - a.mt);
     for (const { f } of files.slice(MAX_BACKUPS)) {
