@@ -1707,6 +1707,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   const [editUnlocked, setEditUnlocked] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ProductTemplate | null>(null);
+  const [clearParamsConfirmOpen, setClearParamsConfirmOpen] = useState(false);
   const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
   const { data: results = [], isLoading } = useListResults(protocolId, { query: { queryKey: getListResultsQueryKey(protocolId) } });
   const { data: methodologies = [] } = useListMethodologies();
@@ -2408,6 +2409,16 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
     setSelectedTemplate(null);
   };
 
+  const clearParams = () => {
+    setEditableParams([]);
+    setParamMethods({});
+    setParamMethodsCitations({});
+    updateProtocol.mutate({ id: protocolId, data: { customParamsJson: "[]" } });
+    try { localStorage.setItem(`param_methods_${protocolId}`, "{}"); } catch { /* ignore */ }
+    try { localStorage.setItem(`param_methods_citations_${protocolId}`, "{}"); } catch { /* ignore */ }
+    setClearParamsConfirmOpen(false);
+  };
+
   if (lots.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground border rounded-md">
@@ -2485,32 +2496,50 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
         <div className="flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-3 py-2 gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-amber-800">📋 Template de Produto</p>
-            <p className="text-xs text-amber-600 mt-0.5">Preencha automaticamente os parâmetros, Especificação e Método para um produto padrão — você só precisa digitar os Resultados.</p>
+            <p className="text-xs text-amber-600 mt-0.5">
+              {editableParams.length > 0
+                ? `${editableParams.length} parâmetro(s) carregado(s). Troque o template ou limpe para recomeçar do zero.`
+                : "Preencha automaticamente os parâmetros, Especificação e Método para um produto padrão — você só precisa digitar os Resultados."}
+            </p>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-amber-300 text-amber-800 hover:bg-amber-100 text-xs shrink-0"
-            onClick={() => { setSelectedTemplate(null); setTemplateDialogOpen(true); }}
-          >
-            Selecionar Template
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            {editableParams.length > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-red-600 hover:bg-red-50 hover:text-red-700 text-xs border border-red-200"
+                onClick={() => setClearParamsConfirmOpen(true)}
+              >
+                Limpar
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-amber-300 text-amber-800 hover:bg-amber-100 text-xs"
+              onClick={() => { setSelectedTemplate(null); setTemplateDialogOpen(true); }}
+            >
+              {editableParams.length > 0 ? "Trocar Template" : "Selecionar Template"}
+            </Button>
+          </div>
         </div>
       )}
 
       {/* Template selection dialog */}
       <AlertDialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
-        <AlertDialogContent className="max-w-lg">
+        <AlertDialogContent className="max-w-lg max-h-[90vh] flex flex-col">
           <AlertDialogHeader>
             <AlertDialogTitle>Selecionar Template de Produto</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div>
                 <p className="mb-3">Escolha um template para preencher automaticamente os parâmetros, <strong>Especificação</strong> e <strong>Método</strong> de acordo com o produto. Os resultados continuam em branco para preenchimento manual.</p>
-                <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 text-xs">⚠️ Os parâmetros atuais serão substituídos. Resultados já inseridos nos lotes não serão apagados.</p>
+                {editableParams.length > 0 && (
+                  <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 text-xs">⚠️ Os {editableParams.length} parâmetros atuais serão substituídos. Resultados já inseridos nos lotes <strong>não</strong> serão apagados.</p>
+                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="space-y-2 my-1">
+          <div className="space-y-2 my-1 overflow-y-auto flex-1 pr-1">
             {PRODUCT_TEMPLATES.map(t => (
               <button
                 key={t.id}
@@ -2533,6 +2562,24 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
               className="bg-amber-600 hover:bg-amber-700 text-white"
             >
               Aplicar Template
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear params confirmation */}
+      <AlertDialog open={clearParamsConfirmOpen} onOpenChange={setClearParamsConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Limpar todos os parâmetros?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso removerá os {editableParams.length} parâmetros, especificações e métodos configurados. Os resultados já inseridos nos lotes <strong>não</strong> serão apagados. Você poderá adicionar parâmetros manualmente ou aplicar um novo template.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={clearParams} className="bg-red-600 hover:bg-red-700 text-white">
+              Sim, limpar tudo
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
