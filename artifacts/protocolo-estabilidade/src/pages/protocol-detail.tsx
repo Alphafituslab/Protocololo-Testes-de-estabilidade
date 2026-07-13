@@ -125,6 +125,7 @@ const ANALYSIS_PARAMETERS = [
   { parameter: "Torque de tampa", category: "embalagem", criterion: "2 unidades a cada 100" },
   { parameter: "Selagem por indução", category: "embalagem", criterion: "2 unidades a cada 100" },
   { parameter: "Integridade selagem", category: "embalagem", criterion: "2 unidades a cada 100" },
+  { parameter: "Headspace", category: "embalagem", criterion: "15% - 20%" },
 ];
 
 const PERIODS = [0, 3, 6];
@@ -1460,6 +1461,7 @@ const PRODUCT_TEMPLATES: ProductTemplate[] = [
       { parameter: "Ácido Hialurônico", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "HPLC", methodologyCitation: "HPLC / Método colorimétrico (ácido carbazólico) — Ácido Hialurônico" },
       // Embalagem
       { parameter: "Integridade selagem", category: "embalagem", criterion: "Íntegra, sem vazamentos", methodologyShort: "Visual", methodologyCitation: "Inspeção visual / Teste de vedação (vácuo ou pressão)" },
+      { parameter: "Headspace", category: "embalagem", criterion: "15% - 20%", methodologyShort: "Headspace GC", methodologyCitation: "Cromatografia gasosa de headspace — análise do espaço livre no frasco" },
     ],
   },
 ];

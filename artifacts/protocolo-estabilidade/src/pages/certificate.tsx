@@ -53,6 +53,7 @@ const PARAM_DESCRIPTIONS: Record<string, string> = {
   "Torque de tampa": "Medição da força de torque de abertura e fechamento da tampa por torquímetro calibrado, garantindo a vedação adequada do frasco e a proteção do produto contra umidade, oxidação e adulteração. Os registros fotográficos documentam o torquímetro utilizado, o procedimento de medição padronizado e os valores registrados para cada unidade amostrada em cada período.",
   "Selagem por indução": "Verificação da integridade da membrana termoinduzida por indução eletromagnética, elemento crítico para a proteção do produto contra umidade, oxidação e violação de embalagem. Os registros fotográficos documentam a inspeção visual da membrana, o teste de selagem por pressão, a uniformidade da aderência e o estado da membrana após abertura das unidades amostradas.",
   "Integridade selagem": "Avaliação da hermeticidade do sistema de fechamento (conjunto frasco, tampa e membrana de indução) quanto à ausência de vazamentos, deformações ou comprometimento da barreira protetora. Os registros fotográficos documentam os ensaios de integridade realizados — incluindo imersão em água corada, teste de pressão ou inspeção visual ampliada — e a condição das embalagens em cada período de avaliação.",
+  "Headspace": "Determinação do volume de espaço livre (headspace) no frasco por cromatografia gasosa, avaliando a composição e proporção do espaço de cabeça como indicador da proteção do produto contra oxidação e degradação. Os registros fotográficos documentam o equipamento utilizado, as condições cromatográficas e os resultados obtidos em cada período de avaliação.",
 };
 
 /** Returns the default description for a parameter, falling back to a generic text. */
@@ -99,6 +100,7 @@ const DEFAULT_METHODS: Record<string, string> = {
   "Torque de tampa": "Procedimento Operacional Padrão (POP) nº 047. Içara: Alphafitus Suplementos Ltda., 2024. Documento interno.",
   "Selagem por indução": "Procedimento Operacional Padrão (POP) nº 049. Içara: Alphafitus Suplementos Ltda., 2024. Documento interno.",
   "Integridade selagem": "Procedimento Operacional Padrão (POP) nº 050. Içara: Alphafitus Suplementos Ltda., 2024. Documento interno.",
+  "Headspace": "Método interno — Análise de headspace por cromatografia gasosa (GC). Içara: Alphafitus Suplementos Ltda., 2024.",
 };
 
 function collectProtocolImages(

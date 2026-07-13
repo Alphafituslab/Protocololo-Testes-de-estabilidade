@@ -85,7 +85,7 @@ const STANDARD_PARAMS: { category: string; params: string[] }[] = [
   },
   {
     category: "Embalagem",
-    params: ["Torque de tampa", "Selagem por indução", "Integridade selagem"],
+    params: ["Torque de tampa", "Selagem por indução", "Integridade selagem", "Headspace"],
   },
 ];
 

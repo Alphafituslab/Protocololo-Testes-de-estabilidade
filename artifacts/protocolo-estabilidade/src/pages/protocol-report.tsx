@@ -35,7 +35,7 @@ const PARAM_ORDER = [
   "Bolores e leveduras", "Escherichia coli", "Enterobacteriaceae",
   "Contagem de Micro-organismos Aeróbios Mesófilos",
   "Cálcio", "Vitamina D",
-  "Torque de tampa", "Selagem por indução", "Integridade selagem",
+  "Torque de tampa", "Selagem por indução", "Integridade selagem", "Headspace",
 ];
 
 function sortParams(params: string[]): string[] {
