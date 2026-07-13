@@ -44,7 +44,7 @@ function formatAbntPlain(r: BibliographicReference): string {
   return parts.join(" ");
 }
 
-const EMPTY_FORM = { titulo: "", autores: "", ano: "", fonte: "", volume: "", numero: "", paginas: "", doi: "", descricao: "", tipoReferencia: "artigo" };
+const EMPTY_FORM = { titulo: "", autores: "", ano: "", fonte: "", volume: "", numero: "", paginas: "", doi: "", descricao: "", tipoReferencia: "artigo", autoInclude: false };
 
 function BibliographicReferenceForm({
   initial,
@@ -66,6 +66,7 @@ function BibliographicReferenceForm({
     doi: initial.doi ?? "",
     descricao: initial.descricao ?? "",
     tipoReferencia: initial.tipoReferencia ?? "artigo",
+    autoInclude: initial.autoInclude ?? false,
   } : { ...EMPTY_FORM });
 
   const f = (k: keyof typeof EMPTY_FORM) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm(p => ({ ...p, [k]: e.target.value }));
@@ -121,6 +122,18 @@ function BibliographicReferenceForm({
         <div className="col-span-2">
           <label className="text-xs font-medium text-muted-foreground mb-1 block">Descrição (sobre o que trata)</label>
           <Textarea placeholder="Breve descrição do conteúdo desta referência..." value={form.descricao} onChange={f("descricao")} className="text-sm min-h-[60px] resize-none" />
+        </div>
+        <div className="col-span-2">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-primary"
+              checked={form.autoInclude}
+              onChange={e => setForm(p => ({ ...p, autoInclude: e.target.checked }))}
+            />
+            <span className="text-xs font-medium text-foreground">Auto-incluir em protocolos novos</span>
+            <span className="text-xs text-muted-foreground">(ex: referências ANVISA obrigatórias)</span>
+          </label>
         </div>
       </div>
       {form.titulo && (
@@ -602,6 +615,7 @@ export default function CatalogPage() {
       doi: data.doi || undefined,
       descricao: data.descricao || undefined,
       tipoReferencia: data.tipoReferencia,
+      autoInclude: data.autoInclude,
     };
   }
 
