@@ -609,6 +609,7 @@ export interface BibliographicReference {
   doi?: string | null;
   descricao?: string | null;
   tipoReferencia: string;
+  autoInclude?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -625,6 +626,15 @@ export interface BibliographicReferenceInput {
   doi?: string;
   descricao?: string;
   tipoReferencia?: string;
+  autoInclude?: boolean;
+}
+
+export interface BulkAddProtocolReferencesBody {
+  referenceIds: number[];
+}
+
+export interface ReorderProtocolReferencesBody {
+  orderedIds: number[];
 }
 
 export interface AddProtocolReferenceBody {

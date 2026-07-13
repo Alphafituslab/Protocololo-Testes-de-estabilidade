@@ -18,4 +18,5 @@ export interface BibliographicReferenceInput {
   doi?: string;
   descricao?: string;
   tipoReferencia?: string;
+  autoInclude?: boolean;
 }

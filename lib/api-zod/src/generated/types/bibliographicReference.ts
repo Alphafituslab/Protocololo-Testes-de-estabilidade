@@ -18,6 +18,7 @@ export interface BibliographicReference {
   doi?: string | null;
   descricao?: string | null;
   tipoReferencia: string;
+  autoInclude?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

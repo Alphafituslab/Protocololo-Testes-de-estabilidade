@@ -46,6 +46,8 @@ import {
   useListProtocolBibliographicReferences,
   useAddProtocolBibliographicReference,
   useRemoveProtocolBibliographicReference,
+  useBulkAddProtocolBibliographicReferences,
+  useReorderProtocolBibliographicReferences,
   getListProtocolBibliographicReferencesQueryKey,
   type BibliographicReference,
   type BibliographicReferenceInput,
@@ -7287,6 +7289,7 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
   // "select" = browsing existing refs | "create" = new-ref form
   const [mode, setMode] = useState<"select" | "create">("select");
   const [newRef, setNewRef] = useState<BibliographicReferenceInput>(EMPTY_NEW_REF);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const { data: protocolRefs = [], isLoading } = useListProtocolBibliographicReferences(protocolId);
   const { data: allRefs = [] } = useListBibliographicReferences();
@@ -7314,9 +7317,7 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
   const createRef = useCreateBibliographicReference({
     mutation: {
       onSuccess: (created) => {
-        // Refresh global bank
         queryClient.invalidateQueries({ queryKey: getListBibliographicReferencesQueryKey() });
-        // Immediately associate the new reference to this protocol
         addRef.mutate({ id: protocolId, data: { referenceId: created.id } });
         toast({ title: "Referência cadastrada e adicionada ao protocolo" });
         closeDialog();
@@ -7325,9 +7326,29 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
     },
   });
 
+  const bulkAddRefs = useBulkAddProtocolBibliographicReferences({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListProtocolBibliographicReferencesQueryKey(protocolId) });
+        toast({ title: `Referências adicionadas ao protocolo` });
+        closeDialog();
+      },
+      onError: () => toast({ title: "Erro ao adicionar referências", variant: "destructive" }),
+    },
+  });
+
+  const reorderRefs = useReorderProtocolBibliographicReferences({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListProtocolBibliographicReferencesQueryKey(protocolId) });
+      },
+    },
+  });
+
   function openDialog(startInCreate = false) {
     setSearch("");
     setNewRef(EMPTY_NEW_REF);
+    setSelectedIds(new Set());
     setMode(startInCreate ? "create" : "select");
     setSelectorOpen(true);
   }
@@ -7337,6 +7358,23 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
     setMode("select");
     setSearch("");
     setNewRef(EMPTY_NEW_REF);
+    setSelectedIds(new Set());
+  }
+
+  function toggleSelect(id: number) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function moveRef(idx: number, dir: -1 | 1) {
+    const newOrder = [...protocolRefs];
+    const target = idx + dir;
+    if (target < 0 || target >= newOrder.length) return;
+    [newOrder[idx], newOrder[target]] = [newOrder[target]!, newOrder[idx]!];
+    reorderRefs.mutate({ id: protocolId, data: { orderedIds: newOrder.map(r => r.id) } });
   }
 
   const linkedIds = new Set(protocolRefs.map(r => r.id));
@@ -7391,12 +7429,30 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
           <div className="space-y-3">
             {protocolRefs.map((ref, idx) => (
               <div key={ref.id} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors group">
+                {/* Reorder buttons */}
+                <div className="flex flex-col gap-0.5 flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30"
+                    onClick={() => moveRef(idx, -1)}
+                    disabled={idx === 0}
+                    title="Mover para cima"
+                  >▲</button>
+                  <button
+                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30"
+                    onClick={() => moveRef(idx, 1)}
+                    disabled={idx === protocolRefs.length - 1}
+                    title="Mover para baixo"
+                  >▼</button>
+                </div>
                 <span className="text-sm font-bold text-muted-foreground w-6 mt-0.5 flex-shrink-0">{idx + 1}.</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
                       {TIPO_LABELS_REF[ref.tipoReferencia] ?? ref.tipoReferencia}
                     </span>
+                    {ref.autoInclude && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">auto-incluída</span>
+                    )}
                     {ref.ano && <span className="text-xs text-muted-foreground">{ref.ano}</span>}
                   </div>
                   <p className="text-sm font-semibold leading-snug">{ref.titulo}</p>
@@ -7489,23 +7545,30 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                 </div>
                 <div className="flex-1 overflow-y-auto p-2 space-y-1">
                   {available.map(ref => (
-                    <button
+                    <label
                       key={ref.id}
-                      className="w-full text-left p-3 rounded-lg hover:bg-muted/60 transition-colors"
-                      onClick={() => {
-                        addRef.mutate({ id: protocolId, data: { referenceId: ref.id } });
-                        closeDialog();
-                      }}
+                      className={`flex items-start gap-3 w-full p-3 rounded-lg cursor-pointer transition-colors ${selectedIds.has(ref.id) ? "bg-primary/8 border border-primary/30" : "hover:bg-muted/60"}`}
                     >
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                          {TIPO_LABELS_REF[ref.tipoReferencia] ?? ref.tipoReferencia}
-                        </span>
-                        {ref.ano && <span className="text-xs text-muted-foreground">{ref.ano}</span>}
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 accent-primary flex-shrink-0"
+                        checked={selectedIds.has(ref.id)}
+                        onChange={() => toggleSelect(ref.id)}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                            {TIPO_LABELS_REF[ref.tipoReferencia] ?? ref.tipoReferencia}
+                          </span>
+                          {ref.autoInclude && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">auto-incluída</span>
+                          )}
+                          {ref.ano && <span className="text-xs text-muted-foreground">{ref.ano}</span>}
+                        </div>
+                        <p className="text-sm font-medium leading-snug">{ref.titulo}</p>
+                        {ref.autores && <p className="text-xs text-muted-foreground">{ref.autores}</p>}
                       </div>
-                      <p className="text-sm font-medium leading-snug">{ref.titulo}</p>
-                      {ref.autores && <p className="text-xs text-muted-foreground">{ref.autores}</p>}
-                    </button>
+                    </label>
                   ))}
 
                   {/* Empty state — prompt to create */}
@@ -7524,6 +7587,22 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                       </Button>
                     </div>
                   )}
+                </div>
+                {/* Sticky footer with bulk-add button */}
+                <div className="p-3 border-t bg-background flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {selectedIds.size > 0 ? `${selectedIds.size} selecionada(s)` : "Marque uma ou mais referências"}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="ghost" onClick={closeDialog}>Cancelar</Button>
+                    <Button
+                      size="sm"
+                      disabled={selectedIds.size === 0 || bulkAddRefs.isPending}
+                      onClick={() => bulkAddRefs.mutate({ id: protocolId, data: { referenceIds: Array.from(selectedIds) } })}
+                    >
+                      {bulkAddRefs.isPending ? "Adicionando..." : `Adicionar ${selectedIds.size > 0 ? selectedIds.size : ""} selecionada(s)`}
+                    </Button>
+                  </div>
                 </div>
               </>
             )}
@@ -7617,6 +7696,18 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
                   />
                 </div>
+
+                {/* Auto-incluir */}
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={newRef.autoInclude ?? false}
+                    onChange={e => setNewRef(r => ({ ...r, autoInclude: e.target.checked }))}
+                  />
+                  <span className="text-xs font-medium text-foreground">Auto-incluir em protocolos novos</span>
+                  <span className="text-xs text-muted-foreground">(ex: referências ANVISA obrigatórias)</span>
+                </label>
 
                 {/* Actions */}
                 <div className="flex justify-end gap-2 pt-1">

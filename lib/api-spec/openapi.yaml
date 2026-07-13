@@ -1082,6 +1082,48 @@ paths:
         "409":
           description: Already linked
 
+  /protocols/{id}/bibliographic-references/bulk:
+    post:
+      operationId: bulkAddProtocolBibliographicReferences
+      tags: [bibliographic-references]
+      summary: Link multiple references to a protocol at once
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkAddProtocolReferencesBody"
+      responses:
+        "200":
+          description: Added
+
+  /protocols/{id}/bibliographic-references/reorder:
+    put:
+      operationId: reorderProtocolBibliographicReferences
+      tags: [bibliographic-references]
+      summary: Reorder references linked to a protocol
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderProtocolReferencesBody"
+      responses:
+        "200":
+          description: Reordered
+
   /protocols/{id}/bibliographic-references/{refId}:
     delete:
       operationId: removeProtocolBibliographicReference
@@ -2252,6 +2294,8 @@ components:
           nullable: true
         tipoReferencia:
           type: string
+        autoInclude:
+          type: boolean
         createdAt:
           type: string
           format: date-time
@@ -2284,6 +2328,26 @@ components:
           type: string
         tipoReferencia:
           type: string
+        autoInclude:
+          type: boolean
+
+    BulkAddProtocolReferencesBody:
+      type: object
+      required: [referenceIds]
+      properties:
+        referenceIds:
+          type: array
+          items:
+            type: integer
+
+    ReorderProtocolReferencesBody:
+      type: object
+      required: [orderedIds]
+      properties:
+        orderedIds:
+          type: array
+          items:
+            type: integer
 
     AddProtocolReferenceBody:
       type: object

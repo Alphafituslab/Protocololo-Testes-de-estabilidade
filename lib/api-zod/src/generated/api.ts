@@ -1680,6 +1680,7 @@ export const ListBibliographicReferencesResponseItem = zod.object({
   doi: zod.string().nullish(),
   descricao: zod.string().nullish(),
   tipoReferencia: zod.string(),
+  autoInclude: zod.boolean().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -1702,6 +1703,7 @@ export const CreateBibliographicReferenceBody = zod.object({
   doi: zod.string().optional(),
   descricao: zod.string().optional(),
   tipoReferencia: zod.string().optional(),
+  autoInclude: zod.boolean().optional(),
 });
 
 /**
@@ -1722,6 +1724,7 @@ export const UpdateBibliographicReferenceBody = zod.object({
   doi: zod.string().optional(),
   descricao: zod.string().optional(),
   tipoReferencia: zod.string().optional(),
+  autoInclude: zod.boolean().optional(),
 });
 
 export const UpdateBibliographicReferenceResponse = zod.object({
@@ -1736,6 +1739,7 @@ export const UpdateBibliographicReferenceResponse = zod.object({
   doi: zod.string().nullish(),
   descricao: zod.string().nullish(),
   tipoReferencia: zod.string(),
+  autoInclude: zod.boolean().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -1766,6 +1770,7 @@ export const ListProtocolBibliographicReferencesResponseItem = zod.object({
   doi: zod.string().nullish(),
   descricao: zod.string().nullish(),
   tipoReferencia: zod.string(),
+  autoInclude: zod.boolean().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -1782,6 +1787,28 @@ export const AddProtocolBibliographicReferenceParams = zod.object({
 
 export const AddProtocolBibliographicReferenceBody = zod.object({
   referenceId: zod.number(),
+});
+
+/**
+ * @summary Link multiple references to a protocol at once
+ */
+export const BulkAddProtocolBibliographicReferencesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const BulkAddProtocolBibliographicReferencesBody = zod.object({
+  referenceIds: zod.array(zod.number()),
+});
+
+/**
+ * @summary Reorder references linked to a protocol
+ */
+export const ReorderProtocolBibliographicReferencesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ReorderProtocolBibliographicReferencesBody = zod.object({
+  orderedIds: zod.array(zod.number()),
 });
 
 /**

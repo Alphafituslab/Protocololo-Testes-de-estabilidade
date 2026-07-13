@@ -24,6 +24,7 @@ import type {
   AtivoReferenceInput,
   BibliographicReference,
   BibliographicReferenceInput,
+  BulkAddProtocolReferencesBody,
   CatalogItem,
   CatalogItemInput,
   Certificate,
@@ -48,6 +49,7 @@ import type {
   ProtocolDetail,
   ProtocolSignature,
   ProtocolStats,
+  ReorderProtocolReferencesBody,
   UpdateAttachmentBody,
   UpdateMethodologyBody,
   UpdateProtocolBody,
@@ -4593,6 +4595,188 @@ export const useAddProtocolBibliographicReference = <
 > => {
   return useMutation(
     getAddProtocolBibliographicReferenceMutationOptions(options),
+  );
+};
+
+/**
+ * @summary Link multiple references to a protocol at once
+ */
+export const getBulkAddProtocolBibliographicReferencesUrl = (id: number) => {
+  return `/api/protocols/${id}/bibliographic-references/bulk`;
+};
+
+export const bulkAddProtocolBibliographicReferences = async (
+  id: number,
+  bulkAddProtocolReferencesBody: BulkAddProtocolReferencesBody,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getBulkAddProtocolBibliographicReferencesUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(bulkAddProtocolReferencesBody),
+  });
+};
+
+export const getBulkAddProtocolBibliographicReferencesMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkAddProtocolBibliographicReferences>>,
+    TError,
+    { id: number; data: BodyType<BulkAddProtocolReferencesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof bulkAddProtocolBibliographicReferences>>,
+  TError,
+  { id: number; data: BodyType<BulkAddProtocolReferencesBody> },
+  TContext
+> => {
+  const mutationKey = ["bulkAddProtocolBibliographicReferences"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof bulkAddProtocolBibliographicReferences>>,
+    { id: number; data: BodyType<BulkAddProtocolReferencesBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return bulkAddProtocolBibliographicReferences(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BulkAddProtocolBibliographicReferencesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof bulkAddProtocolBibliographicReferences>>
+>;
+export type BulkAddProtocolBibliographicReferencesMutationBody =
+  BodyType<BulkAddProtocolReferencesBody>;
+export type BulkAddProtocolBibliographicReferencesMutationError =
+  ErrorType<unknown>;
+
+/**
+ * @summary Link multiple references to a protocol at once
+ */
+export const useBulkAddProtocolBibliographicReferences = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkAddProtocolBibliographicReferences>>,
+    TError,
+    { id: number; data: BodyType<BulkAddProtocolReferencesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof bulkAddProtocolBibliographicReferences>>,
+  TError,
+  { id: number; data: BodyType<BulkAddProtocolReferencesBody> },
+  TContext
+> => {
+  return useMutation(
+    getBulkAddProtocolBibliographicReferencesMutationOptions(options),
+  );
+};
+
+/**
+ * @summary Reorder references linked to a protocol
+ */
+export const getReorderProtocolBibliographicReferencesUrl = (id: number) => {
+  return `/api/protocols/${id}/bibliographic-references/reorder`;
+};
+
+export const reorderProtocolBibliographicReferences = async (
+  id: number,
+  reorderProtocolReferencesBody: ReorderProtocolReferencesBody,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getReorderProtocolBibliographicReferencesUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(reorderProtocolReferencesBody),
+  });
+};
+
+export const getReorderProtocolBibliographicReferencesMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reorderProtocolBibliographicReferences>>,
+    TError,
+    { id: number; data: BodyType<ReorderProtocolReferencesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reorderProtocolBibliographicReferences>>,
+  TError,
+  { id: number; data: BodyType<ReorderProtocolReferencesBody> },
+  TContext
+> => {
+  const mutationKey = ["reorderProtocolBibliographicReferences"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reorderProtocolBibliographicReferences>>,
+    { id: number; data: BodyType<ReorderProtocolReferencesBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return reorderProtocolBibliographicReferences(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReorderProtocolBibliographicReferencesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reorderProtocolBibliographicReferences>>
+>;
+export type ReorderProtocolBibliographicReferencesMutationBody =
+  BodyType<ReorderProtocolReferencesBody>;
+export type ReorderProtocolBibliographicReferencesMutationError =
+  ErrorType<unknown>;
+
+/**
+ * @summary Reorder references linked to a protocol
+ */
+export const useReorderProtocolBibliographicReferences = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reorderProtocolBibliographicReferences>>,
+    TError,
+    { id: number; data: BodyType<ReorderProtocolReferencesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof reorderProtocolBibliographicReferences>>,
+  TError,
+  { id: number; data: BodyType<ReorderProtocolReferencesBody> },
+  TContext
+> => {
+  return useMutation(
+    getReorderProtocolBibliographicReferencesMutationOptions(options),
   );
 };
 

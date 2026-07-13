@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, count, and, inArray, ne, isNull, isNotNull } from "drizzle-orm";
-import { db, protocolsTable, lotsTable, analysisResultsTable, protocolSignaturesTable, clientProtocolAccessTable } from "@workspace/db";
+import { db, protocolsTable, lotsTable, analysisResultsTable, protocolSignaturesTable, clientProtocolAccessTable, bibliographicReferencesTable, protocolReferencesTable } from "@workspace/db";
 import {
   CreateProtocolBody,
   UpdateProtocolBody,
@@ -167,6 +167,16 @@ router.post("/protocols", requireAuth, requirePermission(PERM.PROTOCOLS_CREATE),
     }
   }
   const [protocol] = await db.insert(protocolsTable).values({ ...parsed.data, status: "em_andamento" }).returning();
+  // Auto-associate references marked as autoInclude
+  const autoRefs = await db
+    .select({ id: bibliographicReferencesTable.id })
+    .from(bibliographicReferencesTable)
+    .where(eq(bibliographicReferencesTable.autoInclude, true));
+  if (autoRefs.length > 0) {
+    await db.insert(protocolReferencesTable)
+      .values(autoRefs.map((r, i) => ({ protocolId: protocol.id, referenceId: r.id, sortOrder: i })))
+      .onConflictDoNothing();
+  }
   await logAudit(req, "CRIAR_PROTOCOLO", "protocolo", `Protocolo "${protocol.productName}" criado`, { entityId: protocol.id, protocolId: protocol.id });
   res.status(201).json(protocol);
 });
