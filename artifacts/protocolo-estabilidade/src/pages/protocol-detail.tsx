@@ -119,6 +119,7 @@ const ANALYSIS_PARAMETERS = [
   { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 100 UFC/g" },
   { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente" },
   { parameter: "Enterobacteriaceae", category: "microbiologica", criterion: "Ausente" },
+  { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", category: "microbiologica", criterion: "≤ 1000 UFC/g" },
   { parameter: "Cálcio", category: "teor_ativo", criterion: "98,50% - 100,50%" },
   { parameter: "Vitamina D", category: "teor_ativo", criterion: "97,00% - 103,00%" },
   { parameter: "Torque de tampa", category: "embalagem", criterion: "2 unidades a cada 100" },
@@ -1452,6 +1453,7 @@ const PRODUCT_TEMPLATES: ProductTemplate[] = [
       { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / ABNT NBR — Contagem de bolores e leveduras" },
       { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 331/2019 — E. coli (MPN)" },
       { parameter: "Enterobacteriaceae", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "ISO 21528-2", methodologyCitation: "ISO 21528-2 / ABNT NBR — Contagem de Enterobacteriaceae" },
+      { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "ISO 4833-1", methodologyCitation: "ISO 4833-1 / ABNT NBR — Contagem de micro-organismos aeróbios mesófilos a 30°C" },
       // Teor do Ativo
       { parameter: "Gelatina hidrolisada/Colágeno hidrolisado", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "AOAC 990.03", methodologyCitation: "AOAC 990.03 — Proteína total (Kjeldahl) / Colágeno hidrolisado" },
       { parameter: "Vitamina C - Ácido Ascórbico", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "AOAC 967.21", methodologyCitation: "AOAC 967.21 — Ácido Ascórbico por HPLC / titulação iodométrica" },

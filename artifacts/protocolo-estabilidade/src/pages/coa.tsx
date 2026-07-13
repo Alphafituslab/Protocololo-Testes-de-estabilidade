@@ -77,7 +77,7 @@ const STANDARD_PARAMS: { category: string; params: string[] }[] = [
   },
   {
     category: "Microbiológica",
-    params: ["Coliformes totais", "Salmonella spp.", "Estafilococos coagulase+", "Bolores e leveduras", "Escherichia coli", "Enterobacteriaceae"],
+    params: ["Coliformes totais", "Salmonella spp.", "Estafilococos coagulase+", "Bolores e leveduras", "Escherichia coli", "Enterobacteriaceae", "Contagem de Micro-organismos Aeróbios Mesófilos"],
   },
   {
     category: "Teor do Ativo",

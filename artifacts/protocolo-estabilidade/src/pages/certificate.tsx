@@ -45,6 +45,7 @@ const PARAM_DESCRIPTIONS: Record<string, string> = {
   "Bolores e leveduras": "Contagem de fungos filamentosos e leveduras como indicadores de umidade excessiva, contaminação ambiental ou falha no controle de processo. Os registros fotográficos documentam as placas de ágar dicloran-rosa bengala-cloranfenicol (DRBC) após incubação a 22–25 °C, evidenciando a morfologia colonial e a contagem total de colônias.",
   "Escherichia coli": "Pesquisa e contagem de Escherichia coli como indicador de contaminação de origem fecal, inaceitável em produtos para consumo humano. Os registros fotográficos documentam as placas com meio seletivo, as provas confirmatórias (IMViC) e o resultado final de ausência ou contagem por grama.",
   "Enterobacteriaceae": "Contagem de enterobactérias totais como indicadores de contaminação pós-processo e deficiências de higienização. Os registros fotográficos documentam as placas com ágar Violeta Cristal Bílis Glucose (VRBG), a morfologia das colônias típicas e o resultado das contagens nos períodos avaliados.",
+  "Contagem de Micro-organismos Aeróbios Mesófilos": "Contagem de micro-organismos aeróbios mesófilos totais como indicador geral da qualidade microbiológica do produto, refletindo as condições de higiene do processo produtivo e a carga microbiana inicial. Os registros fotográficos documentam as placas de contagem em Ágar para Contagem Padrão (PCA) incubadas a 30–35 °C, evidenciando a densidade de colônias e o resultado final em UFC/g em cada período de avaliação.",
   // Teor do Ativo
   "Cálcio": "Determinação quantitativa do teor de cálcio por complexometria (EDTA) ou espectrometria de absorção atômica após digestão ácida. O limite mínimo regulatório é 80% do valor declarado no rótulo. Os registros fotográficos documentam o processo de digestão ácida assistida, o preparo das soluções-padrão, a titulação ou a leitura instrumental e os resultados numéricos obtidos em cada período de avaliação.",
   "Vitamina D": "Determinação do teor de vitamina D (D2 e/ou D3) por cromatografia líquida de alta eficiência (CLAE) com detecção por UV, após saponificação e extração em fase sólida. O limite mínimo regulatório é 80% do valor declarado. Os registros fotográficos documentam o preparo das amostras, as soluções-padrão de calibração, os cromatogramas representativos e as condições cromatográficas do método validado.",
@@ -90,6 +91,7 @@ const DEFAULT_METHODS: Record<string, string> = {
   "Bolores e leveduras": "CompactDry™ YMR / YM: Instructions for Use. Tokyo: Nissui Pharmaceutical Co., Ltd.",
   "Escherichia coli": "CompactDry™ EC: Instructions for Use. Tokyo: Nissui Pharmaceutical Co., Ltd.",
   "Enterobacteriaceae": "CompactDry™ ETB: Instructions for Use. Tokyo: Nissui Pharmaceutical Co., Ltd.",
+  "Contagem de Micro-organismos Aeróbios Mesófilos": "CompactDry™ TC: Instructions for Use. Tokyo: Nissui Pharmaceutical Co., Ltd.",
   // Teor do Ativo
   "Cálcio": "Método interno.",
   "Vitamina D": "Método interno.",
