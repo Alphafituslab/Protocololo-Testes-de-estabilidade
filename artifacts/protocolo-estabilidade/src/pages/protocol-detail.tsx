@@ -1466,6 +1466,194 @@ const PRODUCT_TEMPLATES: ProductTemplate[] = [
       { parameter: "Headspace", category: "embalagem", criterion: "15% - 20%", methodologyShort: "Headspace GC", methodologyCitation: "Cromatografia gasosa de headspace — análise do espaço livre no frasco" },
     ],
   },
+  {
+    id: "multivitaminico_capsula_dura",
+    name: "Multivitamínico + Minerais — Cápsula Dura",
+    description: "Suplemento alimentar em cápsula dura com vitaminas do complexo B, C, D, E e minerais (Zinco, Magnésio, Ferro, Cálcio)",
+    params: [
+      // Físico-química
+      { parameter: "Aparência", category: "fisico_quimica", criterion: "Cápsulas íntegras, sem deformação, cor uniforme", methodologyShort: "Visual", methodologyCitation: "Inspeção visual / análise organoléptica" },
+      { parameter: "Cor", category: "fisico_quimica", criterion: "Característico", methodologyShort: "Organoléptico", methodologyCitation: "Análise organoléptica — inspeção visual" },
+      { parameter: "Odor", category: "fisico_quimica", criterion: "Característico, sem odor rançoso", methodologyShort: "Organoléptico", methodologyCitation: "Análise organoléptica" },
+      { parameter: "Perda por dessecação", category: "fisico_quimica", criterion: "≤ 5,0%", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Perda por dessecação (105°C, 2h)" },
+      { parameter: "Massa média", category: "fisico_quimica", criterion: "Conforme especificação ± 5%", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Determinação de massa média de cápsulas" },
+      { parameter: "Dissolução", category: "fisico_quimica", criterion: "≥ 75% em 45 min (aparato Pá, 50 rpm)", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Ensaio de dissolução (Aparato 2 — Pá)" },
+      { parameter: "Cinzas totais", category: "fisico_quimica", criterion: "≤ 5,0%", methodologyShort: "AOAC 942.05", methodologyCitation: "AOAC 942.05 — Cinzas totais por incineração" },
+      { parameter: "Kcal", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "Cálculo Atwater", methodologyCitation: "Cálculo pelos fatores de Atwater / AOAC 2011.25" },
+      { parameter: "Sódio", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "AOAC 984.27", methodologyCitation: "AOAC 984.27 — Sódio por ICP-OES / absorção atômica" },
+      // Microbiológica
+      { parameter: "Coliformes totais", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Coliformes totais a 35°C" },
+      { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp." },
+      { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 724/2022 — Estafilococos coagulase positiva" },
+      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
+      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Escherichia coli (MPN)" },
+      { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", category: "microbiologica", criterion: "≤ 10⁴ UFC/g", methodologyShort: "ISO 4833-1", methodologyCitation: "ISO 4833-1 / ABNT NBR — Contagem de micro-organismos aeróbios mesófilos a 30°C" },
+      // Teor do Ativo
+      { parameter: "Vitamina C (Ácido Ascórbico)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "AOAC 967.21", methodologyCitation: "AOAC 967.21 — Ácido Ascórbico por HPLC / titulação iodométrica" },
+      { parameter: "Vitamina D3 (Colecalciferol)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "HPLC-UV", methodologyCitation: "HPLC-UV / AOAC 995.05 — Vitamina D por cromatografia líquida de alta eficiência" },
+      { parameter: "Vitamina E (Tocoferol)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "HPLC", methodologyCitation: "HPLC / AOAC 971.30 — Vitamina E (alfa-tocoferol) por cromatografia" },
+      { parameter: "Vitamina B1 (Tiamina)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "HPLC", methodologyCitation: "HPLC / AOAC 942.23 — Tiamina por cromatografia líquida" },
+      { parameter: "Vitamina B6 (Piridoxina)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "HPLC", methodologyCitation: "HPLC / AOAC 985.32 — Piridoxina por cromatografia líquida" },
+      { parameter: "Vitamina B12 (Cobalamina)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "HPLC", methodologyCitation: "HPLC / AOAC 2011.10 — Vitamina B12 por cromatografia líquida" },
+      { parameter: "Zinco", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "ICP-OES", methodologyCitation: "ICP-OES / AOAC 985.35 — Zinco por espectrometria de emissão atômica" },
+      { parameter: "Magnésio", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "ICP-OES", methodologyCitation: "ICP-OES / AOAC 985.35 — Magnésio por espectrometria de emissão atômica" },
+      // Embalagem
+      { parameter: "Torque de tampa", category: "embalagem", criterion: "2,0 – 4,5 N·m", methodologyShort: "Torquímetro", methodologyCitation: "Ensaio de torque com torquímetro calibrado — remoção de tampa" },
+      { parameter: "Selagem por indução", category: "embalagem", criterion: "Lacre íntegro, sem vazamentos ou danos", methodologyShort: "Visual", methodologyCitation: "Inspeção visual / Teste de pressão positiva" },
+      { parameter: "Integridade selagem", category: "embalagem", criterion: "Sem deformação, bolhas ou ruptura", methodologyShort: "Visual", methodologyCitation: "Inspeção visual do lacre indutivo e da embalagem primária" },
+    ],
+  },
+  {
+    id: "omega3_softgel",
+    name: "Ômega-3 (EPA + DHA) — Softgel / Cápsula Mole",
+    description: "Suplemento alimentar de óleo de peixe em cápsula gelatinosa mole (softgel), 1g por cápsula",
+    params: [
+      // Físico-química
+      { parameter: "Aparência", category: "fisico_quimica", criterion: "Cápsulas íntegras, translúcidas, sem vazamentos ou deformação", methodologyShort: "Visual", methodologyCitation: "Inspeção visual — integridade física da cápsula mole" },
+      { parameter: "Cor", category: "fisico_quimica", criterion: "Amarelo âmbar a dourado", methodologyShort: "Organoléptico", methodologyCitation: "Análise organoléptica — inspeção visual" },
+      { parameter: "Odor", category: "fisico_quimica", criterion: "Característico de óleo de peixe, sem rancidez intensa", methodologyShort: "Organoléptico", methodologyCitation: "Análise organoléptica" },
+      { parameter: "Massa média", category: "fisico_quimica", criterion: "1,0 g ± 5%", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Determinação de massa média de cápsulas moles" },
+      { parameter: "Índice de peróxido", category: "fisico_quimica", criterion: "≤ 5 mEq O₂/kg", methodologyShort: "AOAC 965.33", methodologyCitation: "AOAC 965.33 / AOCS Cd 8b-90 — Índice de peróxido (rancidez primária)" },
+      { parameter: "Índice de anisidina (p-AV)", category: "fisico_quimica", criterion: "≤ 20", methodologyShort: "AOCS Cd 18-90", methodologyCitation: "AOCS Cd 18-90 — Índice de p-anisidina (rancidez secundária)" },
+      { parameter: "TOTOX", category: "fisico_quimica", criterion: "≤ 26 (2×PV + AV)", methodologyShort: "Cálculo", methodologyCitation: "Cálculo TOTOX = 2 × Índice de Peróxido + Índice de Anisidina (GOED)" },
+      { parameter: "Índice de acidez", category: "fisico_quimica", criterion: "≤ 3,0 mg KOH/g", methodologyShort: "AOCS Cd 3d-63", methodologyCitation: "AOCS Cd 3d-63 / AOAC 940.28 — Índice de acidez por titulação" },
+      { parameter: "Dissolução", category: "fisico_quimica", criterion: "≥ 75% em 60 min (aparato Pá, 50 rpm)", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Ensaio de dissolução para cápsulas moles" },
+      { parameter: "Sódio", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "AOAC 984.27", methodologyCitation: "AOAC 984.27 — Sódio por ICP-OES / absorção atômica" },
+      { parameter: "Kcal", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "Cálculo Atwater", methodologyCitation: "Cálculo pelos fatores de Atwater / AOAC 2011.25" },
+      // Microbiológica
+      { parameter: "Coliformes totais", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Coliformes totais a 35°C" },
+      { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp." },
+      { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 724/2022 — Estafilococos coagulase positiva" },
+      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
+      // Teor do Ativo
+      { parameter: "EPA (Ácido Eicosapentaenoico)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "GC-FID", methodologyCitation: "GC-FID / AOCS Ce 1b-89 — Ésteres metílicos de ácidos graxos (FAME) por cromatografia gasosa" },
+      { parameter: "DHA (Ácido Docosahexaenoico)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "GC-FID", methodologyCitation: "GC-FID / AOCS Ce 1b-89 — Ésteres metílicos de ácidos graxos (FAME) por cromatografia gasosa" },
+      { parameter: "Ômega-3 Total (EPA + DHA)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "GC-FID", methodologyCitation: "GC-FID / AOCS Ce 1b-89 — Somatório EPA + DHA por cromatografia gasosa" },
+      // Embalagem
+      { parameter: "Torque de tampa", category: "embalagem", criterion: "2,0 – 4,5 N·m", methodologyShort: "Torquímetro", methodologyCitation: "Ensaio de torque com torquímetro calibrado — remoção de tampa" },
+      { parameter: "Selagem por indução", category: "embalagem", criterion: "Lacre íntegro, sem vazamentos ou danos", methodologyShort: "Visual", methodologyCitation: "Inspeção visual / Teste de pressão positiva" },
+      { parameter: "Integridade selagem", category: "embalagem", criterion: "Sem deformação, bolhas ou ruptura", methodologyShort: "Visual", methodologyCitation: "Inspeção visual do lacre indutivo e da embalagem primária" },
+    ],
+  },
+  {
+    id: "probiotico_capsula_dura",
+    name: "Probiótico — Cápsula Dura",
+    description: "Suplemento alimentar de cepas probióticas liofilizadas em cápsula dura (Lactobacillus / Bifidobacterium)",
+    params: [
+      // Físico-química
+      { parameter: "Aparência", category: "fisico_quimica", criterion: "Cápsulas íntegras, pó homogêneo internamente, cor uniforme", methodologyShort: "Visual", methodologyCitation: "Inspeção visual / análise organoléptica" },
+      { parameter: "Cor", category: "fisico_quimica", criterion: "Característico (branco a levemente bege)", methodologyShort: "Organoléptico", methodologyCitation: "Análise organoléptica — inspeção visual" },
+      { parameter: "Odor", category: "fisico_quimica", criterion: "Característico, sem odor de deterioração", methodologyShort: "Organoléptico", methodologyCitation: "Análise organoléptica" },
+      { parameter: "Perda por dessecação", category: "fisico_quimica", criterion: "≤ 5,0%", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Perda por dessecação (105°C, 2h)" },
+      { parameter: "Massa média", category: "fisico_quimica", criterion: "Conforme especificação ± 5%", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Determinação de massa média de cápsulas" },
+      { parameter: "Dissolução", category: "fisico_quimica", criterion: "≥ 75% em 45 min (aparato Pá, 50 rpm)", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Ensaio de dissolução (Aparato 2 — Pá)" },
+      { parameter: "Sódio", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "AOAC 984.27", methodologyCitation: "AOAC 984.27 — Sódio por ICP-OES / absorção atômica" },
+      // Microbiológica
+      { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp." },
+      { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 724/2022 — Estafilococos coagulase positiva" },
+      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10² UFC/g (excl. cepas declaradas)", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
+      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — E. coli (MPN)" },
+      { parameter: "Enterobacteriaceae", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "ISO 21528-2", methodologyCitation: "ISO 21528-2 / ABNT NBR — Contagem de Enterobacteriaceae" },
+      // Teor do Ativo
+      { parameter: "Contagem de UFC — cepa probiótica total", category: "teor_ativo", criterion: "≥ 80% do valor declarado (UFC/cápsula)", methodologyShort: "ISO 19344", methodologyCitation: "ISO 19344 / IDF 232 — Contagem de bactérias probióticas viáveis por qPCR ou plaqueamento seletivo" },
+      { parameter: "Viabilidade das cepas (identidade)", category: "teor_ativo", criterion: "Cepas declaradas identificadas e viáveis", methodologyShort: "PCR / Sequenc.", methodologyCitation: "PCR / Sequenciamento 16S rRNA — identificação e confirmação de identidade das cepas" },
+      // Embalagem
+      { parameter: "Torque de tampa", category: "embalagem", criterion: "2,0 – 4,5 N·m", methodologyShort: "Torquímetro", methodologyCitation: "Ensaio de torque com torquímetro calibrado — remoção de tampa" },
+      { parameter: "Selagem por indução", category: "embalagem", criterion: "Lacre íntegro, sem vazamentos ou danos", methodologyShort: "Visual", methodologyCitation: "Inspeção visual / Teste de pressão positiva" },
+      { parameter: "Integridade selagem", category: "embalagem", criterion: "Sem deformação, bolhas ou ruptura", methodologyShort: "Visual", methodologyCitation: "Inspeção visual do lacre indutivo e da embalagem primária" },
+    ],
+  },
+  {
+    id: "proteina_whey_po",
+    name: "Proteína Whey / Vegetal — Pó (Frasco ou Sachê)",
+    description: "Suplemento alimentar proteico em pó — Whey Protein (concentrado, isolado ou hidrolisado) ou proteína vegetal",
+    params: [
+      // Físico-química
+      { parameter: "Aparência", category: "fisico_quimica", criterion: "Pó homogêneo, sem grumos, cor uniforme", methodologyShort: "Visual", methodologyCitation: "Inspeção visual / análise organoléptica" },
+      { parameter: "Cor", category: "fisico_quimica", criterion: "Característico (branco a levemente amarelado)", methodologyShort: "Organoléptico", methodologyCitation: "Análise organoléptica — inspeção visual" },
+      { parameter: "Odor", category: "fisico_quimica", criterion: "Característico, sem odor de deterioração ou rancidez", methodologyShort: "Organoléptico", methodologyCitation: "Análise organoléptica" },
+      { parameter: "pH", category: "fisico_quimica", criterion: "6,0 – 7,5 (solução 1%)", methodologyShort: "AOAC 981.12", methodologyCitation: "AOAC 981.12 / Farmacopeia Brasileira 7ª Ed. — Determinação de pH" },
+      { parameter: "Umidade", category: "fisico_quimica", criterion: "≤ 5,0%", methodologyShort: "AOAC 934.01", methodologyCitation: "AOAC 934.01 / Farmacopeia Brasileira 7ª Ed. — Umidade por dessecação" },
+      { parameter: "Cinzas totais", category: "fisico_quimica", criterion: "≤ 5,0%", methodologyShort: "AOAC 942.05", methodologyCitation: "AOAC 942.05 — Cinzas totais por incineração" },
+      { parameter: "Massa média", category: "fisico_quimica", criterion: "Conforme embalagem ± 5%", methodologyShort: "Gravimétrico", methodologyCitation: "Método gravimétrico — pesagem direta (balança analítica)" },
+      { parameter: "Kcal", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "Cálculo Atwater", methodologyCitation: "Cálculo pelos fatores de Atwater / AOAC 2011.25" },
+      { parameter: "Sódio", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "AOAC 984.27", methodologyCitation: "AOAC 984.27 — Sódio por ICP-OES / absorção atômica" },
+      // Microbiológica
+      { parameter: "Coliformes totais", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Coliformes totais a 35°C" },
+      { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp." },
+      { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 724/2022 — Estafilococos coagulase positiva" },
+      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
+      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — E. coli (MPN)" },
+      { parameter: "Enterobacteriaceae", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "ISO 21528-2", methodologyCitation: "ISO 21528-2 / ABNT NBR — Contagem de Enterobacteriaceae" },
+      { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", category: "microbiologica", criterion: "≤ 10⁴ UFC/g", methodologyShort: "ISO 4833-1", methodologyCitation: "ISO 4833-1 / ABNT NBR — Contagem de micro-organismos aeróbios mesófilos a 30°C" },
+      // Teor do Ativo
+      { parameter: "Proteína total", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "AOAC 990.03", methodologyCitation: "AOAC 990.03 — Proteína total pelo método de Kjeldahl" },
+      { parameter: "BCAA total (Leucina + Isoleucina + Valina)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "HPLC", methodologyCitation: "HPLC / AOAC 982.30 — Perfil de aminoácidos por cromatografia líquida" },
+      // Embalagem
+      { parameter: "Torque de tampa", category: "embalagem", criterion: "2,0 – 5,0 N·m", methodologyShort: "Torquímetro", methodologyCitation: "Ensaio de torque com torquímetro calibrado — remoção de tampa" },
+      { parameter: "Selagem por indução", category: "embalagem", criterion: "Lacre íntegro, sem vazamentos ou danos", methodologyShort: "Visual", methodologyCitation: "Inspeção visual / Teste de pressão positiva" },
+      { parameter: "Integridade selagem", category: "embalagem", criterion: "Sem deformação, bolhas ou ruptura", methodologyShort: "Visual", methodologyCitation: "Inspeção visual do lacre indutivo e da embalagem primária" },
+    ],
+  },
+  {
+    id: "vitamina_d_calcio_capsula",
+    name: "Vitamina D3 + Cálcio — Cápsula Dura",
+    description: "Suplemento alimentar de Vitamina D3 (colecalciferol) e Cálcio (carbonato ou citrato) em cápsula dura",
+    params: [
+      // Físico-química
+      { parameter: "Aparência", category: "fisico_quimica", criterion: "Cápsulas íntegras, pó homogêneo, cor uniforme", methodologyShort: "Visual", methodologyCitation: "Inspeção visual / análise organoléptica" },
+      { parameter: "Cor", category: "fisico_quimica", criterion: "Característico (branco a creme)", methodologyShort: "Organoléptico", methodologyCitation: "Análise organoléptica — inspeção visual" },
+      { parameter: "Odor", category: "fisico_quimica", criterion: "Característico, inodoro", methodologyShort: "Organoléptico", methodologyCitation: "Análise organoléptica" },
+      { parameter: "Perda por dessecação", category: "fisico_quimica", criterion: "≤ 5,0%", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Perda por dessecação (105°C, 2h)" },
+      { parameter: "Massa média", category: "fisico_quimica", criterion: "Conforme especificação ± 5%", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Determinação de massa média de cápsulas" },
+      { parameter: "Dissolução", category: "fisico_quimica", criterion: "≥ 75% em 45 min (aparato Pá, 50 rpm)", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Ensaio de dissolução (Aparato 2 — Pá)" },
+      { parameter: "Cinzas totais", category: "fisico_quimica", criterion: "≤ 40,0% (cálcio carbonato contribui)", methodologyShort: "AOAC 942.05", methodologyCitation: "AOAC 942.05 — Cinzas totais por incineração" },
+      { parameter: "Sódio", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "AOAC 984.27", methodologyCitation: "AOAC 984.27 — Sódio por ICP-OES / absorção atômica" },
+      // Microbiológica
+      { parameter: "Coliformes totais", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Coliformes totais a 35°C" },
+      { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp." },
+      { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 724/2022 — Estafilococos coagulase positiva" },
+      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
+      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — E. coli (MPN)" },
+      // Teor do Ativo
+      { parameter: "Vitamina D3 (Colecalciferol)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "HPLC-UV", methodologyCitation: "HPLC-UV / AOAC 995.05 — Vitamina D por cromatografia líquida de alta eficiência" },
+      { parameter: "Cálcio", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "ICP-OES", methodologyCitation: "ICP-OES / AOAC 985.35 — Cálcio por espectrometria de emissão atômica com plasma indutivo" },
+      // Embalagem
+      { parameter: "Torque de tampa", category: "embalagem", criterion: "2,0 – 4,5 N·m", methodologyShort: "Torquímetro", methodologyCitation: "Ensaio de torque com torquímetro calibrado — remoção de tampa" },
+      { parameter: "Selagem por indução", category: "embalagem", criterion: "Lacre íntegro, sem vazamentos ou danos", methodologyShort: "Visual", methodologyCitation: "Inspeção visual / Teste de pressão positiva" },
+      { parameter: "Integridade selagem", category: "embalagem", criterion: "Sem deformação, bolhas ou ruptura", methodologyShort: "Visual", methodologyCitation: "Inspeção visual do lacre indutivo e da embalagem primária" },
+    ],
+  },
+  {
+    id: "comprimido_revestido_ferro_folico",
+    name: "Ferro + Ácido Fólico — Comprimido Revestido",
+    description: "Suplemento alimentar de Sulfato Ferroso e Ácido Fólico em comprimido revestido (drágea)",
+    params: [
+      // Físico-química
+      { parameter: "Aparência", category: "fisico_quimica", criterion: "Comprimidos íntegros, revestimento uniforme, sem lascas ou fraturas", methodologyShort: "Visual", methodologyCitation: "Inspeção visual / análise organoléptica" },
+      { parameter: "Cor", category: "fisico_quimica", criterion: "Característico (verde a verde-escuro uniforme)", methodologyShort: "Organoléptico", methodologyCitation: "Análise organoléptica — inspeção visual" },
+      { parameter: "Odor", category: "fisico_quimica", criterion: "Característico, inodoro ou característico do revestimento", methodologyShort: "Organoléptico", methodologyCitation: "Análise organoléptica" },
+      { parameter: "Perda por dessecação", category: "fisico_quimica", criterion: "≤ 5,0%", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Perda por dessecação (105°C, 2h)" },
+      { parameter: "Massa média", category: "fisico_quimica", criterion: "Conforme especificação ± 5%", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Determinação de massa média de comprimidos" },
+      { parameter: "Dissolução", category: "fisico_quimica", criterion: "≥ 75% em 45 min (aparato Pá, 50 rpm)", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Ensaio de dissolução (Aparato 2 — Pá)" },
+      { parameter: "Dureza", category: "fisico_quimica", criterion: "≥ 40 N", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Determinação de dureza de comprimidos" },
+      { parameter: "Friabilidade", category: "fisico_quimica", criterion: "≤ 1,5%", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Determinação de friabilidade de comprimidos" },
+      { parameter: "Sódio", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "AOAC 984.27", methodologyCitation: "AOAC 984.27 — Sódio por ICP-OES / absorção atômica" },
+      // Microbiológica
+      { parameter: "Coliformes totais", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Coliformes totais a 35°C" },
+      { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp." },
+      { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 724/2022 — Estafilococos coagulase positiva" },
+      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
+      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — E. coli (MPN)" },
+      // Teor do Ativo
+      { parameter: "Ferro (Sulfato Ferroso)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "ICP-OES", methodologyCitation: "ICP-OES / AOAC 985.35 — Ferro por espectrometria de emissão atômica" },
+      { parameter: "Ácido Fólico (Vitamina B9)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "HPLC", methodologyCitation: "HPLC / AOAC 2004.05 — Ácido Fólico por cromatografia líquida de alta eficiência" },
+      // Embalagem
+      { parameter: "Torque de tampa", category: "embalagem", criterion: "2,0 – 4,5 N·m", methodologyShort: "Torquímetro", methodologyCitation: "Ensaio de torque com torquímetro calibrado — remoção de tampa" },
+      { parameter: "Selagem por indução", category: "embalagem", criterion: "Lacre íntegro, sem vazamentos ou danos", methodologyShort: "Visual", methodologyCitation: "Inspeção visual / Teste de pressão positiva" },
+      { parameter: "Integridade selagem", category: "embalagem", criterion: "Sem deformação, bolhas ou ruptura", methodologyShort: "Visual", methodologyCitation: "Inspeção visual do lacre indutivo e da embalagem primária" },
+    ],
+  },
 ];
 
 const CATEGORY_PRESETS: Record<string, { parameter: string; criterion: string }[]> = {
