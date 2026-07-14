@@ -3533,6 +3533,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     return initialKineticsNotes ?? "";
   });
   const [customShelfLife, setCustomShelfLife] = useState<string>("");
+  const [selectedShelfBox, setSelectedShelfBox] = useState<"standard" | "overage" | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ param: string } | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState("");
@@ -3740,6 +3741,29 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     try {
       localStorage.setItem(LS_KEY, JSON.stringify({ overrides: next, customShelfLife: shelf, cardValidity: cv, kineticsObs: obs }));
     } catch { /* ignore */ }
+  };
+
+  const applyShelfToValidade = (valStr: string) => {
+    setCardValidity(valStr);
+    setOverrides(prev => {
+      const next: Record<string, KineticOverride> = {};
+      for (const [key, ov] of Object.entries(prev)) {
+        next[key] = { ...ov, validadePraticada: valStr };
+      }
+      persistOverrides(next, customShelfLife, valStr);
+      return next;
+    });
+    setIsDirty(true);
+    try {
+      const stored = readLs();
+      const updatedOvs: Record<string, KineticOverride> = {};
+      for (const [key, ov] of Object.entries(stored.overrides ?? {})) {
+        updatedOvs[key] = { ...(ov as KineticOverride), validadePraticada: valStr };
+      }
+      localStorage.setItem(LS_KEY, JSON.stringify({ ...stored, cardValidity: valStr, overrides: updatedOvs }));
+    } catch { /* ignore */ }
+    const num = parseInt(valStr, 10);
+    debouncedSave({ validityMonths: isNaN(num) ? null : num });
   };
 
   const applyFieldChange = (param: string, field: keyof KineticOverride, val: string) => {
@@ -4095,70 +4119,118 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       {/* Summary card */}
       <Card className="border-green-200 bg-green-50">
         <CardContent className="pt-4">
-          <div className={`flex items-start gap-6 ${minOverageShelfLife != null ? "flex-wrap" : ""}`}>
+          {/* Instruction when overage boxes are shown */}
+          {minOverageShelfLife != null && (
+            <p className="text-[11px] text-slate-500 mb-3 flex items-center gap-1">
+              <span>👆</span> Clique em uma das caixas abaixo para usar aquele valor como <strong>Validade Adotada</strong> na tabela.
+            </p>
+          )}
+          <div className={`flex items-start gap-4 ${minOverageShelfLife != null ? "flex-wrap" : ""}`}>
 
             {/* BOX 1 — Vida Útil Estimada (sem overage) */}
-            <div className="flex-1 min-w-[160px]">
-              <p className="text-xs text-green-700 font-medium uppercase tracking-wide mb-1">
-                Vida Útil Estimada (t<sub>validade</sub>)
-              </p>
-              <div className="flex items-center gap-2">
-                <input
-                  value={customShelfLife !== "" ? customShelfLife : (minShelfLife != null ? String(Math.floor(minShelfLife)) : "")}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setCustomShelfLife(val);
-                    persistOverrides(overrides, val);
-                  }}
-                  className="w-24 text-3xl font-bold text-green-800 bg-green-100 border border-green-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-right tabular-nums"
-                  placeholder={minShelfLife != null ? String(Math.floor(minShelfLife)) : "—"}
-                />
-                <span className="text-xl font-semibold text-green-700">meses</span>
-              </div>
-              {limitingParam && (
-                <div className="mt-2 inline-flex items-center gap-1.5 bg-amber-100 border border-amber-300 rounded-md px-2.5 py-1">
-                  <span className="text-amber-600 text-xs">⚠</span>
-                  <span className="text-xs font-semibold text-amber-800">Item limitante:</span>
-                  <span className="text-xs font-bold text-amber-900">{limitingParam}</span>
+            {(() => {
+              const isSelectable = minOverageShelfLife != null;
+              const isSelected = selectedShelfBox === "standard";
+              const stdVal = customShelfLife !== "" ? customShelfLife : (minShelfLife != null ? String(Math.floor(minShelfLife)) : "");
+              return (
+                <div
+                  onClick={isSelectable ? () => {
+                    setSelectedShelfBox("standard");
+                    if (stdVal) applyShelfToValidade(stdVal);
+                  } : undefined}
+                  className={`flex-1 min-w-[160px] rounded-lg px-4 py-3 transition-all
+                    ${isSelectable ? "cursor-pointer" : ""}
+                    ${isSelected
+                      ? "border-2 border-green-500 bg-green-100 shadow-md ring-2 ring-green-300"
+                      : isSelectable
+                        ? "border-2 border-green-200 bg-green-50 hover:border-green-400 hover:bg-green-100/70"
+                        : "border-0 bg-transparent"
+                    }`}
+                >
+                  <p className="text-xs text-green-700 font-medium uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                    Vida Útil Estimada (t<sub>validade</sub>)
+                    {isSelected && <span className="text-[10px] bg-green-600 text-white rounded-full px-1.5 py-0.5 font-semibold normal-case">✓ em uso</span>}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={stdVal}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustomShelfLife(val);
+                        persistOverrides(overrides, val);
+                        if (selectedShelfBox === "standard" && val) applyShelfToValidade(val);
+                      }}
+                      className="w-24 text-3xl font-bold text-green-800 bg-green-100 border border-green-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-right tabular-nums"
+                      placeholder={minShelfLife != null ? String(Math.floor(minShelfLife)) : "—"}
+                    />
+                    <span className="text-xl font-semibold text-green-700">meses</span>
+                  </div>
+                  {limitingParam && (
+                    <div className="mt-2 inline-flex items-center gap-1.5 bg-amber-100 border border-amber-300 rounded-md px-2.5 py-1">
+                      <span className="text-amber-600 text-xs">⚠</span>
+                      <span className="text-xs font-semibold text-amber-800">Item limitante:</span>
+                      <span className="text-xs font-bold text-amber-900">{limitingParam}</span>
+                    </div>
+                  )}
+                  <p className="text-xs text-green-600 mt-1.5 opacity-60">
+                    {customShelfLife !== ""
+                      ? "Valor editado manualmente"
+                      : "Sem overage — concentração inicial = 100%"}
+                  </p>
+                  {isSelectable && !isSelected && (
+                    <p className="text-[10px] text-green-600 mt-1 font-medium">Clique para usar este valor ↓</p>
+                  )}
                 </div>
-              )}
-              <p className="text-xs text-green-600 mt-1.5 opacity-60">
-                {customShelfLife !== ""
-                  ? "Valor editado manualmente — clique em \"Restaurar\" para usar o calculado"
-                  : "Sem overage — concentração inicial = 100%"}
-              </p>
-            </div>
+              );
+            })()}
 
             {/* BOX 2 — Com Overage (exibido apenas quando há overage configurado) */}
-            {minOverageShelfLife != null && (
-              <div className="flex-1 min-w-[160px] rounded-lg border-2 border-blue-300 bg-blue-50 px-4 py-3">
-                <p className="text-xs text-blue-700 font-medium uppercase tracking-wide mb-1 flex items-center gap-1">
-                  <span>📦</span>
-                  {allHaveOverage ? "Com Overage" : "Com Overage (parcial)"}
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-3xl font-bold text-blue-800 tabular-nums">
-                    {Math.floor(minOverageShelfLife)}
-                  </span>
-                  <span className="text-xl font-semibold text-blue-700">meses</span>
-                </div>
-                {limitingOverageParam && (
-                  <div className="mt-2 inline-flex items-center gap-1.5 bg-blue-100 border border-blue-300 rounded-md px-2.5 py-1">
-                    <span className="text-blue-600 text-xs">⚠</span>
-                    <span className="text-xs font-semibold text-blue-800">Item limitante:</span>
-                    <span className="text-xs font-bold text-blue-900">{limitingOverageParam}</span>
-                  </div>
-                )}
-                <p className="text-xs text-blue-600 mt-1.5 opacity-80">
-                  Validade recalculada considerando a sobreformulação declarada
-                </p>
-                {!allHaveOverage && (
-                  <p className="text-[10px] text-blue-500 mt-0.5">
-                    ⚠ Nem todos os ativos têm overage — valor parcial
+            {minOverageShelfLife != null && (() => {
+              const isSelected = selectedShelfBox === "overage";
+              const overageVal = String(Math.floor(minOverageShelfLife));
+              return (
+                <div
+                  onClick={() => {
+                    setSelectedShelfBox("overage");
+                    applyShelfToValidade(overageVal);
+                  }}
+                  className={`flex-1 min-w-[160px] rounded-lg px-4 py-3 cursor-pointer transition-all
+                    ${isSelected
+                      ? "border-2 border-blue-500 bg-blue-100 shadow-md ring-2 ring-blue-300"
+                      : "border-2 border-blue-200 bg-blue-50 hover:border-blue-400 hover:bg-blue-100/70"
+                    }`}
+                >
+                  <p className="text-xs text-blue-700 font-medium uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                    <span>📦</span>
+                    {allHaveOverage ? "Com Overage" : "Com Overage (parcial)"}
+                    {isSelected && <span className="text-[10px] bg-blue-600 text-white rounded-full px-1.5 py-0.5 font-semibold normal-case">✓ em uso</span>}
                   </p>
-                )}
-              </div>
-            )}
+                  <div className="flex items-center gap-2">
+                    <span className="text-3xl font-bold text-blue-800 tabular-nums">
+                      {overageVal}
+                    </span>
+                    <span className="text-xl font-semibold text-blue-700">meses</span>
+                  </div>
+                  {limitingOverageParam && (
+                    <div className="mt-2 inline-flex items-center gap-1.5 bg-blue-100 border border-blue-300 rounded-md px-2.5 py-1">
+                      <span className="text-blue-600 text-xs">⚠</span>
+                      <span className="text-xs font-semibold text-blue-800">Item limitante:</span>
+                      <span className="text-xs font-bold text-blue-900">{limitingOverageParam}</span>
+                    </div>
+                  )}
+                  <p className="text-xs text-blue-600 mt-1.5 opacity-80">
+                    Validade com sobreformulação declarada
+                  </p>
+                  {!allHaveOverage && (
+                    <p className="text-[10px] text-blue-500 mt-0.5">⚠ Valor parcial — nem todos os ativos têm overage</p>
+                  )}
+                  {!isSelected && (
+                    <p className="text-[10px] text-blue-600 mt-1 font-medium">Clique para usar este valor ↓</p>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* BOX 3 — Validade Praticada */}
             <div className="flex-1 min-w-[160px] text-right">
@@ -4168,6 +4240,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   value={cardValidity}
                   onChange={(e) => {
                     const val = e.target.value;
+                    setSelectedShelfBox(null);
                     setCardValidity(val);
                     setOverrides(prev => {
                       const next: Record<string, KineticOverride> = {};
@@ -4197,6 +4270,11 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               <p className="text-[11px] text-green-600/80 mt-0.5 flex items-center gap-1 justify-end">
                 <span>✓</span> Exibido no Certificado de Análise e Relatório ANVISA
               </p>
+              {minOverageShelfLife != null && selectedShelfBox != null && (
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Origem: {selectedShelfBox === "overage" ? "📦 Com overage" : "Sem overage"}
+                </p>
+              )}
             </div>
 
           </div>
