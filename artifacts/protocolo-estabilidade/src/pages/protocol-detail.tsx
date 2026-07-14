@@ -4037,27 +4037,35 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const minShelfLife = shelfLives.length > 0 ? Math.min(...shelfLives) : null;
   const limitingParam = Object.entries(overrides).find(([, o]) => parseFloat(o.shelfLife) === minShelfLife)?.[0] ?? null;
 
-  // Overage-adjusted shelf life per parameter — mesma lógica do cálculo padrão:
+  // Overage-adjusted shelf life per parameter — ICH Q1A(R2):
   //   t_val_overage = −ln(ichThreshold / C0_overage) / k
-  //   C0_overage = T0_real × (1 + overage/100)
-  //     → escala o T0 medido pelo fator de overage; garante prazo ≥ sem overage
-  //   ichThreshold = mesmo limiar usado no cálculo padrão (padrão ICH Q1A: 80%)
   //
-  // Nota: specMin/specMax são informativos e NÃO entram no cálculo cinético —
-  // conforme comentário em calcKineticOverride. Usar ichThreshold garante
-  // consistência direta entre as duas caixas de Vida Útil.
+  // C0_overage = 100 + overage_efetivo%
+  //   → base declarada (100%) + overage planejado
+  //   → NÃO multiplica pelo T0 real (evita double-counting quando T0 > 100%)
+  //
+  // overage_efetivo:
+  //   • Se o usuário informou overage manual > 0 → usa o manual
+  //   • Se T0 > 100% → overage implícito = T0 − 100 (auto-detectado, sem entrada manual)
+  //   • Caso contrário → sem overage, coluna omitida
   const overageAdjustedShelfLives: Record<string, number> = {};
   for (const [param, ov] of Object.entries(overrides)) {
     const k = parseFloat(ov.k);
+    if (isNaN(k) || k <= 0) continue;
     const lim = ativoLimits[param];
-    const overagePct = lim?.overage ? parseFloat(lim.overage.replace(",", ".")) : NaN;
-    if (isNaN(k) || k <= 0 || isNaN(overagePct) || overagePct <= 0) continue;
-    // Usa o mesmo ichThreshold do cálculo padrão (default 90%)
+    const manualOveragePct = lim?.overage ? parseFloat(lim.overage.replace(",", ".")) : NaN;
+    const actualT0 = parseFloat(ov.t0) || 100;
+    // Overage implícito detectado automaticamente quando T0 > 100%
+    const implicitOveragePct = Math.max(0, actualT0 - 100);
+    // Prioridade: manual > implícito
+    const effectiveOverage = (!isNaN(manualOveragePct) && manualOveragePct > 0)
+      ? manualOveragePct
+      : implicitOveragePct;
+    if (effectiveOverage <= 0) continue;
     const ichThreshold = parseFloat(ov.ichThreshold) || 90;
-    // C0 com overage = T0 real × (1 + overage%) → sempre ≥ T0 real → prazo sempre maior
-    const actualC0 = parseFloat(ov.t0) || 100;
-    const c0WithOverage = actualC0 * (1 + overagePct / 100);
-    if (c0WithOverage <= ichThreshold) continue;  // impossível: C0 já abaixo do mínimo
+    // C0 = 100 (declarado) + overage efetivo — fórmula correta sem double-counting
+    const c0WithOverage = 100 + effectiveOverage;
+    if (c0WithOverage <= ichThreshold) continue;
     const lnNum = -Math.log(ichThreshold / c0WithOverage);
     if (lnNum > 0) overageAdjustedShelfLives[param] = lnNum / k;
   }
@@ -4481,20 +4489,27 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       const overageShelf = overageAdjustedShelfLives[p.parameter];
                       const lim = ativoLimits[p.parameter];
                       const ichThresholdPct = parseFloat(ov.ichThreshold) || 90;
-                      const overagePct = lim?.overage ? parseFloat(lim.overage.replace(",", ".")) : NaN;
+                      const manualOveragePct = lim?.overage ? parseFloat(lim.overage.replace(",", ".")) : NaN;
                       const k = parseFloat(ov.k);
+                      const actualT0Display = parseFloat(ov.t0) || 100;
+                      const implicitOveragePct = Math.max(0, actualT0Display - 100);
+                      // Prioridade: manual > implícito (T0 > 100%)
+                      const effectiveOverage = (!isNaN(manualOveragePct) && manualOveragePct > 0)
+                        ? manualOveragePct : implicitOveragePct;
+                      const isImplicitOverage = (isNaN(manualOveragePct) || manualOveragePct <= 0) && implicitOveragePct > 0;
                       const declaredNum = lim?.declared ? parseFloat(lim.declared.replace(",", ".")) : NaN;
                       const minRaw = lim?.min ? parseFloat((lim.min).replace(",", ".")) : NaN;
                       const maxRaw = lim?.max ? parseFloat((lim.max).replace(",", ".")) : NaN;
-                      const hasValidOverage = !isNaN(overagePct) && overagePct > 0 && !isNaN(k) && k > 0 && overageShelf != null;
+                      const hasValidOverage = effectiveOverage > 0 && !isNaN(k) && k > 0 && overageShelf != null;
 
                       // Quantidade real esperada no fim da validade adotada com overage
+                      // C(t) = (100 + effectiveOverage) × e^(−k×t) / 100 × declared
                       const validadeMeses = parseFloat(ov.validadePraticada);
                       const qtyAtEnd = hasValidOverage && !isNaN(validadeMeses) && validadeMeses > 0 && !isNaN(declaredNum) && declaredNum > 0
-                        ? ((100 + overagePct) * Math.exp(-k * validadeMeses) / 100) * declaredNum
+                        ? ((100 + effectiveOverage) * Math.exp(-k * validadeMeses) / 100) * declaredNum
                         : null;
                       const qtyAtEndPct = hasValidOverage && !isNaN(validadeMeses) && validadeMeses > 0
-                        ? (100 + overagePct) * Math.exp(-k * validadeMeses)
+                        ? (100 + effectiveOverage) * Math.exp(-k * validadeMeses)
                         : null;
                       // Epsilon de 0.005 mg para evitar falso negativo por ponto flutuante
                       const qtyOk = qtyAtEnd != null
@@ -4516,7 +4531,11 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                           {hasValidOverage && (
                             <div className="flex flex-col items-end gap-0.5">
                               <div className="flex items-center gap-1">
-                                <span className="text-[9px] text-blue-500">+{overagePct}% overage:</span>
+                                <span className="text-[9px] text-blue-500">
+                                  {isImplicitOverage
+                                    ? `↑${implicitOveragePct.toFixed(1)}% impl.:`
+                                    : `+${effectiveOverage}% overage:`}
+                                </span>
                                 <span className="text-sm font-bold tabular-nums text-blue-700">
                                   {Math.floor(overageShelf)} m
                                 </span>
@@ -4525,7 +4544,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                               {qtyAtEnd != null && !isNaN(validadeMeses) && validadeMeses > 0 && (
                                 <div
                                   className={`flex items-center gap-1 text-[9px] cursor-help ${qtyOk ? "text-green-600" : "text-red-600"}`}
-                                  title={`C(${validadeMeses}m) = (100+${overagePct}) × e^(−${k.toFixed(6)}×${validadeMeses}) = ${qtyAtEndPct?.toFixed(2)}% → ${qtyAtEnd.toFixed(2)} ${lim?.unit ?? ""}`}
+                                  title={`C(${validadeMeses}m) = (100+${effectiveOverage}) × e^(−${k.toFixed(6)}×${validadeMeses}) = ${qtyAtEndPct?.toFixed(2)}% → ${qtyAtEnd.toFixed(2)} ${lim?.unit ?? ""}`}
                                 >
                                   {qtyOk ? "✓" : "⚠"} {qtyAtEnd.toFixed(2)} {lim?.unit ?? ""} em {validadeMeses}m
                                 </div>
@@ -4534,7 +4553,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                               {qtyAtEnd == null && qtyAtEndPct != null && !isNaN(validadeMeses) && validadeMeses > 0 && (
                                 <div
                                   className={`flex items-center gap-1 text-[9px] cursor-help ${qtyOk ? "text-green-600" : "text-red-600"}`}
-                                  title={`C(${validadeMeses}m) = (100+${overagePct}) × e^(−${k.toFixed(6)}×${validadeMeses}) = ${qtyAtEndPct.toFixed(2)}% (especifique quantidade declarada para ver em ${lim?.unit ?? "mg"})`}
+                                  title={`C(${validadeMeses}m) = (100+${effectiveOverage}) × e^(−${k.toFixed(6)}×${validadeMeses}) = ${qtyAtEndPct.toFixed(2)}% (especifique quantidade declarada para ver em ${lim?.unit ?? "mg"})`}
                                 >
                                   {qtyOk ? "✓" : "⚠"} {qtyAtEndPct.toFixed(1)}% em {validadeMeses}m
                                 </div>
@@ -4542,9 +4561,9 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                               {/* Tooltip com conta completa */}
                               <span
                                 className="text-[8px] text-blue-300 tabular-nums cursor-help"
-                                title={`−ln(${ichThresholdPct.toFixed(1)}%/(100+${overagePct})) / k = ${overageShelf.toFixed(2)} meses`}
+                                title={`−ln(${ichThresholdPct.toFixed(1)}%/(100+${effectiveOverage.toFixed(2)})) / k = ${overageShelf.toFixed(2)} meses${isImplicitOverage ? " [overage implícito: T0−100]" : ""}`}
                               >
-                                −ln({ichThresholdPct.toFixed(0)}%/{(100+overagePct).toFixed(0)}%) ÷ k
+                                −ln({ichThresholdPct.toFixed(0)}%/{(100+effectiveOverage).toFixed(1)}%) ÷ k
                               </span>
                             </div>
                           )}
