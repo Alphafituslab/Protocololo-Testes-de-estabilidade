@@ -5,6 +5,7 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateLotBodyStudyCondition } from "./createLotBodyStudyCondition";
 
 export interface CreateLotBody {
   lotNumber: string;
@@ -12,4 +13,10 @@ export interface CreateLotBody {
   expiryDate?: string;
   quantity: number;
   notes?: string;
+  /** Condição do estudo */
+  studyCondition?: CreateLotBodyStudyCondition;
+  /** Temperatura (°C) */
+  temperatureC?: number | null;
+  /** Umidade relativa (%UR) */
+  humidityRh?: number | null;
 }

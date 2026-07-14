@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { protocolsTable } from "./protocols";
@@ -11,6 +11,12 @@ export const lotsTable = pgTable("lots", {
   expiryDate: text("expiry_date"),
   quantity: integer("quantity").notNull(),
   notes: text("notes"),
+  /** Condição do estudo: 'longa_duracao' | 'acelerado' | null */
+  studyCondition: text("study_condition"),
+  /** Temperatura de armazenamento da condição (°C) */
+  temperatureC: real("temperature_c"),
+  /** Umidade relativa da condição (%UR) */
+  humidityRh: real("humidity_rh"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });

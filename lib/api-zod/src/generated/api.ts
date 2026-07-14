@@ -553,6 +553,15 @@ export const GetProtocolResponse = zod
           expiryDate: zod.string().nullish(),
           quantity: zod.number(),
           notes: zod.string().nullish(),
+          studyCondition: zod
+            .enum(["longa_duracao", "acelerado"])
+            .nullish()
+            .describe("Condição do estudo: longa duração ou acelerado"),
+          temperatureC: zod
+            .number()
+            .nullish()
+            .describe("Temperatura de armazenamento (°C)"),
+          humidityRh: zod.number().nullish().describe("Umidade relativa (%UR)"),
           createdAt: zod.string(),
         }),
       ),
@@ -789,6 +798,15 @@ export const ListLotsResponseItem = zod.object({
   expiryDate: zod.string().nullish(),
   quantity: zod.number(),
   notes: zod.string().nullish(),
+  studyCondition: zod
+    .enum(["longa_duracao", "acelerado"])
+    .nullish()
+    .describe("Condição do estudo: longa duração ou acelerado"),
+  temperatureC: zod
+    .number()
+    .nullish()
+    .describe("Temperatura de armazenamento (°C)"),
+  humidityRh: zod.number().nullish().describe("Umidade relativa (%UR)"),
   createdAt: zod.string(),
 });
 export const ListLotsResponse = zod.array(ListLotsResponseItem);
@@ -806,6 +824,12 @@ export const CreateLotBody = zod.object({
   expiryDate: zod.string().optional(),
   quantity: zod.number(),
   notes: zod.string().optional(),
+  studyCondition: zod
+    .enum(["longa_duracao", "acelerado"])
+    .nullish()
+    .describe("Condição do estudo"),
+  temperatureC: zod.number().nullish().describe("Temperatura (°C)"),
+  humidityRh: zod.number().nullish().describe("Umidade relativa (%UR)"),
 });
 
 /**
@@ -822,6 +846,12 @@ export const UpdateLotBody = zod.object({
   expiryDate: zod.string().optional(),
   quantity: zod.number(),
   notes: zod.string().optional(),
+  studyCondition: zod
+    .enum(["longa_duracao", "acelerado"])
+    .nullish()
+    .describe("Condição do estudo"),
+  temperatureC: zod.number().nullish().describe("Temperatura (°C)"),
+  humidityRh: zod.number().nullish().describe("Umidade relativa (%UR)"),
 });
 
 export const UpdateLotResponse = zod.object({
@@ -832,6 +862,15 @@ export const UpdateLotResponse = zod.object({
   expiryDate: zod.string().nullish(),
   quantity: zod.number(),
   notes: zod.string().nullish(),
+  studyCondition: zod
+    .enum(["longa_duracao", "acelerado"])
+    .nullish()
+    .describe("Condição do estudo: longa duração ou acelerado"),
+  temperatureC: zod
+    .number()
+    .nullish()
+    .describe("Temperatura de armazenamento (°C)"),
+  humidityRh: zod.number().nullish().describe("Umidade relativa (%UR)"),
   createdAt: zod.string(),
 });
 
@@ -973,7 +1012,9 @@ export const GetKineticsResponse = zod.object({
       k: zod
         .number()
         .nullish()
-        .describe("Degradation rate constant per month = deltaLn \/ 3"),
+        .describe(
+          "Degradation rate constant per month (longa duração, or all-lots fallback)",
+        ),
       estimatedShelfLifeMonths: zod
         .number()
         .nullish()
@@ -981,9 +1022,7 @@ export const GetKineticsResponse = zod.object({
       tObserved: zod
         .number()
         .nullish()
-        .describe(
-          "t_observado = -ln(avgT6\/avgT0) \/ k (extrapolation from measured T6)",
-        ),
+        .describe("t_observado = -ln(avgT6\/avgT0) \/ k"),
       minThresholdPercent: zod
         .number()
         .describe(
@@ -992,8 +1031,44 @@ export const GetKineticsResponse = zod.object({
       criterion: zod
         .string()
         .nullish()
+        .describe("Specification criterion string"),
+      kLongTerm: zod
+        .number()
+        .nullish()
+        .describe("k calculated from long-term condition lots only"),
+      kAccelerated: zod
+        .number()
+        .nullish()
+        .describe("k calculated from accelerated condition lots only"),
+      conditionTempLt: zod
+        .number()
+        .nullish()
+        .describe("Average temperature of long-term lots (°C)"),
+      conditionTempAcc: zod
+        .number()
+        .nullish()
+        .describe("Average temperature of accelerated lots (°C)"),
+      conditionHumLt: zod
+        .number()
+        .nullish()
+        .describe("Average humidity of long-term lots (%UR)"),
+      conditionHumAcc: zod
+        .number()
+        .nullish()
+        .describe("Average humidity of accelerated lots (%UR)"),
+      ea: zod
+        .number()
+        .nullish()
+        .describe("Activation energy Ea (kJ\/mol) from Arrhenius equation"),
+      arrheniusA: zod
+        .number()
+        .nullish()
+        .describe("Pre-exponential factor A (month⁻¹) from Arrhenius equation"),
+      shelfLifeArrhenius: zod
+        .number()
+        .nullish()
         .describe(
-          "Specification criterion string from analysis results (e.g. '98,50% - 100,50%')",
+          "Shelf life (months) estimated via Arrhenius at long-term temperature",
         ),
     }),
   ),

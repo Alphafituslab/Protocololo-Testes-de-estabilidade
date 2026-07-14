@@ -1554,6 +1554,19 @@ components:
         notes:
           type: string
           nullable: true
+        studyCondition:
+          type: string
+          enum: [longa_duracao, acelerado]
+          nullable: true
+          description: "Condição do estudo: longa duração ou acelerado"
+        temperatureC:
+          type: number
+          nullable: true
+          description: "Temperatura de armazenamento (°C)"
+        humidityRh:
+          type: number
+          nullable: true
+          description: "Umidade relativa (%UR)"
         createdAt:
           type: string
       required:
@@ -1577,6 +1590,19 @@ components:
           type: integer
         notes:
           type: string
+        studyCondition:
+          type: string
+          enum: [longa_duracao, acelerado]
+          nullable: true
+          description: "Condição do estudo"
+        temperatureC:
+          type: number
+          nullable: true
+          description: "Temperatura (°C)"
+        humidityRh:
+          type: number
+          nullable: true
+          description: "Umidade relativa (%UR)"
       required:
         - lotNumber
         - manufacturingDate
@@ -1713,7 +1739,7 @@ components:
         k:
           type: number
           nullable: true
-          description: "Degradation rate constant per month = deltaLn / 3"
+          description: "Degradation rate constant per month (longa duração, or all-lots fallback)"
         estimatedShelfLifeMonths:
           type: number
           nullable: true
@@ -1721,14 +1747,50 @@ components:
         tObserved:
           type: number
           nullable: true
-          description: "t_observado = -ln(avgT6/avgT0) / k (extrapolation from measured T6)"
+          description: "t_observado = -ln(avgT6/avgT0) / k"
         minThresholdPercent:
           type: number
           description: "Minimum acceptable concentration (same units as t0/t3/t6)"
         criterion:
           type: string
           nullable: true
-          description: "Specification criterion string from analysis results (e.g. '98,50% - 100,50%')"
+          description: "Specification criterion string"
+        kLongTerm:
+          type: number
+          nullable: true
+          description: "k calculated from long-term condition lots only"
+        kAccelerated:
+          type: number
+          nullable: true
+          description: "k calculated from accelerated condition lots only"
+        conditionTempLt:
+          type: number
+          nullable: true
+          description: "Average temperature of long-term lots (°C)"
+        conditionTempAcc:
+          type: number
+          nullable: true
+          description: "Average temperature of accelerated lots (°C)"
+        conditionHumLt:
+          type: number
+          nullable: true
+          description: "Average humidity of long-term lots (%UR)"
+        conditionHumAcc:
+          type: number
+          nullable: true
+          description: "Average humidity of accelerated lots (%UR)"
+        ea:
+          type: number
+          nullable: true
+          description: "Activation energy Ea (kJ/mol) from Arrhenius equation"
+        arrheniusA:
+          type: number
+          nullable: true
+          description: "Pre-exponential factor A (month⁻¹) from Arrhenius equation"
+        shelfLifeArrhenius:
+          type: number
+          nullable: true
+          description: "Shelf life (months) estimated via Arrhenius at long-term temperature"
       required:
         - parameter
         - minThresholdPercent

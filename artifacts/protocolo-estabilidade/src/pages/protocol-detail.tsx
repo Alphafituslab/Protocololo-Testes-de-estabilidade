@@ -138,6 +138,18 @@ const lotSchema = z.object({
   expiryDate: z.string().optional(),
   quantity: z.coerce.number().min(1),
   notes: z.string().optional(),
+  studyCondition: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.enum(["longa_duracao", "acelerado"]).optional(),
+  ),
+  temperatureC: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
+    z.number().nullable().optional(),
+  ),
+  humidityRh: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
+    z.number().nullable().optional(),
+  ),
 });
 
 const finalizeSchema = z.object({
@@ -431,7 +443,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
 
   const form = useForm<z.infer<typeof lotSchema>>({
     resolver: zodResolver(lotSchema),
-    defaultValues: { lotNumber: "", manufacturingDate: "", expiryDate: "", quantity: 20, notes: "" },
+    defaultValues: { lotNumber: "", manufacturingDate: "", expiryDate: "", quantity: 20, notes: "", studyCondition: undefined, temperatureC: null, humidityRh: null },
   });
 
   const createLot = useCreateLot({
@@ -445,7 +457,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
         // and close the dialog. The query is invalidated in onOpenChange instead.
         setTimeout(() => {
           setLastAdded(justAdded);
-          form.reset({ lotNumber: "", manufacturingDate: "", expiryDate: "", quantity: 20, notes: "" });
+          form.reset({ lotNumber: "", manufacturingDate: "", expiryDate: "", quantity: 20, notes: "", studyCondition: undefined, temperatureC: null, humidityRh: null });
           form.setFocus("lotNumber");
         }, 0);
       },
@@ -486,14 +498,23 @@ function LotsTab({ protocolId }: { protocolId: number }) {
 
   const openEdit = (lot: typeof lots[number]) => {
     setEditLot(lot);
-    form.reset({ lotNumber: lot.lotNumber, manufacturingDate: lot.manufacturingDate, expiryDate: lot.expiryDate ?? "", quantity: lot.quantity, notes: lot.notes ?? "" });
+    form.reset({
+      lotNumber: lot.lotNumber,
+      manufacturingDate: lot.manufacturingDate,
+      expiryDate: lot.expiryDate ?? "",
+      quantity: lot.quantity,
+      notes: lot.notes ?? "",
+      studyCondition: (lot.studyCondition as "longa_duracao" | "acelerado" | undefined) ?? undefined,
+      temperatureC: lot.temperatureC ?? null,
+      humidityRh: lot.humidityRh ?? null,
+    });
     setOpen(true);
   };
 
   const openNew = () => {
     setEditLot(null);
     setLastAdded(null);
-    form.reset({ lotNumber: "", manufacturingDate: "", expiryDate: "", quantity: 20, notes: "" });
+    form.reset({ lotNumber: "", manufacturingDate: "", expiryDate: "", quantity: 20, notes: "", studyCondition: undefined, temperatureC: null, humidityRh: null });
     setOpen(true);
   };
 
@@ -522,6 +543,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
               <TableHead>Fabricação</TableHead>
               <TableHead>Validade</TableHead>
               <TableHead>Qtd.</TableHead>
+              <TableHead>Condição</TableHead>
               <TableHead>Notas</TableHead>
               <TableHead className="w-20"></TableHead>
             </TableRow>
@@ -533,6 +555,24 @@ function LotsTab({ protocolId }: { protocolId: number }) {
                 <TableCell>{fmtDate(lot.manufacturingDate)}</TableCell>
                 <TableCell>{lot.expiryDate ? fmtDate(lot.expiryDate) : "—"}</TableCell>
                 <TableCell>{lot.quantity} un.</TableCell>
+                <TableCell className="text-sm">
+                  {lot.studyCondition ? (
+                    <div className="space-y-0.5">
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${lot.studyCondition === "longa_duracao" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}`}>
+                        {lot.studyCondition === "longa_duracao" ? "Longa Duração" : "Acelerado"}
+                      </span>
+                      {(lot.temperatureC != null || lot.humidityRh != null) && (
+                        <div className="text-[10px] text-muted-foreground">
+                          {lot.temperatureC != null && `${lot.temperatureC}°C`}
+                          {lot.temperatureC != null && lot.humidityRh != null && " / "}
+                          {lot.humidityRh != null && `${lot.humidityRh}%UR`}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </TableCell>
                 <TableCell className="text-muted-foreground text-sm">{lot.notes ?? "—"}</TableCell>
                 <TableCell>
                   {canManageLots && (
@@ -668,6 +708,65 @@ function LotsTab({ protocolId }: { protocolId: number }) {
                   <FormMessage />
                 </FormItem>
               )} />
+
+              {/* Condições do estudo de estabilidade */}
+              <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 space-y-3">
+                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Condição do Estudo (opcional)</p>
+                <FormField control={form.control} name="studyCondition" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs">Tipo de estudo</FormLabel>
+                    <FormControl>
+                      <select
+                        data-testid="input-studyCondition"
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value === "" ? undefined : e.target.value)}
+                        className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="">Não especificado</option>
+                        <option value="longa_duracao">Longa Duração</option>
+                        <option value="acelerado">Acelerado</option>
+                      </select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField control={form.control} name="temperatureC" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs">Temperatura (°C)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          data-testid="input-temperatureC"
+                          placeholder="ex: 25.0"
+                          value={field.value ?? ""}
+                          onChange={(e) => field.onChange(e.target.value)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="humidityRh" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs">Umidade (%UR)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          data-testid="input-humidityRh"
+                          placeholder="ex: 60.0"
+                          value={field.value ?? ""}
+                          onChange={(e) => field.onChange(e.target.value)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+                <p className="text-[10px] text-slate-500">Preencha para habilitar o cálculo de Arrhenius na aba Cinética quando houver lotes nas duas condições.</p>
+              </div>
+
               <div className="flex justify-between gap-2">
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                   {editLot ? "Cancelar" : "Fechar"}
@@ -3496,6 +3595,15 @@ type KineticApiParam = {
   estimatedShelfLifeMonths?: number | null;
   minThresholdPercent: number;
   criterion?: string | null;
+  kLongTerm?: number | null;
+  kAccelerated?: number | null;
+  conditionTempLt?: number | null;
+  conditionTempAcc?: number | null;
+  conditionHumLt?: number | null;
+  conditionHumAcc?: number | null;
+  ea?: number | null;
+  arrheniusA?: number | null;
+  shelfLifeArrhenius?: number | null;
 };
 
 function buildKineticOverride(p: KineticApiParam): KineticOverride {
@@ -4746,6 +4854,77 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Arrhenius panel — shown when any parameter has Ea computed */}
+      {kinetics.parameters.some((p) => p.ea != null) && (
+        <div className="rounded-md border border-violet-200 bg-violet-50 text-sm text-violet-900 space-y-4 p-4">
+          <p className="font-semibold text-sm flex items-center gap-2 text-violet-800">
+            🧪 Cinética por Condição — Modelo de Arrhenius
+          </p>
+          <p className="text-xs text-violet-700">
+            Com lotes nas condições <strong>longa duração</strong> e <strong>acelerado</strong> com temperaturas cadastradas, a energia de ativação (Eₐ) foi calculada via equação de Arrhenius (ICH Q1A(R2)).
+          </p>
+          <div className="space-y-3">
+            {kinetics.parameters.filter((p) => p.ea != null).map((p) => (
+              <div key={p.parameter} className="rounded-md border border-violet-300 bg-white px-4 py-3 space-y-2.5">
+                <p className="font-semibold text-sm text-violet-900">{p.parameter}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className="rounded bg-blue-50 border border-blue-200 px-3 py-2 space-y-1">
+                    <p className="font-semibold text-blue-700 uppercase tracking-wide text-[10px]">Longa Duração</p>
+                    {p.conditionTempLt != null && (
+                      <p className="text-blue-800">
+                        T = {p.conditionTempLt}°C
+                        {p.conditionHumLt != null && ` / ${p.conditionHumLt}%UR`}
+                        {" "}({(p.conditionTempLt + 273.15).toFixed(2)} K)
+                      </p>
+                    )}
+                    <p className="font-mono text-blue-900">
+                      k<sub>lt</sub> = {p.kLongTerm != null ? p.kLongTerm.toFixed(6) : "—"} /mês
+                    </p>
+                  </div>
+                  <div className="rounded bg-orange-50 border border-orange-200 px-3 py-2 space-y-1">
+                    <p className="font-semibold text-orange-700 uppercase tracking-wide text-[10px]">Acelerado</p>
+                    {p.conditionTempAcc != null && (
+                      <p className="text-orange-800">
+                        T = {p.conditionTempAcc}°C
+                        {p.conditionHumAcc != null && ` / ${p.conditionHumAcc}%UR`}
+                        {" "}({(p.conditionTempAcc + 273.15).toFixed(2)} K)
+                      </p>
+                    )}
+                    <p className="font-mono text-orange-900">
+                      k<sub>acc</sub> = {p.kAccelerated != null ? p.kAccelerated.toFixed(6) : "—"} /mês
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  <div className="rounded bg-violet-100 border border-violet-200 px-3 py-2 text-center">
+                    <p className="text-[10px] text-violet-600 font-semibold uppercase tracking-wide mb-0.5">Eₐ</p>
+                    <p className="font-mono font-bold text-violet-900 text-base">{p.ea!.toFixed(2)}</p>
+                    <p className="text-[10px] text-violet-600">kJ/mol</p>
+                  </div>
+                  <div className="rounded bg-violet-100 border border-violet-200 px-3 py-2 text-center">
+                    <p className="text-[10px] text-violet-600 font-semibold uppercase tracking-wide mb-0.5">Fator A</p>
+                    <p className="font-mono font-bold text-violet-900 text-base" title={p.arrheniusA?.toString()}>
+                      {p.arrheniusA != null ? p.arrheniusA.toExponential(3) : "—"}
+                    </p>
+                    <p className="text-[10px] text-violet-600">mês⁻¹</p>
+                  </div>
+                  <div className="rounded bg-green-100 border border-green-200 px-3 py-2 text-center">
+                    <p className="text-[10px] text-green-700 font-semibold uppercase tracking-wide mb-0.5">Validade (Arrhenius)</p>
+                    <p className="font-mono font-bold text-green-900 text-base">
+                      {p.shelfLifeArrhenius != null ? `${p.shelfLifeArrhenius.toFixed(1)} m` : "—"}
+                    </p>
+                    <p className="text-[10px] text-green-600">a {p.conditionTempLt != null ? `${p.conditionTempLt}°C` : "T longa dur."}</p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-violet-500 italic">
+                  Eₐ = R · ln(k<sub>acc</sub>/k<sub>lt</sub>) / (1/T<sub>lt</sub> − 1/T<sub>acc</sub>), com R = 8,314 J/(mol·K)
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Step-by-step formula breakdown */}
       <div className="rounded-md bg-slate-50 border border-slate-200 text-sm text-slate-700">
         <button
@@ -4810,6 +4989,29 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                 </div>
                 <p className="text-xs text-slate-500">Extrapolação da taxa T3→T6 a partir de T0</p>
               </>)}
+            </div>
+
+            <div className="space-y-3 md:col-span-2 border-t border-slate-200 pt-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">5. Energia de ativação Ea — equação de Arrhenius</p>
+                <button type="button" onClick={() => togglePassoStep(4)} className="shrink-0 text-[10px] px-1.5 py-0.5 rounded border border-slate-300 text-slate-400 hover:text-slate-600 hover:border-slate-400 transition-colors">{hiddenPassoSteps.has(4) ? "exibir" : "ocultar"}</button>
+              </div>
+              {!hiddenPassoSteps.has(4) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="font-mono bg-white border border-slate-200 rounded px-4 py-3 text-sm text-center">
+                      E<sub>a</sub> = R · ln(k<sub>acc</sub> / k<sub>lt</sub>) / (1/T<sub>lt</sub> − 1/T<sub>acc</sub>)
+                    </div>
+                    <p className="text-xs text-slate-500">R = 8,314 J/(mol·K) · T em Kelvin (°C + 273,15)</p>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="font-mono bg-white border border-slate-200 rounded px-4 py-3 text-sm text-center">
+                      A = k<sub>lt</sub> · e<sup>Ea/(R·T<sub>lt</sub>)</sup>
+                    </div>
+                    <p className="text-xs text-slate-500">Fator pré-exponencial; <em>k</em><sub>lt</sub> e <em>T</em><sub>lt</sub> da condição longa duração</p>
+                  </div>
+                </div>
+              )}
             </div>
 
           </div>

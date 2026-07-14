@@ -100,6 +100,18 @@ export interface Protocol {
   updatedAt: string;
 }
 
+/**
+ * Condição do estudo: longa duração ou acelerado
+ */
+export type LotStudyCondition =
+  | (typeof LotStudyCondition)[keyof typeof LotStudyCondition]
+  | null;
+
+export const LotStudyCondition = {
+  longa_duracao: "longa_duracao",
+  acelerado: "acelerado",
+} as const;
+
 export interface Lot {
   id: number;
   protocolId: number;
@@ -108,6 +120,12 @@ export interface Lot {
   expiryDate?: string | null;
   quantity: number;
   notes?: string | null;
+  /** Condição do estudo: longa duração ou acelerado */
+  studyCondition?: LotStudyCondition;
+  /** Temperatura de armazenamento (°C) */
+  temperatureC?: number | null;
+  /** Umidade relativa (%UR) */
+  humidityRh?: number | null;
   createdAt: string;
 }
 
@@ -260,12 +278,30 @@ export interface ProtocolStats {
   recentProtocols: Protocol[];
 }
 
+/**
+ * Condição do estudo
+ */
+export type CreateLotBodyStudyCondition =
+  | (typeof CreateLotBodyStudyCondition)[keyof typeof CreateLotBodyStudyCondition]
+  | null;
+
+export const CreateLotBodyStudyCondition = {
+  longa_duracao: "longa_duracao",
+  acelerado: "acelerado",
+} as const;
+
 export interface CreateLotBody {
   lotNumber: string;
   manufacturingDate: string;
   expiryDate?: string;
   quantity: number;
   notes?: string;
+  /** Condição do estudo */
+  studyCondition?: CreateLotBodyStudyCondition;
+  /** Temperatura (°C) */
+  temperatureC?: number | null;
+  /** Umidade relativa (%UR) */
+  humidityRh?: number | null;
 }
 
 export type UpsertResultBodyCategory =
@@ -310,16 +346,34 @@ export interface KineticParameter {
   t6?: number | null;
   /** -ln(avgT6/avgT3) — intermediate step, equals k * 3 */
   deltaLn?: number | null;
-  /** Degradation rate constant per month = deltaLn / 3 */
+  /** Degradation rate constant per month (longa duração, or all-lots fallback) */
   k?: number | null;
   /** t_validade = -ln(threshold/avgT0) / k (ICH Q1A method) */
   estimatedShelfLifeMonths?: number | null;
-  /** t_observado = -ln(avgT6/avgT0) / k (extrapolation from measured T6) */
+  /** t_observado = -ln(avgT6/avgT0) / k */
   tObserved?: number | null;
   /** Minimum acceptable concentration (same units as t0/t3/t6) */
   minThresholdPercent: number;
-  /** Specification criterion string from analysis results (e.g. '98,50% - 100,50%') */
+  /** Specification criterion string */
   criterion?: string | null;
+  /** k calculated from long-term condition lots only */
+  kLongTerm?: number | null;
+  /** k calculated from accelerated condition lots only */
+  kAccelerated?: number | null;
+  /** Average temperature of long-term lots (°C) */
+  conditionTempLt?: number | null;
+  /** Average temperature of accelerated lots (°C) */
+  conditionTempAcc?: number | null;
+  /** Average humidity of long-term lots (%UR) */
+  conditionHumLt?: number | null;
+  /** Average humidity of accelerated lots (%UR) */
+  conditionHumAcc?: number | null;
+  /** Activation energy Ea (kJ/mol) from Arrhenius equation */
+  ea?: number | null;
+  /** Pre-exponential factor A (month⁻¹) from Arrhenius equation */
+  arrheniusA?: number | null;
+  /** Shelf life (months) estimated via Arrhenius at long-term temperature */
+  shelfLifeArrhenius?: number | null;
 }
 
 export interface KineticsResult {
