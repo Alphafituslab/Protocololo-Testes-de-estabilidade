@@ -3883,31 +3883,25 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const minShelfLife = shelfLives.length > 0 ? Math.min(...shelfLives) : null;
   const limitingParam = Object.entries(overrides).find(([, o]) => parseFloat(o.shelfLife) === minShelfLife)?.[0] ?? null;
 
-  // Overage-adjusted shelf life per parameter:
-  //   t_val_overage = −ln(specMinPct / (100 + overage%)) / k
-  // specMinPct = (lim.min / lim.declared) × 100  — threshold real da especificação.
-  // Se lim.min for NE/LIVRE ou ausente, recai em 80% (ICH Q1A padrão).
+  // Overage-adjusted shelf life per parameter — mesma lógica do cálculo padrão:
+  //   t_val_overage = −ln(ichThreshold / C0_overage) / k
+  //   C0_overage = 100 + overage%  (sobreformulação declarada no T0)
+  //   ichThreshold = mesmo limiar usado no cálculo padrão (padrão ICH Q1A: 80%)
+  //
+  // Nota: specMin/specMax são informativos e NÃO entram no cálculo cinético —
+  // conforme comentário em calcKineticOverride. Usar ichThreshold garante
+  // consistência direta entre as duas caixas de Vida Útil.
   const overageAdjustedShelfLives: Record<string, number> = {};
-  const overageSpecMinPct: Record<string, number> = {};  // threshold % efetivo por parâmetro
   for (const [param, ov] of Object.entries(overrides)) {
     const k = parseFloat(ov.k);
     const lim = ativoLimits[param];
     const overagePct = lim?.overage ? parseFloat(lim.overage.replace(",", ".")) : NaN;
     if (isNaN(k) || k <= 0 || isNaN(overagePct) || overagePct <= 0) continue;
-    // Calcular o threshold real: mínimo da spec em %
-    const declaredNum = lim?.declared ? parseFloat(lim.declared.replace(",", ".")) : NaN;
-    const minRaw = lim?.min ? parseFloat((lim.min).replace(",", ".")) : NaN;
-    const isNEorLivre = (s: string) => { const u = (s ?? "").trim().toUpperCase(); return u === "NE" || u === "LIVRE" || u === ""; };
-    let specMinPct: number;
-    if (!isNaN(minRaw) && !isNaN(declaredNum) && declaredNum > 0 && !isNEorLivre(lim?.min ?? "")) {
-      specMinPct = (minRaw / declaredNum) * 100;
-    } else {
-      specMinPct = parseFloat(ov.ichThreshold) || 80;
-    }
-    overageSpecMinPct[param] = specMinPct;
+    // Usa o mesmo ichThreshold do cálculo padrão (default 80%)
+    const ichThreshold = parseFloat(ov.ichThreshold) || 80;
     const c0WithOverage = 100 + overagePct;
-    if (c0WithOverage <= specMinPct) continue;  // impossível: C0 já abaixo do mínimo
-    const lnNum = -Math.log(specMinPct / c0WithOverage);
+    if (c0WithOverage <= ichThreshold) continue;  // impossível: C0 já abaixo do mínimo
+    const lnNum = -Math.log(ichThreshold / c0WithOverage);
     if (lnNum > 0) overageAdjustedShelfLives[param] = lnNum / k;
   }
   const overageValues = Object.values(overageAdjustedShelfLives).filter(v => v > 0);
@@ -4328,8 +4322,8 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   <TableCell className="text-right py-2 bg-amber-50/30">
                     {(() => {
                       const overageShelf = overageAdjustedShelfLives[p.parameter];
-                      const specMinPct   = overageSpecMinPct[p.parameter];
                       const lim = ativoLimits[p.parameter];
+                      const ichThresholdPct = parseFloat(ov.ichThreshold) || 80;
                       const overagePct = lim?.overage ? parseFloat(lim.overage.replace(",", ".")) : NaN;
                       const k = parseFloat(ov.k);
                       const declaredNum = lim?.declared ? parseFloat(lim.declared.replace(",", ".")) : NaN;
@@ -4348,7 +4342,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       // Epsilon de 0.005 mg para evitar falso negativo por ponto flutuante
                       const qtyOk = qtyAtEnd != null
                         ? (!isNaN(minRaw) ? qtyAtEnd >= minRaw - 0.005 : true) && (!isNaN(maxRaw) ? qtyAtEnd <= maxRaw + 0.005 : true)
-                        : qtyAtEndPct != null && specMinPct != null ? qtyAtEndPct >= specMinPct - 0.001 : null;
+                        : qtyAtEndPct != null ? qtyAtEndPct >= ichThresholdPct - 0.001 : null;
 
                       return (
                         <div className="flex flex-col items-end gap-0.5">
@@ -4391,9 +4385,9 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                               {/* Tooltip com conta completa */}
                               <span
                                 className="text-[8px] text-blue-300 tabular-nums cursor-help"
-                                title={`−ln(${specMinPct?.toFixed(1)}%/(100+${overagePct})) / k = ${overageShelf.toFixed(2)} meses`}
+                                title={`−ln(${ichThresholdPct.toFixed(1)}%/(100+${overagePct})) / k = ${overageShelf.toFixed(2)} meses`}
                               >
-                                −ln(spec_min/{(100+overagePct).toFixed(0)}) ÷ k
+                                −ln({ichThresholdPct.toFixed(0)}%/{(100+overagePct).toFixed(0)}%) ÷ k
                               </span>
                             </div>
                           )}
