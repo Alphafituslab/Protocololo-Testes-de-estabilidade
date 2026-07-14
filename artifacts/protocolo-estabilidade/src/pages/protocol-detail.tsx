@@ -1710,6 +1710,11 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   const protocolIsAR = protocolFinalStatus === "aprovado_com_ressalva";
   const isCriterionLocked = protocolFinalStatus != null || protocolStatus === "aprovado" || protocolStatus === "reprovado" || protocolStatus === "aprovado_com_ressalva";
   const [editUnlocked, setEditUnlocked] = useState(false);
+  const [criterionConfirmPending, setCriterionConfirmPending] = useState<{
+    applyFn: (replace: boolean) => void;
+    currentCriterion: string; newCriterion: string;
+    paramName: string; methodName: string;
+  } | null>(null);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ProductTemplate | null>(null);
   const [clearParamsConfirmOpen, setClearParamsConfirmOpen] = useState(false);
@@ -3187,29 +3192,45 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                     methodologies={methodologies}
                                     catalogEntries={getCatalogEntries(param.parameter)}
                                     onSelect={(s, c) => {
-                                      // Biblioteca sempre tem prioridade absoluta
                                       const libEntry = s ? methodologies.find(m => m.shortName === s) : undefined;
-                                      const libParam = libEntry?.parameter ?? null;
-                                      const libCriteria = libEntry?.criteria ?? null;
-
-                                      if (s) {
-                                        if (libParam) {
-                                          updateParam(param.uid, "parameter", libParam);
-                                        } else {
-                                          const matches = getParamsForMethodology(s);
-                                          if (matches.length === 1) {
-                                            updateParam(param.uid, "parameter", matches[0].paramName);
-                                            updateParam(param.uid, "criterion", matches[0].criterion);
-                                          }
-                                        }
-                                        if (libCriteria) {
-                                          updateParam(param.uid, "criterion", libCriteria);
-                                        }
-                                      }
+                                      const libParam = (libEntry as (typeof libEntry & { parameter?: string | null }) | undefined)?.parameter ?? null;
+                                      const libCriteria = (libEntry as (typeof libEntry & { criteria?: string | null }) | undefined)?.criteria ?? null;
 
                                       const _fallbackName = param.parameter || (s ? (getParamsForMethodology(s)[0]?.paramName ?? "") : "");
                                       const finalName = libParam ?? _fallbackName;
-                                      setParamMethod(finalName, s, c);
+
+                                      // Critério que a metodologia traria
+                                      let pendingCrit: string | null = null;
+                                      if (s) {
+                                        if (libCriteria) pendingCrit = libCriteria;
+                                        else if (!libParam) {
+                                          const m = getParamsForMethodology(s);
+                                          if (m.length === 1 && m[0].criterion) pendingCrit = m[0].criterion;
+                                        }
+                                      }
+
+                                      const doApply = (replaceCriterion: boolean) => {
+                                        if (s) {
+                                          if (libParam) {
+                                            updateParam(param.uid, "parameter", libParam);
+                                          } else {
+                                            const matches = getParamsForMethodology(s);
+                                            if (matches.length === 1) {
+                                              updateParam(param.uid, "parameter", matches[0].paramName);
+                                              if (replaceCriterion) updateParam(param.uid, "criterion", matches[0].criterion);
+                                            }
+                                          }
+                                          if (libCriteria && replaceCriterion) updateParam(param.uid, "criterion", libCriteria);
+                                        }
+                                        setParamMethod(finalName, s, c);
+                                      };
+
+                                      const existCrit = param.criterion.trim();
+                                      if (pendingCrit && existCrit && pendingCrit !== existCrit) {
+                                        setCriterionConfirmPending({ applyFn: doApply, currentCriterion: existCrit, newCriterion: pendingCrit, paramName: param.parameter, methodName: s ?? "" });
+                                      } else {
+                                        doApply(true);
+                                      }
                                     }}
                                   />
                                 </div>
@@ -3354,6 +3375,20 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
           </div>
         );
       })}
+      {/* Dialog — metodologia sobrescreveria critério já preenchido */}
+      {criterionConfirmPending && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setCriterionConfirmPending(null)}>
+          <div className="bg-white rounded-lg shadow-xl w-96 p-5 space-y-3" onClick={e => e.stopPropagation()}>
+            <p className="font-semibold text-sm">Substituir critério?</p>
+            <p className="text-xs text-muted-foreground">O parâmetro <strong>{criterionConfirmPending.paramName}</strong> já tem critério preenchido:<br /><span className="font-medium text-foreground">"{criterionConfirmPending.currentCriterion}"</span></p>
+            <p className="text-xs text-muted-foreground">A metodologia <strong>{criterionConfirmPending.methodName}</strong> traz:<br /><span className="font-medium text-foreground">"{criterionConfirmPending.newCriterion}"</span></p>
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" onClick={() => { criterionConfirmPending.applyFn(false); setCriterionConfirmPending(null); }} className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted">Manter atual</button>
+              <button type="button" onClick={() => { criterionConfirmPending.applyFn(true); setCriterionConfirmPending(null); }} className="text-xs px-3 py-1.5 rounded bg-amber-600 text-white hover:bg-amber-700">Substituir critério</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -4833,6 +4868,11 @@ function MethodologiaTab({
   protocolStatus?: string | null;
 }) {
   const isCriterionLocked = protocolStatus === "aprovado" || protocolStatus === "reprovado" || protocolStatus === "aprovado_com_ressalva";
+  const [criterionConfirmPending, setCriterionConfirmPending] = useState<{
+    applyFn: (replace: boolean) => void;
+    currentCriterion: string; newCriterion: string;
+    paramName: string; methodName: string;
+  } | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: methodologies = [], isLoading } = useListMethodologies();
@@ -4921,7 +4961,7 @@ function MethodologiaTab({
     setEditableParams(prev => prev.map(p => p.uid === uid ? { ...p, [field]: val } : p));
   };
 
-  const setParamMethodInTab = (uid: string, paramName: string, shortName: string | null, citation: string | null) => {
+  const setParamMethodInTab = (uid: string, paramName: string, shortName: string | null, citation: string | null, replaceCriterion = true) => {
     // Biblioteca sempre tem prioridade absoluta sobre qualquer valor existente
     const libEntry = shortName ? methodologies.find(m => m.shortName === shortName) : undefined;
     const libParam = libEntry?.parameter ?? null;
@@ -4971,7 +5011,7 @@ function MethodologiaTab({
         return {
           ...p,
           parameter: libParam ?? catalogFill?.paramName ?? inferredName ?? p.parameter,
-          criterion: libCriteria ?? catalogFill?.criterion ?? p.criterion,
+          criterion: replaceCriterion ? (libCriteria ?? catalogFill?.criterion ?? p.criterion) : p.criterion,
           methodologyShort: shortName ?? undefined,
           methodologyCitation: citation ?? undefined,
         };
@@ -5056,7 +5096,7 @@ function MethodologiaTab({
   const setDragOverParam2 = (uid: string | null) => { dragOverParamRef2.current = uid; setDragOverParamUid2(uid); };
 
   // Senha para TROCAR metodologia já atribuída
-  const [changeMethodConfirm, setChangeMethodConfirm] = useState<{ uid: string; paramName: string; currentShort: string; newShortName: string | null; newCitation: string | null } | null>(null);
+  const [changeMethodConfirm, setChangeMethodConfirm] = useState<{ uid: string; paramName: string; currentShort: string; newShortName: string | null; newCitation: string | null; replaceCriterion?: boolean } | null>(null);
   const [changeMethodPwd, setChangeMethodPwd] = useState("");
   const [changeMethodError, setChangeMethodError] = useState("");
   const [changeMethodLoading, setChangeMethodLoading] = useState(false);
@@ -5083,8 +5123,8 @@ function MethodologiaTab({
       setChangeMethodLoading(false);
       return;
     }
-    const { uid, paramName, newShortName, newCitation } = changeMethodConfirm;
-    setParamMethodInTab(uid, paramName, newShortName, newCitation);
+    const { uid, paramName, newShortName, newCitation, replaceCriterion: replCrit } = changeMethodConfirm;
+    setParamMethodInTab(uid, paramName, newShortName, newCitation, replCrit ?? true);
     setChangeMethodConfirm(null);
     setChangeMethodPwd("");
     setChangeMethodError("");
@@ -5447,12 +5487,24 @@ function MethodologiaTab({
                                     methodologies={methodologies}
                                     catalogEntries={getCatalogEntries(p.parameter)}
                                     onSelect={(s, c) => {
-                                      if (p.methodologyShort) {
-                                        setChangeMethodConfirm({ uid: p.uid, paramName: p.parameter, currentShort: p.methodologyShort, newShortName: s, newCitation: c });
-                                        setChangeMethodPwd("");
-                                        setChangeMethodError("");
+                                      const libEnt = s ? methodologies.find(m => m.shortName === s) : undefined;
+                                      const libCritM = libEnt?.criteria ?? null;
+                                      const revM = s && !libEnt?.parameter ? getParamsForMethodology(s) : [];
+                                      const pendingCritM = libCritM ?? (revM.length === 1 ? revM[0].criterion || null : null);
+                                      const existCritM = p.criterion.trim();
+                                      const proceed = (replaceCriterion: boolean) => {
+                                        if (p.methodologyShort) {
+                                          setChangeMethodConfirm({ uid: p.uid, paramName: p.parameter, currentShort: p.methodologyShort, newShortName: s, newCitation: c, replaceCriterion });
+                                          setChangeMethodPwd("");
+                                          setChangeMethodError("");
+                                        } else {
+                                          setParamMethodInTab(p.uid, p.parameter, s, c, replaceCriterion);
+                                        }
+                                      };
+                                      if (pendingCritM && existCritM && pendingCritM !== existCritM) {
+                                        setCriterionConfirmPending({ applyFn: proceed, currentCriterion: existCritM, newCriterion: pendingCritM, paramName: p.parameter, methodName: s ?? "" });
                                       } else {
-                                        setParamMethodInTab(p.uid, p.parameter, s, c);
+                                        proceed(true);
                                       }
                                     }}
                                     compact
@@ -5479,12 +5531,24 @@ function MethodologiaTab({
                                 methodologies={methodologies}
                                 catalogEntries={getCatalogEntries(p.parameter)}
                                 onSelect={(s, c) => {
-                                  if (p.methodologyShort) {
-                                    setChangeMethodConfirm({ uid: p.uid, paramName: p.parameter, currentShort: p.methodologyShort, newShortName: s, newCitation: c });
-                                    setChangeMethodPwd("");
-                                    setChangeMethodError("");
+                                  const libEnt = s ? methodologies.find(m => m.shortName === s) : undefined;
+                                  const libCritM = libEnt?.criteria ?? null;
+                                  const revM = s && !libEnt?.parameter ? getParamsForMethodology(s) : [];
+                                  const pendingCritM = libCritM ?? (revM.length === 1 ? revM[0].criterion || null : null);
+                                  const existCritM = p.criterion.trim();
+                                  const proceed = (replaceCriterion: boolean) => {
+                                    if (p.methodologyShort) {
+                                      setChangeMethodConfirm({ uid: p.uid, paramName: p.parameter, currentShort: p.methodologyShort, newShortName: s, newCitation: c, replaceCriterion });
+                                      setChangeMethodPwd("");
+                                      setChangeMethodError("");
+                                    } else {
+                                      setParamMethodInTab(p.uid, p.parameter, s, c, replaceCriterion);
+                                    }
+                                  };
+                                  if (pendingCritM && existCritM && pendingCritM !== existCritM) {
+                                    setCriterionConfirmPending({ applyFn: proceed, currentCriterion: existCritM, newCriterion: pendingCritM, paramName: p.parameter, methodName: s ?? "" });
                                   } else {
-                                    setParamMethodInTab(p.uid, p.parameter, s, c);
+                                    proceed(true);
                                   }
                                 }}
                               />
@@ -5965,6 +6029,20 @@ function MethodologiaTab({
               <button type="button" onClick={confirmCriterionPwd} disabled={criterionPwdLoading || !criterionPwdValue.trim()} className="text-xs px-3 py-1.5 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50">
                 {criterionPwdLoading ? "Verificando…" : "Desbloquear critério"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Dialog — metodologia sobrescreveria critério já preenchido */}
+      {criterionConfirmPending && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setCriterionConfirmPending(null)}>
+          <div className="bg-white rounded-lg shadow-xl w-96 p-5 space-y-3" onClick={e => e.stopPropagation()}>
+            <p className="font-semibold text-sm">Substituir critério?</p>
+            <p className="text-xs text-muted-foreground">O parâmetro <strong>{criterionConfirmPending.paramName}</strong> já tem critério preenchido:<br /><span className="font-medium text-foreground">"{criterionConfirmPending.currentCriterion}"</span></p>
+            <p className="text-xs text-muted-foreground">A metodologia <strong>{criterionConfirmPending.methodName}</strong> traz:<br /><span className="font-medium text-foreground">"{criterionConfirmPending.newCriterion}"</span></p>
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" onClick={() => { criterionConfirmPending.applyFn(false); setCriterionConfirmPending(null); }} className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted">Manter atual</button>
+              <button type="button" onClick={() => { criterionConfirmPending.applyFn(true); setCriterionConfirmPending(null); }} className="text-xs px-3 py-1.5 rounded bg-amber-600 text-white hover:bg-amber-700">Substituir critério</button>
             </div>
           </div>
         </div>
