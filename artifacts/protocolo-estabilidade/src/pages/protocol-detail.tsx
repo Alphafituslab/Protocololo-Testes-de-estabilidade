@@ -3306,7 +3306,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                 periodDate={periodDates[period] || undefined}
                                 editUnlocked={editUnlocked}
                                 onUnlock={() => setEditUnlocked(true)}
-                                onSaved={() => setEditUnlocked(false)}
+                                onSaved={() => {}}
                               />
                             </TableCell>
                           );
