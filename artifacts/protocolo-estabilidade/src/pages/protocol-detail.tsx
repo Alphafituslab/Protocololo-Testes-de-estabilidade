@@ -3855,18 +3855,26 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       const saved = savedOverrides[p.parameter] ?? {};
       const dbParam = dbOverrides?.params?.[p.parameter];
 
-      const ichThreshold = dbParam?.ichThreshold ?? saved.ichThreshold ?? base.ichThreshold;
-      // T0/T3/T6: use DB-saved value when that field was manually edited; otherwise fresh API
+      // ichThreshold: ALWAYS use the fresh API value — never let a stale DB/localStorage
+      // value (e.g. saved when the default was 80%) override the current system default.
+      const ichThreshold = base.ichThreshold;
+
+      // T0/T3/T6: use DB-saved value ONLY when that field was explicitly edited by the user.
+      const anyManualTxT = dbParam?.manualFields?.some(f => ["t0", "t3", "t6"].includes(f)) ?? false;
       const t0 = (dbParam?.manualFields?.includes("t0") && dbParam.t0) ? dbParam.t0 : base.t0;
       const t3 = (dbParam?.manualFields?.includes("t3") && dbParam.t3) ? dbParam.t3 : base.t3;
       const t6 = (dbParam?.manualFields?.includes("t6") && dbParam.t6) ? dbParam.t6 : base.t6;
-      const recomputed = calcKineticOverride(t0, t3, t6, ichThreshold);
+
+      // Recompute k/deltaLn/shelfLife from user-edited values ONLY when t0/t3/t6 were
+      // manually changed. Otherwise use the API's pre-calculated values, which correctly
+      // compute k from the long-term bucket (not the all-lots average) per ICH Q1A(R2).
+      const recomputed = anyManualTxT ? calcKineticOverride(t0, t3, t6, ichThreshold) : null;
 
       next[p.parameter] = {
         t0, t3, t6,
-        deltaLn: recomputed.deltaLn ?? base.deltaLn,
-        k: recomputed.k ?? base.k,
-        shelfLife: recomputed.shelfLife ?? base.shelfLife,
+        deltaLn: recomputed?.deltaLn ?? base.deltaLn,
+        k: recomputed?.k ?? base.k,
+        shelfLife: recomputed?.shelfLife ?? base.shelfLife,
         validadePraticada: dbParam?.validadePraticada || saved.validadePraticada || base.validadePraticada || effectiveCardValidity,
         ichThreshold,
         specMin: dbParam?.specMin || saved.specMin || base.specMin,
