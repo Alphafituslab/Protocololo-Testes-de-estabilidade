@@ -222,9 +222,11 @@ router.get("/protocols/:id/kinetics", async (req, res): Promise<void> => {
 
       return {
         parameter: paramName,
-        t0: avg(all.t0),
-        t3: avg(all.t3),
-        t6: avg(all.t6),
+        // Use primary-bucket averages (long-term preferred) so displayed T0/T3/T6
+        // are consistent with the k and shelf-life calculation inputs.
+        t0: avg(primaryBucket.t0),
+        t3: avg(primaryBucket.t3),
+        t6: avg(primaryBucket.t6),
         deltaLn,
         k,
         estimatedShelfLifeMonths,
