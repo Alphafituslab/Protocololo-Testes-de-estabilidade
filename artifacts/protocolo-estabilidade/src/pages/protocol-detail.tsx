@@ -3495,7 +3495,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
 type KineticOverride = {
   t0: string; t3: string; t6: string;
   deltaLn: string; k: string;
-  ichThreshold: string;   // ICH Q1A(R2) minimum content % — used in t_val formula (default: 80)
+  ichThreshold: string;   // Minimum content threshold % — used in t_val formula (default: 90)
   specMin: string;        // Specification/criterion range min — informational only, NOT used in calc
   specMax: string;        // Specification/criterion range max — informational only
   shelfLife: string; validadePraticada: string;
@@ -4041,8 +4041,8 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     const lim = ativoLimits[param];
     const overagePct = lim?.overage ? parseFloat(lim.overage.replace(",", ".")) : NaN;
     if (isNaN(k) || k <= 0 || isNaN(overagePct) || overagePct <= 0) continue;
-    // Usa o mesmo ichThreshold do cálculo padrão (default 80%)
-    const ichThreshold = parseFloat(ov.ichThreshold) || 80;
+    // Usa o mesmo ichThreshold do cálculo padrão (default 90%)
+    const ichThreshold = parseFloat(ov.ichThreshold) || 90;
     // C0 com overage = T0 real × (1 + overage%) → sempre ≥ T0 real → prazo sempre maior
     const actualC0 = parseFloat(ov.t0) || 100;
     const c0WithOverage = actualC0 * (1 + overagePct / 100);
@@ -4469,7 +4469,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                     {(() => {
                       const overageShelf = overageAdjustedShelfLives[p.parameter];
                       const lim = ativoLimits[p.parameter];
-                      const ichThresholdPct = parseFloat(ov.ichThreshold) || 80;
+                      const ichThresholdPct = parseFloat(ov.ichThreshold) || 90;
                       const overagePct = lim?.overage ? parseFloat(lim.overage.replace(",", ".")) : NaN;
                       const k = parseFloat(ov.k);
                       const declaredNum = lim?.declared ? parseFloat(lim.declared.replace(",", ".")) : NaN;
@@ -4659,7 +4659,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                         specMinPct = (minRaw / declaredNum) * 100;
                         specMinLabel = `${lim?.min} ${unit}`;
                       } else {
-                        specMinPct = parseFloat(ov.ichThreshold) || 80;
+                        specMinPct = parseFloat(ov.ichThreshold) || 90;
                         specMinLabel = `${specMinPct}%`;
                       }
                       // Max em % para verificar teto
@@ -4967,14 +4967,14 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
 
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">3. Tempo de validade — método ICH (80%)</p>
+                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">3. Tempo de validade — método ICH (90%)</p>
                 <button type="button" onClick={() => togglePassoStep(2)} className="shrink-0 text-[10px] px-1.5 py-0.5 rounded border border-slate-300 text-slate-400 hover:text-slate-600 hover:border-slate-400 transition-colors">{hiddenPassoSteps.has(2) ? "exibir" : "ocultar"}</button>
               </div>
               {!hiddenPassoSteps.has(2) && (<>
                 <div className="font-mono bg-white border border-slate-200 rounded px-4 py-3 text-sm text-center">
-                  t<sub>validade</sub> = −ln(80 / Média<sub>T0</sub>) / k
+                  t<sub>validade</sub> = −ln(90 / Média<sub>T0</sub>) / k
                 </div>
-                <p className="text-xs text-slate-500">Estimativa até atingir 80% do valor declarado</p>
+                <p className="text-xs text-slate-500">Estimativa até atingir 90% do valor declarado</p>
               </>)}
             </div>
 

@@ -9,10 +9,10 @@ const router: IRouter = Router();
 const R = 8.314;
 
 /**
- * ICH Q1A(R2) minimum content threshold for shelf-life estimation.
- * Per ICH Q1A(R2) the minimum acceptable content for stability purposes is 80 %.
+ * Minimum content threshold for shelf-life estimation.
+ * Changed to 90 % per product specification (stricter than ICH Q1A(R2) default of 80 %).
  */
-const ICH_MIN_THRESHOLD_PERCENT = 80;
+const ICH_MIN_THRESHOLD_PERCENT = 90;
 
 /**
  * First-order kinetics (ICH Q1A(R2)):
