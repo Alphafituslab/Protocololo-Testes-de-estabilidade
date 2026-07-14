@@ -4095,9 +4095,10 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       {/* Summary card */}
       <Card className="border-green-200 bg-green-50">
         <CardContent className="pt-4">
-          <div className="flex items-center justify-between gap-8">
-            {/* LEFT — Vida Útil Estimada (editable override) */}
-            <div className="flex-1">
+          <div className={`flex items-start gap-6 ${minOverageShelfLife != null ? "flex-wrap" : ""}`}>
+
+            {/* BOX 1 — Vida Útil Estimada (sem overage) */}
+            <div className="flex-1 min-w-[160px]">
               <p className="text-xs text-green-700 font-medium uppercase tracking-wide mb-1">
                 Vida Útil Estimada (t<sub>validade</sub>)
               </p>
@@ -4117,34 +4118,50 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               {limitingParam && (
                 <div className="mt-2 inline-flex items-center gap-1.5 bg-amber-100 border border-amber-300 rounded-md px-2.5 py-1">
                   <span className="text-amber-600 text-xs">⚠</span>
-                  <span className="text-xs font-semibold text-amber-800">Item mais degradado:</span>
+                  <span className="text-xs font-semibold text-amber-800">Item limitante:</span>
                   <span className="text-xs font-bold text-amber-900">{limitingParam}</span>
-                </div>
-              )}
-              {/* Overage-adjusted shelf life summary — shown when at least one parameter has overage */}
-              {minOverageShelfLife != null && (
-                <div className={`mt-2 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 border ${allHaveOverage ? "bg-blue-50 border-blue-300" : "bg-blue-50/60 border-blue-200"}`}>
-                  <span className="text-blue-500 text-xs">📦</span>
-                  <span className="text-xs font-semibold text-blue-700">
-                    {allHaveOverage ? "Com overage:" : "Com overage (parcial):"}
-                  </span>
-                  <span className="text-xs font-bold text-blue-900">
-                    {Math.floor(minOverageShelfLife)} meses
-                  </span>
-                  {limitingOverageParam && (
-                    <span className="text-[10px] text-blue-500">({limitingOverageParam})</span>
-                  )}
                 </div>
               )}
               <p className="text-xs text-green-600 mt-1.5 opacity-60">
                 {customShelfLife !== ""
                   ? "Valor editado manualmente — clique em \"Restaurar\" para usar o calculado"
-                  : "Menor validade calculada entre os parâmetros de Teor do Ativo"}
+                  : "Sem overage — concentração inicial = 100%"}
               </p>
             </div>
 
-            {/* RIGHT — Validade Praticada */}
-            <div className="flex-1 text-right">
+            {/* BOX 2 — Com Overage (exibido apenas quando há overage configurado) */}
+            {minOverageShelfLife != null && (
+              <div className="flex-1 min-w-[160px] rounded-lg border-2 border-blue-300 bg-blue-50 px-4 py-3">
+                <p className="text-xs text-blue-700 font-medium uppercase tracking-wide mb-1 flex items-center gap-1">
+                  <span>📦</span>
+                  {allHaveOverage ? "Com Overage" : "Com Overage (parcial)"}
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-3xl font-bold text-blue-800 tabular-nums">
+                    {Math.floor(minOverageShelfLife)}
+                  </span>
+                  <span className="text-xl font-semibold text-blue-700">meses</span>
+                </div>
+                {limitingOverageParam && (
+                  <div className="mt-2 inline-flex items-center gap-1.5 bg-blue-100 border border-blue-300 rounded-md px-2.5 py-1">
+                    <span className="text-blue-600 text-xs">⚠</span>
+                    <span className="text-xs font-semibold text-blue-800">Item limitante:</span>
+                    <span className="text-xs font-bold text-blue-900">{limitingOverageParam}</span>
+                  </div>
+                )}
+                <p className="text-xs text-blue-600 mt-1.5 opacity-80">
+                  Validade recalculada considerando a sobreformulação declarada
+                </p>
+                {!allHaveOverage && (
+                  <p className="text-[10px] text-blue-500 mt-0.5">
+                    ⚠ Nem todos os ativos têm overage — valor parcial
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* BOX 3 — Validade Praticada */}
+            <div className="flex-1 min-w-[160px] text-right">
               <p className="text-xs text-green-700 font-medium uppercase tracking-wide mb-1">Validade Praticada</p>
               <div className="flex items-center gap-2 justify-end">
                 <input
@@ -4152,7 +4169,6 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   onChange={(e) => {
                     const val = e.target.value;
                     setCardValidity(val);
-                    // Propagar para todas as linhas da tabela Validade Adotada
                     setOverrides(prev => {
                       const next: Record<string, KineticOverride> = {};
                       for (const [key, ov] of Object.entries(prev)) {
@@ -4179,9 +4195,10 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               </div>
               <p className="text-xs text-green-700 mt-1">valor adotado no produto</p>
               <p className="text-[11px] text-green-600/80 mt-0.5 flex items-center gap-1 justify-end">
-                <span>✓</span> Este valor é exibido no Certificado de Análise e no Relatório ANVISA
+                <span>✓</span> Exibido no Certificado de Análise e Relatório ANVISA
               </p>
             </div>
+
           </div>
         </CardContent>
       </Card>
@@ -4685,8 +4702,20 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
         )}
       </div>
 
-      <div className="rounded-md border border-slate-200 bg-white p-4 space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Conclusão</p>
+      <div className={`rounded-md border p-4 space-y-2 ${minOverageShelfLife != null && !kineticsObs.trim() ? "border-amber-400 bg-amber-50" : "border-slate-200 bg-white"}`}>
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Conclusão</p>
+          {minOverageShelfLife != null && (
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${kineticsObs.trim() ? "bg-green-100 border-green-300 text-green-700" : "bg-amber-100 border-amber-400 text-amber-800"}`}>
+              {kineticsObs.trim() ? "✓ Justificativa preenchida" : "⚠ Justificativa obrigatória — protocolo usa overage"}
+            </span>
+          )}
+        </div>
+        {minOverageShelfLife != null && !kineticsObs.trim() && (
+          <div className="rounded-md bg-amber-100 border border-amber-300 px-3 py-2 text-xs text-amber-800 leading-relaxed">
+            <strong>Atenção:</strong> Este protocolo utiliza <strong>overage</strong> (sobreformulação) em um ou mais ativos. É obrigatório justificar tecnicamente o uso do overage — ex.: estabilidade do ativo durante a vida útil, perdas no processo, justificativa regulatória.
+          </div>
+        )}
         <textarea
           value={kineticsObs}
           onChange={(e) => {
@@ -4698,9 +4727,11 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
             } catch { /* ignore */ }
             debouncedSave({ kineticsNotes: val });
           }}
-          placeholder="Descreva a conclusão sobre os dados cinéticos: desvios encontrados, condições especiais de armazenamento, lotes atípicos, interferências analíticas ou qualquer informação relevante para o laudo."
+          placeholder={minOverageShelfLife != null
+            ? "Justifique o uso de overage (sobreformulação): estabilidade do ativo, perdas no processo, justificativa regulatória... Inclua também a conclusão geral sobre os dados cinéticos."
+            : "Descreva a conclusão sobre os dados cinéticos: desvios encontrados, condições especiais de armazenamento, lotes atípicos, interferências analíticas ou qualquer informação relevante para o laudo."}
           rows={5}
-          className="w-full text-sm border border-input rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary resize-y placeholder:text-muted-foreground/40"
+          className={`w-full text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-1 resize-y placeholder:text-muted-foreground/40 ${minOverageShelfLife != null && !kineticsObs.trim() ? "border-2 border-amber-400 focus:ring-amber-500 bg-white" : "border border-input focus:ring-primary"}`}
         />
       </div>
     </div>
