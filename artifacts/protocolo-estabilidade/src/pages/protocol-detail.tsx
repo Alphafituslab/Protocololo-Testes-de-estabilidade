@@ -2822,6 +2822,36 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                                 }
                                 return null;
                               })()}
+                              {/* Recomendação automática de overage calculada pela aba Cinética */}
+                              {(() => {
+                                const rec = recommendedKineticsOverages[param.parameter];
+                                if (rec == null) return null;
+                                const currentOvg = lim.overage ? parseFloat(lim.overage.replace(",", ".")) : 0;
+                                if (rec === 0) {
+                                  return (
+                                    <span className="block text-[9px] text-green-600 mt-0.5 text-right">
+                                      ✓ sem overage necessário
+                                    </span>
+                                  );
+                                }
+                                if (!isNaN(currentOvg) && currentOvg >= rec) {
+                                  return (
+                                    <span className="block text-[9px] text-green-600 mt-0.5 text-right">
+                                      ✓ +{currentOvg}% suficiente
+                                    </span>
+                                  );
+                                }
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => setAtivoLimit(param.parameter, "overage", rec.toFixed(1))}
+                                    className="mt-0.5 text-[9px] px-1.5 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100 font-semibold transition-colors whitespace-nowrap block ml-auto"
+                                    title={`Cinética recomenda +${rec}% de overage para garantir o mínimo ao fim da validade adotada`}
+                                  >
+                                    ↑ aplicar +{rec}%
+                                  </button>
+                                );
+                              })()}
                             </td>
                             <td className="pr-2 py-1">
                               <input
@@ -3646,6 +3676,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   initialKineticsOverridesJson?: string | null;
   ativoLimitsJson?: string | null;
   onApplyOverage?: (param: string, overage: string) => void;
+  onRecommendedOverages?: (recs: Record<string, number>) => void;
   onSyncCertificate?: () => void;
   isSyncingCertificate?: boolean;
 }) {
@@ -3726,6 +3757,40 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     if (!ativoLimitsJson) return {};
     try { return JSON.parse(ativoLimitsJson); } catch { return {}; }
   }, [ativoLimitsJson]);
+
+  // Overage recomendado por parâmetro — cálculo reverso ICH Q1A(R2):
+  //   T0_necessário = specMin% × e^(k × validadeMeses)
+  //   overageNecessário = max(0, T0_necessário − 100)
+  // Atualiza automaticamente quando overrides ou ativoLimits mudam.
+  const recommendedOverages = useMemo<Record<string, number>>(() => {
+    const result: Record<string, number> = {};
+    const isNEorLivre = (s: string) => { const u = (s ?? "").trim().toUpperCase(); return u === "NE" || u === "LIVRE" || u === ""; };
+    for (const [param, ov] of Object.entries(overrides)) {
+      const k = parseFloat(ov.k);
+      if (isNaN(k) || k <= 0) continue;
+      const lim = ativoLimits[param];
+      if (!lim) continue;
+      const validadeMeses = parseFloat(ov.validadePraticada);
+      if (isNaN(validadeMeses) || validadeMeses <= 0) continue;
+      const declaredNum = lim.declared ? parseFloat(lim.declared.replace(",", ".")) : NaN;
+      const minRaw = lim.min ? parseFloat(lim.min.replace(",", ".")) : NaN;
+      let specMinPct: number;
+      if (!isNaN(minRaw) && !isNaN(declaredNum) && declaredNum > 0 && !isNEorLivre(lim.min ?? "")) {
+        specMinPct = (minRaw / declaredNum) * 100;
+      } else {
+        specMinPct = parseFloat(ov.ichThreshold) || 90;
+      }
+      const t0Required = specMinPct * Math.exp(k * validadeMeses);
+      const overageRequired = Math.max(0, t0Required - 100);
+      result[param] = parseFloat((Math.ceil(overageRequired * 10) / 10).toFixed(1));
+    }
+    return result;
+  }, [overrides, ativoLimits]);
+
+  // Informa o componente pai sempre que as recomendações mudarem
+  useEffect(() => {
+    onRecommendedOverages?.(recommendedOverages);
+  }, [recommendedOverages, onRecommendedOverages]);
 
   // Decisão para parâmetros fora da faixa ANVISA
   const [ativoDecision, setAtivoDecision] = useState<Record<string, "reprova" | "refaz" | null>>({});
@@ -6711,6 +6776,13 @@ export default function ProtocolDetail() {
     },
   });
 
+  // Overage recomendado calculado em tempo real pelo KineticsTab (cálculo reverso ICH).
+  // Atualizado automaticamente quando k / validade praticada / spec mínima mudam.
+  const [recommendedKineticsOverages, setRecommendedKineticsOverages] = useState<Record<string, number>>({});
+  const handleRecommendedOverages = useCallback((recs: Record<string, number>) => {
+    setRecommendedKineticsOverages(recs);
+  }, []);
+
   // Called by KineticsTab when the user applies an overage % to a parameter.
   // Atualiza localAtivoLimitsJson IMEDIATAMENTE (KineticsTab re-renderiza na hora)
   // e persiste no DB em segundo plano.
@@ -7084,6 +7156,7 @@ export default function ProtocolDetail() {
                 initialKineticsOverridesJson={protocol.kineticsOverridesJson}
                 ativoLimitsJson={localAtivoLimitsJson ?? protocol.ativoLimitsJson}
                 onApplyOverage={handleApplyOverage}
+                onRecommendedOverages={handleRecommendedOverages}
                 onSyncCertificate={handleSyncCertificate}
                 isSyncingCertificate={isSyncingCertificate}
               />
