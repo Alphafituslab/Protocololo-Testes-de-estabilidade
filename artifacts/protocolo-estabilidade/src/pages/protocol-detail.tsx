@@ -1808,7 +1808,7 @@ const CATEGORY_PRESETS: Record<string, { parameter: string; criterion: string }[
   ],
 };
 
-function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJson, initialParamMethodsJson, initialParamMethodsCitationsJson, protocolFinalStatus, protocolStatus, initialAtivoLimitsJson, initialKineticsOverridesJson }: { protocolId: number; initialCustomParamsJson?: string | null; initialPeriodDatesJson?: string | null; initialParamMethodsJson?: string | null; initialParamMethodsCitationsJson?: string | null; protocolFinalStatus?: string | null; protocolStatus?: string | null; initialAtivoLimitsJson?: string | null; initialKineticsOverridesJson?: string | null }) {
+function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJson, initialParamMethodsJson, initialParamMethodsCitationsJson, protocolFinalStatus, protocolStatus, initialAtivoLimitsJson, initialKineticsOverridesJson, recommendedKineticsOverages }: { protocolId: number; initialCustomParamsJson?: string | null; initialPeriodDatesJson?: string | null; initialParamMethodsJson?: string | null; initialParamMethodsCitationsJson?: string | null; protocolFinalStatus?: string | null; protocolStatus?: string | null; initialAtivoLimitsJson?: string | null; initialKineticsOverridesJson?: string | null; recommendedKineticsOverages?: Record<string, number> }) {
   const protocolIsAR = protocolFinalStatus === "aprovado_com_ressalva";
   const isCriterionLocked = protocolFinalStatus != null || protocolStatus === "aprovado" || protocolStatus === "reprovado" || protocolStatus === "aprovado_com_ressalva";
   const [editUnlocked, setEditUnlocked] = useState(false);
@@ -1873,13 +1873,6 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
       return raw ? JSON.parse(raw) : {};
     } catch { return {}; }
   });
-
-  // Overage recomendado recebido em tempo real do KineticsTab (cálculo reverso ICH).
-  // Declarado aqui no topo para estar em escopo antes do JSX da Faixa de Conformidade.
-  const [recommendedKineticsOverages, setRecommendedKineticsOverages] = useState<Record<string, number>>({});
-  const handleRecommendedOverages = useCallback((recs: Record<string, number>) => {
-    setRecommendedKineticsOverages(recs);
-  }, []);
 
   // ── Limites ANVISA por ativo (min/max/unidade/declarado) ─────────────────
   const ATIVO_LIMITS_KEY = `ativo_limits_${protocolId}`;
@@ -6783,6 +6776,13 @@ export default function ProtocolDetail() {
     },
   });
 
+  // Overage recomendado calculado em tempo real pelo KineticsTab (cálculo reverso ICH).
+  // Vive em ProtocolDetail para poder ser passado tanto para KineticsTab quanto para ResultsTab.
+  const [recommendedKineticsOverages, setRecommendedKineticsOverages] = useState<Record<string, number>>({});
+  const handleRecommendedOverages = useCallback((recs: Record<string, number>) => {
+    setRecommendedKineticsOverages(recs);
+  }, []);
+
   // Called by KineticsTab when the user applies an overage % to a parameter.
   // Atualiza localAtivoLimitsJson IMEDIATAMENTE (KineticsTab re-renderiza na hora)
   // e persiste no DB em segundo plano.
@@ -7140,6 +7140,7 @@ export default function ProtocolDetail() {
                 protocolStatus={protocol.status}
                 initialAtivoLimitsJson={protocol.ativoLimitsJson}
                 initialKineticsOverridesJson={protocol.kineticsOverridesJson}
+                recommendedKineticsOverages={recommendedKineticsOverages}
               />
             </CardContent>
           </Card>
