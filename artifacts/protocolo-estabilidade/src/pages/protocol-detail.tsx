@@ -3667,7 +3667,7 @@ type KineticsOverridesDB = {
   customShelfLife?: string;
 };
 
-function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths, customParamsJson, initialKineticsOverridesJson, ativoLimitsJson, onApplyOverage, onSyncCertificate, isSyncingCertificate }: {
+function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths, customParamsJson, initialKineticsOverridesJson, ativoLimitsJson, onApplyOverage, onRecommendedOverages, onSyncCertificate, isSyncingCertificate }: {
   protocolId: number;
   productName: string;
   initialKineticsNotes?: string | null;
