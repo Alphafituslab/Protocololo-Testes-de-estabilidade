@@ -1874,6 +1874,13 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
     } catch { return {}; }
   });
 
+  // Overage recomendado recebido em tempo real do KineticsTab (cálculo reverso ICH).
+  // Declarado aqui no topo para estar em escopo antes do JSX da Faixa de Conformidade.
+  const [recommendedKineticsOverages, setRecommendedKineticsOverages] = useState<Record<string, number>>({});
+  const handleRecommendedOverages = useCallback((recs: Record<string, number>) => {
+    setRecommendedKineticsOverages(recs);
+  }, []);
+
   // ── Limites ANVISA por ativo (min/max/unidade/declarado) ─────────────────
   const ATIVO_LIMITS_KEY = `ativo_limits_${protocolId}`;
   const [ativoLimits, setAtivoLimitsState] = useState<Record<string, { min: string; max: string; unit: string; declared: string; overage: string; norma: string }>>(() => {
@@ -6775,13 +6782,6 @@ export default function ProtocolDetail() {
       },
     },
   });
-
-  // Overage recomendado calculado em tempo real pelo KineticsTab (cálculo reverso ICH).
-  // Atualizado automaticamente quando k / validade praticada / spec mínima mudam.
-  const [recommendedKineticsOverages, setRecommendedKineticsOverages] = useState<Record<string, number>>({});
-  const handleRecommendedOverages = useCallback((recs: Record<string, number>) => {
-    setRecommendedKineticsOverages(recs);
-  }, []);
 
   // Called by KineticsTab when the user applies an overage % to a parameter.
   // Atualiza localAtivoLimitsJson IMEDIATAMENTE (KineticsTab re-renderiza na hora)
