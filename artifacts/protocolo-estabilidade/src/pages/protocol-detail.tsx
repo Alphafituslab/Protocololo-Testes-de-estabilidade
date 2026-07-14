@@ -3885,7 +3885,8 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
 
   // Overage-adjusted shelf life per parameter — mesma lógica do cálculo padrão:
   //   t_val_overage = −ln(ichThreshold / C0_overage) / k
-  //   C0_overage = 100 + overage%  (sobreformulação declarada no T0)
+  //   C0_overage = T0_real × (1 + overage/100)
+  //     → escala o T0 medido pelo fator de overage; garante prazo ≥ sem overage
   //   ichThreshold = mesmo limiar usado no cálculo padrão (padrão ICH Q1A: 80%)
   //
   // Nota: specMin/specMax são informativos e NÃO entram no cálculo cinético —
@@ -3899,7 +3900,9 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     if (isNaN(k) || k <= 0 || isNaN(overagePct) || overagePct <= 0) continue;
     // Usa o mesmo ichThreshold do cálculo padrão (default 80%)
     const ichThreshold = parseFloat(ov.ichThreshold) || 80;
-    const c0WithOverage = 100 + overagePct;
+    // C0 com overage = T0 real × (1 + overage%) → sempre ≥ T0 real → prazo sempre maior
+    const actualC0 = parseFloat(ov.t0) || 100;
+    const c0WithOverage = actualC0 * (1 + overagePct / 100);
     if (c0WithOverage <= ichThreshold) continue;  // impossível: C0 já abaixo do mínimo
     const lnNum = -Math.log(ichThreshold / c0WithOverage);
     if (lnNum > 0) overageAdjustedShelfLives[param] = lnNum / k;
