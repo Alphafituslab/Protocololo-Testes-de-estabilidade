@@ -1224,21 +1224,26 @@ function ParamMethodSelector({
         ) : (
           <button
             type="button"
-            className={`flex items-center gap-0.5 mt-0.5 text-[10px] rounded px-1 py-0 transition-colors ${
+            className={`flex items-start gap-1 mt-0.5 text-[11px] rounded px-1 py-0.5 transition-colors text-left ${
               selected
-                ? "text-primary/80 hover:text-primary"
-                : "text-muted-foreground/40 hover:text-muted-foreground"
+                ? "text-primary/90 hover:text-primary font-medium"
+                : "text-muted-foreground/50 hover:text-muted-foreground"
             }`}
-            title={selected ? `Metodologia: ${selected}` : "Selecionar metodologia"}
+            title={selected ? `Clique para alterar metodologia` : "Clique para selecionar metodologia"}
             onClick={(e) => e.stopPropagation()}
           >
-            <BookOpen className="h-2.5 w-2.5 flex-shrink-0" />
-            <span className="truncate max-w-[120px]">{selected ?? "método..."}</span>
-            {hasCatalog && !selected && (
-              <span className="ml-0.5 text-[8px] bg-primary/15 text-primary rounded px-0.5 font-semibold leading-tight">
-                {catalogEntries.length}
-              </span>
-            )}
+            <BookOpen className="h-3 w-3 flex-shrink-0 mt-0.5" />
+            <span className="whitespace-normal leading-tight">
+              {selected ?? (
+                <span className="italic text-[10px]">
+                  selecionar{hasCatalog && (
+                    <span className="ml-1 not-italic bg-primary/15 text-primary rounded px-1 py-0 text-[9px] font-semibold">
+                      {catalogEntries.length}
+                    </span>
+                  )}
+                </span>
+              )}
+            </span>
           </button>
         )}
       </PopoverTrigger>
