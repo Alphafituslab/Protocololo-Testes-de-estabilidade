@@ -473,6 +473,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
         toast({ title: "Lote atualizado" });
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
+          queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
         }, 0);
       },
     },
@@ -483,6 +484,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
+        queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
         toast({ title: "Lote removido" });
       },
     },
@@ -618,11 +620,12 @@ function LotsTab({ protocolId }: { protocolId: number }) {
       <Dialog open={open} onOpenChange={(next) => {
         setOpen(next);
         if (!next) {
-          // Invalidate both queries only when the dialog closes — never while it
+          // Invalidate queries only when the dialog closes — never while it
           // is open. Invalidating with a mounted Dialog portal can trigger a
           // LotsTab re-render that causes the error boundary to reset open=false.
           queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
           queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
+          queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
           setLastAdded(null);
         }
       }}>
