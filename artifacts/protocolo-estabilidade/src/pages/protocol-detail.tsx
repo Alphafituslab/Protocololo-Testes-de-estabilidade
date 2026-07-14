@@ -565,9 +565,9 @@ function LotsTab({ protocolId }: { protocolId: number }) {
                       </span>
                       {(lot.temperatureC != null || lot.humidityRh != null) && (
                         <div className="text-[10px] text-muted-foreground">
-                          {lot.temperatureC != null && `${lot.temperatureC}°C`}
+                          {lot.temperatureC != null && `${lot.temperatureC}°C ± 2°C`}
                           {lot.temperatureC != null && lot.humidityRh != null && " / "}
-                          {lot.humidityRh != null && `${lot.humidityRh}%UR`}
+                          {lot.humidityRh != null && `${lot.humidityRh}%UR ± 5%`}
                         </div>
                       )}
                     </div>
