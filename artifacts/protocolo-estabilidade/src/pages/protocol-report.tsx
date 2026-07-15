@@ -845,9 +845,14 @@ export default function ProtocolReportPage() {
                     </p>
                   );
                 })()}
-                {(kineticsData as any)?.recommendedValidityMonths != null && (
-                  <p><span className="text-gray-400">Recomendada:</span> <span className="font-semibold">{(kineticsData as any).recommendedValidityMonths} meses</span></p>
-                )}
+                {(kineticsData as any)?.recommendedValidityMonths != null && (() => {
+                  const limP = validKParams.find((p: any) => p.parameter === (kineticsData as any).limitingParameter);
+                  const selV = limP ? getReportBoxShelfLife(limP) : null;
+                  const display = selV ?? Number((kineticsData as any).recommendedValidityMonths);
+                  return (
+                    <p><span className="text-gray-400">Recomendada:</span> <span className="font-semibold">{display.toFixed(2)} meses</span></p>
+                  );
+                })()}
               </div>
 
               {/* ── Interpretação da Validade — 4 caixinhas + praticada ─────────── */}
