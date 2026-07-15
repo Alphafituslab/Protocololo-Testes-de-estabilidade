@@ -2118,10 +2118,10 @@ export default function CertificatePage() {
                           <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>Conf. ANVISA</th>
                         </tr>
                         <tr className="bg-blue-100/40">
-                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold ${selectedBox === "standard" ? "bg-green-100 text-green-800" : ""}`}>Sem sobreform.</th>
-                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold ${selectedBox === "overage" ? "bg-green-100 text-green-800" : ""}`}>Com sobreform.</th>
-                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold text-violet-700 ${selectedBox === "extrap_std" ? "bg-green-100 text-green-800" : ""}`}>Sem sobreform.</th>
-                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold text-violet-700 ${selectedBox === "extrap_overage" ? "bg-green-100 text-green-800" : ""}`}>Com sobreform.</th>
+                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold ${selectedBox === "standard" ? "bg-green-100 text-green-800" : ""}`}>Sem overage</th>
+                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold ${selectedBox === "overage" ? "bg-green-100 text-green-800" : ""}`}>Com overage</th>
+                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold text-violet-700 ${selectedBox === "extrap_std" ? "bg-green-100 text-green-800" : ""}`}>Sem overage</th>
+                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold text-violet-700 ${selectedBox === "extrap_overage" ? "bg-green-100 text-green-800" : ""}`}>Com overage</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2137,8 +2137,8 @@ export default function CertificatePage() {
                           const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
                           const manualOv = ativoLimMap[p.parameter]?.overage ? parseFloat(String(ativoLimMap[p.parameter].overage).replace(",", ".")) : NaN;
                           const effOv = (!isNaN(manualOv) && manualOv > 0) ? manualOv : Math.max(0, t0v - 100);
-                          const baseShelf = (k && k > 0) ? -Math.log(ichThr / t0v) / k : null;
-                          const ovShelf = (effOv > 0 && k && k > 0) ? -Math.log(ichThr / (100 + effOv)) / k : baseShelf;
+                          const baseShelf = (k && k > 0) ? -Math.log(ichThr / 100) / k : null;            // sem overage: parte de 100%
+                          const ovShelf  = (k && k > 0) ? -Math.log(ichThr / t0v) / k : baseShelf;           // com overage: parte de t0v%
                           const extrapBase = baseShelf != null ? baseShelf * FA_ARR : null;
                           const extrapOv = ovShelf != null ? ovShelf * FA_ARR : null;
                           const selCls = "bg-green-50 font-bold text-green-800";
