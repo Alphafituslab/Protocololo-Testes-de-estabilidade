@@ -852,7 +852,7 @@ export default function ProtocolReportPage() {
                 )}
               </div>
 
-              {/* ── Interpretação da Validade — fluxo visual para o fiscal ─────── */}
+              {/* ── Interpretação da Validade — 4 caixinhas + praticada ─────────── */}
               {(() => {
                 const limP = validKParams.find((p: any) => p.parameter === (kineticsData as any)?.limitingParameter);
                 if (!limP) return null;
@@ -861,49 +861,79 @@ export default function ProtocolReportPage() {
                 const t0 = typeof limP.t0 === "number" && limP.t0 > 0 ? limP.t0 : 100;
                 const kovParam = (rKovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[limP.parameter];
                 const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
-                const isOv = rSelectedBox === "overage" || rSelectedBox === "extrap_overage";
-                const isExtrap = rSelectedBox === "extrap_std" || rSelectedBox === "extrap_overage";
-                const baseShelf = -Math.log(ichThr / 100) / k;      // sem overage: parte de 100%
-                const ovShelf   = -Math.log(ichThr / t0)  / k;      // com overage: parte de t0%
-                const accel40 = isOv ? ovShelf : baseShelf;
-                const selShelf = getReportBoxShelfLife(limP);
-                const practiced = (cert as any)?.validityMonths as number | null;
+                const baseShelf  = -Math.log(ichThr / 100) / k;
+                const ovShelf    = -Math.log(ichThr / t0)  / k;
+                const extrapBase = baseShelf * REPORT_FA;
+                const extrapOv   = ovShelf   * REPORT_FA;
+                const selShelf   = getReportBoxShelfLife(limP);
+                const practiced  = (cert as any)?.validityMonths as number | null;
                 const ok = practiced != null && selShelf != null && practiced <= selShelf;
-                if (selShelf == null) return null;
+
+                type BoxKey = "standard" | "overage" | "extrap_std" | "extrap_overage";
+                const boxes: { key: BoxKey; label: string; sub: string; value: number; violet?: boolean }[] = [
+                  { key: "standard",       label: "Sem overage",  sub: "40°C / 75% UR",          value: baseShelf  },
+                  { key: "overage",        label: "Com overage",  sub: `40°C / 75% UR (t0=${t0.toFixed(1)}%)`, value: ovShelf    },
+                  { key: "extrap_std",     label: "Sem overage",  sub: "Extrap. 30°C — Arrhenius", value: extrapBase, violet: true },
+                  { key: "extrap_overage", label: "Com overage",  sub: "Extrap. 30°C — Arrhenius", value: extrapOv,   violet: true },
+                ];
+
                 return (
-                  <div className="mb-3 rounded border border-emerald-200 bg-emerald-50 print:bg-emerald-50 px-4 py-3">
-                    <p className="font-bold text-[8px] uppercase tracking-widest text-emerald-600 mb-2">Interpretação da Validade — {limP.parameter} (Ativo Limitante)</p>
-                    <div className="flex flex-wrap items-center gap-2 text-[8.5px]">
-                      <div className="flex flex-col items-center rounded border border-orange-200 bg-orange-50 print:bg-orange-50 px-3 py-1.5 min-w-[100px]">
-                        <span className="text-[7px] text-orange-500 font-semibold uppercase mb-0.5">Condição Acelerada</span>
-                        <span className="text-[9px] font-bold text-orange-700 font-mono">{accel40.toFixed(2)} m</span>
-                        <span className="text-[7px] text-orange-400">40°C / 75% UR{isOv ? ` + ov. ${effOv.toFixed(1)}%` : ""}</span>
-                      </div>
-                      {isExtrap && <>
-                        <div className="flex flex-col items-center text-violet-600 text-[7.5px]">
-                          <span className="font-bold text-[9px]">×</span>
-                          <span className="font-mono">FA={REPORT_FA.toFixed(2)}</span>
-                          <span>Arrhenius</span>
-                          <span>40→30°C</span>
-                        </div>
-                        <div className="flex flex-col items-center rounded border border-violet-300 bg-violet-50 print:bg-violet-50 px-3 py-1.5 min-w-[100px]">
-                          <span className="text-[7px] text-violet-500 font-semibold uppercase mb-0.5">Extrap. 30°C</span>
-                          <span className="text-[9px] font-bold text-violet-700 font-mono">{selShelf.toFixed(2)} m</span>
-                          <span className="text-[7px] text-violet-400">temperatura normal armazenamento</span>
-                        </div>
-                      </>}
-                      <div className="flex flex-col items-center text-gray-400 text-[7.5px]">
-                        <span className="font-bold text-[9px]">≥</span>
-                        <span>Praticado</span>
-                      </div>
-                      <div className={`flex flex-col items-center rounded border px-3 py-1.5 min-w-[100px] ${ok ? "border-emerald-300 bg-emerald-100 print:bg-emerald-100" : "border-red-300 bg-red-50 print:bg-red-50"}`}>
-                        <span className={`text-[7px] font-semibold uppercase mb-0.5 ${ok ? "text-emerald-600" : "text-red-500"}`}>Praticado (rótulo)</span>
-                        <span className={`text-[9px] font-bold font-mono ${ok ? "text-emerald-800" : "text-red-700"}`}>{practiced != null ? `${practiced} m` : "—"}</span>
-                        <span className={`text-[8px] font-bold mt-0.5 ${ok ? "text-emerald-700" : "text-red-600"}`}>{practiced != null ? (ok ? "✓ APROVADO" : "⚠ EXCEDE") : "—"}</span>
+                  <div className="mb-3 rounded border border-slate-200 bg-slate-50 print:bg-slate-50 px-4 py-3">
+                    <p className="font-bold text-[8px] uppercase tracking-widest text-slate-500 mb-3">
+                      Interpretação da Validade — {limP.parameter} (Ativo Limitante)
+                    </p>
+
+                    {/* Grupo de rótulos de seção */}
+                    <div className="flex gap-2 mb-1 text-[7px] font-bold uppercase tracking-widest text-gray-400">
+                      <div className="flex-1 text-center" style={{ flex: 2 }}>Validade 40°C (meses)</div>
+                      <div className="flex-1 text-center text-violet-500" style={{ flex: 2 }}>Validade Extrap. 30°C — Arrhenius (meses)</div>
+                      <div style={{ width: "110px" }} />
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 items-stretch">
+                      {/* 4 caixinhas de cenário */}
+                      {boxes.map(({ key, label, sub, value, violet }) => {
+                        const sel = rSelectedBox === key;
+                        const baseColor = violet
+                          ? sel ? "border-green-400 bg-green-50 print:bg-green-50" : "border-violet-200 bg-violet-50 print:bg-violet-50"
+                          : sel ? "border-green-400 bg-green-50 print:bg-green-50" : "border-gray-200 bg-white print:bg-white";
+                        const labelColor = sel ? "text-green-700" : violet ? "text-violet-600" : "text-gray-500";
+                        const valueColor = sel ? "text-green-800" : violet ? "text-violet-700" : "text-gray-800";
+                        return (
+                          <div key={key} className={`flex flex-col items-center rounded border px-3 py-2 flex-1 min-w-[90px] ${baseColor}`}>
+                            <span className={`text-[7px] font-bold uppercase tracking-wide mb-0.5 ${labelColor}`}>{label}</span>
+                            <span className={`text-[13px] font-bold font-mono leading-tight ${valueColor}`}>{value.toFixed(2)}</span>
+                            <span className={`text-[7px] mt-0.5 text-center leading-tight ${labelColor}`}>{sub}</span>
+                            {sel && <span className="text-[7px] font-bold text-green-700 mt-1">▶ SELECIONADO</span>}
+                          </div>
+                        );
+                      })}
+
+                      {/* Separador */}
+                      <div className="flex items-center text-gray-300 text-[10px] font-bold px-1">≥</div>
+
+                      {/* Caixinha Validade Praticada */}
+                      <div className={`flex flex-col items-center rounded border px-3 py-2 min-w-[100px] ${ok ? "border-emerald-400 bg-emerald-50 print:bg-emerald-50" : "border-red-400 bg-red-50 print:bg-red-50"}`}
+                        style={{ width: "110px" }}>
+                        <span className={`text-[7px] font-bold uppercase tracking-wide mb-0.5 ${ok ? "text-emerald-600" : "text-red-500"}`}>Validade Praticada</span>
+                        <span className={`text-[13px] font-bold font-mono leading-tight ${ok ? "text-emerald-800" : "text-red-700"}`}>
+                          {practiced != null ? `${practiced}` : "—"}
+                        </span>
+                        <span className={`text-[7px] mt-0.5 ${ok ? "text-emerald-500" : "text-red-400"}`}>meses (rótulo)</span>
+                        <span className={`text-[8px] font-bold mt-1 ${ok ? "text-emerald-700" : "text-red-600"}`}>
+                          {practiced != null ? (ok ? "✓ APROVADO" : "⚠ EXCEDE") : "—"}
+                        </span>
                       </div>
                     </div>
-                    {ok && practiced != null && <p className="text-[7.5px] text-emerald-600 mt-1.5">{practiced} meses praticados ≤ {selShelf.toFixed(2)} meses calculados{isExtrap ? ` (extrapolado a 30°C)` : ""} — produto dentro da validade estimada.</p>}
-                    {!ok && practiced != null && <p className="text-[7.5px] text-red-600 mt-1.5">{practiced} meses praticados &gt; {selShelf.toFixed(2)} meses calculados — validade praticada excede a estimativa cinética.</p>}
+
+                    {/* Rodapé */}
+                    {selShelf != null && practiced != null && (
+                      <p className={`text-[7.5px] mt-2 ${ok ? "text-emerald-600" : "text-red-600"}`}>
+                        {practiced} meses praticados {ok ? "≤" : ">"} {selShelf.toFixed(2)} meses calculados
+                        {(rSelectedBox === "extrap_std" || rSelectedBox === "extrap_overage") ? " (extrapolado a 30°C — Arrhenius)" : " (40°C acelerado)"}
+                        {ok ? " — produto dentro da validade estimada." : " — validade praticada excede a estimativa cinética."}
+                      </p>
+                    )}
                   </div>
                 );
               })()}
