@@ -1877,7 +1877,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
   // ── Limites ANVISA por ativo (min/max/unidade/declarado) ─────────────────
   const ATIVO_LIMITS_KEY = `ativo_limits_${protocolId}`;
   const [ativoLimits, setAtivoLimitsState] = useState<Record<string, { min: string; max: string; unit: string; declared: string; overage: string; norma: string }>>(() => {
-    type LimEntry = { min: string; max: string; unit: string; declared: string; overage: string; norma?: string };
+    type LimEntry = { min: string; max: string; unit: string; declared: string; overage: string; norma: string };
     let fromDb: Record<string, LimEntry> = {};
     let fromStorage: Record<string, LimEntry> = {};
     if (initialAtivoLimitsJson) {
@@ -7088,7 +7088,7 @@ export default function ProtocolDetail() {
     // Convert from localStorage format → DB format so the certificate server
     // can read them via getKineticsT6(param).
     type KineticOvEntry = { t0?: string; t3?: string; t6?: string; specMin?: string; specMax?: string; validadePraticada?: string; ichThreshold?: string };
-    type KineticsOvDB = { savedAt?: string; params?: Record<string, KineticOvEntry>; customShelfLife?: string };
+    type KineticsOvDB = { savedAt?: string; params?: Record<string, KineticOvEntry>; customShelfLife?: string; selectedShelfBox?: string };
     let kineticsOverridesPayload: string | null = null;
     try {
       const kinLsKey = `kinetics_overrides_${numId}`;

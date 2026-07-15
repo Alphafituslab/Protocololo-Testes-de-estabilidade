@@ -370,7 +370,7 @@ function CertByNumberRoute() {
   React.useEffect(() => {
     const cn = new URLSearchParams(search).get("n") ?? "";
     if (!cn) { setError("Número de certificado inválido."); return; }
-    const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+    const authHeader: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
     fetch(`/api/protocols/by-cert?cn=${encodeURIComponent(cn)}`, { headers: authHeader })
       .then(r => {
         if (!r.ok) throw new Error("Certificado não encontrado.");
