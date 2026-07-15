@@ -4551,7 +4551,6 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   value={cardValidity}
                   onChange={(e) => {
                     const val = e.target.value;
-                    setSelectedShelfBox(null);
                     setCardValidity(val);
                     setOverrides(prev => {
                       const next: Record<string, KineticOverride> = {};
