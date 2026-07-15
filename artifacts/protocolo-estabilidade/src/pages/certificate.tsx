@@ -2108,16 +2108,20 @@ export default function CertificatePage() {
                     <table className="w-full text-[10px] border-collapse">
                       <thead>
                         <tr className="bg-blue-100/60">
-                          <th className="border border-blue-200 px-2 py-1 text-left font-semibold">Ativo</th>
-                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold">T0 (%)</th>
-                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold">T3 (%)</th>
-                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold">T6 (%)</th>
-                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold">k (mês⁻¹)</th>
-                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold">
-                            Validade Calc. (meses)
-                            {boxLabel && <div className="text-[8px] font-normal text-violet-600 mt-0.5">{boxLabel}</div>}
-                          </th>
-                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold">Conf. ANVISA</th>
+                          <th className="border border-blue-200 px-2 py-1 text-left font-semibold" rowSpan={2}>Ativo</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>T0 (%)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>T3 (%)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>T6 (%)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>k (mês⁻¹)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" colSpan={2}>Validade 40°C (meses)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold text-violet-700" colSpan={2}>Validade Extrap. 30°C — Arrhenius (meses)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>Conf. ANVISA</th>
+                        </tr>
+                        <tr className="bg-blue-100/40">
+                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold ${selectedBox === "standard" ? "bg-green-100 text-green-800" : ""}`}>Sem sobreform.</th>
+                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold ${selectedBox === "overage" ? "bg-green-100 text-green-800" : ""}`}>Com sobreform.</th>
+                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold text-violet-700 ${selectedBox === "extrap_std" ? "bg-green-100 text-green-800" : ""}`}>Sem sobreform.</th>
+                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold text-violet-700 ${selectedBox === "extrap_overage" ? "bg-green-100 text-green-800" : ""}`}>Com sobreform.</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2126,6 +2130,18 @@ export default function CertificatePage() {
                           const anvInfo = ativoStatusMap[p.parameter];
                           const anvAprovado = anvInfo?.status === "dentro";
                           const anvReprovado = anvInfo?.status === "fora";
+                          // Per-parameter shelf life for all 4 scenarios
+                          const k = typeof p.k === "number" ? p.k : null;
+                          const t0v = typeof p.t0 === "number" && p.t0 > 0 ? p.t0 : 100;
+                          const kovParam = (kovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[p.parameter];
+                          const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
+                          const manualOv = ativoLimMap[p.parameter]?.overage ? parseFloat(String(ativoLimMap[p.parameter].overage).replace(",", ".")) : NaN;
+                          const effOv = (!isNaN(manualOv) && manualOv > 0) ? manualOv : Math.max(0, t0v - 100);
+                          const baseShelf = (k && k > 0) ? -Math.log(ichThr / t0v) / k : null;
+                          const ovShelf = (effOv > 0 && k && k > 0) ? -Math.log(ichThr / (100 + effOv)) / k : baseShelf;
+                          const extrapBase = baseShelf != null ? baseShelf * FA_ARR : null;
+                          const extrapOv = ovShelf != null ? ovShelf * FA_ARR : null;
+                          const selCls = "bg-green-50 font-bold text-green-800";
                           return (
                             <tr key={p.parameter} className={isLimiting ? "bg-amber-50" : ""}>
                               <td className={`border border-blue-200 px-2 py-1 font-medium ${isLimiting ? "text-amber-800" : ""}`}>
@@ -2135,9 +2151,10 @@ export default function CertificatePage() {
                               <td className="border border-blue-200 px-2 py-1 text-center">{p.t3 != null ? p.t3.toFixed(2) : "—"}</td>
                               <td className="border border-blue-200 px-2 py-1 text-center">{p.t6 != null ? p.t6.toFixed(2) : "—"}</td>
                               <td className="border border-blue-200 px-2 py-1 text-center font-mono">{p.k != null ? p.k.toFixed(5) : "—"}</td>
-                              <td className="border border-blue-200 px-2 py-1 text-center font-semibold">
-                                {(() => { const v = getBoxShelfLife(p); return v != null ? v.toFixed(2) : "—"; })()}
-                              </td>
+                              <td className={`border border-blue-200 px-2 py-1 text-center ${selectedBox === "standard" ? selCls : ""}`}>{baseShelf != null ? baseShelf.toFixed(2) : "—"}</td>
+                              <td className={`border border-blue-200 px-2 py-1 text-center ${selectedBox === "overage" ? selCls : ""}`}>{ovShelf != null ? ovShelf.toFixed(2) : "—"}</td>
+                              <td className={`border border-blue-200 px-2 py-1 text-center text-violet-700 ${selectedBox === "extrap_std" ? selCls : ""}`}>{extrapBase != null ? extrapBase.toFixed(2) : "—"}</td>
+                              <td className={`border border-blue-200 px-2 py-1 text-center text-violet-700 ${selectedBox === "extrap_overage" ? selCls : ""}`}>{extrapOv != null ? extrapOv.toFixed(2) : "—"}</td>
                               <td className={`border border-blue-200 px-2 py-1 text-center font-semibold ${anvAprovado ? "text-green-700" : anvReprovado ? "text-red-700" : "text-gray-400"}`}>
                                 {anvAprovado ? "✓ Aprovado"
                                   : anvReprovado ? "✗ Reprovado"
