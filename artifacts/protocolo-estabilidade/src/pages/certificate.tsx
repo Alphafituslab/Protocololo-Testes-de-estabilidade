@@ -2152,42 +2152,51 @@ export default function CertificatePage() {
                       </tbody>
                     </table>
 
-                    <div className="grid grid-cols-2 gap-4 pt-1">
-                      <div className="space-y-1">
-                        {limiting && (
-                          <p><span className="text-gray-500">Ativo com maior degradação: </span><span className="font-semibold text-amber-700">★ {limiting}</span></p>
-                        )}
-                        {(() => {
-                          const limP = validParams.find(p => p.parameter === limiting);
-                          const selMonths = limP ? getBoxShelfLife(limP) : null;
-                          const displayMonths = selMonths ?? estimatedMonths;
-                          return displayMonths != null ? (
-                            <p>
-                              <span className="text-gray-500">Validade calculada (ICH Q1A): </span>
-                              <span className="font-semibold">{displayMonths.toFixed(2)} meses</span>
-                              {boxLabel && <span className="ml-1.5 text-[9px] font-normal text-violet-600">[{boxLabel}]</span>}
-                            </p>
-                          ) : null;
-                        })()}
-                        {recommendedMonths != null && (
-                          <p><span className="text-gray-500">Validade recomendada: </span><span className="font-semibold">{recommendedMonths} meses</span></p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        {practicedMonths != null && (
-                          <p><span className="text-gray-500">Validade praticada (rótulo): </span><span className="font-semibold">{practicedMonths} meses</span></p>
-                        )}
-                        {practicedMonths != null && recommendedMonths != null && (
-                          <p>
-                            <span className="text-gray-500">Situação: </span>
-                            {practicedMonths <= recommendedMonths
-                              ? <span className="font-semibold text-green-700">✓ Compatível — validade praticada ≤ validade calculada</span>
-                              : <span className="font-semibold text-red-700">⚠ Atenção — validade praticada excede a calculada</span>
-                            }
-                          </p>
-                        )}
-                      </div>
-                    </div>
+                    {(() => {
+                      const limP = validParams.find(p => p.parameter === limiting);
+                      const selMonths = limP ? getBoxShelfLife(limP) : null;
+                      const displayMonths = selMonths ?? estimatedMonths;
+                      const isExtrap = selectedBox === "extrap_std" || selectedBox === "extrap_overage";
+                      const calcLabel = isExtrap ? "Validade extrapolada a 30°C (ICH Q1A):" : "Validade calculada (ICH Q1A):";
+                      const situThreshold = selMonths ?? estimatedMonths;
+                      const situOk = practicedMonths != null && situThreshold != null && practicedMonths <= situThreshold;
+                      const situRef = isExtrap
+                        ? `validade extrapolada a 30°C (${situThreshold?.toFixed(2)} m)`
+                        : `validade calculada (${situThreshold?.toFixed(2)} m)`;
+                      return (
+                        <div className="grid grid-cols-2 gap-4 pt-1">
+                          <div className="space-y-1">
+                            {limiting && (
+                              <p><span className="text-gray-500">Ativo com maior degradação: </span><span className="font-semibold text-amber-700">★ {limiting}</span></p>
+                            )}
+                            {displayMonths != null && (
+                              <p>
+                                <span className="text-gray-500">{calcLabel} </span>
+                                <span className="font-semibold">{displayMonths.toFixed(2)} meses</span>
+                                {boxLabel && <span className="ml-1.5 text-[9px] font-normal text-violet-600">[{boxLabel}]</span>}
+                              </p>
+                            )}
+                            {recommendedMonths != null && (
+                              <p><span className="text-gray-500">Validade recomendada: </span><span className="font-semibold">{recommendedMonths} meses</span></p>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            {practicedMonths != null && (
+                              <p><span className="text-gray-500">Validade praticada (rótulo): </span><span className="font-semibold">{practicedMonths} meses</span></p>
+                            )}
+                            {practicedMonths != null && situThreshold != null && (
+                              <p>
+                                <span className="text-gray-500">Situação: </span>
+                                {situOk
+                                  ? <span className="font-semibold text-green-700">✓ Conforme — validade praticada ({practicedMonths} m) ≤ {situRef}</span>
+                                  : <span className="font-semibold text-red-700">⚠ Atenção — validade praticada ({practicedMonths} m) excede {situRef}</span>
+                                }
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <div className="mt-2 border-l-2 border-blue-300 pl-3 bg-blue-50/50 py-1.5 pr-2 rounded-r text-[10px] text-gray-700">
                       <span className="font-semibold text-gray-500 uppercase tracking-wide text-[9px]">Conclusão: </span>
                       {ef("kineticsNotes", cert.kineticsNotes, { multiline: true })}
