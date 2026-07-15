@@ -3716,7 +3716,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     return initialKineticsNotes ?? "";
   });
   const [customShelfLife, setCustomShelfLife] = useState<string>("");
-  const [selectedShelfBox, setSelectedShelfBox] = useState<"standard" | "overage" | null>(null);
+  const [selectedShelfBox, setSelectedShelfBox] = useState<"standard" | "overage" | "extrap_std" | "extrap_overage" | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ param: string } | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState("");
@@ -4168,6 +4168,19 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const parametersWithK = Object.entries(overrides).filter(([, o]) => { const k = parseFloat(o.k); return !isNaN(k) && k > 0; });
   const allHaveOverage = parametersWithK.length > 0 && parametersWithK.every(([p]) => overageAdjustedShelfLives[p] != null);
 
+  // ── Arrhenius extrapolação: 40°C → 30°C ──
+  // Ea = 83140 J/mol (fixo), R = 8,314 J/(mol·K)
+  // FA = e^[ Ea/R · (1/T30 − 1/T40) ]
+  const ARRHENIUS_EA_JMOL = 83140;
+  const ARRHENIUS_R = 8.314;
+  const T_30_K = 303.15;
+  const T_40_K = 313.15;
+  const arrheniusFactor = Math.exp(
+    (ARRHENIUS_EA_JMOL / ARRHENIUS_R) * (1 / T_30_K - 1 / T_40_K)
+  );
+  const minBaselineExtrap30 = minBaselineShelfLife != null ? minBaselineShelfLife * arrheniusFactor : null;
+  const minOverageExtrap30 = minOverageShelfLife != null ? minOverageShelfLife * arrheniusFactor : null;
+
   return (
     <div className="space-y-6">
       {/* Dialog de senha para desbloquear edição da cinética */}
@@ -4394,9 +4407,9 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       <Card className="border-green-200 bg-green-50">
         <CardContent className="pt-4">
           {/* Instruction when overage boxes are shown */}
-          {minOverageShelfLife != null && (
+          {(minOverageShelfLife != null || minBaselineExtrap30 != null) && (
             <p className="text-[11px] text-slate-500 mb-3 flex items-center gap-1">
-              <span>👆</span> Clique em uma das caixas abaixo para usar aquele valor como <strong>Validade Adotada</strong> na tabela.
+              <span>👆</span> Clique em uma das caixas abaixo para usar aquele valor como <strong>Validade Adotada</strong> na tabela. A validade extrapolada a 30°C está no card roxo abaixo.
             </p>
           )}
           <div className={`flex items-start gap-4 ${minOverageShelfLife != null ? "flex-wrap" : ""}`}>
@@ -4554,9 +4567,14 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               <p className="text-[11px] text-green-600/80 mt-0.5 flex items-center gap-1 justify-end">
                 <span>✓</span> Exibido no Certificado de Análise e Relatório ANVISA
               </p>
-              {minOverageShelfLife != null && selectedShelfBox != null && (
+              {selectedShelfBox != null && (
                 <p className="text-[10px] text-slate-500 mt-1">
-                  Origem: {selectedShelfBox === "overage" ? "📦 Com overage" : "Sem overage"}
+                  Origem: {
+                    selectedShelfBox === "overage" ? "📦 Com overage (40°C)" :
+                    selectedShelfBox === "extrap_std" ? "📐 Extrapolado 30°C — sem overage" :
+                    selectedShelfBox === "extrap_overage" ? "📐 Extrapolado 30°C — com overage" :
+                    "Sem overage (40°C)"
+                  }
                 </p>
               )}
             </div>
@@ -4564,6 +4582,117 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Arrhenius Extrapolation Card — 30°C ── */}
+      {minBaselineExtrap30 != null && (
+        <Card className="border-violet-200 bg-violet-50">
+          <CardContent className="pt-4">
+            {/* Header + FA info */}
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+              <div>
+                <p className="text-xs text-violet-700 font-semibold uppercase tracking-wide flex items-center gap-1.5 mb-0.5">
+                  <span>📐</span> Validade Extrapolada — Arrhenius 30°C
+                </p>
+                <p className="text-[11px] text-violet-600">
+                  Extrapolação da vida útil calculada a 40°C para 30°C usando equação de Arrhenius (ICH Q1E).
+                  Clique em um dos valores para usá-lo como <strong>Validade Adotada</strong>.
+                </p>
+              </div>
+              <div className="rounded-md border border-violet-300 bg-violet-100 px-3 py-2 text-right shrink-0">
+                <p className="text-[10px] text-violet-500 uppercase tracking-wide font-medium">Fator de Aceleração (FA)</p>
+                <p className="text-xl font-bold text-violet-800 tabular-nums">{arrheniusFactor.toFixed(4)}</p>
+                <p className="text-[10px] text-violet-500 mt-0.5">
+                  e<sup>[83140/8,314 · (1/303,15 − 1/313,15)]</sup>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4 flex-wrap">
+              {/* BOX Extrapolado — Sem sobreformulação */}
+              {(() => {
+                const isSelected = selectedShelfBox === "extrap_std";
+                const extrapVal = minBaselineExtrap30.toFixed(2);
+                return (
+                  <div
+                    onClick={() => {
+                      setSelectedShelfBox("extrap_std");
+                      applyShelfToValidade(extrapVal);
+                    }}
+                    className={`flex-1 min-w-[160px] rounded-lg px-4 py-3 cursor-pointer transition-all
+                      ${isSelected
+                        ? "border-2 border-violet-500 bg-violet-100 shadow-md ring-2 ring-violet-300"
+                        : "border-2 border-violet-200 bg-violet-50 hover:border-violet-400 hover:bg-violet-100/70"
+                      }`}
+                  >
+                    <p className="text-xs text-violet-700 font-medium uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                      Extrapolada 30°C — sem overage
+                      {isSelected && <span className="text-[10px] bg-violet-600 text-white rounded-full px-1.5 py-0.5 font-semibold normal-case">✓ em uso</span>}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-3xl font-bold text-violet-800 tabular-nums">{extrapVal}</span>
+                      <span className="text-xl font-semibold text-violet-700">meses</span>
+                    </div>
+                    {limitingBaselineParam && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 bg-amber-100 border border-amber-300 rounded-md px-2.5 py-1">
+                        <span className="text-amber-600 text-xs">⚠</span>
+                        <span className="text-xs font-semibold text-amber-800">Item limitante:</span>
+                        <span className="text-xs font-bold text-amber-900">{limitingBaselineParam}</span>
+                      </div>
+                    )}
+                    <p className="text-[10px] text-violet-500 mt-1.5">
+                      = {minBaselineShelfLife!.toFixed(2)} meses (40°C) × FA {arrheniusFactor.toFixed(4)}
+                    </p>
+                    {!isSelected && (
+                      <p className="text-[10px] text-violet-600 mt-1 font-medium">Clique para usar este valor ↓</p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* BOX Extrapolado — Com sobreformulação */}
+              {minOverageExtrap30 != null && (() => {
+                const isSelected = selectedShelfBox === "extrap_overage";
+                const extrapOvVal = minOverageExtrap30.toFixed(2);
+                return (
+                  <div
+                    onClick={() => {
+                      setSelectedShelfBox("extrap_overage");
+                      applyShelfToValidade(extrapOvVal);
+                    }}
+                    className={`flex-1 min-w-[160px] rounded-lg px-4 py-3 cursor-pointer transition-all
+                      ${isSelected
+                        ? "border-2 border-violet-500 bg-violet-100 shadow-md ring-2 ring-violet-300"
+                        : "border-2 border-violet-200 bg-violet-50 hover:border-violet-400 hover:bg-violet-100/70"
+                      }`}
+                  >
+                    <p className="text-xs text-violet-700 font-medium uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                      <span>📦</span> Extrapolada 30°C — com overage
+                      {isSelected && <span className="text-[10px] bg-violet-600 text-white rounded-full px-1.5 py-0.5 font-semibold normal-case">✓ em uso</span>}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-3xl font-bold text-violet-800 tabular-nums">{extrapOvVal}</span>
+                      <span className="text-xl font-semibold text-violet-700">meses</span>
+                    </div>
+                    {limitingOverageParam && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 bg-amber-100 border border-amber-300 rounded-md px-2.5 py-1">
+                        <span className="text-amber-600 text-xs">⚠</span>
+                        <span className="text-xs font-semibold text-amber-800">Item limitante:</span>
+                        <span className="text-xs font-bold text-amber-900">{limitingOverageParam}</span>
+                      </div>
+                    )}
+                    <p className="text-[10px] text-violet-500 mt-1.5">
+                      = {minOverageShelfLife!.toFixed(2)} meses (40°C) × FA {arrheniusFactor.toFixed(4)}
+                    </p>
+                    {!isSelected && (
+                      <p className="text-[10px] text-violet-600 mt-1 font-medium">Clique para usar este valor ↓</p>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Calculation matrix — matches Excel layout */}
       <div className="rounded-md border overflow-x-auto">
