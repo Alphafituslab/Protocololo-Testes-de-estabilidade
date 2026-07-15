@@ -4181,6 +4181,16 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const minBaselineExtrap30 = minBaselineShelfLife != null ? minBaselineShelfLife * arrheniusFactor : null;
   const minOverageExtrap30 = minOverageShelfLife != null ? minOverageShelfLife * arrheniusFactor : null;
 
+  // Extrap 30°C por parâmetro (para exibir na tabela)
+  const baselineExtrap30Map: Record<string, number> = {};
+  for (const [param, shelf] of Object.entries(baselineShelfLivesMap)) {
+    baselineExtrap30Map[param] = shelf * arrheniusFactor;
+  }
+  const overageExtrap30Map: Record<string, number> = {};
+  for (const [param, shelf] of Object.entries(overageAdjustedShelfLives)) {
+    overageExtrap30Map[param] = shelf * arrheniusFactor;
+  }
+
   return (
     <div className="space-y-6">
       {/* Dialog de senha para desbloquear edição da cinética */}
@@ -4828,6 +4838,25 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                                 title={`−ln(${ichThresholdPct.toFixed(1)}%/(100+${effectiveOverage.toFixed(2)})) / k = ${overageShelf.toFixed(2)} meses${isImplicitOverage ? " [overage implícito: T0−100]" : ""}`}
                               >
                                 −ln({ichThresholdPct.toFixed(0)}%/{(100+effectiveOverage).toFixed(1)}%) ÷ k
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Extrapolação Arrhenius 30°C — sem overage */}
+                          {baselineExtrap30Map[p.parameter] != null && (
+                            <div className={`flex items-center gap-1 mt-1 pt-1 border-t border-violet-200 ${selectedShelfBox === "extrap_std" || selectedShelfBox === "extrap_overage" ? "opacity-100" : "opacity-50"}`}>
+                              <span className="text-[9px] text-violet-500">📐 30°C sem ov.:</span>
+                              <span className={`text-sm font-bold tabular-nums text-violet-700 ${selectedShelfBox === "extrap_std" ? "underline decoration-violet-400 decoration-2" : ""}`}>
+                                {baselineExtrap30Map[p.parameter].toFixed(2)} m
+                              </span>
+                            </div>
+                          )}
+                          {/* Extrapolação Arrhenius 30°C — com overage */}
+                          {overageExtrap30Map[p.parameter] != null && (
+                            <div className={`flex items-center gap-1 ${selectedShelfBox === "extrap_std" || selectedShelfBox === "extrap_overage" ? "opacity-100" : "opacity-50"}`}>
+                              <span className="text-[9px] text-violet-500">📐 30°C + ov.:</span>
+                              <span className={`text-sm font-bold tabular-nums text-violet-700 ${selectedShelfBox === "extrap_overage" ? "underline decoration-violet-400 decoration-2" : ""}`}>
+                                {overageExtrap30Map[p.parameter].toFixed(2)} m
                               </span>
                             </div>
                           )}
