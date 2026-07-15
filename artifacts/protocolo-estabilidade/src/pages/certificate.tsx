@@ -2184,15 +2184,6 @@ export default function CertificatePage() {
                             {practicedMonths != null && (
                               <p><span className="text-gray-500">Validade praticada (rótulo): </span><span className="font-semibold">{practicedMonths} meses</span></p>
                             )}
-                            {practicedMonths != null && situThreshold != null && (
-                              <p>
-                                <span className="text-gray-500">Situação: </span>
-                                {situOk
-                                  ? <span className="font-semibold text-green-700">✓ Conforme — validade praticada ({practicedMonths} m) ≤ {situRef}</span>
-                                  : <span className="font-semibold text-red-700">⚠ Atenção — validade praticada ({practicedMonths} m) excede {situRef}</span>
-                                }
-                              </p>
-                            )}
                           </div>
                         </div>
                       );
