@@ -5,7 +5,6 @@ import { logger } from "./logger";
 import { objectStorageClient } from "./objectStorage";
 
 export const BACKUP_DIR = process.env["BACKUP_DIR"] || path.join(process.cwd(), "backups");
-const MAX_BACKUPS = 60;
 
 function ensureDir() {
   if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
@@ -38,17 +37,43 @@ async function uploadToCloud(filepath: string, filename: string): Promise<void> 
   }
 }
 
-async function pruneCloudBackups(keep = MAX_BACKUPS): Promise<void> {
+/** Extrai o slot "HHhMM" do nome do arquivo de backup, ex: "08h00" */
+function extractTimeSlot(filename: string): string | null {
+  const m = filename.match(/(\d{2}h\d{2})\.json$/);
+  return m ? m[1] : null;
+}
+
+/** Remove backups locais do mesmo slot de horário, mantendo só o arquivo `keepFile`. */
+function pruneLocalBySlot(slot: string, keepFile: string): void {
+  try {
+    ensureDir();
+    const files = fs
+      .readdirSync(BACKUP_DIR)
+      .filter(f => f.endsWith(".json") && f.startsWith("backup") && extractTimeSlot(f) === slot && f !== keepFile);
+    for (const f of files) {
+      try { fs.unlinkSync(path.join(BACKUP_DIR, f)); } catch { /* ignore */ }
+    }
+  } catch (e) {
+    logger.warn({ err: e }, "backup: prune local by slot failed");
+  }
+}
+
+/** Remove backups na nuvem do mesmo slot de horário, mantendo só `keepFilename`. */
+async function pruneCloudBySlot(slot: string, keepFilename: string): Promise<void> {
   const target = cloudBucketAndPrefix();
   if (!target) return;
   try {
     const bucket = objectStorageClient.bucket(target.bucketName);
     const [files] = await bucket.getFiles({ prefix: target.prefix });
-    const sorted = files.map(f => f.name).sort().reverse();
-    const toDelete = sorted.slice(keep);
+    const toDelete = files
+      .map(f => f.name)
+      .filter(name => {
+        const base = name.slice(target.prefix.length);
+        return extractTimeSlot(base) === slot && base !== keepFilename;
+      });
     await Promise.all(toDelete.map(name => bucket.file(name).delete().catch(() => {})));
   } catch (e) {
-    logger.warn({ err: e }, "backup: cloud prune failed");
+    logger.warn({ err: e }, "backup: cloud prune by slot failed");
   }
 }
 
@@ -133,27 +158,13 @@ export async function runBackup(): Promise<{ filename: string; size: number; exp
     upsertSetting("backup.last_file", filename),
   ]);
 
-  pruneOldBackups();
-  pruneCloudBackups().catch(() => {});
+  // Poda por slot: mantém apenas 1 backup por horário agendado
+  const slot = timeStr; // ex: "08h00"
+  pruneLocalBySlot(slot, filename);
+  pruneCloudBySlot(slot, filename).catch(() => {});
 
   const { size } = fs.statSync(filepath);
   return { filename, size, exportedAt: now.toISOString() };
-}
-
-function pruneOldBackups() {
-  try {
-    ensureDir();
-    const files = fs
-      .readdirSync(BACKUP_DIR)
-      .filter(f => f.endsWith(".json") && f.startsWith("backup"))
-      .map(f => ({ f, mt: fs.statSync(path.join(BACKUP_DIR, f)).mtimeMs }))
-      .sort((a, b) => b.mt - a.mt);
-    for (const { f } of files.slice(MAX_BACKUPS)) {
-      fs.unlinkSync(path.join(BACKUP_DIR, f));
-    }
-  } catch (e) {
-    logger.warn({ err: e }, "backup: prune failed");
-  }
 }
 
 async function ensureBackupDefaults(): Promise<void> {
