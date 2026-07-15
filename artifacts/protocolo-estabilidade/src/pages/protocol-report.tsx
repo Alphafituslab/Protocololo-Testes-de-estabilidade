@@ -861,12 +861,10 @@ export default function ProtocolReportPage() {
                 const t0 = typeof limP.t0 === "number" && limP.t0 > 0 ? limP.t0 : 100;
                 const kovParam = (rKovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[limP.parameter];
                 const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
-                const manualOv = rAtivoLimMap[limP.parameter]?.overage ? parseFloat(String(rAtivoLimMap[limP.parameter].overage).replace(",", ".")) : NaN;
-                const effOv = (!isNaN(manualOv) && manualOv > 0) ? manualOv : Math.max(0, t0 - 100);
-                const baseShelf = -Math.log(ichThr / t0) / k;
-                const ovShelf = effOv > 0 ? -Math.log(ichThr / (100 + effOv)) / k : baseShelf;
                 const isOv = rSelectedBox === "overage" || rSelectedBox === "extrap_overage";
                 const isExtrap = rSelectedBox === "extrap_std" || rSelectedBox === "extrap_overage";
+                const baseShelf = -Math.log(ichThr / 100) / k;      // sem overage: parte de 100%
+                const ovShelf   = -Math.log(ichThr / t0)  / k;      // com overage: parte de t0%
                 const accel40 = isOv ? ovShelf : baseShelf;
                 const selShelf = getReportBoxShelfLife(limP);
                 const practiced = (cert as any)?.validityMonths as number | null;
@@ -934,12 +932,10 @@ export default function ProtocolReportPage() {
                           const t0 = typeof p.t0 === "number" && p.t0 > 0 ? p.t0 : 100;
                           const kovParam = (rKovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[p.parameter];
                           const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
-                          const manualOv = rAtivoLimMap[p.parameter]?.overage ? parseFloat(String(rAtivoLimMap[p.parameter].overage).replace(",", ".")) : NaN;
-                          const effOv = (!isNaN(manualOv) && manualOv > 0) ? manualOv : Math.max(0, t0 - 100);
-                          const baseShelf = -Math.log(ichThr / t0) / k;
-                          const ovShelf = effOv > 0 ? -Math.log(ichThr / (100 + effOv)) / k : null;
+                          const baseShelf = -Math.log(ichThr / 100) / k;          // sem overage: parte de 100%
+                          const ovShelf   = -Math.log(ichThr / t0)  / k;          // com overage: parte de t0%
                           const extrapBase = baseShelf * REPORT_FA;
-                          const extrapOv = ovShelf != null ? ovShelf * REPORT_FA : null;
+                          const extrapOv   = ovShelf   * REPORT_FA;
                           const adopted = getReportBoxShelfLife(p);
                           const isLim = p.parameter === (kineticsData as any)?.limitingParameter;
                           return (
@@ -949,11 +945,11 @@ export default function ProtocolReportPage() {
                               </td>
                               <td className={`border border-slate-200 px-2 py-0.5 text-center font-mono ${rSelectedBox === "standard" ? "bg-green-50 font-bold" : ""}`}>
                                 {baseShelf.toFixed(2)} m
-                                <div className="text-[7px] text-gray-400">−ln({ichThr.toFixed(0)}%/{t0.toFixed(2)}%) ÷ k</div>
+                                <div className="text-[7px] text-gray-400">−ln({ichThr.toFixed(0)}%/100%) ÷ k</div>
                               </td>
                               <td className={`border border-slate-200 px-2 py-0.5 text-center font-mono ${rSelectedBox === "overage" ? "bg-green-50 font-bold" : ""}`}>
-                                {ovShelf != null ? `${ovShelf.toFixed(2)} m` : "—"}
-                                {ovShelf != null && effOv > 0 && <div className="text-[7px] text-gray-400">−ln({ichThr.toFixed(0)}%/{(100 + effOv).toFixed(2)}%) ÷ k</div>}
+                                {ovShelf.toFixed(2)} m
+                                <div className="text-[7px] text-gray-400">−ln({ichThr.toFixed(0)}%/{t0.toFixed(2)}%) ÷ k</div>
                               </td>
                               {isExtrap && (
                                 <td className={`border border-slate-200 px-2 py-0.5 text-center font-mono text-violet-700 ${rSelectedBox === "extrap_std" ? "bg-green-50 font-bold" : ""}`}>
@@ -963,8 +959,8 @@ export default function ProtocolReportPage() {
                               )}
                               {isExtrap && (
                                 <td className={`border border-slate-200 px-2 py-0.5 text-center font-mono text-violet-700 ${rSelectedBox === "extrap_overage" ? "bg-green-50 font-bold" : ""}`}>
-                                  {extrapOv != null ? `${extrapOv.toFixed(2)} m` : "—"}
-                                  {extrapOv != null && ovShelf != null && <div className="text-[7px] text-violet-400">{ovShelf.toFixed(2)} × {REPORT_FA.toFixed(4)}</div>}
+                                  {extrapOv.toFixed(2)} m
+                                  <div className="text-[7px] text-violet-400">{ovShelf.toFixed(2)} × {REPORT_FA.toFixed(4)}</div>
                                 </td>
                               )}
                               <td className="border border-slate-200 px-2 py-0.5 text-center font-bold text-green-700 bg-green-50 print:bg-green-50">
