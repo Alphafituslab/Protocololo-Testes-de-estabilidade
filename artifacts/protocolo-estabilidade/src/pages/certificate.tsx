@@ -2186,16 +2186,6 @@ export default function CertificatePage() {
                             {limiting && (
                               <p><span className="text-gray-500">Ativo com maior degradação: </span><span className="font-semibold text-amber-700">★ {limiting}</span></p>
                             )}
-                            {displayMonths != null && (
-                              <p>
-                                <span className="text-gray-500">{calcLabel} </span>
-                                <span className="font-semibold">{displayMonths.toFixed(2)} meses</span>
-                                {boxLabel && <span className="ml-1.5 text-[9px] font-normal text-violet-600">[{boxLabel}]</span>}
-                              </p>
-                            )}
-                            {recommendedMonths != null && (
-                              <p><span className="text-gray-500">Validade recomendada: </span><span className="font-semibold">{recommendedMonths} meses</span></p>
-                            )}
                           </div>
                           <div className="space-y-1">
                             {practicedMonths != null && (
