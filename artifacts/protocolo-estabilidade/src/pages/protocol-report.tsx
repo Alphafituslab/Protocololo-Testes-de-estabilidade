@@ -924,14 +924,6 @@ export default function ProtocolReportPage() {
                       </div>
                     </div>
 
-                    {/* Rodapé */}
-                    {selShelf != null && practiced != null && (
-                      <p className={`text-[7.5px] mt-2 ${ok ? "text-emerald-600" : "text-red-600"}`}>
-                        {practiced} meses praticados {ok ? "≤" : ">"} {selShelf.toFixed(2)} meses calculados
-                        {(rSelectedBox === "extrap_std" || rSelectedBox === "extrap_overage") ? " (extrapolado a 30°C — Arrhenius)" : " (40°C acelerado)"}
-                        {ok ? " — produto dentro da validade estimada." : " — validade praticada excede a estimativa cinética."}
-                      </p>
-                    )}
                   </div>
                 );
               })()}
