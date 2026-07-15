@@ -14,3 +14,4 @@
 - [HPLC — IDs estáveis em DEFAULT_ACTIVE_COMPOUNDS](hplc-stable-compound-ids.md) — NUNCA usar uid() em DEFAULT_ACTIVE_COMPOUNDS; IDs mudam a cada reload e quebram a indexação de calibração no localStorage.
 - [Sync de listas — nunca reenviar array inteiro por save](full-array-sync-body-limit.md) — POST do array completo em cada save estoura limite de body JSON e falha silenciosamente; sincronizar só o registro alterado.
 - [Backup automático + cópia em nuvem](backup-system-cloud-default.md) — ativado por padrão desde a v2; cada backup local também vai pro Object Storage p/ sobreviver a invasão do servidor.
+- [KineticsTab — design das BOXes de vida útil (c₀)](kinetics-box-c0-design.md) — BOX 1 usa c₀=100% (baseline), BOX 2 usa c₀=100+overage%; nunca reutilizar API shelfLife (c₀=T0) no BOX 1.

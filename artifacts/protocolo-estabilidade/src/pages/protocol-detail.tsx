@@ -2824,7 +2824,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
                               })()}
                               {/* Recomendação automática de overage calculada pela aba Cinética */}
                               {(() => {
-                                const rec = recommendedKineticsOverages[param.parameter];
+                                const rec = (recommendedKineticsOverages ?? {})[param.parameter];
                                 if (rec == null) return null;
                                 const currentOvg = lim.overage ? parseFloat(lim.overage.replace(",", ".")) : 0;
                                 if (rec === 0) {
@@ -4096,11 +4096,27 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     </div>
   ) : null;
 
+  // Vida útil SEM sobreformulação: c₀ = 100% (quantidade declarada exata, sem overage).
+  // Fórmula: t = −ln(limiar/100) / k
+  // → Responde à pergunta: "se o produto fosse fabricado exatamente no 100% declarado,
+  //   até quando ficaria dentro do spec?"
+  const baselineShelfLivesMap: Record<string, number> = {};
+  for (const [param, ov] of Object.entries(overrides)) {
+    const k = parseFloat(ov.k);
+    if (isNaN(k) || k <= 0) continue;
+    const threshold = parseFloat(ov.ichThreshold) || 90;
+    const t = -Math.log(threshold / 100) / k;
+    if (isFinite(t) && t > 0) baselineShelfLivesMap[param] = t;
+  }
+  const baselineShelfLifeValues = Object.values(baselineShelfLivesMap).filter(v => v > 0);
+  const minBaselineShelfLife = baselineShelfLifeValues.length > 0 ? Math.min(...baselineShelfLifeValues) : null;
+  const limitingBaselineParam = Object.entries(baselineShelfLivesMap).find(([, v]) => v === minBaselineShelfLife)?.[0] ?? null;
+
+  // minShelfLife (API c0=T0) — mantido como referência interna, mas não exibido no BOX 1 diretamente
   const shelfLives = Object.values(overrides)
     .map((o) => parseFloat(o.shelfLife))
     .filter((v) => !isNaN(v) && v > 0);
   const minShelfLife = shelfLives.length > 0 ? Math.min(...shelfLives) : null;
-  const limitingParam = Object.entries(overrides).find(([, o]) => parseFloat(o.shelfLife) === minShelfLife)?.[0] ?? null;
 
   // Overage-adjusted shelf life per parameter — ICH Q1A(R2):
   //   t_val_overage = −ln(ichThreshold / C0_overage) / k
@@ -4356,11 +4372,11 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
           )}
           <div className={`flex items-start gap-4 ${minOverageShelfLife != null ? "flex-wrap" : ""}`}>
 
-            {/* BOX 1 — Vida Útil Estimada (sem overage) */}
+            {/* BOX 1 — Vida Útil Estimada SEM sobreformulação (c₀ = 100%) */}
             {(() => {
-              const isSelectable = minOverageShelfLife != null;
+              const isSelectable = minBaselineShelfLife != null;
               const isSelected = selectedShelfBox === "standard";
-              const stdVal = customShelfLife !== "" ? customShelfLife : (minShelfLife != null ? String(Math.floor(minShelfLife)) : "");
+              const stdVal = customShelfLife !== "" ? customShelfLife : (minBaselineShelfLife != null ? String(Math.floor(minBaselineShelfLife)) : "");
               return (
                 <div
                   onClick={isSelectable ? () => {
@@ -4391,21 +4407,21 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                         if (selectedShelfBox === "standard" && val) applyShelfToValidade(val);
                       }}
                       className="w-24 text-3xl font-bold text-green-800 bg-green-100 border border-green-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-right tabular-nums"
-                      placeholder={minShelfLife != null ? String(Math.floor(minShelfLife)) : "—"}
+                      placeholder={minBaselineShelfLife != null ? String(Math.floor(minBaselineShelfLife)) : "—"}
                     />
                     <span className="text-xl font-semibold text-green-700">meses</span>
                   </div>
-                  {limitingParam && (
+                  {limitingBaselineParam && (
                     <div className="mt-2 inline-flex items-center gap-1.5 bg-amber-100 border border-amber-300 rounded-md px-2.5 py-1">
                       <span className="text-amber-600 text-xs">⚠</span>
                       <span className="text-xs font-semibold text-amber-800">Item limitante:</span>
-                      <span className="text-xs font-bold text-amber-900">{limitingParam}</span>
+                      <span className="text-xs font-bold text-amber-900">{limitingBaselineParam}</span>
                     </div>
                   )}
                   <p className="text-xs text-green-600 mt-1.5 opacity-60">
                     {customShelfLife !== ""
                       ? "Valor editado manualmente"
-                      : "Sem overage — concentração inicial = 100%"}
+                      : "Sem sobreformulação — c₀ = 100%"}
                   </p>
                   {isSelectable && !isSelected && (
                     <p className="text-[10px] text-green-600 mt-1 font-medium">Clique para usar este valor ↓</p>
@@ -4414,10 +4430,18 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               );
             })()}
 
-            {/* BOX 2 — Com Overage (exibido apenas quando há overage configurado) */}
+            {/* BOX 2 — Com Sobreformulação (exibido quando há overage implícito ou explícito) */}
             {minOverageShelfLife != null && (() => {
               const isSelected = selectedShelfBox === "overage";
               const overageVal = String(Math.floor(minOverageShelfLife));
+              // Determina origem do overage para o parâmetro limitante
+              const limitingOv = limitingOverageParam ? overrides[limitingOverageParam] : null;
+              const limitingLim = limitingOverageParam ? ativoLimits[limitingOverageParam] : null;
+              const limitingManual = limitingLim?.overage ? parseFloat(limitingLim.overage.replace(",", ".")) : NaN;
+              const limitingActualT0 = limitingOv ? (parseFloat(limitingOv.t0) || 100) : 100;
+              const limitingImplicit = Math.max(0, limitingActualT0 - 100);
+              const overageIsImplicit = (isNaN(limitingManual) || limitingManual <= 0) && limitingImplicit > 0;
+              const effectiveOveragePct = overageIsImplicit ? limitingImplicit : (!isNaN(limitingManual) ? limitingManual : 0);
               return (
                 <div
                   onClick={() => {
@@ -4432,7 +4456,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                 >
                   <p className="text-xs text-blue-700 font-medium uppercase tracking-wide mb-1 flex items-center gap-1.5">
                     <span>📦</span>
-                    {allHaveOverage ? "Com Overage" : "Com Overage (parcial)"}
+                    {allHaveOverage ? "Com Sobreformulação" : "Com Sobreformulação (parcial)"}
                     {isSelected && <span className="text-[10px] bg-blue-600 text-white rounded-full px-1.5 py-0.5 font-semibold normal-case">✓ em uso</span>}
                   </p>
                   <div className="flex items-center gap-2">
@@ -4449,7 +4473,9 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                     </div>
                   )}
                   <p className="text-xs text-blue-600 mt-1.5 opacity-80">
-                    Validade com sobreformulação declarada
+                    {overageIsImplicit
+                      ? `c₀ = T₀ = ${limitingActualT0.toFixed(2)}% (+${limitingImplicit.toFixed(2)}% impl.)`
+                      : `c₀ = 100 + ${effectiveOveragePct.toFixed(2)}% declarado`}
                   </p>
                   {!allHaveOverage && (
                     <p className="text-[10px] text-blue-500 mt-0.5">⚠ Valor parcial — nem todos os ativos têm overage</p>
@@ -4535,7 +4561,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               const ov = overrides[p.parameter];
               if (!ov) return null;
               const shelfNum = parseFloat(ov.shelfLife);
-              const isLimiting = p.parameter === limitingParam;
+              const isLimiting = p.parameter === limitingBaselineParam;
               return (
                 <TableRow key={p.parameter} className={isLimiting ? "bg-amber-50/40" : ""}>
                   <TableCell className="font-medium text-sm">{p.parameter}</TableCell>
