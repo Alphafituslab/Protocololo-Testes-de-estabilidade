@@ -4640,15 +4640,30 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
 
                       return (
                         <div className="flex flex-col items-end gap-0.5">
-                          {/* Measured shelf life (from T0/T3/T6) */}
-                          <div className="flex items-center gap-1.5">
-                            {hasValidOverage && (
-                              <span className="text-[9px] text-muted-foreground">sem overage:</span>
-                            )}
-                            <span className={`text-sm font-bold tabular-nums ${isLimiting && !hasValidOverage ? "text-amber-700" : "text-green-700"}`}>
-                              {!isNaN(shelfNum) && shelfNum > 0 ? `${shelfNum} m` : "—"}
-                            </span>
-                          </div>
+                          {/* Baseline shelf life — c₀ = 100% (same formula as BOX 1) */}
+                          {(() => {
+                            const baselineShelf = baselineShelfLivesMap[p.parameter];
+                            const displayVal = baselineShelf != null && baselineShelf > 0
+                              ? baselineShelf.toFixed(2)
+                              : (!isNaN(shelfNum) && shelfNum > 0 ? shelfNum.toFixed(2) : null);
+                            const ichThr = parseFloat(ov.ichThreshold) || 90;
+                            return (
+                              <div className="flex items-center gap-1.5">
+                                {hasValidOverage && (
+                                  <span
+                                    className="text-[9px] text-muted-foreground cursor-help"
+                                    title={`Sem sobreformulação: c₀ = 100% → −ln(${ichThr}%/100%) ÷ k = ${displayVal} m`}
+                                  >sem overage:</span>
+                                )}
+                                <span
+                                  className={`text-sm font-bold tabular-nums ${isLimiting && !hasValidOverage ? "text-amber-700" : "text-green-700"}`}
+                                  title={`c₀ = 100% → −ln(${ichThr}%/100%) ÷ k = ${displayVal} m`}
+                                >
+                                  {displayVal != null ? `${displayVal} m` : "—"}
+                                </span>
+                              </div>
+                            );
+                          })()}
                           {/* Overage-adjusted shelf life */}
                           {hasValidOverage && (
                             <div className="flex flex-col items-end gap-0.5">
