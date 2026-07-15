@@ -2017,7 +2017,15 @@ export default function CertificatePage() {
           // ── Shelf-life selecionado (selectedShelfBox) ──────────────────────────
           const FA_ARR = Math.exp((83140 / 8.314) * (1 / 303.15 - 1 / 313.15)); // ≈ 2.8674
           const kovJson = (() => { try { return cert.kineticsOverridesJson ? JSON.parse(cert.kineticsOverridesJson) as Record<string, unknown> : null; } catch { return null; } })();
-          const selectedBox = kovJson?.selectedShelfBox as string | null | undefined;
+          // Primary: DB (cert.kineticsOverridesJson) — Fallback: localStorage (unsaved selection)
+          const selectedBox = (() => {
+            if (kovJson?.selectedShelfBox) return kovJson.selectedShelfBox as string;
+            try {
+              const ls = localStorage.getItem(`kinetics_overrides_${id}`);
+              if (ls) { const p = JSON.parse(ls) as Record<string, unknown>; if (p.selectedShelfBox) return p.selectedShelfBox as string; }
+            } catch { /* ignore */ }
+            return null;
+          })();
           const ativoLimMap: Record<string, { overage?: string }> = (() => { try { return cert.ativoLimitsJson ? JSON.parse(cert.ativoLimitsJson) as Record<string, { overage?: string }> : {}; } catch { return {}; } })();
 
           const getBoxShelfLife = (p: typeof validParams[number]): number | null => {

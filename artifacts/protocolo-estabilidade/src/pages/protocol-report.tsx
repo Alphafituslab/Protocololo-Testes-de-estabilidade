@@ -412,7 +412,15 @@ export default function ProtocolReportPage() {
   // ── Shelf-life selecionado (selectedShelfBox) ──────────────────────────────
   const REPORT_FA = Math.exp((83140 / 8.314) * (1 / 303.15 - 1 / 313.15)); // ≈ 2.8674
   const rKovJson = (() => { try { return cert?.kineticsOverridesJson ? JSON.parse(cert.kineticsOverridesJson) as Record<string, unknown> : null; } catch { return null; } })();
-  const rSelectedBox = rKovJson?.selectedShelfBox as string | null | undefined;
+  // Primary: DB (cert.kineticsOverridesJson) — Fallback: localStorage (unsaved selection)
+  const rSelectedBox = (() => {
+    if (rKovJson?.selectedShelfBox) return rKovJson.selectedShelfBox as string;
+    try {
+      const ls = localStorage.getItem(`kinetics_overrides_${numId}`);
+      if (ls) { const p = JSON.parse(ls) as Record<string, unknown>; if (p.selectedShelfBox) return p.selectedShelfBox as string; }
+    } catch { /* ignore */ }
+    return null;
+  })();
   const rAtivoLimMap: Record<string, { overage?: string }> = (() => { try { return cert?.ativoLimitsJson ? JSON.parse(cert.ativoLimitsJson) as Record<string, { overage?: string }> : {}; } catch { return {}; } })();
 
   const getReportBoxShelfLife = (p: any): number | null => {
@@ -755,11 +763,19 @@ export default function ProtocolReportPage() {
           {/* 6. Cinética */}
           {validKParams.length > 0 && ps("s6", (
             <Section num="6" title="Cinética de Estabilidade e Estimativa de Validade">
-              <p className="text-[9px] text-gray-500 mb-3 leading-relaxed">
+              <p className="text-[9px] text-gray-500 mb-1 leading-relaxed">
                 Modelo cinético de primeira ordem (ICH Q1A(R2)). &nbsp;
                 <span className="font-mono bg-gray-100 px-1 rounded">k = −ln(C₆/C₃) / (6−3)</span> &nbsp;·&nbsp;
-                <span className="font-mono bg-gray-100 px-1 rounded">t<sub>val</sub> = −ln(0,80) / k</span> &nbsp;(limiar ICH: 80% de C₀)
+                <span className="font-mono bg-gray-100 px-1 rounded">t<sub>val</sub> = −ln(limiar/C₀) / k</span>
+                {rSelectedBox === "extrap_std" || rSelectedBox === "extrap_overage"
+                  ? <span className="ml-1 text-violet-600"> · &nbsp;<span className="font-mono bg-violet-50 px-1 rounded">t<sub>val</sub>(30°C) = t<sub>val</sub>(40°C) × FA</span> &nbsp;· FA = e<sup>[83140/8,314 × (1/303,15 − 1/313,15)]</sup> = <span className="font-semibold">{REPORT_FA.toFixed(4)}</span></span>
+                  : null}
               </p>
+              {(rSelectedBox === "extrap_std" || rSelectedBox === "extrap_overage") && (
+                <p className="text-[8.5px] text-violet-700 bg-violet-50 print:bg-violet-50 rounded px-2 py-1 mb-3 leading-relaxed border border-violet-200">
+                  <span className="font-semibold">Extrapolação de Arrhenius aplicada:</span> a validade calculada na condição acelerada (40°C/75% UR) foi convertida para a temperatura de armazenamento real (30°C) pelo Fator de Aceleração (FA = {REPORT_FA.toFixed(2)}), conforme ICH Q1A(R2) §3.1. O valor adotado reflete as condições normais de armazenamento do produto.
+                </p>
+              )}
               <table className="w-full border-collapse mb-3">
                 <thead>
                   <tr>
@@ -780,7 +796,9 @@ export default function ProtocolReportPage() {
                     const limiting = (kineticsData as any)?.limitingParameter === p.parameter;
                     const practiced = (cert as any).validityMonths as number | null;
                     const estimated = p.estimatedShelfLifeMonths ?? p.shelfLifeMonths ?? null;
-                    const ok = practiced == null || estimated == null || practiced <= estimated;
+                    const selShelf = getReportBoxShelfLife(p);
+                    const okThreshold = selShelf ?? estimated;
+                    const ok = practiced == null || okThreshold == null || practiced <= okThreshold;
                     return (
                       <tr key={p.parameter} className={limiting ? "bg-amber-50 print:bg-amber-50" : i % 2 !== 0 ? "bg-gray-50/70" : ""}>
                         <Td bold className={limiting ? "text-amber-800" : ""}>
@@ -793,7 +811,7 @@ export default function ProtocolReportPage() {
                         <Td center bold>{(() => { const v = getReportBoxShelfLife(p); return v != null ? v.toFixed(2) : (estimated != null ? Number(estimated).toFixed(2) : "—"); })()}</Td>
                         <Td center>
                           <span className={`text-[8.5px] font-semibold ${ok ? "text-emerald-700" : "text-red-600"}`}>
-                            {practiced != null && estimated != null ? (ok ? "✓ Compatível" : "⚠ Excede") : "—"}
+                            {practiced != null && okThreshold != null ? (ok ? "✓ APROVADO" : "⚠ Excede") : "—"}
                           </span>
                         </Td>
                       </tr>
@@ -821,6 +839,64 @@ export default function ProtocolReportPage() {
                   <p><span className="text-gray-400">Recomendada:</span> <span className="font-semibold">{(kineticsData as any).recommendedValidityMonths} meses</span></p>
                 )}
               </div>
+
+              {/* ── Interpretação da Validade — fluxo visual para o fiscal ─────── */}
+              {(() => {
+                const limP = validKParams.find((p: any) => p.parameter === (kineticsData as any)?.limitingParameter);
+                if (!limP) return null;
+                const k = typeof limP.k === "number" ? limP.k : null;
+                if (!k || k <= 0) return null;
+                const t0 = typeof limP.t0 === "number" && limP.t0 > 0 ? limP.t0 : 100;
+                const kovParam = (rKovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[limP.parameter];
+                const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
+                const manualOv = rAtivoLimMap[limP.parameter]?.overage ? parseFloat(String(rAtivoLimMap[limP.parameter].overage).replace(",", ".")) : NaN;
+                const effOv = (!isNaN(manualOv) && manualOv > 0) ? manualOv : Math.max(0, t0 - 100);
+                const baseShelf = -Math.log(ichThr / t0) / k;
+                const ovShelf = effOv > 0 ? -Math.log(ichThr / (100 + effOv)) / k : baseShelf;
+                const isOv = rSelectedBox === "overage" || rSelectedBox === "extrap_overage";
+                const isExtrap = rSelectedBox === "extrap_std" || rSelectedBox === "extrap_overage";
+                const accel40 = isOv ? ovShelf : baseShelf;
+                const selShelf = getReportBoxShelfLife(limP);
+                const practiced = (cert as any)?.validityMonths as number | null;
+                const ok = practiced != null && selShelf != null && practiced <= selShelf;
+                if (selShelf == null) return null;
+                return (
+                  <div className="mb-3 rounded border border-emerald-200 bg-emerald-50 print:bg-emerald-50 px-4 py-3">
+                    <p className="font-bold text-[8px] uppercase tracking-widest text-emerald-600 mb-2">Interpretação da Validade — {limP.parameter} (Ativo Limitante)</p>
+                    <div className="flex flex-wrap items-center gap-2 text-[8.5px]">
+                      <div className="flex flex-col items-center rounded border border-orange-200 bg-orange-50 print:bg-orange-50 px-3 py-1.5 min-w-[100px]">
+                        <span className="text-[7px] text-orange-500 font-semibold uppercase mb-0.5">Condição Acelerada</span>
+                        <span className="text-[9px] font-bold text-orange-700 font-mono">{accel40.toFixed(2)} m</span>
+                        <span className="text-[7px] text-orange-400">40°C / 75% UR{isOv ? ` + ov. ${effOv.toFixed(1)}%` : ""}</span>
+                      </div>
+                      {isExtrap && <>
+                        <div className="flex flex-col items-center text-violet-600 text-[7.5px]">
+                          <span className="font-bold text-[9px]">×</span>
+                          <span className="font-mono">FA={REPORT_FA.toFixed(2)}</span>
+                          <span>Arrhenius</span>
+                          <span>40→30°C</span>
+                        </div>
+                        <div className="flex flex-col items-center rounded border border-violet-300 bg-violet-50 print:bg-violet-50 px-3 py-1.5 min-w-[100px]">
+                          <span className="text-[7px] text-violet-500 font-semibold uppercase mb-0.5">Extrap. 30°C</span>
+                          <span className="text-[9px] font-bold text-violet-700 font-mono">{selShelf.toFixed(2)} m</span>
+                          <span className="text-[7px] text-violet-400">temperatura normal armazenamento</span>
+                        </div>
+                      </>}
+                      <div className="flex flex-col items-center text-gray-400 text-[7.5px]">
+                        <span className="font-bold text-[9px]">≥</span>
+                        <span>Praticado</span>
+                      </div>
+                      <div className={`flex flex-col items-center rounded border px-3 py-1.5 min-w-[100px] ${ok ? "border-emerald-300 bg-emerald-100 print:bg-emerald-100" : "border-red-300 bg-red-50 print:bg-red-50"}`}>
+                        <span className={`text-[7px] font-semibold uppercase mb-0.5 ${ok ? "text-emerald-600" : "text-red-500"}`}>Praticado (rótulo)</span>
+                        <span className={`text-[9px] font-bold font-mono ${ok ? "text-emerald-800" : "text-red-700"}`}>{practiced != null ? `${practiced} m` : "—"}</span>
+                        <span className={`text-[8px] font-bold mt-0.5 ${ok ? "text-emerald-700" : "text-red-600"}`}>{practiced != null ? (ok ? "✓ APROVADO" : "⚠ EXCEDE") : "—"}</span>
+                      </div>
+                    </div>
+                    {ok && practiced != null && <p className="text-[7.5px] text-emerald-600 mt-1.5">{practiced} meses praticados ≤ {selShelf.toFixed(2)} meses calculados{isExtrap ? ` (extrapolado a 30°C)` : ""} — produto dentro da validade estimada.</p>}
+                    {!ok && practiced != null && <p className="text-[7.5px] text-red-600 mt-1.5">{practiced} meses praticados &gt; {selShelf.toFixed(2)} meses calculados — validade praticada excede a estimativa cinética.</p>}
+                  </div>
+                );
+              })()}
 
               {/* ── Processo cinético — fluxo de cálculo (fiscal) ───────────────── */}
               {validKParams.length > 0 && (() => {
