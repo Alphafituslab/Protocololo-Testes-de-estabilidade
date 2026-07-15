@@ -16,9 +16,9 @@ const ICH_MIN_THRESHOLD_PERCENT = 90;
 
 /**
  * First-order kinetics (ICH Q1A(R2)):
- *   Δln = −ln(T6 / T3)
- *   k   = Δln / 3   [months⁻¹]
- *   t_val = −ln(threshold / C0) / k
+ *   Δln = −ln(T6 / T0)
+ *   k   = Δln / 6   [months⁻¹]   (full T0→T6 interval)
+ *   t_val = −ln(threshold / C0) / k   where C0 = T0
  */
 function calcKinetics(
   t0: number | null,
@@ -26,18 +26,18 @@ function calcKinetics(
   t6: number | null,
   minThresholdPercent: number,
 ) {
-  if (t3 == null || t6 == null || t3 <= 0 || t6 <= 0) {
+  if (t0 == null || t6 == null || t0 <= 0 || t6 <= 0) {
     return { deltaLn: null, k: null, estimatedShelfLifeMonths: null, tObserved: null };
   }
 
-  const deltaLn = -Math.log(t6 / t3);
-  const k = deltaLn / 3;
+  const deltaLn = -Math.log(t6 / t0);
+  const k = deltaLn / 6;
 
   if (k <= 0) {
     return { deltaLn, k, estimatedShelfLifeMonths: null, tObserved: null };
   }
 
-  const c0 = t0 ?? t6;
+  const c0 = t0;
 
   const lnNumerator = -Math.log(minThresholdPercent / c0);
   const estimatedShelfLifeMonths = lnNumerator > 0 ? lnNumerator / k : null;

@@ -3556,10 +3556,10 @@ function parseCriterionRange(criterion: string | null | undefined): { min: strin
 /**
  * Compute kinetic values from raw inputs.
  *
- * ICH Q1A(R2) formula:
- *   Δln = −ln(T6 / T3)
- *   k   = Δln / 3   (months⁻¹)
- *   t_val = −ln(ichThreshold / C0) / k
+ * Formula (T0→T6 full interval):
+ *   Δln = −ln(T6 / T0)
+ *   k   = Δln / 6   (months⁻¹)
+ *   t_val = −ln(ichThreshold / C0) / k   where C0 = T0
  *
  * ichThreshold is the ICH minimum content threshold (default 80 %).
  * It is SEPARATE from the specification/criterion range (specMin/specMax)
@@ -3569,23 +3569,21 @@ function calcKineticOverride(
   t0s: string, t3s: string, t6s: string, ichThresholds: string,
 ): Partial<KineticOverride> {
   const t0 = parseFloat(t0s.replace(",", "."));
-  const t3 = parseFloat(t3s.replace(",", "."));
   const t6 = parseFloat(t6s.replace(",", "."));
   const ichThreshold = parseFloat(ichThresholds.replace(",", "."));
 
-  if (isNaN(t3) || isNaN(t6) || t3 <= 0 || t6 <= 0) return {};
+  if (isNaN(t0) || isNaN(t6) || t0 <= 0 || t6 <= 0) return {};
 
-  // Δln = −ln(T6/T3)
-  const deltaLn = -Math.log(t6 / t3);
-  // k = Δln / 3
-  const k = deltaLn / 3;
+  // Δln = −ln(T6/T0)
+  const deltaLn = -Math.log(t6 / t0);
+  // k = Δln / 6  (T0→T6 = 6 months)
+  const k = deltaLn / 6;
 
   if (k <= 0 || isNaN(k)) return { deltaLn: deltaLn.toFixed(6), k: "" };
 
-  const c0 = isNaN(t0) || t0 <= 0 ? t6 : t0;
+  const c0 = t0;
 
   // t_val = −ln(ichThreshold / C0) / k
-  // Uses 80 (ICH Q1A) as minimum content threshold, NOT the spec range min
   const lnNum = isNaN(ichThreshold) || ichThreshold <= 0 ? NaN : -Math.log(ichThreshold / c0);
   const shelfLife = !isNaN(lnNum) && lnNum > 0 ? (lnNum / k).toFixed(2) : "";
 
@@ -4081,17 +4079,17 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     </div>
   );
 
-  const missingPeriods = kinetics.parameters.filter((p) => p.t3 == null || p.t6 == null);
+  const missingPeriods = kinetics.parameters.filter((p) => p.t0 == null || p.t6 == null);
   const missingMsg = missingPeriods.length > 0 ? (
     <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 space-y-1">
       <p className="font-semibold">⚠ Dados insuficientes para calcular a cinética completa</p>
-      <p>Os parâmetros abaixo precisam de resultados numéricos em <strong>T3m</strong> e/ou <strong>T6m</strong> na aba <strong>Resultados</strong>:</p>
+      <p>Os parâmetros abaixo precisam de resultados numéricos em <strong>T0m</strong> e/ou <strong>T6m</strong> na aba <strong>Resultados</strong>:</p>
       <ul className="list-disc ml-5 space-y-0.5">
         {missingPeriods.map((p) => (
           <li key={p.parameter}>
             <strong>{(p as { parameter: string }).parameter}</strong>
             {" — "}
-            {p.t3 == null && p.t6 == null ? "faltam T3 e T6" : p.t3 == null ? "falta T3" : "falta T6"}
+            {p.t0 == null && p.t6 == null ? "faltam T0 e T6" : p.t0 == null ? "falta T0" : "falta T6"}
           </li>
         ))}
       </ul>
@@ -5126,9 +5124,9 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               </div>
               {!hiddenPassoSteps.has(1) && (<>
                 <div className="font-mono bg-white border border-slate-200 rounded px-4 py-3 text-sm text-center">
-                  k = −ln(Média<sub>T6</sub> / Média<sub>T3</sub>) / 3
+                  k = −ln(Média<sub>T6</sub> / Média<sub>T0</sub>) / 6
                 </div>
-                <p className="text-xs text-slate-500">Calculado a partir do intervalo T3→T6 (meses)</p>
+                <p className="text-xs text-slate-500">Calculado a partir do intervalo T0→T6 (6 meses)</p>
               </>)}
             </div>
 
