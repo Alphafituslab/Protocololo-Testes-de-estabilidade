@@ -3965,7 +3965,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     obs = kineticsObs,
   ) => {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ overrides: next, customShelfLife: shelf, cardValidity: cv, kineticsObs: obs }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ overrides: next, customShelfLife: shelf, cardValidity: cv, kineticsObs: obs, selectedShelfBox: selectedShelfBox ?? undefined }));
     } catch { /* ignore */ }
   };
 

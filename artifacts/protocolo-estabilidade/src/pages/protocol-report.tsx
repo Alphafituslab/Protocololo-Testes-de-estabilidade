@@ -429,10 +429,8 @@ export default function ProtocolReportPage() {
     const t0 = typeof p.t0 === "number" && p.t0 > 0 ? p.t0 : 100;
     const kovParam = (rKovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[p.parameter];
     const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
-    const manualOv = rAtivoLimMap[p.parameter]?.overage ? parseFloat(String(rAtivoLimMap[p.parameter].overage).replace(",", ".")) : NaN;
-    const effOv = (!isNaN(manualOv) && manualOv > 0) ? manualOv : Math.max(0, t0 - 100);
-    const baseShelf = -Math.log(ichThr / t0) / k;
-    const ovShelf = effOv > 0 ? -Math.log(ichThr / (100 + effOv)) / k : baseShelf;
+    const baseShelf = -Math.log(ichThr / 100) / k;   // sem overage: parte de 100%
+    const ovShelf   = -Math.log(ichThr / t0)  / k;   // com overage: parte de t0%
     if (!rSelectedBox || rSelectedBox === "standard") return baseShelf;
     if (rSelectedBox === "overage") return ovShelf;
     if (rSelectedBox === "extrap_std") return baseShelf * REPORT_FA;
