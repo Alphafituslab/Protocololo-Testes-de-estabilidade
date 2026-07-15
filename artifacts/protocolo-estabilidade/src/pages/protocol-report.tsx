@@ -778,27 +778,41 @@ export default function ProtocolReportPage() {
               )}
               <table className="w-full border-collapse mb-3">
                 <thead>
+                  {/* Row 1 — group headers */}
                   <tr>
-                    <Th>Ativo</Th>
-                    <Th center>T0 (%)</Th>
-                    <Th center>T3 (%)</Th>
-                    <Th center>T6 (%)</Th>
-                    <Th center>k (mês⁻¹)</Th>
-                    <Th center>
-                      Validade Calc. (meses)
-                      {rBoxLabel && <div className="text-[7px] font-normal text-violet-600 mt-0.5 normal-case tracking-normal">{rBoxLabel}</div>}
-                    </Th>
-                    <Th center>Situação</Th>
+                    <th rowSpan={2} className="border border-gray-300 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wide text-gray-600 bg-gray-100 text-left whitespace-nowrap print:bg-gray-100">Ativo</th>
+                    <th rowSpan={2} className="border border-gray-300 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wide text-gray-600 bg-gray-100 text-center whitespace-nowrap print:bg-gray-100">T0 (%)</th>
+                    <th rowSpan={2} className="border border-gray-300 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wide text-gray-600 bg-gray-100 text-center whitespace-nowrap print:bg-gray-100">T3 (%)</th>
+                    <th rowSpan={2} className="border border-gray-300 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wide text-gray-600 bg-gray-100 text-center whitespace-nowrap print:bg-gray-100">T6 (%)</th>
+                    <th rowSpan={2} className="border border-gray-300 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wide text-gray-600 bg-gray-100 text-center whitespace-nowrap print:bg-gray-100">K (mês⁻¹)</th>
+                    <th colSpan={2} className="border border-gray-300 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wide text-gray-600 bg-gray-100 text-center print:bg-gray-100">Validade 40°C (meses)</th>
+                    <th colSpan={2} className="border border-gray-300 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wide text-violet-700 bg-violet-50 text-center print:bg-violet-50">Validade Extrap. 30°C — Arrhenius (meses)</th>
+                  </tr>
+                  {/* Row 2 — sub-headers */}
+                  <tr>
+                    <th className={`border border-gray-300 px-2 py-1 text-[8px] font-bold uppercase tracking-wide text-center whitespace-nowrap print:bg-gray-100 ${rSelectedBox === "standard" ? "bg-green-100 text-green-800 print:bg-green-100" : "bg-gray-100 text-gray-600"}`}>Sem overage</th>
+                    <th className={`border border-gray-300 px-2 py-1 text-[8px] font-bold uppercase tracking-wide text-center whitespace-nowrap print:bg-gray-100 ${rSelectedBox === "overage" ? "bg-green-100 text-green-800 print:bg-green-100" : "bg-gray-100 text-gray-600"}`}>Com overage</th>
+                    <th className={`border border-gray-300 px-2 py-1 text-[8px] font-bold uppercase tracking-wide text-center whitespace-nowrap print:bg-violet-50 ${rSelectedBox === "extrap_std" ? "bg-green-100 text-green-800 print:bg-green-100" : "bg-violet-50 text-violet-700"}`}>Sem overage</th>
+                    <th className={`border border-gray-300 px-2 py-1 text-[8px] font-bold uppercase tracking-wide text-center whitespace-nowrap print:bg-violet-50 ${rSelectedBox === "extrap_overage" ? "bg-green-100 text-green-800 print:bg-green-100" : "bg-violet-50 text-violet-700"}`}>Com overage</th>
                   </tr>
                 </thead>
                 <tbody>
                   {validKParams.map((p: any, i: number) => {
                     const limiting = (kineticsData as any)?.limitingParameter === p.parameter;
                     const practiced = (cert as any).validityMonths as number | null;
-                    const estimated = p.estimatedShelfLifeMonths ?? p.shelfLifeMonths ?? null;
+                    // Per-parameter shelf life for all 4 scenarios
+                    const k = typeof p.k === "number" ? p.k : null;
+                    const t0v = typeof p.t0 === "number" && p.t0 > 0 ? p.t0 : 100;
+                    const kovParam = (rKovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[p.parameter];
+                    const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
+                    const baseShelf = (k && k > 0) ? -Math.log(ichThr / 100) / k : null;         // sem overage: parte de 100%
+                    const ovShelf  = (k && k > 0) ? -Math.log(ichThr / t0v) / k : baseShelf;     // com overage: parte de t0v%
+                    const extrapBase = baseShelf != null ? baseShelf * REPORT_FA : null;
+                    const extrapOv   = ovShelf   != null ? ovShelf   * REPORT_FA : null;
                     const selShelf = getReportBoxShelfLife(p);
-                    const okThreshold = selShelf ?? estimated;
+                    const okThreshold = selShelf ?? (p.estimatedShelfLifeMonths ?? null);
                     const ok = practiced == null || okThreshold == null || practiced <= okThreshold;
+                    const selCls = "bg-green-50 font-semibold text-green-800 print:bg-green-50";
                     return (
                       <tr key={p.parameter} className={limiting ? "bg-amber-50 print:bg-amber-50" : i % 2 !== 0 ? "bg-gray-50/70" : ""}>
                         <Td bold className={limiting ? "text-amber-800" : ""}>
@@ -808,12 +822,10 @@ export default function ProtocolReportPage() {
                         <Td center mono>{p.t3 != null ? Number(p.t3).toFixed(2) : "—"}</Td>
                         <Td center mono>{p.t6 != null ? Number(p.t6).toFixed(2) : "—"}</Td>
                         <Td center mono>{p.k != null ? Number(p.k).toFixed(5) : "—"}</Td>
-                        <Td center bold>{(() => { const v = getReportBoxShelfLife(p); return v != null ? v.toFixed(2) : (estimated != null ? Number(estimated).toFixed(2) : "—"); })()}</Td>
-                        <Td center>
-                          <span className={`text-[8.5px] font-semibold ${ok ? "text-emerald-700" : "text-red-600"}`}>
-                            {practiced != null && okThreshold != null ? (ok ? "✓ APROVADO" : "⚠ Excede") : "—"}
-                          </span>
-                        </Td>
+                        <Td center className={rSelectedBox === "standard" ? selCls : ""}>{baseShelf != null ? baseShelf.toFixed(2) : "—"}</Td>
+                        <Td center className={rSelectedBox === "overage"   ? selCls : ""}>{ovShelf   != null ? ovShelf.toFixed(2)   : "—"}</Td>
+                        <Td center className={`text-violet-700 ${rSelectedBox === "extrap_std"     ? selCls : ""}`}>{extrapBase != null ? extrapBase.toFixed(2) : "—"}</Td>
+                        <Td center className={`text-violet-700 ${rSelectedBox === "extrap_overage" ? selCls : ""}`}>{extrapOv   != null ? extrapOv.toFixed(2)   : "—"}</Td>
                       </tr>
                     );
                   })}
