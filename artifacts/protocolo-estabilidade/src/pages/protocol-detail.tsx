@@ -4405,7 +4405,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
             {(() => {
               const isSelectable = minBaselineShelfLife != null;
               const isSelected = selectedShelfBox === "standard";
-              const stdVal = customShelfLife !== "" ? customShelfLife : (minBaselineShelfLife != null ? String(Math.floor(minBaselineShelfLife)) : "");
+              const stdVal = customShelfLife !== "" ? customShelfLife : (minBaselineShelfLife != null ? minBaselineShelfLife.toFixed(2) : "");
               return (
                 <div
                   onClick={isSelectable ? () => {
@@ -4435,8 +4435,8 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                         persistOverrides(overrides, val);
                         if (selectedShelfBox === "standard" && val) applyShelfToValidade(val);
                       }}
-                      className="w-24 text-3xl font-bold text-green-800 bg-green-100 border border-green-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-right tabular-nums"
-                      placeholder={minBaselineShelfLife != null ? String(Math.floor(minBaselineShelfLife)) : "—"}
+                      className="w-28 text-3xl font-bold text-green-800 bg-green-100 border border-green-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-right tabular-nums"
+                      placeholder={minBaselineShelfLife != null ? minBaselineShelfLife.toFixed(2) : "—"}
                     />
                     <span className="text-xl font-semibold text-green-700">meses</span>
                   </div>
@@ -4462,7 +4462,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
             {/* BOX 2 — Com Sobreformulação (exibido quando há overage implícito ou explícito) */}
             {minOverageShelfLife != null && (() => {
               const isSelected = selectedShelfBox === "overage";
-              const overageVal = String(Math.floor(minOverageShelfLife));
+              const overageVal = minOverageShelfLife.toFixed(2);
               // Determina origem do overage para o parâmetro limitante
               const limitingOv = limitingOverageParam ? overrides[limitingOverageParam] : null;
               const limitingLim = limitingOverageParam ? ativoLimits[limitingOverageParam] : null;
