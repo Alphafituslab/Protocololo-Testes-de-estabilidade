@@ -1627,7 +1627,23 @@ export default function CertificatePage() {
                 )}
                 <tr>
                   <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_validityMonths", "Validade:", { className: "text-gray-500 font-medium text-xs" })}</td>
-                  <td className="font-semibold align-top pb-1">{ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}</td>
+                  <td className="font-semibold align-top pb-1">
+                    {ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}
+                    {(() => {
+                      try {
+                        const kov = cert.kineticsOverridesJson ? JSON.parse(cert.kineticsOverridesJson) as { selectedShelfBox?: string } : null;
+                        const box = kov?.selectedShelfBox;
+                        if (!box) return null;
+                        const label =
+                          box === "extrap_std" ? "📐 Extrapolado Arrhenius (30°C) — sem sobreformulação" :
+                          box === "extrap_overage" ? "📐 Extrapolado Arrhenius (30°C) — com sobreformulação" :
+                          box === "overage" ? "📦 Com sobreformulação (40°C)" :
+                          box === "standard" ? "Sem sobreformulação (40°C)" : null;
+                        if (!label) return null;
+                        return <span className="print:hidden ml-2 text-[10px] font-normal text-violet-600 bg-violet-50 border border-violet-200 rounded px-1.5 py-0.5">{label}</span>;
+                      } catch { return null; }
+                    })()}
+                  </td>
                 </tr>
                 <tr>
                   <td className="text-gray-500 align-top pr-4 whitespace-nowrap font-medium">N° do Lote:</td>

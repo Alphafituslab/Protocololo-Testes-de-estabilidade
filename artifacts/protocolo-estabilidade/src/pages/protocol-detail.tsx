@@ -3666,6 +3666,7 @@ type KineticsOverridesDB = {
     manualFields?: string[];
   }>;
   customShelfLife?: string;
+  selectedShelfBox?: "standard" | "overage" | "extrap_std" | "extrap_overage" | null;
 };
 
 function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths, customParamsJson, initialKineticsOverridesJson, ativoLimitsJson, onApplyOverage, onRecommendedOverages, onSyncCertificate, isSyncingCertificate }: {
@@ -3968,7 +3969,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     } catch { /* ignore */ }
   };
 
-  const applyShelfToValidade = (valStr: string) => {
+  const applyShelfToValidade = (valStr: string, box?: "standard" | "overage" | "extrap_std" | "extrap_overage") => {
     setCardValidity(valStr);
     setOverrides(prev => {
       const next: Record<string, KineticOverride> = {};
@@ -3985,7 +3986,9 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       for (const [key, ov] of Object.entries(stored.overrides ?? {})) {
         updatedOvs[key] = { ...(ov as KineticOverride), validadePraticada: valStr };
       }
-      localStorage.setItem(LS_KEY, JSON.stringify({ ...stored, cardValidity: valStr, overrides: updatedOvs }));
+      const next: Record<string, unknown> = { ...stored, cardValidity: valStr, overrides: updatedOvs };
+      if (box !== undefined) next.selectedShelfBox = box;
+      localStorage.setItem(LS_KEY, JSON.stringify(next));
     } catch { /* ignore */ }
     const num = parseInt(valStr, 10);
     debouncedSave({ validityMonths: isNaN(num) ? null : num });
@@ -4047,6 +4050,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       savedAt: new Date().toISOString(),
       params: {},
       customShelfLife: customShelfLife || undefined,
+      selectedShelfBox: selectedShelfBox ?? undefined,
     };
     for (const [param, ov] of Object.entries(overrides)) {
       payload.params![param] = {
@@ -4433,7 +4437,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                 <div
                   onClick={isSelectable ? () => {
                     setSelectedShelfBox("standard");
-                    if (stdVal) applyShelfToValidade(stdVal);
+                    if (stdVal) applyShelfToValidade(stdVal, "standard");
                   } : undefined}
                   className={`flex-1 min-w-[160px] rounded-lg px-4 py-3 transition-all
                     ${isSelectable ? "cursor-pointer" : ""}
@@ -4498,7 +4502,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                 <div
                   onClick={() => {
                     setSelectedShelfBox("overage");
-                    applyShelfToValidade(overageVal);
+                    applyShelfToValidade(overageVal, "overage");
                   }}
                   className={`flex-1 min-w-[160px] rounded-lg px-4 py-3 cursor-pointer transition-all
                     ${isSelected
@@ -4626,7 +4630,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   <div
                     onClick={() => {
                       setSelectedShelfBox("extrap_std");
-                      applyShelfToValidade(extrapVal);
+                      applyShelfToValidade(extrapVal, "extrap_std");
                     }}
                     className={`flex-1 min-w-[160px] rounded-lg px-4 py-3 cursor-pointer transition-all
                       ${isSelected
@@ -4667,7 +4671,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   <div
                     onClick={() => {
                       setSelectedShelfBox("extrap_overage");
-                      applyShelfToValidade(extrapOvVal);
+                      applyShelfToValidade(extrapOvVal, "extrap_overage");
                     }}
                     className={`flex-1 min-w-[160px] rounded-lg px-4 py-3 cursor-pointer transition-all
                       ${isSelected
@@ -7097,6 +7101,7 @@ export default function ProtocolDetail() {
             savedAt: new Date().toISOString(),
             params: {},
             customShelfLife: stored.customShelfLife || undefined,
+            selectedShelfBox: (stored as Record<string, unknown>).selectedShelfBox as string | undefined,
           };
           for (const [param, ov] of Object.entries(stored.overrides)) {
             payload.params![param] = {
