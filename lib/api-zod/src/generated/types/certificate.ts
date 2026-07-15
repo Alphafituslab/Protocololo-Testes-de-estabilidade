@@ -55,4 +55,8 @@ export interface Certificate {
   certEditsJson?: string | null;
   /** Saved per-parameter analyses overrides (JSON blob) */
   certAnalysesOverridesJson?: string | null;
+  /** Saved kinetics overrides incl. selectedShelfBox (JSON blob) */
+  kineticsOverridesJson?: string | null;
+  /** Saved ativo limits per param, incl. overage% (JSON blob) */
+  ativoLimitsJson?: string | null;
 }

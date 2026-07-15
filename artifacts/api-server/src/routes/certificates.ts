@@ -547,6 +547,8 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     ressalva: protocol.ressalva ?? null,
     certEditsJson: protocol.certEditsJson ?? null,
     certAnalysesOverridesJson: protocol.certAnalysesOverridesJson ?? null,
+    kineticsOverridesJson: protocol.kineticsOverridesJson ?? null,
+    ativoLimitsJson: protocol.ativoLimitsJson ?? null,
   });
 });
 

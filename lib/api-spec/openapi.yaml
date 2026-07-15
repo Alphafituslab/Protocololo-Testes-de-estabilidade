@@ -1500,6 +1500,14 @@ components:
           type: string
           nullable: true
           description: JSON blob with per-parameter analyses overrides (method/spec/status)
+        kineticsOverridesJson:
+          type: string
+          nullable: true
+          description: JSON blob with kinetics overrides incl. selectedShelfBox
+        ativoLimitsJson:
+          type: string
+          nullable: true
+          description: JSON blob with ativo limits (overage% per param)
 
     ProtocolStats:
       type: object
@@ -1927,6 +1935,14 @@ components:
           type: string
           nullable: true
           description: Saved per-parameter analyses overrides (JSON blob)
+        kineticsOverridesJson:
+          type: string
+          nullable: true
+          description: Saved kinetics overrides incl. selectedShelfBox (JSON blob)
+        ativoLimitsJson:
+          type: string
+          nullable: true
+          description: Saved ativo limits per param, incl. overage% (JSON blob)
       required:
         - certNumber
         - issueDate
