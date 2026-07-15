@@ -2014,6 +2014,35 @@ export default function CertificatePage() {
           const practicedMonths = (cert as any).validityMonths as number | null ?? null;
           const hasData = validParams.length > 0;
 
+          // ── Shelf-life selecionado (selectedShelfBox) ──────────────────────────
+          const FA_ARR = Math.exp((83140 / 8.314) * (1 / 303.15 - 1 / 313.15)); // ≈ 2.8674
+          const kovJson = (() => { try { return cert.kineticsOverridesJson ? JSON.parse(cert.kineticsOverridesJson) as Record<string, unknown> : null; } catch { return null; } })();
+          const selectedBox = kovJson?.selectedShelfBox as string | null | undefined;
+          const ativoLimMap: Record<string, { overage?: string }> = (() => { try { return cert.ativoLimitsJson ? JSON.parse(cert.ativoLimitsJson) as Record<string, { overage?: string }> : {}; } catch { return {}; } })();
+
+          const getBoxShelfLife = (p: typeof validParams[number]): number | null => {
+            const k = typeof p.k === "number" ? p.k : null;
+            if (!k || k <= 0) return p.estimatedShelfLifeMonths ?? null;
+            const t0 = typeof p.t0 === "number" && p.t0 > 0 ? p.t0 : 100;
+            const kovParam = (kovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[p.parameter];
+            const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
+            const manualOv = ativoLimMap[p.parameter]?.overage ? parseFloat(String(ativoLimMap[p.parameter].overage).replace(",", ".")) : NaN;
+            const effOv = (!isNaN(manualOv) && manualOv > 0) ? manualOv : Math.max(0, t0 - 100);
+            const baseShelf = -Math.log(ichThr / t0) / k;
+            const ovShelf = effOv > 0 ? -Math.log(ichThr / (100 + effOv)) / k : baseShelf;
+            if (!selectedBox || selectedBox === "standard") return baseShelf;
+            if (selectedBox === "overage") return ovShelf;
+            if (selectedBox === "extrap_std") return baseShelf * FA_ARR;
+            if (selectedBox === "extrap_overage") return ovShelf * FA_ARR;
+            return baseShelf;
+          };
+
+          const boxLabel: string | null = !selectedBox ? null :
+            selectedBox === "extrap_overage" ? "📐 Extrap. Arrhenius 30°C + sobreformulação" :
+            selectedBox === "extrap_std" ? "📐 Extrap. Arrhenius 30°C s/ sobreformulação" :
+            selectedBox === "overage" ? "📦 40°C com sobreformulação" :
+            "40°C sem sobreformulação";
+
           // Build param → ativoStatus map from the analyses array (already has overage applied)
           const ativoStatusMap: Record<string, { status: string; mgValue: string | null; faixa: string | null }> = {};
           if (analyses) {
@@ -2076,7 +2105,10 @@ export default function CertificatePage() {
                           <th className="border border-blue-200 px-2 py-1 text-center font-semibold">T3 (%)</th>
                           <th className="border border-blue-200 px-2 py-1 text-center font-semibold">T6 (%)</th>
                           <th className="border border-blue-200 px-2 py-1 text-center font-semibold">k (mês⁻¹)</th>
-                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold">Validade Calc. (meses)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold">
+                            Validade Calc. (meses)
+                            {boxLabel && <div className="text-[8px] font-normal text-violet-600 mt-0.5">{boxLabel}</div>}
+                          </th>
                           <th className="border border-blue-200 px-2 py-1 text-center font-semibold">Conf. ANVISA</th>
                         </tr>
                       </thead>
@@ -2096,7 +2128,7 @@ export default function CertificatePage() {
                               <td className="border border-blue-200 px-2 py-1 text-center">{p.t6 != null ? p.t6.toFixed(2) : "—"}</td>
                               <td className="border border-blue-200 px-2 py-1 text-center font-mono">{p.k != null ? p.k.toFixed(5) : "—"}</td>
                               <td className="border border-blue-200 px-2 py-1 text-center font-semibold">
-                                {p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(2) : "—"}
+                                {(() => { const v = getBoxShelfLife(p); return v != null ? v.toFixed(2) : "—"; })()}
                               </td>
                               <td className={`border border-blue-200 px-2 py-1 text-center font-semibold ${anvAprovado ? "text-green-700" : anvReprovado ? "text-red-700" : "text-gray-400"}`}>
                                 {anvAprovado ? "✓ Aprovado"
@@ -2117,9 +2149,18 @@ export default function CertificatePage() {
                         {limiting && (
                           <p><span className="text-gray-500">Ativo com maior degradação: </span><span className="font-semibold text-amber-700">★ {limiting}</span></p>
                         )}
-                        {estimatedMonths != null && (
-                          <p><span className="text-gray-500">Validade calculada (ICH Q1A): </span><span className="font-semibold">{estimatedMonths.toFixed(2)} meses</span></p>
-                        )}
+                        {(() => {
+                          const limP = validParams.find(p => p.parameter === limiting);
+                          const selMonths = limP ? getBoxShelfLife(limP) : null;
+                          const displayMonths = selMonths ?? estimatedMonths;
+                          return displayMonths != null ? (
+                            <p>
+                              <span className="text-gray-500">Validade calculada (ICH Q1A): </span>
+                              <span className="font-semibold">{displayMonths.toFixed(2)} meses</span>
+                              {boxLabel && <span className="ml-1.5 text-[9px] font-normal text-violet-600">[{boxLabel}]</span>}
+                            </p>
+                          ) : null;
+                        })()}
                         {recommendedMonths != null && (
                           <p><span className="text-gray-500">Validade recomendada: </span><span className="font-semibold">{recommendedMonths} meses</span></p>
                         )}

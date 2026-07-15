@@ -409,6 +409,35 @@ export default function ProtocolReportPage() {
   const kParams = ((kineticsData as any)?.parameters ?? []) as any[];
   const validKParams = kParams.filter((p: any) => p?.k != null && p.k > 0);
 
+  // ── Shelf-life selecionado (selectedShelfBox) ──────────────────────────────
+  const REPORT_FA = Math.exp((83140 / 8.314) * (1 / 303.15 - 1 / 313.15)); // ≈ 2.8674
+  const rKovJson = (() => { try { return cert?.kineticsOverridesJson ? JSON.parse(cert.kineticsOverridesJson) as Record<string, unknown> : null; } catch { return null; } })();
+  const rSelectedBox = rKovJson?.selectedShelfBox as string | null | undefined;
+  const rAtivoLimMap: Record<string, { overage?: string }> = (() => { try { return cert?.ativoLimitsJson ? JSON.parse(cert.ativoLimitsJson) as Record<string, { overage?: string }> : {}; } catch { return {}; } })();
+
+  const getReportBoxShelfLife = (p: any): number | null => {
+    const k = typeof p.k === "number" ? p.k : null;
+    if (!k || k <= 0) return null;
+    const t0 = typeof p.t0 === "number" && p.t0 > 0 ? p.t0 : 100;
+    const kovParam = (rKovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[p.parameter];
+    const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
+    const manualOv = rAtivoLimMap[p.parameter]?.overage ? parseFloat(String(rAtivoLimMap[p.parameter].overage).replace(",", ".")) : NaN;
+    const effOv = (!isNaN(manualOv) && manualOv > 0) ? manualOv : Math.max(0, t0 - 100);
+    const baseShelf = -Math.log(ichThr / t0) / k;
+    const ovShelf = effOv > 0 ? -Math.log(ichThr / (100 + effOv)) / k : baseShelf;
+    if (!rSelectedBox || rSelectedBox === "standard") return baseShelf;
+    if (rSelectedBox === "overage") return ovShelf;
+    if (rSelectedBox === "extrap_std") return baseShelf * REPORT_FA;
+    if (rSelectedBox === "extrap_overage") return ovShelf * REPORT_FA;
+    return baseShelf;
+  };
+
+  const rBoxLabel: string | null = !rSelectedBox ? null :
+    rSelectedBox === "extrap_overage" ? "📐 Extrapolado Arrhenius 30°C — com sobreformulação" :
+    rSelectedBox === "extrap_std" ? "📐 Extrapolado Arrhenius 30°C — sem sobreformulação" :
+    rSelectedBox === "overage" ? "📦 40°C — com sobreformulação" :
+    "40°C — sem sobreformulação";
+
   return (
     <div className="min-h-screen bg-gray-50 print:min-h-0 print:bg-white">
       {/* ── Toolbar (screen only) ────────────────────────────────────── */}
@@ -739,7 +768,10 @@ export default function ProtocolReportPage() {
                     <Th center>T3 (%)</Th>
                     <Th center>T6 (%)</Th>
                     <Th center>k (mês⁻¹)</Th>
-                    <Th center>Validade Calc. (meses)</Th>
+                    <Th center>
+                      Validade Calc. (meses)
+                      {rBoxLabel && <div className="text-[7px] font-normal text-violet-600 mt-0.5 normal-case tracking-normal">{rBoxLabel}</div>}
+                    </Th>
                     <Th center>Situação</Th>
                   </tr>
                 </thead>
@@ -758,7 +790,7 @@ export default function ProtocolReportPage() {
                         <Td center mono>{p.t3 != null ? Number(p.t3).toFixed(2) : "—"}</Td>
                         <Td center mono>{p.t6 != null ? Number(p.t6).toFixed(2) : "—"}</Td>
                         <Td center mono>{p.k != null ? Number(p.k).toFixed(5) : "—"}</Td>
-                        <Td center bold>{estimated != null ? `${Number(estimated).toFixed(2)}` : "—"}</Td>
+                        <Td center bold>{(() => { const v = getReportBoxShelfLife(p); return v != null ? v.toFixed(2) : (estimated != null ? Number(estimated).toFixed(2) : "—"); })()}</Td>
                         <Td center>
                           <span className={`text-[8.5px] font-semibold ${ok ? "text-emerald-700" : "text-red-600"}`}>
                             {practiced != null && estimated != null ? (ok ? "✓ Compatível" : "⚠ Excede") : "—"}
@@ -773,13 +805,97 @@ export default function ProtocolReportPage() {
                 {(kineticsData as any)?.limitingParameter && (
                   <p><span className="text-gray-400">Ativo limitante:</span> <span className="font-semibold text-amber-700">★ {(kineticsData as any).limitingParameter}</span></p>
                 )}
-                {(kineticsData as any)?.estimatedShelfLifeMonths != null && (
-                  <p><span className="text-gray-400">Validade calculada:</span> <span className="font-semibold">{Number((kineticsData as any).estimatedShelfLifeMonths).toFixed(2)} meses</span></p>
-                )}
+                {(kineticsData as any)?.estimatedShelfLifeMonths != null && (() => {
+                  const limP = validKParams.find((p: any) => p.parameter === (kineticsData as any).limitingParameter);
+                  const selV = limP ? getReportBoxShelfLife(limP) : null;
+                  const display = selV ?? Number((kineticsData as any).estimatedShelfLifeMonths);
+                  return (
+                    <p>
+                      <span className="text-gray-400">Validade calculada:</span>{" "}
+                      <span className="font-semibold">{display.toFixed(2)} meses</span>
+                      {rBoxLabel && <span className="ml-1 text-violet-600">[{rBoxLabel}]</span>}
+                    </p>
+                  );
+                })()}
                 {(kineticsData as any)?.recommendedValidityMonths != null && (
                   <p><span className="text-gray-400">Recomendada:</span> <span className="font-semibold">{(kineticsData as any).recommendedValidityMonths} meses</span></p>
                 )}
               </div>
+
+              {/* ── Processo cinético — fluxo de cálculo (fiscal) ───────────────── */}
+              {validKParams.length > 0 && (() => {
+                const isExtrap = rSelectedBox === "extrap_std" || rSelectedBox === "extrap_overage";
+                return (
+                  <div className="mb-3 rounded border border-slate-200 bg-slate-50 print:bg-slate-50 p-3 text-[8.5px] text-gray-700">
+                    <p className="font-bold text-[8px] uppercase tracking-widest text-slate-500 mb-2">Rastreabilidade do Cálculo de Validade — Fluxo para o Fiscal</p>
+                    <table className="w-full border-collapse mb-2">
+                      <thead>
+                        <tr className="bg-slate-100 print:bg-slate-100">
+                          <th className="border border-slate-200 px-2 py-1 text-left text-[7.5px] font-bold uppercase">Ativo</th>
+                          <th className="border border-slate-200 px-2 py-1 text-center text-[7.5px] font-bold uppercase">t_val (40°C sem ov.)</th>
+                          <th className="border border-slate-200 px-2 py-1 text-center text-[7.5px] font-bold uppercase">t_val (40°C com ov.)</th>
+                          {isExtrap && <th className="border border-slate-200 px-2 py-1 text-center text-[7.5px] font-bold uppercase text-violet-700">× FA → 30°C sem ov.</th>}
+                          {isExtrap && <th className="border border-slate-200 px-2 py-1 text-center text-[7.5px] font-bold uppercase text-violet-700">× FA → 30°C com ov.</th>}
+                          <th className="border border-slate-200 px-2 py-1 text-center text-[7.5px] font-bold uppercase text-green-700">▶ Adotado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {validKParams.map((p: any, i: number) => {
+                          const k = typeof p.k === "number" ? p.k : null;
+                          if (!k || k <= 0) return null;
+                          const t0 = typeof p.t0 === "number" && p.t0 > 0 ? p.t0 : 100;
+                          const kovParam = (rKovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[p.parameter];
+                          const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
+                          const manualOv = rAtivoLimMap[p.parameter]?.overage ? parseFloat(String(rAtivoLimMap[p.parameter].overage).replace(",", ".")) : NaN;
+                          const effOv = (!isNaN(manualOv) && manualOv > 0) ? manualOv : Math.max(0, t0 - 100);
+                          const baseShelf = -Math.log(ichThr / t0) / k;
+                          const ovShelf = effOv > 0 ? -Math.log(ichThr / (100 + effOv)) / k : null;
+                          const extrapBase = baseShelf * REPORT_FA;
+                          const extrapOv = ovShelf != null ? ovShelf * REPORT_FA : null;
+                          const adopted = getReportBoxShelfLife(p);
+                          const isLim = p.parameter === (kineticsData as any)?.limitingParameter;
+                          return (
+                            <tr key={p.parameter} className={isLim ? "bg-amber-50 print:bg-amber-50" : i % 2 !== 0 ? "bg-white" : ""}>
+                              <td className={`border border-slate-200 px-2 py-0.5 font-semibold ${isLim ? "text-amber-800" : ""}`}>
+                                {p.parameter}{isLim && " ★"}
+                              </td>
+                              <td className={`border border-slate-200 px-2 py-0.5 text-center font-mono ${rSelectedBox === "standard" ? "bg-green-50 font-bold" : ""}`}>
+                                {baseShelf.toFixed(2)} m
+                                <div className="text-[7px] text-gray-400">−ln({ichThr.toFixed(0)}%/{t0.toFixed(2)}%) ÷ k</div>
+                              </td>
+                              <td className={`border border-slate-200 px-2 py-0.5 text-center font-mono ${rSelectedBox === "overage" ? "bg-green-50 font-bold" : ""}`}>
+                                {ovShelf != null ? `${ovShelf.toFixed(2)} m` : "—"}
+                                {ovShelf != null && effOv > 0 && <div className="text-[7px] text-gray-400">−ln({ichThr.toFixed(0)}%/{(100 + effOv).toFixed(2)}%) ÷ k</div>}
+                              </td>
+                              {isExtrap && (
+                                <td className={`border border-slate-200 px-2 py-0.5 text-center font-mono text-violet-700 ${rSelectedBox === "extrap_std" ? "bg-green-50 font-bold" : ""}`}>
+                                  {extrapBase.toFixed(2)} m
+                                  <div className="text-[7px] text-violet-400">{baseShelf.toFixed(2)} × {REPORT_FA.toFixed(4)}</div>
+                                </td>
+                              )}
+                              {isExtrap && (
+                                <td className={`border border-slate-200 px-2 py-0.5 text-center font-mono text-violet-700 ${rSelectedBox === "extrap_overage" ? "bg-green-50 font-bold" : ""}`}>
+                                  {extrapOv != null ? `${extrapOv.toFixed(2)} m` : "—"}
+                                  {extrapOv != null && ovShelf != null && <div className="text-[7px] text-violet-400">{ovShelf.toFixed(2)} × {REPORT_FA.toFixed(4)}</div>}
+                                </td>
+                              )}
+                              <td className="border border-slate-200 px-2 py-0.5 text-center font-bold text-green-700 bg-green-50 print:bg-green-50">
+                                {adopted != null ? `${adopted.toFixed(2)} m` : "—"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    <div className="text-[7.5px] text-gray-500 space-y-0.5">
+                      <p><span className="font-semibold">Modelo:</span> Cinética de 1ª ordem (ICH Q1A(R2)) · k = −ln(C₆/C₃) / 3 · t<sub>val</sub> = −ln(limiar/C₀) / k</p>
+                      {isExtrap && <p><span className="font-semibold">Extrapolação Arrhenius:</span> FA = e^[Ea/R × (1/T₂ − 1/T₁)] = e^[83 140/8,314 × (1/303,15 − 1/313,15)] = <span className="font-mono">{REPORT_FA.toFixed(4)}</span> · t<sub>val</sub>(30°C) = t<sub>val</sub>(40°C) × FA</p>}
+                      {rBoxLabel && <p><span className="font-semibold">Valor adotado:</span> {rBoxLabel} → <span className="font-semibold text-green-700">{cert.validityMonths ?? "—"} meses</span></p>}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="rounded border border-green-300 bg-green-50 print:bg-green-50 px-4 py-3 flex items-center justify-between">
                 <div>
                   <p className="text-[8px] font-bold uppercase tracking-widest text-green-700 mb-0.5">Validade Praticada — Valor Adotado no Produto</p>
