@@ -3644,6 +3644,9 @@ function buildKineticOverride(p: KineticApiParam): KineticOverride {
   const t3 = p.t3 != null ? p.t3.toFixed(2) : "";
   const t6 = p.t6 != null ? p.t6.toFixed(2) : "";
   const { min: specMin, max: specMax } = parseCriterionRange(p.criterion);
+  // Prefer Arrhenius-corrected shelf life (at long-term temp) when available;
+  // fall back to raw ICH Q1A estimate (at the bucket's measurement temperature).
+  const effectiveShelfLife = p.shelfLifeArrhenius ?? p.estimatedShelfLifeMonths;
   return {
     t0, t3, t6,
     deltaLn: p.deltaLn != null ? p.deltaLn.toFixed(6) : "",
@@ -3651,7 +3654,7 @@ function buildKineticOverride(p: KineticApiParam): KineticOverride {
     ichThreshold: p.minThresholdPercent.toString(),
     specMin,
     specMax,
-    shelfLife: p.estimatedShelfLifeMonths != null ? p.estimatedShelfLifeMonths.toFixed(2) : "",
+    shelfLife: effectiveShelfLife != null ? effectiveShelfLife.toFixed(2) : "",
     validadePraticada: "",
   };
 }
@@ -4112,6 +4115,16 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const minBaselineShelfLife = baselineShelfLifeValues.length > 0 ? Math.min(...baselineShelfLifeValues) : null;
   const limitingBaselineParam = Object.entries(baselineShelfLivesMap).find(([, v]) => v === minBaselineShelfLife)?.[0] ?? null;
 
+  // Detect accelerated-only study: all parameters have kAccelerated but none have kLongTerm.
+  // In this case the k used in calculations was measured at the accelerated temperature (e.g. 40°C),
+  // NOT at the intended storage temperature (25°C). Arrhenius correction requires long-term lots.
+  const hasAnyAccelerated = kinetics.parameters.some((p) => p.kAccelerated != null && p.kAccelerated > 0);
+  const hasAnyLongTerm = kinetics.parameters.some((p) => p.kLongTerm != null && p.kLongTerm > 0);
+  const isAcceleratedOnly = hasAnyAccelerated && !hasAnyLongTerm;
+  const accTempC = isAcceleratedOnly
+    ? (kinetics.parameters.find((p) => p.conditionTempAcc != null)?.conditionTempAcc ?? null)
+    : null;
+
   // minShelfLife (API c0=T0) — mantido como referência interna, mas não exibido no BOX 1 diretamente
   const shelfLives = Object.values(overrides)
     .map((o) => parseFloat(o.shelfLife))
@@ -4360,6 +4373,24 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
           </div>
         );
       })()}
+
+      {/* Accelerated-only study warning banner */}
+      {isAcceleratedOnly && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 flex gap-3 items-start">
+          <span className="text-amber-500 text-lg leading-none mt-0.5">⚠️</span>
+          <div className="space-y-1 text-[12px]">
+            <p className="font-semibold text-amber-800">
+              Estudo 100% acelerado{accTempC != null ? ` (${accTempC}°C)` : ""} — vida útil calculada <em>na temperatura acelerada</em>, não a 25°C
+            </p>
+            <p className="text-amber-700">
+              Os valores abaixo refletem a cinética a {accTempC != null ? `${accTempC}°C` : "temperatura acelerada"}.
+              Para obter a vida útil corrigida às condições reais de armazenamento (25°C/60%UR),
+              adicione lotes de <strong>longa duração</strong> com os resultados correspondentes —
+              o sistema calculará automaticamente a correção de Arrhenius (ICH Q1A(R2)).
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Summary card */}
       <Card className="border-green-200 bg-green-50">
