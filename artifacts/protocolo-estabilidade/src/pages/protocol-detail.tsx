@@ -4811,11 +4811,11 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                               <div className="flex items-center gap-1">
                                 <span className="text-[9px] text-blue-500">
                                   {isImplicitOverage
-                                    ? `↑${implicitOveragePct.toFixed(1)}% impl.:`
-                                    : `+${effectiveOverage}% overage:`}
+                                    ? `↑${implicitOveragePct.toFixed(2)}% impl.:`
+                                    : `+${effectiveOverage.toFixed(2)}% overage:`}
                                 </span>
                                 <span className="text-sm font-bold tabular-nums text-blue-700">
-                                  {Math.floor(overageShelf)} m
+                                  {overageShelf.toFixed(2)} m
                                 </span>
                               </div>
                               {/* Quantidade real no fim da validade adotada */}
@@ -4833,15 +4833,15 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                                   className={`flex items-center gap-1 text-[9px] cursor-help ${qtyOk ? "text-green-600" : "text-red-600"}`}
                                   title={`C(${validadeMeses}m) = (100+${effectiveOverage}) × e^(−${k.toFixed(6)}×${validadeMeses}) = ${qtyAtEndPct.toFixed(2)}% (especifique quantidade declarada para ver em ${lim?.unit ?? "mg"})`}
                                 >
-                                  {qtyOk ? "✓" : "⚠"} {qtyAtEndPct.toFixed(1)}% em {validadeMeses}m
+                                  {qtyOk ? "✓" : "⚠"} {qtyAtEndPct.toFixed(2)}% em {validadeMeses}m
                                 </div>
                               )}
                               {/* Tooltip com conta completa */}
                               <span
                                 className="text-[8px] text-blue-300 tabular-nums cursor-help"
-                                title={`−ln(${ichThresholdPct.toFixed(1)}%/(100+${effectiveOverage.toFixed(2)})) / k = ${overageShelf.toFixed(2)} meses${isImplicitOverage ? " [overage implícito: T0−100]" : ""}`}
+                                title={`−ln(${ichThresholdPct.toFixed(2)}%/(100+${effectiveOverage.toFixed(2)})) / k = ${overageShelf.toFixed(2)} meses${isImplicitOverage ? " [overage implícito: T0−100]" : ""}`}
                               >
-                                −ln({ichThresholdPct.toFixed(0)}%/{(100+effectiveOverage).toFixed(1)}%) ÷ k
+                                −ln({ichThresholdPct.toFixed(2)}%/{(100+effectiveOverage).toFixed(2)}%) ÷ k
                               </span>
                             </div>
                           )}
