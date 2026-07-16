@@ -3760,6 +3760,11 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     if (typeof ls.cardValidity === "string" && ls.cardValidity !== "") return ls.cardValidity;
     return initialValidityMonths != null ? String(initialValidityMonths) : "";
   });
+  // Quando true, nenhum clique nas caixinhas pode mudar o valor — só o input manual.
+  const [validityLockedByUser, setValidityLockedByUser] = useState<boolean>(() => {
+    const ls = readLs();
+    return !!ls.validityLockedByUser;
+  });
   const [kineticsObs, setKineticsObs] = useState<string>(() => {
     const ls = readLs();
     if (typeof ls.kineticsObs === "string") return ls.kineticsObs;
@@ -3999,9 +4004,8 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     }
     setOverrides(next);
     setCustomShelfLife(savedCustomShelfLife);
-    // Auto-fill the "Validade Praticada" card when no value has been set yet —
-    // uses the functional updater so we never overwrite a value the user typed.
-    if (effectiveCardValidity) {
+    // Auto-fill only when user never manually locked the field.
+    if (effectiveCardValidity && !validityLockedByUser) {
       setCardValidity(cv => cv || effectiveCardValidity);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -4014,11 +4018,21 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     obs = kineticsObs,
   ) => {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ overrides: next, customShelfLife: shelf, cardValidity: cv, kineticsObs: obs, selectedShelfBox: selectedShelfBox ?? undefined }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ overrides: next, customShelfLife: shelf, cardValidity: cv, kineticsObs: obs, selectedShelfBox: selectedShelfBox ?? undefined, validityLockedByUser }));
     } catch { /* ignore */ }
   };
 
   const applyShelfToValidade = (valStr: string, box?: "standard" | "overage" | "extrap_std" | "extrap_overage") => {
+    // Se o usuário fixou a validade manualmente, apenas atualiza o indicador "Origem" — nunca muda o valor.
+    if (validityLockedByUser) {
+      if (box !== undefined) {
+        try {
+          const stored = readLs();
+          localStorage.setItem(LS_KEY, JSON.stringify({ ...stored, selectedShelfBox: box, validityLockedByUser: true }));
+        } catch { /* ignore */ }
+      }
+      return;
+    }
     setCardValidity(valStr);
     setOverrides(prev => {
       const next: Record<string, KineticOverride> = {};
@@ -4085,6 +4099,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     setOverrides(reset);
     setCustomShelfLife("");
     setCardValidity(initialValidityMonths != null ? String(initialValidityMonths) : "");
+    setValidityLockedByUser(false);
     setKineticsObs(initialKineticsNotes ?? "");
     setManualFields({});
     setIsDirty(false);
@@ -4604,6 +4619,8 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   value={cardValidity}
                   onChange={(e) => {
                     const val = e.target.value;
+                    // Digitar manualmente fixa o valor — caixinhas não podem mais sobrescrever.
+                    setValidityLockedByUser(true);
                     setCardValidity(val);
                     setOverrides(prev => {
                       const next: Record<string, KineticOverride> = {};
@@ -4619,7 +4636,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       for (const [key, ov] of Object.entries(stored.overrides ?? {})) {
                         updatedOvs[key] = { ...(ov as KineticOverride), validadePraticada: val };
                       }
-                      localStorage.setItem(LS_KEY, JSON.stringify({ ...stored, cardValidity: val, overrides: updatedOvs }));
+                      localStorage.setItem(LS_KEY, JSON.stringify({ ...stored, cardValidity: val, validityLockedByUser: true, overrides: updatedOvs }));
                     } catch { /* ignore */ }
                     const num = parseInt(val, 10);
                     debouncedSave({ validityMonths: isNaN(num) ? null : num });
