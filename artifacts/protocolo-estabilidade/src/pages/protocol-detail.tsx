@@ -4816,7 +4816,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               <TableHead className="text-right text-xs whitespace-nowrap bg-indigo-50/50">Valor em mg/mcg (T6)</TableHead>
               <TableHead className="text-right text-xs whitespace-nowrap bg-amber-50/80">
                 Overage Recomendado
-                <span className="block text-[9px] font-normal text-amber-500 normal-case">para ≥ 80% no prazo</span>
+                <span className="block text-[9px] font-normal text-amber-500 normal-case">para ≥ 90% no prazo</span>
               </TableHead>
               <TableHead className="w-8" />
             </TableRow>
