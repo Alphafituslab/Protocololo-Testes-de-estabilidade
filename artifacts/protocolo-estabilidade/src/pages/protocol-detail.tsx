@@ -4436,8 +4436,10 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               return (
                 <div
                   onClick={isSelectable ? () => {
+                    const changing = selectedShelfBox !== "standard";
                     setSelectedShelfBox("standard");
-                    if (stdVal) applyShelfToValidade(stdVal, "standard");
+                    if (changing && stdVal) applyShelfToValidade(stdVal, "standard");
+                    else if (!changing) applyShelfToValidade(cardValidity, "standard");
                   } : undefined}
                   className={`flex-1 min-w-[160px] rounded-lg px-4 py-3 transition-all
                     ${isSelectable ? "cursor-pointer" : ""}
@@ -4501,8 +4503,10 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               return (
                 <div
                   onClick={() => {
+                    const changing = selectedShelfBox !== "overage";
                     setSelectedShelfBox("overage");
-                    applyShelfToValidade(overageVal, "overage");
+                    if (changing) applyShelfToValidade(overageVal, "overage");
+                    else applyShelfToValidade(cardValidity, "overage");
                   }}
                   className={`flex-1 min-w-[160px] rounded-lg px-4 py-3 cursor-pointer transition-all
                     ${isSelected
@@ -4628,8 +4632,10 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                 return (
                   <div
                     onClick={() => {
+                      const changing = selectedShelfBox !== "extrap_std";
                       setSelectedShelfBox("extrap_std");
-                      applyShelfToValidade(extrapVal, "extrap_std");
+                      if (changing) applyShelfToValidade(extrapVal, "extrap_std");
+                      else applyShelfToValidade(cardValidity, "extrap_std");
                     }}
                     className={`flex-1 min-w-[160px] rounded-lg px-4 py-3 cursor-pointer transition-all
                       ${isSelected
@@ -4669,8 +4675,10 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                 return (
                   <div
                     onClick={() => {
+                      const changing = selectedShelfBox !== "extrap_overage";
                       setSelectedShelfBox("extrap_overage");
-                      applyShelfToValidade(extrapOvVal, "extrap_overage");
+                      if (changing) applyShelfToValidade(extrapOvVal, "extrap_overage");
+                      else applyShelfToValidade(cardValidity, "extrap_overage");
                     }}
                     className={`flex-1 min-w-[160px] rounded-lg px-4 py-3 cursor-pointer transition-all
                       ${isSelected
