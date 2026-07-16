@@ -115,13 +115,10 @@ const ANALYSIS_PARAMETERS = [
   { parameter: "Massa média", category: "fisico_quimica", criterion: "± 7,5%" },
   { parameter: "Kcal", category: "fisico_quimica", criterion: "≤ 4 kcal declara 0" },
   { parameter: "Sódio", category: "fisico_quimica", criterion: "≤ 5 mg declara 0" },
-  { parameter: "Coliformes totais", category: "microbiologica", criterion: "≤ 10 UFC/g" },
-  { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25 g" },
-  { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10 UFC/g" },
-  { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 100 UFC/g" },
-  { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente" },
-  { parameter: "Enterobacteriaceae", category: "microbiologica", criterion: "Ausente" },
-  { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", category: "microbiologica", criterion: "≤ 1000 UFC/g" },
+  { parameter: "Salmonella spp. em 10 g", category: "microbiologica", criterion: "Ausente em 10 g" },
+  { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10² UFC/g" },
+  { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1 g" },
+  { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", category: "microbiologica", criterion: "≤ 10³ UFC/g" },
   { parameter: "Cálcio", category: "teor_ativo", criterion: "98,50% - 100,50%" },
   { parameter: "Vitamina D", category: "teor_ativo", criterion: "97,00% - 103,00%" },
   { parameter: "Torque de tampa", category: "embalagem", criterion: "2 unidades a cada 100" },
@@ -129,6 +126,34 @@ const ANALYSIS_PARAMETERS = [
   { parameter: "Integridade selagem", category: "embalagem", criterion: "2 unidades a cada 100" },
   { parameter: "Headspace", category: "embalagem", criterion: "15% - 20%" },
 ];
+
+// ── Parâmetros microbiológicos padrão por forma farmacêutica ─────────────────
+const MICRO_PARAMS_CAPSULA = [
+  { parameter: "Salmonella spp. em 10 g", category: "microbiologica", criterion: "Ausente em 10 g" },
+  { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10² UFC/g" },
+  { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1 g" },
+  { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", category: "microbiologica", criterion: "≤ 10³ UFC/g" },
+] as const;
+
+const MICRO_PARAMS_PO = [
+  { parameter: "Salmonella spp. em 25 g", category: "microbiologica", criterion: "Ausente em 25 g" },
+  { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10³ UFC/g" },
+  { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1 g" },
+  { parameter: "Enterobacteriaceae", category: "microbiologica", criterion: "≤ 10² UFC/g" },
+  { parameter: "Estafilococos coagulase positiva por g", category: "microbiologica", criterion: "≤ 10² UFC/g" },
+] as const;
+
+/** Retorna a lista de parâmetros padrão combinando params fixos + micro correto pela forma farmacêutica. */
+function getDefaultParams(isPowder: boolean): Array<{ parameter: string; category: string; criterion: string; uid: string }> {
+  const micro = isPowder ? [...MICRO_PARAMS_PO] : [...MICRO_PARAMS_CAPSULA];
+  const all = [
+    ...ANALYSIS_PARAMETERS.filter(p => p.category === "fisico_quimica"),
+    ...micro,
+    ...ANALYSIS_PARAMETERS.filter(p => p.category === "teor_ativo"),
+    ...ANALYSIS_PARAMETERS.filter(p => p.category === "embalagem"),
+  ];
+  return all.map((p, i) => ({ ...p, uid: `${p.category}_${i}` }));
+}
 
 const PERIODS = [0, 3, 6];
 
@@ -1570,13 +1595,11 @@ const PRODUCT_TEMPLATES: ProductTemplate[] = [
       { parameter: "Massa média", category: "fisico_quimica", criterion: "10,0 g ± 5%", methodologyShort: "FB 5ª Ed.", methodologyCitation: "Farmacopeia Brasileira 5ª Ed. — Determinação de massa média" },
       { parameter: "Peso médio sachê", category: "fisico_quimica", criterion: "10,0 g ± 5%", methodologyShort: "Gravimétrico", methodologyCitation: "Método gravimétrico — pesagem direta (balança analítica)" },
       // Microbiológica
-      { parameter: "Coliformes totais", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 331/2019 — Coliformes a 35°C" },
-      { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 331/2019 — Salmonella spp." },
-      { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 331/2019 — Estafilococos coagulase positiva" },
-      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / ABNT NBR — Contagem de bolores e leveduras" },
-      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 331/2019 — E. coli (MPN)" },
+      { parameter: "Salmonella spp. em 25 g", category: "microbiologica", criterion: "Ausente em 25 g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 331/2019 — Salmonella spp. em 25 g" },
+      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 331/2019 — Contagem de bolores e leveduras" },
+      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1 g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 331/2019 — Escherichia coli (MPN)" },
       { parameter: "Enterobacteriaceae", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "ISO 21528-2", methodologyCitation: "ISO 21528-2 / ABNT NBR — Contagem de Enterobacteriaceae" },
-      { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "ISO 4833-1", methodologyCitation: "ISO 4833-1 / ABNT NBR — Contagem de micro-organismos aeróbios mesófilos a 30°C" },
+      { parameter: "Estafilococos coagulase positiva por g", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 331/2019 — Estafilococos coagulase positiva" },
       // Teor do Ativo
       { parameter: "Gelatina hidrolisada/Colágeno hidrolisado", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "AOAC 990.03", methodologyCitation: "AOAC 990.03 — Proteína total (Kjeldahl) / Colágeno hidrolisado" },
       { parameter: "Vitamina C - Ácido Ascórbico", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "AOAC 967.21", methodologyCitation: "AOAC 967.21 — Ácido Ascórbico por HPLC / titulação iodométrica" },
@@ -1602,12 +1625,10 @@ const PRODUCT_TEMPLATES: ProductTemplate[] = [
       { parameter: "Kcal", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "Cálculo Atwater", methodologyCitation: "Cálculo pelos fatores de Atwater / AOAC 2011.25" },
       { parameter: "Sódio", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "AOAC 984.27", methodologyCitation: "AOAC 984.27 — Sódio por ICP-OES / absorção atômica" },
       // Microbiológica
-      { parameter: "Coliformes totais", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Coliformes totais a 35°C" },
-      { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp." },
-      { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 724/2022 — Estafilococos coagulase positiva" },
-      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
-      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Escherichia coli (MPN)" },
-      { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", category: "microbiologica", criterion: "≤ 10⁴ UFC/g", methodologyShort: "ISO 4833-1", methodologyCitation: "ISO 4833-1 / ABNT NBR — Contagem de micro-organismos aeróbios mesófilos a 30°C" },
+      { parameter: "Salmonella spp. em 10 g", category: "microbiologica", criterion: "Ausente em 10 g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp. em 10 g" },
+      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
+      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1 g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Escherichia coli (MPN)" },
+      { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "ISO 4833-1", methodologyCitation: "ISO 4833-1 / ABNT NBR — Contagem de micro-organismos aeróbios mesófilos a 30°C" },
       // Teor do Ativo
       { parameter: "Vitamina C (Ácido Ascórbico)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "AOAC 967.21", methodologyCitation: "AOAC 967.21 — Ácido Ascórbico por HPLC / titulação iodométrica" },
       { parameter: "Vitamina D3 (Colecalciferol)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "HPLC-UV", methodologyCitation: "HPLC-UV / AOAC 995.05 — Vitamina D por cromatografia líquida de alta eficiência" },
@@ -1641,10 +1662,10 @@ const PRODUCT_TEMPLATES: ProductTemplate[] = [
       { parameter: "Sódio", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "AOAC 984.27", methodologyCitation: "AOAC 984.27 — Sódio por ICP-OES / absorção atômica" },
       { parameter: "Kcal", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "Cálculo Atwater", methodologyCitation: "Cálculo pelos fatores de Atwater / AOAC 2011.25" },
       // Microbiológica
-      { parameter: "Coliformes totais", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Coliformes totais a 35°C" },
-      { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp." },
-      { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 724/2022 — Estafilococos coagulase positiva" },
+      { parameter: "Salmonella spp. em 10 g", category: "microbiologica", criterion: "Ausente em 10 g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp. em 10 g" },
       { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
+      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1 g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Escherichia coli (MPN)" },
+      { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "ISO 4833-1", methodologyCitation: "ISO 4833-1 / ABNT NBR — Contagem de micro-organismos aeróbios mesófilos a 30°C" },
       // Teor do Ativo
       { parameter: "EPA (Ácido Eicosapentaenoico)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "GC-FID", methodologyCitation: "GC-FID / AOCS Ce 1b-89 — Ésteres metílicos de ácidos graxos (FAME) por cromatografia gasosa" },
       { parameter: "DHA (Ácido Docosahexaenoico)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "GC-FID", methodologyCitation: "GC-FID / AOCS Ce 1b-89 — Ésteres metílicos de ácidos graxos (FAME) por cromatografia gasosa" },
@@ -1669,11 +1690,10 @@ const PRODUCT_TEMPLATES: ProductTemplate[] = [
       { parameter: "Dissolução", category: "fisico_quimica", criterion: "≥ 75% em 45 min (aparato Pá, 50 rpm)", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Ensaio de dissolução (Aparato 2 — Pá)" },
       { parameter: "Sódio", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "AOAC 984.27", methodologyCitation: "AOAC 984.27 — Sódio por ICP-OES / absorção atômica" },
       // Microbiológica
-      { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp." },
-      { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 724/2022 — Estafilococos coagulase positiva" },
-      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10² UFC/g (excl. cepas declaradas)", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
-      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — E. coli (MPN)" },
-      { parameter: "Enterobacteriaceae", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "ISO 21528-2", methodologyCitation: "ISO 21528-2 / ABNT NBR — Contagem de Enterobacteriaceae" },
+      { parameter: "Salmonella spp. em 10 g", category: "microbiologica", criterion: "Ausente em 10 g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp. em 10 g" },
+      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
+      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1 g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Escherichia coli (MPN)" },
+      { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "ISO 4833-1", methodologyCitation: "ISO 4833-1 / ABNT NBR — Contagem de micro-organismos aeróbios mesófilos a 30°C" },
       // Teor do Ativo
       { parameter: "Contagem de UFC — cepa probiótica total", category: "teor_ativo", criterion: "≥ 80% do valor declarado (UFC/cápsula)", methodologyShort: "ISO 19344", methodologyCitation: "ISO 19344 / IDF 232 — Contagem de bactérias probióticas viáveis por qPCR ou plaqueamento seletivo" },
       { parameter: "Viabilidade das cepas (identidade)", category: "teor_ativo", criterion: "Cepas declaradas identificadas e viáveis", methodologyShort: "PCR / Sequenc.", methodologyCitation: "PCR / Sequenciamento 16S rRNA — identificação e confirmação de identidade das cepas" },
@@ -1699,13 +1719,11 @@ const PRODUCT_TEMPLATES: ProductTemplate[] = [
       { parameter: "Kcal", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "Cálculo Atwater", methodologyCitation: "Cálculo pelos fatores de Atwater / AOAC 2011.25" },
       { parameter: "Sódio", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "AOAC 984.27", methodologyCitation: "AOAC 984.27 — Sódio por ICP-OES / absorção atômica" },
       // Microbiológica
-      { parameter: "Coliformes totais", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Coliformes totais a 35°C" },
-      { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp." },
-      { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 724/2022 — Estafilococos coagulase positiva" },
+      { parameter: "Salmonella spp. em 25 g", category: "microbiologica", criterion: "Ausente em 25 g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp. em 25 g" },
       { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
-      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — E. coli (MPN)" },
+      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1 g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Escherichia coli (MPN)" },
       { parameter: "Enterobacteriaceae", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "ISO 21528-2", methodologyCitation: "ISO 21528-2 / ABNT NBR — Contagem de Enterobacteriaceae" },
-      { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", category: "microbiologica", criterion: "≤ 10⁴ UFC/g", methodologyShort: "ISO 4833-1", methodologyCitation: "ISO 4833-1 / ABNT NBR — Contagem de micro-organismos aeróbios mesófilos a 30°C" },
+      { parameter: "Estafilococos coagulase positiva por g", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 724/2022 — Estafilococos coagulase positiva" },
       // Teor do Ativo
       { parameter: "Proteína total", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "AOAC 990.03", methodologyCitation: "AOAC 990.03 — Proteína total pelo método de Kjeldahl" },
       { parameter: "BCAA total (Leucina + Isoleucina + Valina)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "HPLC", methodologyCitation: "HPLC / AOAC 982.30 — Perfil de aminoácidos por cromatografia líquida" },
@@ -1730,11 +1748,10 @@ const PRODUCT_TEMPLATES: ProductTemplate[] = [
       { parameter: "Cinzas totais", category: "fisico_quimica", criterion: "≤ 40,0% (cálcio carbonato contribui)", methodologyShort: "AOAC 942.05", methodologyCitation: "AOAC 942.05 — Cinzas totais por incineração" },
       { parameter: "Sódio", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "AOAC 984.27", methodologyCitation: "AOAC 984.27 — Sódio por ICP-OES / absorção atômica" },
       // Microbiológica
-      { parameter: "Coliformes totais", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Coliformes totais a 35°C" },
-      { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp." },
-      { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 724/2022 — Estafilococos coagulase positiva" },
-      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
-      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — E. coli (MPN)" },
+      { parameter: "Salmonella spp. em 10 g", category: "microbiologica", criterion: "Ausente em 10 g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp. em 10 g" },
+      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
+      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1 g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Escherichia coli (MPN)" },
+      { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "ISO 4833-1", methodologyCitation: "ISO 4833-1 / ABNT NBR — Contagem de micro-organismos aeróbios mesófilos a 30°C" },
       // Teor do Ativo
       { parameter: "Vitamina D3 (Colecalciferol)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "HPLC-UV", methodologyCitation: "HPLC-UV / AOAC 995.05 — Vitamina D por cromatografia líquida de alta eficiência" },
       { parameter: "Cálcio", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "ICP-OES", methodologyCitation: "ICP-OES / AOAC 985.35 — Cálcio por espectrometria de emissão atômica com plasma indutivo" },
@@ -1760,11 +1777,10 @@ const PRODUCT_TEMPLATES: ProductTemplate[] = [
       { parameter: "Friabilidade", category: "fisico_quimica", criterion: "≤ 1,5%", methodologyShort: "FB 7ª Ed.", methodologyCitation: "Farmacopeia Brasileira 7ª Ed. — Determinação de friabilidade de comprimidos" },
       { parameter: "Sódio", category: "fisico_quimica", criterion: "Conforme rotulagem ± 20%", methodologyShort: "AOAC 984.27", methodologyCitation: "AOAC 984.27 — Sódio por ICP-OES / absorção atômica" },
       // Microbiológica
-      { parameter: "Coliformes totais", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Coliformes totais a 35°C" },
-      { parameter: "Salmonella spp.", category: "microbiologica", criterion: "Ausente em 25g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp." },
-      { parameter: "Estafilococos coagulase+", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 975.55", methodologyCitation: "AOAC 975.55 / RDC 724/2022 — Estafilococos coagulase positiva" },
-      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
-      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — E. coli (MPN)" },
+      { parameter: "Salmonella spp. em 10 g", category: "microbiologica", criterion: "Ausente em 10 g", methodologyShort: "AOAC 996.08", methodologyCitation: "AOAC 996.08 / RDC 724/2022 — Salmonella spp. em 10 g" },
+      { parameter: "Bolores e leveduras", category: "microbiologica", criterion: "≤ 10² UFC/g", methodologyShort: "AOAC 997.02", methodologyCitation: "AOAC 997.02 / RDC 724/2022 — Contagem de bolores e leveduras" },
+      { parameter: "Escherichia coli", category: "microbiologica", criterion: "Ausente em 1 g", methodologyShort: "AOAC 991.14", methodologyCitation: "AOAC 991.14 / RDC 724/2022 — Escherichia coli (MPN)" },
+      { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", category: "microbiologica", criterion: "≤ 10³ UFC/g", methodologyShort: "ISO 4833-1", methodologyCitation: "ISO 4833-1 / ABNT NBR — Contagem de micro-organismos aeróbios mesófilos a 30°C" },
       // Teor do Ativo
       { parameter: "Ferro (Sulfato Ferroso)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "ICP-OES", methodologyCitation: "ICP-OES / AOAC 985.35 — Ferro por espectrometria de emissão atômica" },
       { parameter: "Ácido Fólico (Vitamina B9)", category: "teor_ativo", criterion: "≥ 80% do valor declarado", methodologyShort: "HPLC", methodologyCitation: "HPLC / AOAC 2004.05 — Ácido Fólico por cromatografia líquida de alta eficiência" },
@@ -1777,6 +1793,17 @@ const PRODUCT_TEMPLATES: ProductTemplate[] = [
 ];
 
 const CATEGORY_PRESETS: Record<string, { parameter: string; criterion: string }[]> = {
+  microbiologica: [
+    { parameter: "Salmonella spp. em 10 g", criterion: "Ausente em 10 g" },
+    { parameter: "Salmonella spp. em 25 g", criterion: "Ausente em 25 g" },
+    { parameter: "Bolores e leveduras", criterion: "≤ 10² UFC/g" },
+    { parameter: "Escherichia coli", criterion: "Ausente em 1 g" },
+    { parameter: "Contagem de Micro-organismos Aeróbios Mesófilos", criterion: "≤ 10³ UFC/g" },
+    { parameter: "Enterobacteriaceae", criterion: "≤ 10² UFC/g" },
+    { parameter: "Estafilococos coagulase positiva por g", criterion: "≤ 10² UFC/g" },
+    { parameter: "Coliformes totais", criterion: "≤ 10² UFC/g" },
+    { parameter: "Estafilococos coagulase+", criterion: "≤ 10² UFC/g" },
+  ],
   teor_ativo: [
     { parameter: "Cálcio", criterion: "Mín. 80% do valor declarado" },
     { parameter: "Vitamina D", criterion: "Mín. 80% do valor declarado" },
@@ -1821,7 +1848,7 @@ const CATEGORY_PRESETS: Record<string, { parameter: string; criterion: string }[
   ],
 };
 
-function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJson, initialParamMethodsJson, initialParamMethodsCitationsJson, protocolFinalStatus, protocolStatus, initialAtivoLimitsJson, initialKineticsOverridesJson, recommendedKineticsOverages }: { protocolId: number; initialCustomParamsJson?: string | null; initialPeriodDatesJson?: string | null; initialParamMethodsJson?: string | null; initialParamMethodsCitationsJson?: string | null; protocolFinalStatus?: string | null; protocolStatus?: string | null; initialAtivoLimitsJson?: string | null; initialKineticsOverridesJson?: string | null; recommendedKineticsOverages?: Record<string, number> }) {
+function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeriodDatesJson, initialParamMethodsJson, initialParamMethodsCitationsJson, protocolFinalStatus, protocolStatus, initialAtivoLimitsJson, initialKineticsOverridesJson, recommendedKineticsOverages }: { protocolId: number; isPowder?: boolean; initialCustomParamsJson?: string | null; initialPeriodDatesJson?: string | null; initialParamMethodsJson?: string | null; initialParamMethodsCitationsJson?: string | null; protocolFinalStatus?: string | null; protocolStatus?: string | null; initialAtivoLimitsJson?: string | null; initialKineticsOverridesJson?: string | null; recommendedKineticsOverages?: Record<string, number> }) {
   const protocolIsAR = protocolFinalStatus === "aprovado_com_ressalva";
   const isCriterionLocked = protocolFinalStatus != null || protocolStatus === "aprovado" || protocolStatus === "reprovado" || protocolStatus === "aprovado_com_ressalva";
   const [editUnlocked, setEditUnlocked] = useState(false);
@@ -1859,12 +1886,11 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
     return map;
   }, [kineticsForConf, initialKineticsOverridesJson]);
 
-  const defaultParams = ANALYSIS_PARAMETERS.map((p, i) => ({ ...p, uid: `${p.category}_${i}` }));
   const [editableParams, setEditableParams] = useState<EditableParam[]>(() => {
     if (initialCustomParamsJson) {
       try { return JSON.parse(initialCustomParamsJson) as EditableParam[]; } catch { /* fall through */ }
     }
-    return defaultParams;
+    return getDefaultParams(isPowder ?? false);
   });
 
   const [paramMethods, setParamMethods] = useState<Record<string, string>>(() => {
@@ -7394,6 +7420,7 @@ export default function ProtocolDetail() {
             <CardContent className="pt-6">
               <ResultsTab
                 protocolId={numId}
+                isPowder={/\b(p[oó]|sachê|sachet|powder|granulado)\b/i.test(protocol.productType ?? "")}
                 initialCustomParamsJson={protocol.customParamsJson}
                 initialPeriodDatesJson={protocol.periodDatesJson}
                 initialParamMethodsJson={protocol.paramMethodsJson}
