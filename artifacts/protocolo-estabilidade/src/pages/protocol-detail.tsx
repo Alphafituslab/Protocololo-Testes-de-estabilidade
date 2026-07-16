@@ -1848,7 +1848,7 @@ const CATEGORY_PRESETS: Record<string, { parameter: string; criterion: string }[
   ],
 };
 
-function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeriodDatesJson, initialParamMethodsJson, initialParamMethodsCitationsJson, protocolFinalStatus, protocolStatus, initialAtivoLimitsJson, initialKineticsOverridesJson, recommendedKineticsOverages }: { protocolId: number; isPowder?: boolean; initialCustomParamsJson?: string | null; initialPeriodDatesJson?: string | null; initialParamMethodsJson?: string | null; initialParamMethodsCitationsJson?: string | null; protocolFinalStatus?: string | null; protocolStatus?: string | null; initialAtivoLimitsJson?: string | null; initialKineticsOverridesJson?: string | null; recommendedKineticsOverages?: Record<string, number> }) {
+function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeriodDatesJson, initialParamMethodsJson, initialParamMethodsCitationsJson, protocolFinalStatus, protocolStatus, initialAtivoLimitsJson, initialKineticsOverridesJson, recommendedKineticsOverages, onAtivoLimitsSync }: { protocolId: number; isPowder?: boolean; initialCustomParamsJson?: string | null; initialPeriodDatesJson?: string | null; initialParamMethodsJson?: string | null; initialParamMethodsCitationsJson?: string | null; protocolFinalStatus?: string | null; protocolStatus?: string | null; initialAtivoLimitsJson?: string | null; initialKineticsOverridesJson?: string | null; recommendedKineticsOverages?: Record<string, number>; onAtivoLimitsSync?: (json: string) => void }) {
   const protocolIsAR = protocolFinalStatus === "aprovado_com_ressalva";
   const isCriterionLocked = protocolFinalStatus != null || protocolStatus === "aprovado" || protocolStatus === "reprovado" || protocolStatus === "aprovado_com_ressalva";
   const [editUnlocked, setEditUnlocked] = useState(false);
@@ -1863,7 +1863,7 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
   const { data: lots = [] } = useListLots(protocolId, { query: { queryKey: getListLotsQueryKey(protocolId) } });
   const { data: results = [], isLoading } = useListResults(protocolId, { query: { queryKey: getListResultsQueryKey(protocolId) } });
   const { data: methodologies = [] } = useListMethodologies();
-  const { data: ativoRefs = [] } = useListAtivoReferences({ query: { queryKey: getListAtivoReferencesQueryKey(), staleTime: 30_000 } });
+  const { data: ativoRefs = [] } = useListAtivoReferences({ query: { queryKey: getListAtivoReferencesQueryKey(), staleTime: 0 } });
   const { data: kineticsForConf } = useGetKinetics(protocolId, { query: { queryKey: getGetKineticsQueryKey(protocolId), staleTime: 30_000 } });
 
   // Build T6 map: same merge logic as KineticsTab (API base + DB manual override)
@@ -2033,41 +2033,42 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
     }
   };
 
-  // Auto-populate ativoLimits from reference bank when a parameter has no saved limits
+  // Auto-populate ativoLimits from reference bank. Bank is always source of truth for min/max/unit/overage/norma.
+  // Uses latestAtivoLimitsRef so we always read the freshest local state (no stale closure).
+  // Also calls onAtivoLimitsSync immediately so KineticsTab updates without waiting for DB round-trip.
   useEffect(() => {
     if (!ativoRefs.length) return;
-    setAtivoLimitsState(prev => {
-      let changed = false;
-      const next = { ...prev };
-      for (const ref of ativoRefs) {
-        const existing = prev[ref.parameter] ?? { min: "", max: "", unit: "mg", declared: "", overage: "", norma: "" };
-        // Bank is the source of truth for all fields except `declared` (user-entered).
-        // Override with bank value whenever bank has a non-null value; keep existing otherwise.
-        const updated = {
-          min:      ref.minValue != null ? ref.minValue : existing.min,
-          max:      ref.maxValue != null ? ref.maxValue : existing.max,
-          unit:     ref.unit     != null ? ref.unit     : existing.unit,
-          declared: existing.declared, // NEVER overridden by bank
-          overage:  ref.overage  != null ? ref.overage  : existing.overage,
-          norma:    ref.source   != null ? ref.source   : existing.norma,
-        };
-        if (
-          updated.min     !== existing.min     ||
-          updated.max     !== existing.max     ||
-          updated.unit    !== existing.unit    ||
-          updated.overage !== existing.overage ||
-          updated.norma   !== existing.norma
-        ) {
-          next[ref.parameter] = updated;
-          changed = true;
-        }
+    const prev = latestAtivoLimitsRef.current;
+    let changed = false;
+    const next = { ...prev };
+    for (const ref of ativoRefs) {
+      const existing = prev[ref.parameter] ?? { min: "", max: "", unit: "mg", declared: "", overage: "", norma: "" };
+      const updated = {
+        min:      ref.minValue != null ? ref.minValue : existing.min,
+        max:      ref.maxValue != null ? ref.maxValue : existing.max,
+        unit:     ref.unit     != null ? ref.unit     : existing.unit,
+        declared: existing.declared, // NEVER overridden by bank
+        overage:  ref.overage  != null ? ref.overage  : existing.overage,
+        norma:    ref.source   != null ? ref.source   : existing.norma,
+      };
+      if (
+        updated.min     !== existing.min     ||
+        updated.max     !== existing.max     ||
+        updated.unit    !== existing.unit    ||
+        updated.overage !== existing.overage ||
+        updated.norma   !== existing.norma
+      ) {
+        next[ref.parameter] = updated;
+        changed = true;
       }
-      if (changed) {
-        try { localStorage.setItem(ATIVO_LIMITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-        updateProtocol.mutate({ id: protocolId, data: { ativoLimitsJson: JSON.stringify(next) } });
-      }
-      return changed ? next : prev;
-    });
+    }
+    if (!changed) return;
+    const nextJson = JSON.stringify(next);
+    setAtivoLimitsState(next);
+    try { localStorage.setItem(ATIVO_LIMITS_KEY, nextJson); } catch { /* ignore */ }
+    updateProtocol.mutate({ id: protocolId, data: { ativoLimitsJson: nextJson } });
+    // Immediately propagate to KineticsTab (via ProtocolDetail state) — no DB round-trip needed.
+    onAtivoLimitsSync?.(nextJson);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativoRefs]);
 
@@ -5460,7 +5461,7 @@ function MethodologiaTab({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: methodologies = [], isLoading } = useListMethodologies();
-  const { data: ativoRefsLib = [] } = useListAtivoReferences({ query: { queryKey: getListAtivoReferencesQueryKey(), staleTime: 60_000 } });
+  const { data: ativoRefsLib = [] } = useListAtivoReferences({ query: { queryKey: getListAtivoReferencesQueryKey(), staleTime: 0 } });
   const updateProtocol = useUpdateProtocol();
   const isMountedRef = useRef(false);
 
@@ -7430,6 +7431,7 @@ export default function ProtocolDetail() {
                 initialAtivoLimitsJson={protocol.ativoLimitsJson}
                 initialKineticsOverridesJson={protocol.kineticsOverridesJson}
                 recommendedKineticsOverages={recommendedKineticsOverages}
+                onAtivoLimitsSync={setLocalAtivoLimitsJson}
               />
             </CardContent>
           </Card>
