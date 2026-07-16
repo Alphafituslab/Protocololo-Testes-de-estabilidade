@@ -2338,6 +2338,7 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
         queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
+        queryClient.invalidateQueries({ queryKey: getGetCertificateQueryKey(protocolId) });
       },
     },
   });
@@ -2466,6 +2467,14 @@ function ResultsTab({ protocolId, initialCustomParamsJson, initialPeriodDatesJso
         (old: Record<string, unknown> | undefined) =>
           old ? { ...old, customParamsJson: newJson } : old,
       );
+      // Delete all analysis_results in the DB for this parameter so it stops
+      // appearing in the certificate (which reads directly from analysis_results).
+      if (removed?.parameter) {
+        const paramResults = results.filter((r) => r.parameter === removed.parameter);
+        for (const r of paramResults) {
+          if (r.id) renameDelete.mutate({ id: protocolId, resultId: r.id });
+        }
+      }
       return next;
     });
   };

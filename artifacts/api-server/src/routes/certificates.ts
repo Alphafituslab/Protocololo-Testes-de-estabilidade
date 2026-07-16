@@ -45,11 +45,26 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     return;
   }
 
-  const [lots, allResults, allMethodologies] = await Promise.all([
+  const [lots, rawResults, allMethodologies] = await Promise.all([
     db.select().from(lotsTable).where(eq(lotsTable.protocolId, params.data.id)).orderBy(lotsTable.createdAt),
     db.select().from(analysisResultsTable).where(eq(analysisResultsTable.protocolId, params.data.id)),
     db.select().from(methodologiesTable),
   ]);
+
+  // Filter out orphaned results — parameters that were removed from the protocol's
+  // editable param list (customParamsJson) but still have rows in analysis_results.
+  // Only applies when customParamsJson is set and non-empty; otherwise keep all rows
+  // (backward-compat with older protocols that pre-date the custom params feature).
+  let allResults = rawResults;
+  if (protocol.customParamsJson) {
+    try {
+      const customParams = JSON.parse(protocol.customParamsJson) as Array<{ parameter?: string }>;
+      if (Array.isArray(customParams) && customParams.length > 0) {
+        const allowedParams = new Set(customParams.map(p => p.parameter?.trim()).filter(Boolean));
+        allResults = rawResults.filter(r => allowedParams.has(r.parameter?.trim()));
+      }
+    } catch { /* ignore — keep all results */ }
+  }
 
   // ── Methodology library lookups ──────────────────────────────────────────
   // shortName → criteria text (for specification column)
