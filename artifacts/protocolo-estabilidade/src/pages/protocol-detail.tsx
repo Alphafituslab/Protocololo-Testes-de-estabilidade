@@ -1957,19 +1957,24 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
   const saveAtivoTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const setAtivoLimit = (param: string, field: "min" | "max" | "unit" | "declared" | "overage" | "norma", value: string) => {
-    // 1. Update local state + localStorage immediately (for UI responsiveness).
-    setAtivoLimitsState(prev => {
-      const next = {
-        ...prev,
-        [param]: { ...(prev[param] ?? { min: "", max: "", unit: "mg", declared: "", overage: "", norma: "" }), [field]: value }
-      };
-      try { localStorage.setItem(ATIVO_LIMITS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-      // Keep ref in sync so the debounced DB-save picks up the final value.
-      latestAtivoLimitsRef.current = next;
-      return next;
-    });
+    // 1. Compute next state using the always-fresh ref as base.
+    const next = {
+      ...latestAtivoLimitsRef.current,
+      [param]: { ...(latestAtivoLimitsRef.current[param] ?? { min: "", max: "", unit: "mg", declared: "", overage: "", norma: "" }), [field]: value }
+    };
+    const nextJson = JSON.stringify(next);
 
-    // 2. Debounce the protocol DB save (600 ms after last keystroke).
+    // 2. Update local state + localStorage immediately (for UI responsiveness).
+    setAtivoLimitsState(next);
+    try { localStorage.setItem(ATIVO_LIMITS_KEY, nextJson); } catch { /* ignore */ }
+    // Keep ref in sync so the debounced DB-save picks up the final value.
+    latestAtivoLimitsRef.current = next;
+
+    // 3. Propagate to KineticsTab immediately — sem esperar o DB.
+    //    Garante que "Valor em mg/mcg (T6)" atualiza no mesmo instante.
+    onAtivoLimitsSync?.(nextJson);
+
+    // 4. Debounce the protocol DB save (600 ms after last keystroke).
     //    Moving mutate OUTSIDE setState prevents side effects inside a reducer and
     //    eliminates the HTTP race condition caused by firing a PUT on every keystroke.
     clearTimeout(saveAtivoTimerRef.current);
