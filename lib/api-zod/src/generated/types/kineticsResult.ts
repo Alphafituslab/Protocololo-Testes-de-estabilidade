@@ -6,11 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { KineticParameter } from "./kineticParameter";
-
 export interface KineticsResult {
-  protocolId: number;
-  parameters: KineticParameter[];
-  limitingParameter?: string | null;
-  estimatedShelfLifeMonths?: number | null;
-  recommendedValidityMonths?: number | null;
+    protocolId: number;
+    parameters: KineticParameter[];
+    limitingParameter?: string | null;
+    estimatedShelfLifeMonths?: number | null;
+    recommendedValidityMonths?: number | null;
 }

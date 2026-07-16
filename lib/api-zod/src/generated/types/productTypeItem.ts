@@ -5,12 +5,11 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
-
 export interface ProductTypeItem {
-  id: number;
-  name: string;
-  description?: string | null;
-  isPowder: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+    id: number;
+    name: string;
+    description?: string | null;
+    isPowder: boolean;
+    createdAt: Date;
+    updatedAt: Date;
 }

@@ -5,11 +5,10 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
-
 export interface CatalogItem {
-  id: number;
-  name: string;
-  description?: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+    id: number;
+    name: string;
+    description?: string | null;
+    createdAt: Date;
+    updatedAt: Date;
 }

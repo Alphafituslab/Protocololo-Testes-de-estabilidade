@@ -5,10 +5,9 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
-
 export interface AddSignatureBody {
-  /** Ex: Elaborador, Analista Sênior, Aprovador, Revisor, Gestor de Qualidade */
-  roleLabel: string;
-  /** Data de exibição opcional. Se omitido, usa a data/hora de signedAt. */
-  displayDate?: string | null;
+    /** Ex: Elaborador, Analista Sênior, Aprovador, Revisor, Gestor de Qualidade */
+    roleLabel: string;
+    /** Data de exibição opcional. Se omitido, usa a data/hora de signedAt. */
+    displayDate?: string | null;
 }

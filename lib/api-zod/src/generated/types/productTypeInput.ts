@@ -5,10 +5,9 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
-
 export interface ProductTypeInput {
-  /** @minLength 1 */
-  name: string;
-  description?: string;
-  isPowder?: boolean;
+    /** @minLength 1 */
+    name: string;
+    description?: string;
+    isPowder?: boolean;
 }

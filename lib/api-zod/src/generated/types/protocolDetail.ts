@@ -8,8 +8,7 @@
 import type { AnalysisResult } from "./analysisResult";
 import type { Lot } from "./lot";
 import type { Protocol } from "./protocol";
-
 export type ProtocolDetail = Protocol & {
-  lots: Lot[];
-  results: AnalysisResult[];
+    lots: Lot[];
+    results: AnalysisResult[];
 };

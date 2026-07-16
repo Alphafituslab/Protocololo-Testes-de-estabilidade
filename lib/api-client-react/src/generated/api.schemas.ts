@@ -667,6 +667,7 @@ export interface BibliographicReference {
   doi?: string | null;
   descricao?: string | null;
   tipoReferencia: string;
+  ativoRelacionado?: string | null;
   autoInclude?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -684,6 +685,7 @@ export interface BibliographicReferenceInput {
   doi?: string;
   descricao?: string;
   tipoReferencia?: string;
+  ativoRelacionado?: string;
   autoInclude?: boolean;
 }
 

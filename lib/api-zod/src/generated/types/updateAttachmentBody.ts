@@ -5,9 +5,8 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
-
 export interface UpdateAttachmentBody {
-  /** @minLength 1 */
-  fileName?: string;
-  description?: string | null;
+    /** @minLength 1 */
+    fileName?: string;
+    description?: string | null;
 }

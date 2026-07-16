@@ -6,14 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { FinalizeProtocolBodyFinalStatus } from "./finalizeProtocolBodyFinalStatus";
-
 export interface FinalizeProtocolBody {
-  finalStatus: FinalizeProtocolBodyFinalStatus;
-  conclusion?: string | null;
-  validityMonths?: number | null;
-  issueDate?: string | null;
-  /** Texto da ressalva (obrigatório quando finalStatus é aprovado_com_ressalva) */
-  ressalva?: string | null;
-  /** Progresso em % quando em_andamento (0-100) */
-  progressPercent?: number | null;
+    finalStatus: FinalizeProtocolBodyFinalStatus;
+    conclusion?: string | null;
+    validityMonths?: number | null;
+    issueDate?: string | null;
+    /** Texto da ressalva (obrigatório quando finalStatus é aprovado_com_ressalva) */
+    ressalva?: string | null;
+    /** Progresso em % quando em_andamento (0-100) */
+    progressPercent?: number | null;
 }

@@ -5,7 +5,6 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
-
 export type DeleteSignature200 = {
-  ok?: boolean;
+    ok?: boolean;
 };

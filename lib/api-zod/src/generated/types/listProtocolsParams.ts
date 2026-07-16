@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ListProtocolsStatus } from "./listProtocolsStatus";
-
 export type ListProtocolsParams = {
-  status?: ListProtocolsStatus;
-  nonConformes?: boolean;
+    status?: ListProtocolsStatus;
+    nonConformes?: boolean;
 };

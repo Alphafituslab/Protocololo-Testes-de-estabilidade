@@ -5,14 +5,13 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
-
 export interface AtivoReferenceInput {
-  parameter: string;
-  minValue?: string | null;
-  maxValue?: string | null;
-  unit?: string;
-  /** Overage em % (ex: '10' para 10%) */
-  overage?: string | null;
-  source?: string | null;
-  notes?: string | null;
+    parameter: string;
+    minValue?: string | null;
+    maxValue?: string | null;
+    unit?: string;
+    /** Overage em % (ex: '10' para 10%) */
+    overage?: string | null;
+    source?: string | null;
+    notes?: string | null;
 }

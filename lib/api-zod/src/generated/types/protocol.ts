@@ -7,68 +7,67 @@
  */
 import type { ProtocolFinalStatus } from "./protocolFinalStatus";
 import type { ProtocolStatus } from "./protocolStatus";
-
 export interface Protocol {
-  id: number;
-  /** e.g. CERT-AF-20241210/035 */
-  certNumber: string;
-  companyName: string;
-  cnpj: string;
-  ie?: string;
-  address?: string;
-  cep?: string;
-  productName: string;
-  productType?: string;
-  packagingType?: string;
-  activeIngredients?: string;
-  excipients?: string;
-  capsuleComposition?: string;
-  studyStartDate?: string;
-  studyEndDate?: string;
-  studyObjective?: string;
-  storageTemp?: string;
-  storageHumidity?: string;
-  studyPeriodMonths?: number;
-  testIntervals?: string;
-  /** Condições ambientais durante amostragem — temperatura */
-  samplingTemp?: string | null;
-  /** Condições ambientais durante amostragem — umidade */
-  samplingHumidity?: string | null;
-  /** Condições de coleta/recebimento — temperatura */
-  receptionTemp?: string | null;
-  /** Condições de coleta/recebimento — umidade */
-  receptionHumidity?: string | null;
-  elaboratedBy?: string;
-  approvedBy?: string;
-  issuedBy?: string;
-  seniorAnalyst?: string;
-  seniorAnalystEmail?: string;
-  issuedByEmail?: string;
-  /** Progresso das análises em % (0-100), opcional */
-  progressPercent?: number | null;
-  status: ProtocolStatus;
-  finalStatus?: ProtocolFinalStatus;
-  /** Texto da ressalva quando finalStatus é aprovado_com_ressalva */
-  ressalva?: string | null;
-  conclusion?: string | null;
-  validityMonths?: number | null;
-  issueDate?: string | null;
-  /** Observações da aba Cinética */
-  kineticsNotes?: string | null;
-  /** JSON com lista de parâmetros editáveis (nomes e critérios) */
-  customParamsJson?: string | null;
-  /** JSON com datas de análise por período {"0":"2024-01-15","3":"...","6":"..."} */
-  periodDatesJson?: string | null;
-  /** JSON com metodologia selecionada por parâmetro {paramName:shortName} */
-  paramMethodsJson?: string | null;
-  /** JSON com citação completa por parâmetro {paramName:citation} */
-  paramMethodsCitationsJson?: string | null;
-  /** JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife} */
-  kineticsOverridesJson?: string | null;
-  /** JSON com faixa ANVISA por ativo {paramName:{min,max,unit,declared}} */
-  ativoLimitsJson?: string | null;
-  /** true se algum dos assinantes obrigatórios (issuedBy / seniorAnalyst) ainda não assinou */
-  pendingSignatures?: boolean | null;
-  createdAt: string;
-  updatedAt: string;
+    id: number;
+    /** e.g. CERT-AF-20241210/035 */
+    certNumber: string;
+    companyName: string;
+    cnpj: string;
+    ie?: string;
+    address?: string;
+    cep?: string;
+    productName: string;
+    productType?: string;
+    packagingType?: string;
+    activeIngredients?: string;
+    excipients?: string;
+    capsuleComposition?: string;
+    studyStartDate?: string;
+    studyEndDate?: string;
+    studyObjective?: string;
+    storageTemp?: string;
+    storageHumidity?: string;
+    studyPeriodMonths?: number;
+    testIntervals?: string;
+    /** Condições ambientais durante amostragem — temperatura */
+    samplingTemp?: string | null;
+    /** Condições ambientais durante amostragem — umidade */
+    samplingHumidity?: string | null;
+    /** Condições de coleta/recebimento — temperatura */
+    receptionTemp?: string | null;
+    /** Condições de coleta/recebimento — umidade */
+    receptionHumidity?: string | null;
+    elaboratedBy?: string;
+    approvedBy?: string;
+    issuedBy?: string;
+    seniorAnalyst?: string;
+    seniorAnalystEmail?: string;
+    issuedByEmail?: string;
+    /** Progresso das análises em % (0-100), opcional */
+    progressPercent?: number | null;
+    status: ProtocolStatus;
+    finalStatus?: ProtocolFinalStatus;
+    /** Texto da ressalva quando finalStatus é aprovado_com_ressalva */
+    ressalva?: string | null;
+    conclusion?: string | null;
+    validityMonths?: number | null;
+    issueDate?: string | null;
+    /** Observações da aba Cinética */
+    kineticsNotes?: string | null;
+    /** JSON com lista de parâmetros editáveis (nomes e critérios) */
+    customParamsJson?: string | null;
+    /** JSON com datas de análise por período {"0":"2024-01-15","3":"...","6":"..."} */
+    periodDatesJson?: string | null;
+    /** JSON com metodologia selecionada por parâmetro {paramName:shortName} */
+    paramMethodsJson?: string | null;
+    /** JSON com citação completa por parâmetro {paramName:citation} */
+    paramMethodsCitationsJson?: string | null;
+    /** JSON com correções manuais da aba Cinética {savedAt, params, customShelfLife} */
+    kineticsOverridesJson?: string | null;
+    /** JSON com faixa ANVISA por ativo {paramName:{min,max,unit,declared}} */
+    ativoLimitsJson?: string | null;
+    /** true se algum dos assinantes obrigatórios (issuedBy / seniorAnalyst) ainda não assinou */
+    pendingSignatures?: boolean | null;
+    createdAt: string;
+    updatedAt: string;
 }

@@ -5,20 +5,19 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
-
 export interface Methodology {
-  id: number;
-  /** Nome curto de exibicao (ex: JP 18, FB 7) */
-  shortName: string;
-  /** Citacao bibliografica completa */
-  citation: string;
-  /** Categoria opcional (ex: Fisico-Quimica, Microbiologica) */
-  category?: string | null;
-  /** Substancia ou tema principal (ex: Vitamina D, Calcio, L-Triptofano) */
-  subject?: string | null;
-  /** Parametro de analise associado (ex: pH, Umidade) */
-  parameter?: string | null;
-  /** Criterio / Especificacao associado (ex: 5,0 – 7,0) */
-  criteria?: string | null;
-  createdAt: string;
+    id: number;
+    /** Nome curto de exibicao (ex: JP 18, FB 7) */
+    shortName: string;
+    /** Citacao bibliografica completa */
+    citation: string;
+    /** Categoria opcional (ex: Fisico-Quimica, Microbiologica) */
+    category?: string | null;
+    /** Substancia ou tema principal (ex: Vitamina D, Calcio, L-Triptofano) */
+    subject?: string | null;
+    /** Parametro de analise associado (ex: pH, Umidade) */
+    parameter?: string | null;
+    /** Criterio / Especificacao associado (ex: 5,0 – 7,0) */
+    criteria?: string | null;
+    createdAt: string;
 }

@@ -7,22 +7,21 @@
  */
 import type { AnalysisResultCategory } from "./analysisResultCategory";
 import type { AnalysisResultStatus } from "./analysisResultStatus";
-
 export interface AnalysisResult {
-  id: number;
-  protocolId: number;
-  lotId: number;
-  lotNumber: string;
-  /** Period in months (0, 3, 6) */
-  period: number;
-  analysisDate: string;
-  category: AnalysisResultCategory;
-  parameter: string;
-  criterion: string;
-  result: string;
-  numericResult?: number | null;
-  status: AnalysisResultStatus;
-  observation?: string | null;
-  createdAt: string;
-  updatedAt: string;
+    id: number;
+    protocolId: number;
+    lotId: number;
+    lotNumber: string;
+    /** Period in months (0, 3, 6) */
+    period: number;
+    analysisDate: string;
+    category: AnalysisResultCategory;
+    parameter: string;
+    criterion: string;
+    result: string;
+    numericResult?: number | null;
+    status: AnalysisResultStatus;
+    observation?: string | null;
+    createdAt: string;
+    updatedAt: string;
 }

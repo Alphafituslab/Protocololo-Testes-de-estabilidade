@@ -5,18 +5,17 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
-
 export interface BibliographicReferenceInput {
-  /** @minLength 1 */
-  titulo: string;
-  autores?: string;
-  ano?: number;
-  fonte?: string;
-  volume?: string;
-  numero?: string;
-  paginas?: string;
-  doi?: string;
-  descricao?: string;
-  tipoReferencia?: string;
-  autoInclude?: boolean;
+    /** @minLength 1 */
+    titulo: string;
+    autores?: string;
+    ano?: number;
+    fonte?: string;
+    volume?: string;
+    numero?: string;
+    paginas?: string;
+    doi?: string;
+    descricao?: string;
+    tipoReferencia?: string;
+    autoInclude?: boolean;
 }

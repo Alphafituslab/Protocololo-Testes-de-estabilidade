@@ -5,9 +5,8 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
-
 export type CertificateAnalysisDates = {
-  t0?: string | null;
-  t3?: string | null;
-  t6?: string | null;
+    t0?: string | null;
+    t3?: string | null;
+    t6?: string | null;
 } | null;

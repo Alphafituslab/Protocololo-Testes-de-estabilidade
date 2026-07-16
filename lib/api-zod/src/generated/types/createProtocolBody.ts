@@ -5,36 +5,35 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
-
 export interface CreateProtocolBody {
-  certNumber?: string;
-  companyName: string;
-  cnpj: string;
-  ie?: string;
-  address?: string;
-  cep?: string;
-  productName: string;
-  productType?: string;
-  packagingType?: string;
-  activeIngredients?: string;
-  excipients?: string;
-  capsuleComposition?: string;
-  studyStartDate?: string;
-  studyEndDate?: string;
-  studyObjective?: string;
-  storageTemp?: string;
-  storageHumidity?: string;
-  studyPeriodMonths?: number;
-  testIntervals?: string;
-  samplingTemp?: string | null;
-  samplingHumidity?: string | null;
-  receptionTemp?: string | null;
-  receptionHumidity?: string | null;
-  elaboratedBy?: string;
-  approvedBy?: string;
-  issuedBy?: string;
-  seniorAnalyst?: string;
-  seniorAnalystEmail?: string;
-  issuedByEmail?: string;
-  progressPercent?: number | null;
+    certNumber?: string;
+    companyName: string;
+    cnpj: string;
+    ie?: string;
+    address?: string;
+    cep?: string;
+    productName: string;
+    productType?: string;
+    packagingType?: string;
+    activeIngredients?: string;
+    excipients?: string;
+    capsuleComposition?: string;
+    studyStartDate?: string;
+    studyEndDate?: string;
+    studyObjective?: string;
+    storageTemp?: string;
+    storageHumidity?: string;
+    studyPeriodMonths?: number;
+    testIntervals?: string;
+    samplingTemp?: string | null;
+    samplingHumidity?: string | null;
+    receptionTemp?: string | null;
+    receptionHumidity?: string | null;
+    elaboratedBy?: string;
+    approvedBy?: string;
+    issuedBy?: string;
+    seniorAnalyst?: string;
+    seniorAnalystEmail?: string;
+    issuedByEmail?: string;
+    progressPercent?: number | null;
 }

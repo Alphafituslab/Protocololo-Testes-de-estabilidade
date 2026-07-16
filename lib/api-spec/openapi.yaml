@@ -2372,6 +2372,9 @@ components:
           nullable: true
         tipoReferencia:
           type: string
+        ativoRelacionado:
+          type: string
+          nullable: true
         autoInclude:
           type: boolean
         createdAt:
@@ -2405,6 +2408,8 @@ components:
         descricao:
           type: string
         tipoReferencia:
+          type: string
+        ativoRelacionado:
           type: string
         autoInclude:
           type: boolean

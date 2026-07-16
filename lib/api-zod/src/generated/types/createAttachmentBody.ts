@@ -5,11 +5,10 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
-
 export interface CreateAttachmentBody {
-  fileName: string;
-  fileType: string;
-  fileSizeBytes?: number | null;
-  objectPath: string;
-  description?: string | null;
+    fileName: string;
+    fileType: string;
+    fileSizeBytes?: number | null;
+    objectPath: string;
+    description?: string | null;
 }

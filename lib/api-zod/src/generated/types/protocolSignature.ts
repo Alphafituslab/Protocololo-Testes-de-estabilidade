@@ -5,15 +5,14 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
-
 export interface ProtocolSignature {
-  id: number;
-  protocolId: number;
-  userId?: number | null;
-  userDisplay: string;
-  userRole: string;
-  roleLabel: string;
-  signedAt: string;
-  /** Data exibida sob a assinatura. Se presente, substitui a exibição de signedAt. */
-  displayDate?: string | null;
+    id: number;
+    protocolId: number;
+    userId?: number | null;
+    userDisplay: string;
+    userRole: string;
+    roleLabel: string;
+    signedAt: string;
+    /** Data exibida sob a assinatura. Se presente, substitui a exibição de signedAt. */
+    displayDate?: string | null;
 }

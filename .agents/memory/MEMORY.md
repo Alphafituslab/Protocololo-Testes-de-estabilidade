@@ -15,3 +15,4 @@
 - [Sync de listas — nunca reenviar array inteiro por save](full-array-sync-body-limit.md) — POST do array completo em cada save estoura limite de body JSON e falha silenciosamente; sincronizar só o registro alterado.
 - [Backup automático + cópia em nuvem](backup-system-cloud-default.md) — ativado por padrão desde a v2; cada backup local também vai pro Object Storage p/ sobreviver a invasão do servidor.
 - [KineticsTab — design das BOXes de vida útil (c₀)](kinetics-box-c0-design.md) — BOX 1 usa c₀=100% (baseline), BOX 2 usa c₀=100+overage%; nunca reutilizar API shelfLife (c₀=T0) no BOX 1.
+- [Orval codegen — recuperação após falha](orval-codegen-recovery.md) — orval limpa output antes de gerar; falha "Failed to resolve input" com InputTransformerFn apaga tudo; recuperar via git show + recriar de dist/*.d.ts.

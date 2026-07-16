@@ -6,20 +6,19 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LotStudyCondition } from "./lotStudyCondition";
-
 export interface Lot {
-  id: number;
-  protocolId: number;
-  lotNumber: string;
-  manufacturingDate: string;
-  expiryDate?: string | null;
-  quantity: number;
-  notes?: string | null;
-  /** Condição do estudo: longa duração ou acelerado */
-  studyCondition?: LotStudyCondition;
-  /** Temperatura de armazenamento (°C) */
-  temperatureC?: number | null;
-  /** Umidade relativa (%UR) */
-  humidityRh?: number | null;
-  createdAt: string;
+    id: number;
+    protocolId: number;
+    lotNumber: string;
+    manufacturingDate: string;
+    expiryDate?: string | null;
+    quantity: number;
+    notes?: string | null;
+    /** Condição do estudo: longa duração ou acelerado */
+    studyCondition?: LotStudyCondition;
+    /** Temperatura de armazenamento (°C) */
+    temperatureC?: number | null;
+    /** Umidade relativa (%UR) */
+    humidityRh?: number | null;
+    createdAt: string;
 }

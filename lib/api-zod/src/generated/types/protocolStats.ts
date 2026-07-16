@@ -6,15 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Protocol } from "./protocol";
-
 export interface ProtocolStats {
-  total: number;
-  rascunho: number;
-  emAndamento: number;
-  concluido: number;
-  aprovado: number;
-  aprovadoComRessalva: number;
-  reprovado: number;
-  totalNonConformities: number;
-  recentProtocols: Protocol[];
+    total: number;
+    rascunho: number;
+    emAndamento: number;
+    concluido: number;
+    aprovado: number;
+    aprovadoComRessalva: number;
+    reprovado: number;
+    totalNonConformities: number;
+    recentProtocols: Protocol[];
 }

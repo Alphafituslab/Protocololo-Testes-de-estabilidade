@@ -6,50 +6,49 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { UpdateProtocolBodyStatus } from "./updateProtocolBodyStatus";
-
 export interface UpdateProtocolBody {
-  certNumber?: string;
-  companyName?: string;
-  cnpj?: string;
-  ie?: string;
-  address?: string;
-  cep?: string;
-  productName?: string;
-  productType?: string;
-  packagingType?: string;
-  activeIngredients?: string;
-  excipients?: string;
-  capsuleComposition?: string;
-  studyStartDate?: string;
-  studyEndDate?: string;
-  studyObjective?: string;
-  storageTemp?: string;
-  storageHumidity?: string;
-  studyPeriodMonths?: number;
-  testIntervals?: string;
-  samplingTemp?: string | null;
-  samplingHumidity?: string | null;
-  receptionTemp?: string | null;
-  receptionHumidity?: string | null;
-  elaboratedBy?: string;
-  approvedBy?: string;
-  issuedBy?: string;
-  seniorAnalyst?: string;
-  seniorAnalystEmail?: string;
-  issuedByEmail?: string;
-  progressPercent?: number | null;
-  status?: UpdateProtocolBodyStatus;
-  validityMonths?: number | null;
-  kineticsNotes?: string | null;
-  customParamsJson?: string | null;
-  periodDatesJson?: string | null;
-  paramMethodsJson?: string | null;
-  paramMethodsCitationsJson?: string | null;
-  kineticsOverridesJson?: string | null;
-  ativoLimitsJson?: string | null;
-  issueDate?: string | null;
-  /** JSON blob with certificate text field overrides (persisted to DB) */
-  certEditsJson?: string | null;
-  /** JSON blob with per-parameter analyses overrides (method/spec/status) */
-  certAnalysesOverridesJson?: string | null;
+    certNumber?: string;
+    companyName?: string;
+    cnpj?: string;
+    ie?: string;
+    address?: string;
+    cep?: string;
+    productName?: string;
+    productType?: string;
+    packagingType?: string;
+    activeIngredients?: string;
+    excipients?: string;
+    capsuleComposition?: string;
+    studyStartDate?: string;
+    studyEndDate?: string;
+    studyObjective?: string;
+    storageTemp?: string;
+    storageHumidity?: string;
+    studyPeriodMonths?: number;
+    testIntervals?: string;
+    samplingTemp?: string | null;
+    samplingHumidity?: string | null;
+    receptionTemp?: string | null;
+    receptionHumidity?: string | null;
+    elaboratedBy?: string;
+    approvedBy?: string;
+    issuedBy?: string;
+    seniorAnalyst?: string;
+    seniorAnalystEmail?: string;
+    issuedByEmail?: string;
+    progressPercent?: number | null;
+    status?: UpdateProtocolBodyStatus;
+    validityMonths?: number | null;
+    kineticsNotes?: string | null;
+    customParamsJson?: string | null;
+    periodDatesJson?: string | null;
+    paramMethodsJson?: string | null;
+    paramMethodsCitationsJson?: string | null;
+    kineticsOverridesJson?: string | null;
+    ativoLimitsJson?: string | null;
+    issueDate?: string | null;
+    /** JSON blob with certificate text field overrides (persisted to DB) */
+    certEditsJson?: string | null;
+    /** JSON blob with per-parameter analyses overrides (method/spec/status) */
+    certAnalysesOverridesJson?: string | null;
 }

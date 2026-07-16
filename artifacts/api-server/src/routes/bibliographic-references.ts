@@ -17,7 +17,7 @@ router.post("/bibliographic-references", requireAuth, requirePermission(PERM.CAT
   const body = req.body as {
     titulo?: string; autores?: string; ano?: number; fonte?: string;
     volume?: string; numero?: string; paginas?: string; doi?: string;
-    descricao?: string; tipoReferencia?: string; autoInclude?: boolean;
+    descricao?: string; tipoReferencia?: string; ativoRelacionado?: string; autoInclude?: boolean;
   };
   if (!body.titulo?.trim()) { res.status(400).json({ error: "titulo obrigatório" }); return; }
   const [row] = await db.insert(bibliographicReferencesTable).values({
@@ -30,7 +30,8 @@ router.post("/bibliographic-references", requireAuth, requirePermission(PERM.CAT
     paginas: body.paginas?.trim() ?? null,
     doi: body.doi?.trim() ?? null,
     descricao: body.descricao?.trim() ?? null,
-    tipoReferencia: body.tipoReferencia ?? "artigo",
+    tipoReferencia: body.tipoReferencia ?? "geral",
+    ativoRelacionado: body.ativoRelacionado?.trim() ?? null,
     autoInclude: body.autoInclude ?? false,
   }).returning();
   res.status(201).json(row);
@@ -41,7 +42,7 @@ router.put("/bibliographic-references/:id", requireAuth, requirePermission(PERM.
   const body = req.body as {
     titulo?: string; autores?: string; ano?: number; fonte?: string;
     volume?: string; numero?: string; paginas?: string; doi?: string;
-    descricao?: string; tipoReferencia?: string; autoInclude?: boolean;
+    descricao?: string; tipoReferencia?: string; ativoRelacionado?: string; autoInclude?: boolean;
   };
   if (!body.titulo?.trim()) { res.status(400).json({ error: "titulo obrigatório" }); return; }
   const [row] = await db.update(bibliographicReferencesTable).set({
@@ -54,7 +55,8 @@ router.put("/bibliographic-references/:id", requireAuth, requirePermission(PERM.
     paginas: body.paginas?.trim() ?? null,
     doi: body.doi?.trim() ?? null,
     descricao: body.descricao?.trim() ?? null,
-    tipoReferencia: body.tipoReferencia ?? "artigo",
+    tipoReferencia: body.tipoReferencia ?? "geral",
+    ativoRelacionado: body.ativoRelacionado?.trim() ?? null,
     autoInclude: body.autoInclude ?? false,
     updatedAt: new Date(),
   }).where(eq(bibliographicReferencesTable.id, id)).returning();

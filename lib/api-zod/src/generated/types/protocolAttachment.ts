@@ -5,16 +5,15 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
-
 export interface ProtocolAttachment {
-  id: number;
-  protocolId: number;
-  fileName: string;
-  fileType: string;
-  fileSizeBytes?: number | null;
-  objectPath: string;
-  uploadedBy?: number | null;
-  uploadedByName: string;
-  description?: string | null;
-  createdAt: Date;
+    id: number;
+    protocolId: number;
+    fileName: string;
+    fileType: string;
+    fileSizeBytes?: number | null;
+    objectPath: string;
+    uploadedBy?: number | null;
+    uploadedByName: string;
+    description?: string | null;
+    createdAt: Date;
 }

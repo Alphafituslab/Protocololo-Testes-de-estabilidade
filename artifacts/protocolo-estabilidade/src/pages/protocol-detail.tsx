@@ -8348,9 +8348,27 @@ function DocumentosTab({ protocolId }: { protocolId: number }) {
 }
 
 const TIPO_LABELS_REF: Record<string, string> = {
+  geral: "Geral",
+  ativo: "Referência do Ativo",
+  analitica: "Metodologia Analítica",
+  regulatoria: "Regulatória",
+  embalagem: "Embalagem",
+  degradacao: "Degradação",
   artigo: "Artigo", livro: "Livro", site: "Site/URL",
   regulamentacao: "Regulamentação", norma: "Norma Técnica", outro: "Outro",
 };
+
+const TIPO_COLORS_REF: Record<string, { bg: string; text: string; dot: string }> = {
+  geral:       { bg: "bg-green-100",  text: "text-green-800",  dot: "🟢" },
+  ativo:       { bg: "bg-blue-100",   text: "text-blue-800",   dot: "🔵" },
+  analitica:   { bg: "bg-purple-100", text: "text-purple-800", dot: "🟣" },
+  regulatoria: { bg: "bg-orange-100", text: "text-orange-800", dot: "🟠" },
+  embalagem:   { bg: "bg-yellow-100", text: "text-yellow-800", dot: "🟡" },
+  degradacao:  { bg: "bg-red-100",    text: "text-red-800",    dot: "🔴" },
+};
+
+const TIPO_ORDER_REF = ["geral", "ativo", "analitica", "regulatoria", "embalagem", "degradacao"] as const;
+const TIPO_LEGACY = ["artigo", "livro", "site", "regulamentacao", "norma", "outro"];
 
 function formatAbntRef(r: BibliographicReference): string {
   const parts: string[] = [];
@@ -8367,9 +8385,36 @@ function formatAbntRef(r: BibliographicReference): string {
 
 const EMPTY_NEW_REF: BibliographicReferenceInput = {
   titulo: "", autores: "", ano: undefined, fonte: "",
-  tipoReferencia: "regulamentacao", descricao: "", doi: "",
+  tipoReferencia: "geral", ativoRelacionado: "", descricao: "", doi: "",
   volume: "", numero: "", paginas: "",
 };
+
+function RefSelectRow({ ref, selectedIds, toggleSelect }: {
+  ref: BibliographicReference;
+  selectedIds: Set<number>;
+  toggleSelect: (id: number) => void;
+}) {
+  return (
+    <label
+      className={`flex items-start gap-3 w-full p-3 rounded-lg cursor-pointer transition-colors ${selectedIds.has(ref.id) ? "bg-primary/8 border border-primary/30" : "hover:bg-muted/60"}`}
+    >
+      <input
+        type="checkbox"
+        className="mt-0.5 h-4 w-4 accent-primary flex-shrink-0"
+        checked={selectedIds.has(ref.id)}
+        onChange={() => toggleSelect(ref.id)}
+      />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium leading-snug">{ref.titulo}</p>
+        {ref.autores && <p className="text-xs text-muted-foreground">{ref.autores}</p>}
+        {ref.ano && <p className="text-xs text-muted-foreground">{ref.ano}</p>}
+        {ref.autoInclude && (
+          <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">auto-incluída</span>
+        )}
+      </div>
+    </label>
+  );
+}
 
 function ReferencesTab({ protocolId }: { protocolId: number }) {
   const queryClient = useQueryClient();
@@ -8582,9 +8627,19 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                 <span className="text-sm font-bold text-muted-foreground w-6 mt-0.5 flex-shrink-0">{idx + 1}.</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                      {TIPO_LABELS_REF[ref.tipoReferencia] ?? ref.tipoReferencia}
-                    </span>
+                    {(() => {
+                      const c = TIPO_COLORS_REF[ref.tipoReferencia];
+                      return c ? (
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.bg} ${c.text}`}>
+                          {c.dot} {TIPO_LABELS_REF[ref.tipoReferencia]}
+                          {ref.tipoReferencia === "ativo" && ref.ativoRelacionado ? ` — ${ref.ativoRelacionado}` : ""}
+                        </span>
+                      ) : (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                          {TIPO_LABELS_REF[ref.tipoReferencia] ?? ref.tipoReferencia}
+                        </span>
+                      );
+                    })()}
                     {ref.autoInclude && (
                       <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">auto-incluída</span>
                     )}
@@ -8678,33 +8733,61 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                     className="h-8 text-sm"
                   />
                 </div>
-                <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                  {available.map(ref => (
-                    <label
-                      key={ref.id}
-                      className={`flex items-start gap-3 w-full p-3 rounded-lg cursor-pointer transition-colors ${selectedIds.has(ref.id) ? "bg-primary/8 border border-primary/30" : "hover:bg-muted/60"}`}
-                    >
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 accent-primary flex-shrink-0"
-                        checked={selectedIds.has(ref.id)}
-                        onChange={() => toggleSelect(ref.id)}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                            {TIPO_LABELS_REF[ref.tipoReferencia] ?? ref.tipoReferencia}
-                          </span>
-                          {ref.autoInclude && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">auto-incluída</span>
-                          )}
-                          {ref.ano && <span className="text-xs text-muted-foreground">{ref.ano}</span>}
+                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                  {(() => {
+                    if (available.length === 0) return null;
+                    const byTipo: Record<string, BibliographicReference[]> = {};
+                    for (const r of available) {
+                      const t = r.tipoReferencia;
+                      if (!byTipo[t]) byTipo[t] = [];
+                      byTipo[t]!.push(r);
+                    }
+                    const orderedTipos = [
+                      ...TIPO_ORDER_REF.filter(t => byTipo[t]),
+                      ...Object.keys(byTipo).filter(t => !TIPO_ORDER_REF.includes(t as never)),
+                    ];
+                    return orderedTipos.map(tipo => {
+                      const refs = byTipo[tipo]!;
+                      const c = TIPO_COLORS_REF[tipo];
+                      const label = TIPO_LABELS_REF[tipo] ?? tipo;
+                      if (tipo === "ativo") {
+                        const byAtivo: Record<string, BibliographicReference[]> = {};
+                        for (const r of refs) {
+                          const k = r.ativoRelacionado?.trim() || "";
+                          if (!byAtivo[k]) byAtivo[k] = [];
+                          byAtivo[k]!.push(r);
+                        }
+                        const ativoKeys = Object.keys(byAtivo).sort((a, b) => a.localeCompare(b));
+                        return (
+                          <div key={tipo}>
+                            <p className={`text-xs font-semibold px-2 py-1 rounded mb-1 ${c?.bg ?? "bg-muted"} ${c?.text ?? "text-foreground"}`}>
+                              {c?.dot} {label}
+                            </p>
+                            {ativoKeys.map(ativo => (
+                              <div key={ativo} className="mb-1">
+                                {ativo && (
+                                  <p className="text-xs text-muted-foreground font-medium px-2 mt-1 mb-0.5">— {ativo} ({byAtivo[ativo]!.length})</p>
+                                )}
+                                {byAtivo[ativo]!.map(ref => (
+                                  <RefSelectRow key={ref.id} ref={ref} selectedIds={selectedIds} toggleSelect={toggleSelect} />
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={tipo}>
+                          <p className={`text-xs font-semibold px-2 py-1 rounded mb-1 ${c?.bg ?? "bg-muted"} ${c?.text ?? "text-foreground"}`}>
+                            {c?.dot ?? ""} {label} ({refs.length})
+                          </p>
+                          {refs.map(ref => (
+                            <RefSelectRow key={ref.id} ref={ref} selectedIds={selectedIds} toggleSelect={toggleSelect} />
+                          ))}
                         </div>
-                        <p className="text-sm font-medium leading-snug">{ref.titulo}</p>
-                        {ref.autores && <p className="text-xs text-muted-foreground">{ref.autores}</p>}
-                      </div>
-                    </label>
-                  ))}
+                      );
+                    });
+                  })()}
 
                   {/* Empty state — prompt to create */}
                   {noResults && (
@@ -8753,15 +8836,28 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                 <div>
                   <label className="text-xs font-medium text-muted-foreground block mb-1">Tipo *</label>
                   <select
-                    value={newRef.tipoReferencia ?? "regulamentacao"}
-                    onChange={e => setNewRef(r => ({ ...r, tipoReferencia: e.target.value }))}
+                    value={newRef.tipoReferencia ?? "geral"}
+                    onChange={e => setNewRef(r => ({ ...r, tipoReferencia: e.target.value, ativoRelacionado: "" }))}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                   >
-                    {Object.entries(TIPO_LABELS_REF).map(([v, l]) => (
-                      <option key={v} value={v}>{l}</option>
+                    {TIPO_ORDER_REF.map(v => (
+                      <option key={v} value={v}>{TIPO_COLORS_REF[v]?.dot} {TIPO_LABELS_REF[v]}</option>
                     ))}
                   </select>
                 </div>
+
+                {/* Ativo relacionado (apenas para tipo = ativo) */}
+                {newRef.tipoReferencia === "ativo" && (
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Ativo relacionado</label>
+                    <Input
+                      placeholder="Ex: Taurina, Cafeína, Vitamina D..."
+                      value={newRef.ativoRelacionado ?? ""}
+                      onChange={e => setNewRef(r => ({ ...r, ativoRelacionado: e.target.value }))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                )}
 
                 {/* Título */}
                 <div>

@@ -7,56 +7,55 @@
  */
 import type { CertificateAnalysis } from "./certificateAnalysis";
 import type { CertificateAnalysisDates } from "./certificateAnalysisDates";
-
 export interface Certificate {
-  certNumber: string;
-  issueDate: string;
-  companyName: string;
-  cnpj: string;
-  email?: string | null;
-  address?: string | null;
-  city?: string | null;
-  productName: string;
-  presentation?: string | null;
-  validityMonths?: number | null;
-  lotNumbers: string[];
-  analyses: CertificateAnalysis[];
-  conclusion?: string | null;
-  finalStatus?: string | null;
-  issuedBy?: string | null;
-  seniorAnalyst?: string | null;
-  seniorAnalystEmail?: string | null;
-  issuedByEmail?: string | null;
-  notes?: string | null;
-  /** Observações da aba Cinética */
-  kineticsNotes?: string | null;
-  /** Texto da ressalva quando finalStatus é aprovado_com_ressalva */
-  ressalva?: string | null;
-  capsuleComposition?: string | null;
-  packagingType?: string | null;
-  activeIngredients?: string | null;
-  excipients?: string | null;
-  ie?: string | null;
-  cep?: string | null;
-  storageTemp?: string | null;
-  storageHumidity?: string | null;
-  studyPeriodMonths?: number | null;
-  testIntervals?: string | null;
-  /** Condições ambientais durante amostragem — temperatura */
-  samplingTemp?: string | null;
-  /** Condições ambientais durante amostragem — umidade */
-  samplingHumidity?: string | null;
-  /** Condições de coleta/recebimento — temperatura */
-  receptionTemp?: string | null;
-  /** Condições de coleta/recebimento — umidade */
-  receptionHumidity?: string | null;
-  analysisDates?: CertificateAnalysisDates;
-  /** Saved certificate text-field overrides (JSON blob) */
-  certEditsJson?: string | null;
-  /** Saved per-parameter analyses overrides (JSON blob) */
-  certAnalysesOverridesJson?: string | null;
-  /** Saved kinetics overrides incl. selectedShelfBox (JSON blob) */
-  kineticsOverridesJson?: string | null;
-  /** Saved ativo limits per param, incl. overage% (JSON blob) */
-  ativoLimitsJson?: string | null;
+    certNumber: string;
+    issueDate: string;
+    companyName: string;
+    cnpj: string;
+    email?: string | null;
+    address?: string | null;
+    city?: string | null;
+    productName: string;
+    presentation?: string | null;
+    validityMonths?: number | null;
+    lotNumbers: string[];
+    analyses: CertificateAnalysis[];
+    conclusion?: string | null;
+    finalStatus?: string | null;
+    issuedBy?: string | null;
+    seniorAnalyst?: string | null;
+    seniorAnalystEmail?: string | null;
+    issuedByEmail?: string | null;
+    notes?: string | null;
+    /** Observações da aba Cinética */
+    kineticsNotes?: string | null;
+    /** Texto da ressalva quando finalStatus é aprovado_com_ressalva */
+    ressalva?: string | null;
+    capsuleComposition?: string | null;
+    packagingType?: string | null;
+    activeIngredients?: string | null;
+    excipients?: string | null;
+    ie?: string | null;
+    cep?: string | null;
+    storageTemp?: string | null;
+    storageHumidity?: string | null;
+    studyPeriodMonths?: number | null;
+    testIntervals?: string | null;
+    /** Condições ambientais durante amostragem — temperatura */
+    samplingTemp?: string | null;
+    /** Condições ambientais durante amostragem — umidade */
+    samplingHumidity?: string | null;
+    /** Condições de coleta/recebimento — temperatura */
+    receptionTemp?: string | null;
+    /** Condições de coleta/recebimento — umidade */
+    receptionHumidity?: string | null;
+    analysisDates?: CertificateAnalysisDates;
+    /** Saved certificate text-field overrides (JSON blob) */
+    certEditsJson?: string | null;
+    /** Saved per-parameter analyses overrides (JSON blob) */
+    certAnalysesOverridesJson?: string | null;
+    /** Saved kinetics overrides incl. selectedShelfBox (JSON blob) */
+    kineticsOverridesJson?: string | null;
+    /** Saved ativo limits per param, incl. overage% (JSON blob) */
+    ativoLimitsJson?: string | null;
 }

@@ -7,16 +7,15 @@
  */
 import type { UpsertResultBodyCategory } from "./upsertResultBodyCategory";
 import type { UpsertResultBodyStatus } from "./upsertResultBodyStatus";
-
 export interface UpsertResultBody {
-  lotId: number;
-  period: number;
-  analysisDate: string;
-  category: UpsertResultBodyCategory;
-  parameter: string;
-  criterion: string;
-  result: string;
-  numericResult?: number;
-  status: UpsertResultBodyStatus;
-  observation?: string;
+    lotId: number;
+    period: number;
+    analysisDate: string;
+    category: UpsertResultBodyCategory;
+    parameter: string;
+    criterion: string;
+    result: string;
+    numericResult?: number;
+    status: UpsertResultBodyStatus;
+    observation?: string;
 }

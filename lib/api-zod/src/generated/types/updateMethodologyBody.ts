@@ -5,12 +5,11 @@
  * Stability Protocol Management API
  * OpenAPI spec version: 0.1.0
  */
-
 export interface UpdateMethodologyBody {
-  shortName: string;
-  citation: string;
-  category?: string | null;
-  subject?: string | null;
-  parameter?: string | null;
-  criteria?: string | null;
+    shortName: string;
+    citation: string;
+    category?: string | null;
+    subject?: string | null;
+    parameter?: string | null;
+    criteria?: string | null;
 }

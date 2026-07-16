@@ -6,9 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { UploadUrlRequest } from "./uploadUrlRequest";
-
 export interface UploadUrlResponse {
-  uploadURL: string;
-  objectPath: string;
-  metadata?: UploadUrlRequest;
+    uploadURL: string;
+    objectPath: string;
+    metadata?: UploadUrlRequest;
 }
