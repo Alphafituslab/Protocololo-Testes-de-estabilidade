@@ -722,12 +722,22 @@ function LotsTab({ protocolId }: { protocolId: number }) {
                       <select
                         data-testid="input-studyCondition"
                         value={field.value ?? ""}
-                        onChange={(e) => field.onChange(e.target.value === "" ? undefined : e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          field.onChange(val === "" ? undefined : val);
+                          if (val === "longa_duracao") {
+                            form.setValue("temperatureC", 25);
+                            form.setValue("humidityRh", 60);
+                          } else if (val === "acelerado") {
+                            form.setValue("temperatureC", 40);
+                            form.setValue("humidityRh", 75);
+                          }
+                        }}
                         className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                       >
                         <option value="">Não especificado</option>
-                        <option value="longa_duracao">Longa Duração</option>
-                        <option value="acelerado">Acelerado</option>
+                        <option value="longa_duracao">Longa Duração — 25 °C / 60 %UR</option>
+                        <option value="acelerado">Acelerado — 40 °C / 75 %UR</option>
                       </select>
                     </FormControl>
                     <FormMessage />
