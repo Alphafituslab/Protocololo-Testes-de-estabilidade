@@ -3840,7 +3840,15 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   // Atualiza automaticamente quando overrides ou ativoLimits mudam.
   const recommendedOverages = useMemo<Record<string, number>>(() => {
     const result: Record<string, number> = {};
-    const isNEorLivre = (s: string) => { const u = (s ?? "").trim().toUpperCase(); return u === "NE" || u === "LIVRE" || u === ""; };
+    // Arrhenius correction: estudo acelerado-only (40°C) → k precisa ser dividido pelo FA
+    // para projetar corretamente na validade real (30°C). Se houver dados long-term, k já
+    // está nas condições reais e fa = 1 (sem correção).
+    const params = kinetics?.parameters ?? [];
+    const isAccelOnly = params.some(p => (p.kAccelerated ?? 0) > 0)
+      && !params.some(p => (p.kLongTerm ?? 0) > 0);
+    const fa = isAccelOnly
+      ? Math.exp((83140 / 8.314) * (1 / 303.15 - 1 / 313.15))
+      : 1;
     for (const [param, ov] of Object.entries(overrides)) {
       const k = parseFloat(ov.k);
       if (isNaN(k) || k <= 0) continue;
@@ -3848,20 +3856,14 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       if (!lim) continue;
       const validadeMeses = parseFloat(ov.validadePraticada);
       if (isNaN(validadeMeses) || validadeMeses <= 0) continue;
-      const declaredNum = lim.declared ? parseFloat(lim.declared.replace(",", ".")) : NaN;
-      const minRaw = lim.min ? parseFloat(lim.min.replace(",", ".")) : NaN;
-      let specMinPct: number;
-      if (!isNaN(minRaw) && !isNaN(declaredNum) && declaredNum > 0 && !isNEorLivre(lim.min ?? "")) {
-        specMinPct = (minRaw / declaredNum) * 100;
-      } else {
-        specMinPct = parseFloat(ov.ichThreshold) || 90;
-      }
-      const t0Required = specMinPct * Math.exp(k * validadeMeses);
+      const kReal = k / fa;
+      const specMinPct = parseFloat(ov.ichThreshold) || 90;
+      const t0Required = specMinPct * Math.exp(kReal * validadeMeses);
       const overageRequired = Math.max(0, t0Required - 100);
       result[param] = parseFloat((Math.ceil(overageRequired * 10) / 10).toFixed(1));
     }
     return result;
-  }, [overrides, ativoLimits]);
+  }, [overrides, ativoLimits, kinetics?.parameters]);
 
   // Informa o componente pai sempre que as recomendações mudarem
   useEffect(() => {
@@ -5099,8 +5101,11 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       }
 
                       // T0 mínimo para C(validadeMeses) ≥ specMinPct
-                      // C(t) = T0 × e^(−k×t) ≥ specMinPct  →  T0 ≥ specMinPct × e^(k×t)
-                      const t0Required = specMinPct * Math.exp(k * validadeMeses);
+                      // C(t) = T0 × e^(−kReal×t) ≥ specMinPct  →  T0 ≥ specMinPct × e^(kReal×t)
+                      // kReal: k corrigido pelo Fator de Arrhenius quando estudo é acelerado-only (40°C).
+                      // Se o estudo tem dados long-term, k já está nas condições reais → sem correção.
+                      const kReal = isAcceleratedOnly ? k / arrheniusFactor : k;
+                      const t0Required = specMinPct * Math.exp(kReal * validadeMeses);
                       const overageRequired = Math.max(0, t0Required - 100);
 
                       // Quantidade real no fabricação (T0 com overage)
@@ -5109,16 +5114,16 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
 
                       // Quantidade real esperada no fim da validade com overage recomendado
                       const qtyAtEndRec = !isNaN(declaredNum) && declaredNum > 0
-                        ? (t0Required * Math.exp(-k * validadeMeses) / 100) * declaredNum : null;
+                        ? (t0Required * Math.exp(-kReal * validadeMeses) / 100) * declaredNum : null;
 
                       // Projeção com T0 medido atual
-                      const projectedCurrent = !isNaN(t0) && t0 > 0 ? t0 * Math.exp(-k * validadeMeses) : NaN;
+                      const projectedCurrent = !isNaN(t0) && t0 > 0 ? t0 * Math.exp(-kReal * validadeMeses) : NaN;
                       const measuredT0Ok = !isNaN(projectedCurrent) && projectedCurrent >= specMinPct
                         && (specMaxPct == null || projectedCurrent <= specMaxPct);
 
                       // Projeção com overage configurado (100 + currentOveragePct%)
                       const t0WithOverage = 100 + (isNaN(currentOveragePct) ? 0 : currentOveragePct);
-                      const projectedWithOverage = t0WithOverage * Math.exp(-k * validadeMeses);
+                      const projectedWithOverage = t0WithOverage * Math.exp(-kReal * validadeMeses);
                       const qtyWithOverage = !isNaN(declaredNum) && declaredNum > 0
                         ? (projectedWithOverage / 100) * declaredNum : null;
                       // Epsilon de 0.001% para evitar falso negativo por ponto flutuante
