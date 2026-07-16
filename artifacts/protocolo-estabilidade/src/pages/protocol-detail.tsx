@@ -8380,6 +8380,13 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
   const [mode, setMode] = useState<"select" | "create">("select");
   const [newRef, setNewRef] = useState<BibliographicReferenceInput>(EMPTY_NEW_REF);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  // Aviso de possível duplicata: guarda a referência encontrada e como foi detectada
+  const [dupWarn, setDupWarn] = useState<{
+    existing: BibliographicReference;
+    byDoi: boolean;
+    byAutores: boolean;
+    inProtocol: boolean;
+  } | null>(null);
 
   const { data: protocolRefs = [], isLoading } = useListProtocolBibliographicReferences(protocolId);
   const { data: allRefs = [] } = useListBibliographicReferences();
@@ -8410,11 +8417,49 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
         queryClient.invalidateQueries({ queryKey: getListBibliographicReferencesQueryKey() });
         addRef.mutate({ id: protocolId, data: { referenceId: created.id } });
         toast({ title: "Referência cadastrada e adicionada ao protocolo" });
+        setDupWarn(null);
         closeDialog();
       },
       onError: (err) => toast({ title: "Erro ao cadastrar referência", description: (err as Error).message, variant: "destructive" }),
     },
   });
+
+  // Verifica duplicata por DOI ou Autores antes de salvar.
+  // Se encontrar, exibe aviso; o usuário pode confirmar para cadastrar mesmo assim.
+  function handleTrySave() {
+    if (!newRef.titulo.trim() || createRef.isPending) return;
+    setDupWarn(null);
+
+    const doiNorm = (newRef.doi ?? "").trim().toLowerCase();
+    const autoresNorm = (newRef.autores ?? "").trim().toLowerCase();
+    const hasDoi = doiNorm.length > 0;
+    const hasAutores = autoresNorm.length > 0;
+
+    if (!hasDoi && !hasAutores) {
+      createRef.mutate({ data: { ...newRef, titulo: newRef.titulo.trim() } });
+      return;
+    }
+
+    const protocolRefIds = new Set(protocolRefs.map(r => r.id));
+    // Checar primeiro no protocolo atual, depois no banco global
+    const toCheck: BibliographicReference[] = [
+      ...protocolRefs,
+      ...allRefs.filter(r => !protocolRefIds.has(r.id)),
+    ];
+
+    for (const r of toCheck) {
+      const rDoi = (r.doi ?? "").trim().toLowerCase();
+      const rAutores = (r.autores ?? "").trim().toLowerCase();
+      const byDoi = hasDoi && rDoi.length > 0 && doiNorm === rDoi;
+      const byAutores = hasAutores && rAutores.length > 0 && autoresNorm === rAutores;
+      if (byDoi || byAutores) {
+        setDupWarn({ existing: r, byDoi, byAutores, inProtocol: protocolRefIds.has(r.id) });
+        return;
+      }
+    }
+
+    createRef.mutate({ data: { ...newRef, titulo: newRef.titulo.trim() } });
+  }
 
   const bulkAddRefs = useBulkAddProtocolBibliographicReferences({
     mutation: {
@@ -8793,26 +8838,78 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                     type="checkbox"
                     className="h-4 w-4 accent-primary"
                     checked={newRef.autoInclude ?? false}
-                    onChange={e => setNewRef(r => ({ ...r, autoInclude: e.target.checked }))}
+                    onChange={e => { setNewRef(r => ({ ...r, autoInclude: e.target.checked })); setDupWarn(null); }}
                   />
                   <span className="text-xs font-medium text-foreground">Auto-incluir em protocolos novos</span>
                   <span className="text-xs text-muted-foreground">(ex: referências ANVISA obrigatórias)</span>
                 </label>
 
+                {/* ── Aviso de duplicata ── */}
+                {dupWarn && (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <span className="text-amber-600 text-base leading-none mt-0.5">⚠</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-amber-800">
+                          {dupWarn.inProtocol
+                            ? "Referência já adicionada a este protocolo"
+                            : "Referência similar já existe no banco"}
+                          {dupWarn.byDoi && dupWarn.byAutores
+                            ? " (mesmo DOI e mesmos autores)"
+                            : dupWarn.byDoi
+                            ? " (mesmo DOI)"
+                            : " (mesmos autores)"}
+                        </p>
+                        <p className="text-xs text-amber-900 font-medium mt-1 truncate" title={dupWarn.existing.titulo}>
+                          {dupWarn.existing.titulo}
+                        </p>
+                        {dupWarn.existing.autores && (
+                          <p className="text-[11px] text-amber-700 truncate">{dupWarn.existing.autores}</p>
+                        )}
+                        {dupWarn.existing.doi && (
+                          <p className="text-[11px] text-amber-600 font-mono truncate">{dupWarn.existing.doi}</p>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-amber-800">Deseja cadastrar mesmo assim e permitir a duplicata?</p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs border-amber-400 text-amber-800 hover:bg-amber-100"
+                        onClick={() => setDupWarn(null)}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                        disabled={createRef.isPending}
+                        onClick={() => createRef.mutate({ data: { ...newRef, titulo: newRef.titulo.trim() } })}
+                      >
+                        {createRef.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                        Cadastrar mesmo assim
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Actions */}
-                <div className="flex justify-end gap-2 pt-1">
-                  <Button size="sm" variant="outline" onClick={() => setMode("select")}>
-                    Cancelar
-                  </Button>
-                  <Button
-                    size="sm"
-                    disabled={!newRef.titulo.trim() || createRef.isPending}
-                    onClick={() => createRef.mutate({ data: { ...newRef, titulo: newRef.titulo.trim() } })}
-                  >
-                    {createRef.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
-                    Salvar e adicionar
-                  </Button>
-                </div>
+                {!dupWarn && (
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button size="sm" variant="outline" onClick={() => setMode("select")}>
+                      Cancelar
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={!newRef.titulo.trim() || createRef.isPending}
+                      onClick={handleTrySave}
+                    >
+                      {createRef.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                      Salvar e adicionar
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
