@@ -630,50 +630,51 @@ function LotsTab({ protocolId }: { protocolId: number }) {
         }
       }}>
         <DialogContent
-          className="max-w-lg"
+          className="max-w-lg flex flex-col max-h-[90vh] p-0 gap-0"
           onInteractOutside={e => { if (!editLot) e.preventDefault(); }}
           onEscapeKeyDown={e => { if (!editLot) e.preventDefault(); }}
         >
-          <DialogHeader>
-            <DialogTitle>{editLot ? "Editar Lote" : "Adicionar Lotes"}</DialogTitle>
-            {!editLot && (
-              <div className="mt-1.5 rounded-md bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-800 flex items-start gap-2">
-                <Plus className="h-3.5 w-3.5 shrink-0 mt-0.5 text-blue-600" />
-                <span>
-                  Preencha os campos e clique em <strong>Adicionar +</strong> para cada lote.
-                  A tela <strong>permanece aberta</strong> — clique em <strong>Fechar</strong> apenas quando terminar de incluir todos os lotes.
-                </span>
-              </div>
-            )}
-          </DialogHeader>
-
-          {/* Success feedback — shown right after a lot is added */}
-          {!editLot && lastAdded && (
-            <div className="flex items-center gap-2 rounded-md bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-700">
-              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600" />
-              <span>Lote <strong className="font-mono">{lastAdded}</strong> cadastrado. Preencha os campos abaixo para adicionar o próximo.</span>
-            </div>
-          )}
-
-          {/* Already-added lots list (visible only when creating, not editing) */}
-          {!editLot && lots.length > 0 && (
-            <div className="rounded-md border bg-muted/30 px-3 py-2 space-y-1 max-h-36 overflow-y-auto">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                Lotes cadastrados ({lots.length})
-              </p>
-              {lots.map((lot) => (
-                <div key={lot.id} className="flex items-center justify-between text-xs">
-                  <span className={`font-mono font-medium ${lot.lotNumber === lastAdded ? "text-green-700" : "text-foreground"}`}>
-                    {lot.lotNumber === lastAdded && "✓ "}{lot.lotNumber}
-                  </span>
-                  <span className="text-muted-foreground">{fmtDate(lot.manufacturingDate)} · {lot.quantity} un.</span>
-                </div>
-              ))}
-            </div>
-          )}
-
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+            {/* ── Scrollable area ── */}
+            <div className="overflow-y-auto flex-1 px-6 pt-6 pb-4 space-y-4">
+              <DialogHeader>
+                <DialogTitle>{editLot ? "Editar Lote" : "Adicionar Lotes"}</DialogTitle>
+                {!editLot && (
+                  <div className="mt-1.5 rounded-md bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-800 flex items-start gap-2">
+                    <Plus className="h-3.5 w-3.5 shrink-0 mt-0.5 text-blue-600" />
+                    <span>
+                      Preencha os campos e clique em <strong>Adicionar +</strong> para cada lote.
+                      A tela <strong>permanece aberta</strong> — clique em <strong>Fechar</strong> apenas quando terminar de incluir todos os lotes.
+                    </span>
+                  </div>
+                )}
+              </DialogHeader>
+
+              {/* Success feedback — shown right after a lot is added */}
+              {!editLot && lastAdded && (
+                <div className="flex items-center gap-2 rounded-md bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-700">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600" />
+                  <span>Lote <strong className="font-mono">{lastAdded}</strong> cadastrado. Preencha os campos abaixo para adicionar o próximo.</span>
+                </div>
+              )}
+
+              {/* Already-added lots list (visible only when creating, not editing) */}
+              {!editLot && lots.length > 0 && (
+                <div className="rounded-md border bg-muted/30 px-3 py-2 space-y-1 max-h-32 overflow-y-auto">
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                    Lotes cadastrados ({lots.length})
+                  </p>
+                  {lots.map((lot) => (
+                    <div key={lot.id} className="flex items-center justify-between text-xs">
+                      <span className={`font-mono font-medium ${lot.lotNumber === lastAdded ? "text-green-700" : "text-foreground"}`}>
+                        {lot.lotNumber === lastAdded && "✓ "}{lot.lotNumber}
+                      </span>
+                      <span className="text-muted-foreground">{fmtDate(lot.manufacturingDate)} · {lot.quantity} un.</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <FormField control={form.control} name="lotNumber" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Número do Lote</FormLabel>
@@ -779,16 +780,18 @@ function LotsTab({ protocolId }: { protocolId: number }) {
                 </div>
                 <p className="text-[10px] text-slate-500">Preencha para habilitar o cálculo de Arrhenius na aba Cinética quando houver lotes nas duas condições.</p>
               </div>
+            </div>{/* end scrollable area */}
 
-              <div className="flex justify-between gap-2">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                  {editLot ? "Cancelar" : "Fechar"}
-                </Button>
-                <Button type="submit" disabled={createLot.isPending || updateLot.isPending}>
-                  {(createLot.isPending || updateLot.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {editLot ? "Salvar" : "Adicionar +"}
-                </Button>
-              </div>
+            {/* ── Sticky footer — always visible ── */}
+            <div className="shrink-0 border-t border-border px-6 py-4 flex justify-between gap-2 bg-background">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                {editLot ? "Cancelar" : "Fechar"}
+              </Button>
+              <Button type="submit" disabled={createLot.isPending || updateLot.isPending}>
+                {(createLot.isPending || updateLot.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {editLot ? "Salvar" : "Adicionar +"}
+              </Button>
+            </div>
             </form>
           </Form>
         </DialogContent>
