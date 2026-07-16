@@ -1852,6 +1852,7 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
   const protocolIsAR = protocolFinalStatus === "aprovado_com_ressalva";
   const isCriterionLocked = protocolFinalStatus != null || protocolStatus === "aprovado" || protocolStatus === "reprovado" || protocolStatus === "aprovado_com_ressalva";
   const [editUnlocked, setEditUnlocked] = useState(false);
+  const [overageUndo, setOverageUndo] = useState<{ param: string; prevValue: string } | null>(null);
   const [criterionConfirmPending, setCriterionConfirmPending] = useState<{
     applyFn: (replace: boolean) => void;
     currentCriterion: string; newCriterion: string;
@@ -2891,14 +2892,32 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
                                   );
                                 }
                                 return (
-                                  <button
-                                    type="button"
-                                    onClick={() => setAtivoLimit(param.parameter, "overage", rec.toFixed(1))}
-                                    className="mt-0.5 text-[9px] px-1.5 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100 font-semibold transition-colors whitespace-nowrap block ml-auto"
-                                    title={`Cinética recomenda +${rec}% de overage para garantir o mínimo ao fim da validade adotada`}
-                                  >
-                                    ↑ aplicar +{rec}%
-                                  </button>
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOverageUndo({ param: param.parameter, prevValue: lim.overage ?? "" });
+                                        setAtivoLimit(param.parameter, "overage", rec.toFixed(1));
+                                      }}
+                                      className="mt-0.5 text-[9px] px-1.5 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100 font-semibold transition-colors whitespace-nowrap block ml-auto"
+                                      title={`Cinética recomenda +${rec}% de overage para garantir o mínimo ao fim da validade adotada`}
+                                    >
+                                      ↑ aplicar +{rec}%
+                                    </button>
+                                    {overageUndo?.param === param.parameter && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setAtivoLimit(overageUndo.param, "overage", overageUndo.prevValue);
+                                          setOverageUndo(null);
+                                        }}
+                                        className="mt-0.5 text-[9px] px-1.5 py-0.5 rounded border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 font-semibold transition-colors whitespace-nowrap block ml-auto"
+                                        title="Desfazer — voltar ao overage anterior"
+                                      >
+                                        ↩ desfazer
+                                      </button>
+                                    )}
+                                  </>
                                 );
                               })()}
                             </td>
@@ -3796,6 +3815,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   });
   const [isDirty, setIsDirty] = useState(false);
   useUnsavedChangesGuard(isDirty);
+  const [kineticOverageUndo, setKineticOverageUndo] = useState<{ param: string; prevValue: string } | null>(null);
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -5157,11 +5177,26 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                               <span className="text-[10px] text-amber-600 tabular-nums">→ {qtyAtEndRec.toFixed(2)} {unit} em {validadeMeses}m</span>
                             )}
                             {onApplyOverage && (
-                              <button
-                                onClick={() => onApplyOverage(p.parameter, recStr)}
-                                className="text-[10px] px-2 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100 font-semibold transition-colors"
-                                title={`Aplicar overage de +${recStr}% para garantir ≥ ${specMinLabel} em ${validadeMeses} meses`}
-                              >↑ aplicar +{recStr}%</button>
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setKineticOverageUndo({ param: p.parameter, prevValue: lim?.overage ?? "" });
+                                    onApplyOverage(p.parameter, recStr);
+                                  }}
+                                  className="text-[10px] px-2 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100 font-semibold transition-colors"
+                                  title={`Aplicar overage de +${recStr}% para garantir ≥ ${specMinLabel} em ${validadeMeses} meses`}
+                                >↑ aplicar +{recStr}%</button>
+                                {kineticOverageUndo?.param === p.parameter && (
+                                  <button
+                                    onClick={() => {
+                                      onApplyOverage(p.parameter, kineticOverageUndo.prevValue);
+                                      setKineticOverageUndo(null);
+                                    }}
+                                    className="text-[10px] px-2 py-0.5 rounded border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 font-semibold transition-colors"
+                                    title="Desfazer — voltar ao overage anterior"
+                                  >↩ desfazer</button>
+                                )}
+                              </>
                             )}
                           </div>
                         );
@@ -5176,11 +5211,26 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                           )}
                           <span className="text-[10px] text-amber-600">para ≥ {specMinLabel} em {validadeMeses}m</span>
                           {onApplyOverage && (
-                            <button
-                              onClick={() => onApplyOverage(p.parameter, recStr)}
-                              className="text-[10px] px-2 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100 font-semibold transition-colors"
-                              title={`Aplicar overage de +${recStr}% para garantir ≥ ${specMinLabel} em ${validadeMeses} meses`}
-                            >↑ aplicar +{recStr}%</button>
+                            <>
+                              <button
+                                onClick={() => {
+                                  setKineticOverageUndo({ param: p.parameter, prevValue: lim?.overage ?? "" });
+                                  onApplyOverage(p.parameter, recStr);
+                                }}
+                                className="text-[10px] px-2 py-0.5 rounded border border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100 font-semibold transition-colors"
+                                title={`Aplicar overage de +${recStr}% para garantir ≥ ${specMinLabel} em ${validadeMeses} meses`}
+                              >↑ aplicar +{recStr}%</button>
+                              {kineticOverageUndo?.param === p.parameter && (
+                                <button
+                                  onClick={() => {
+                                    onApplyOverage(p.parameter, kineticOverageUndo.prevValue);
+                                    setKineticOverageUndo(null);
+                                  }}
+                                  className="text-[10px] px-2 py-0.5 rounded border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 font-semibold transition-colors"
+                                  title="Desfazer — voltar ao overage anterior"
+                                >↩ desfazer</button>
+                              )}
+                            </>
                           )}
                         </div>
                       );
