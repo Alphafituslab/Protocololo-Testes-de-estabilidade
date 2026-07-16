@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   FileText, Plus, CheckCircle2, Clock, XCircle, ShieldCheck,
   TrendingUp, ArrowRight, Activity, Beaker, Search, X, Trash2, PenLine,
+  ArrowDown, ArrowUp, ArrowUpDown,
 } from "lucide-react";
 import { useUnlock } from "@/hooks/use-unlock";
 import { UnlockDialog } from "@/components/unlock-dialog";
@@ -53,6 +54,7 @@ export default function Dashboard() {
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<"default" | "newest" | "oldest">("default");
   const [pendingDelete, setPendingDelete] = useState<{ id: number; name: string } | null>(null);
   const [unlockOpen, setUnlockOpen] = useState(false);
   const { unlock } = useUnlock();
@@ -84,19 +86,32 @@ export default function Dashboard() {
   });
 
   const displayList = useMemo(() => {
+    let list;
     if (q) {
-      return allProtocols.filter((p) =>
+      list = allProtocols.filter((p) =>
         normalize(p.productName ?? "").includes(q) ||
         normalize(p.certNumber ?? "").includes(q) ||
         normalize(p.companyName ?? "").includes(q)
       );
+    } else if (statusFilter === "all") {
+      list = allProtocols;
+    } else if (statusFilter) {
+      list = allProtocols.filter((p) => p.status === statusFilter);
+    } else {
+      list = stats?.recentProtocols ?? [];
     }
-    if (statusFilter === "all") return allProtocols;
-    if (statusFilter) {
-      return allProtocols.filter((p) => p.status === statusFilter);
+    if (sortOrder === "newest") {
+      return [...list].sort((a, b) =>
+        new Date((b as any).createdAt ?? 0).getTime() - new Date((a as any).createdAt ?? 0).getTime()
+      );
     }
-    return stats?.recentProtocols ?? [];
-  }, [allProtocols, q, statusFilter, stats?.recentProtocols]);
+    if (sortOrder === "oldest") {
+      return [...list].sort((a, b) =>
+        new Date((a as any).createdAt ?? 0).getTime() - new Date((b as any).createdAt ?? 0).getTime()
+      );
+    }
+    return list;
+  }, [allProtocols, q, statusFilter, stats?.recentProtocols, sortOrder]);
 
   function handleCardClick(status: string) {
     const next = statusFilter === status ? null : status;
@@ -312,24 +327,43 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {/* Search bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setStatusFilter(null); }}
-            placeholder="Pesquisar por nome do produto ou nº do certificado..."
-            className="w-full pl-9 pr-9 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors placeholder:text-muted-foreground/50"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
+        {/* Search bar + sort toggle */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setStatusFilter(null); }}
+              placeholder="Pesquisar por nome do produto ou nº do certificado..."
+              className="w-full pl-9 pr-9 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors placeholder:text-muted-foreground/50"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => setSortOrder(o => o === "default" ? "newest" : o === "newest" ? "oldest" : "default")}
+            title={sortOrder === "default" ? "Ordem de criação" : sortOrder === "newest" ? "Mais novos primeiro" : "Mais antigos primeiro"}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-colors whitespace-nowrap shrink-0
+              ${sortOrder !== "default"
+                ? "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10"
+                : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-border/80"
+              }`}
+          >
+            {sortOrder === "newest" ? (
+              <><ArrowDown className="h-3.5 w-3.5" /> Mais novos</>
+            ) : sortOrder === "oldest" ? (
+              <><ArrowUp className="h-3.5 w-3.5" /> Mais antigos</>
+            ) : (
+              <><ArrowUpDown className="h-3.5 w-3.5" /> Ordenar</>
+            )}
+          </button>
         </div>
 
         {/* Result count */}
@@ -361,6 +395,11 @@ export default function Dashboard() {
                           </p>
                           <p className="text-xs text-muted-foreground truncate mt-0.5">
                             {protocol.certNumber ? `${protocol.certNumber} · ` : ""}{protocol.companyName}
+                            {(protocol as any).createdAt && (
+                              <span className="ml-1.5 text-muted-foreground/60">
+                                · {new Date((protocol as any).createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                              </span>
+                            )}
                           </p>
                         </div>
                       </div>
