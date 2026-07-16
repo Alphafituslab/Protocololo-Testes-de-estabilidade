@@ -5066,22 +5066,14 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       const validadeMeses = parseFloat(ov.validadePraticada);
                       const currentOveragePct = lim?.overage ? parseFloat(lim.overage.replace(",", ".")) : 0;
                       const declaredNum = lim?.declared ? parseFloat(lim.declared.replace(",", ".")) : NaN;
-                      const minRaw = lim?.min ? parseFloat((lim.min).replace(",", ".")) : NaN;
                       const maxRaw = lim?.max ? parseFloat((lim.max).replace(",", ".")) : NaN;
                       const unit = lim?.unit ?? "";
 
-                      // Threshold real: min da spec em % de T0 (100%)
-                      // Se lim.min está em unidade absoluta (mg, IU…), converte via declared.
+                      // Threshold de estabilidade: sempre segue o ICH Q1A(R2) / Arrhenius — lim.min
+                      // representa conformidade de rotulagem ANVISA, não o piso cinético.
                       const isNEorLivre = (s: string) => { const u = (s ?? "").trim().toUpperCase(); return u === "NE" || u === "LIVRE" || u === ""; };
-                      let specMinPct: number;
-                      let specMinLabel: string;
-                      if (!isNaN(minRaw) && !isNaN(declaredNum) && declaredNum > 0 && !isNEorLivre(lim?.min ?? "")) {
-                        specMinPct = (minRaw / declaredNum) * 100;
-                        specMinLabel = `${lim?.min} ${unit}`;
-                      } else {
-                        specMinPct = parseFloat(ov.ichThreshold) || 90;
-                        specMinLabel = `${specMinPct}%`;
-                      }
+                      const specMinPct: number = parseFloat(ov.ichThreshold) || 90;
+                      const specMinLabel: string = `${specMinPct}%`;
                       // Max em % para verificar teto
                       const specMaxPct = !isNaN(maxRaw) && !isNaN(declaredNum) && declaredNum > 0 && !isNEorLivre(lim?.max ?? "")
                         ? (maxRaw / declaredNum) * 100 : null;
