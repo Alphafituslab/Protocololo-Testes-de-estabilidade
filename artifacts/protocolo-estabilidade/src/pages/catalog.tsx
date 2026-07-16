@@ -23,6 +23,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Check, X, Package, Pill, FlaskConical, BookOpenCheck, ExternalLink } from "lucide-react";
 
 const TIPO_LABELS: Record<string, string> = {
+  geral: "Geral",
+  ativo: "Ativo/Ingrediente",
+  analitica: "Analítica",
+  regulatoria: "Regulatória",
+  embalagem: "Embalagem",
+  degradacao: "Degradação",
   artigo: "Artigo",
   livro: "Livro",
   site: "Site/URL",
@@ -30,6 +36,17 @@ const TIPO_LABELS: Record<string, string> = {
   norma: "Norma Técnica",
   outro: "Outro",
 };
+
+const TIPO_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
+  geral:       { bg: "bg-emerald-100",  text: "text-emerald-800", dot: "🟢" },
+  ativo:       { bg: "bg-blue-100",     text: "text-blue-800",    dot: "🔵" },
+  analitica:   { bg: "bg-purple-100",   text: "text-purple-800",  dot: "🟣" },
+  regulatoria: { bg: "bg-orange-100",   text: "text-orange-800",  dot: "🟠" },
+  embalagem:   { bg: "bg-yellow-100",   text: "text-yellow-800",  dot: "🟡" },
+  degradacao:  { bg: "bg-red-100",      text: "text-red-800",     dot: "🔴" },
+};
+
+const TIPO_ORDER = ["geral", "ativo", "analitica", "regulatoria", "embalagem", "degradacao"] as const;
 
 function formatAbntPlain(r: BibliographicReference): string {
   const parts: string[] = [];
@@ -44,7 +61,7 @@ function formatAbntPlain(r: BibliographicReference): string {
   return parts.join(" ");
 }
 
-const EMPTY_FORM = { titulo: "", autores: "", ano: "", fonte: "", volume: "", numero: "", paginas: "", doi: "", descricao: "", tipoReferencia: "artigo", autoInclude: false };
+const EMPTY_FORM = { titulo: "", autores: "", ano: "", fonte: "", volume: "", numero: "", paginas: "", doi: "", descricao: "", tipoReferencia: "geral", ativoRelacionado: "", autoInclude: false };
 
 function BibliographicReferenceForm({
   initial,
@@ -65,7 +82,8 @@ function BibliographicReferenceForm({
     paginas: initial.paginas ?? "",
     doi: initial.doi ?? "",
     descricao: initial.descricao ?? "",
-    tipoReferencia: initial.tipoReferencia ?? "artigo",
+    tipoReferencia: initial.tipoReferencia ?? "geral",
+    ativoRelacionado: initial.ativoRelacionado ?? "",
     autoInclude: initial.autoInclude ?? false,
   } : { ...EMPTY_FORM });
 
@@ -76,14 +94,22 @@ function BibliographicReferenceForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <label className="text-xs font-medium text-muted-foreground mb-1 block">Tipo de Referência</label>
-          <Select value={form.tipoReferencia} onValueChange={v => setForm(p => ({ ...p, tipoReferencia: v }))}>
+          <Select value={form.tipoReferencia} onValueChange={v => setForm(p => ({ ...p, tipoReferencia: v, ativoRelacionado: v !== "ativo" ? "" : p.ativoRelacionado }))}>
             <SelectTrigger className="h-8 text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(TIPO_LABELS).map(([v, l]) => (
-                <SelectItem key={v} value={v}>{l}</SelectItem>
-              ))}
+              {TIPO_ORDER.map(v => {
+                const c = TIPO_COLORS[v];
+                return (
+                  <SelectItem key={v} value={v}>
+                    <span className="flex items-center gap-1.5">
+                      <span>{c.dot}</span>
+                      <span>{TIPO_LABELS[v]}</span>
+                    </span>
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
@@ -119,6 +145,12 @@ function BibliographicReferenceForm({
           <label className="text-xs font-medium text-muted-foreground mb-1 block">DOI / URL</label>
           <Input placeholder="Ex: https://doi.org/..." value={form.doi} onChange={f("doi")} className="h-8 text-sm" />
         </div>
+        {form.tipoReferencia === "ativo" && (
+          <div className="col-span-2">
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Ativo relacionado</label>
+            <Input placeholder="Ex: Cálcio, Vitamina D, Taurina..." value={form.ativoRelacionado} onChange={f("ativoRelacionado")} className="h-8 text-sm" />
+          </div>
+        )}
         <div className="col-span-2">
           <label className="text-xs font-medium text-muted-foreground mb-1 block">Descrição (sobre o que trata)</label>
           <Textarea placeholder="Breve descrição do conteúdo desta referência..." value={form.descricao} onChange={f("descricao")} className="text-sm min-h-[60px] resize-none" />
@@ -139,7 +171,7 @@ function BibliographicReferenceForm({
       {form.titulo && (
         <div className="rounded-md bg-slate-50 border border-slate-200 p-3">
           <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Prévia ABNT</p>
-          <p className="text-xs text-slate-700 leading-relaxed">{formatAbntPlain({ id: 0, ...form, ano: form.ano ? Number(form.ano) : null, autores: form.autores || null, fonte: form.fonte || null, volume: form.volume || null, numero: form.numero || null, paginas: form.paginas || null, doi: form.doi || null, descricao: form.descricao || null, createdAt: "", updatedAt: "" })}</p>
+          <p className="text-xs text-slate-700 leading-relaxed">{formatAbntPlain({ id: 0, ...form, ano: form.ano ? Number(form.ano) : null, autores: form.autores || null, fonte: form.fonte || null, volume: form.volume || null, numero: form.numero || null, paginas: form.paginas || null, doi: form.doi || null, descricao: form.descricao || null, ativoRelacionado: form.ativoRelacionado || null, createdAt: "", updatedAt: "" })}</p>
         </div>
       )}
       <div className="flex justify-end gap-2 pt-2">
@@ -206,7 +238,19 @@ function BibliographicReferencesTable({
               <span className="text-xs font-bold text-muted-foreground w-5 mt-0.5 flex-shrink-0">{idx + 1}.</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                  <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">{TIPO_LABELS[item.tipoReferencia] ?? item.tipoReferencia}</span>
+                  {(() => {
+                    const c = TIPO_COLORS[item.tipoReferencia];
+                    return c ? (
+                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.bg} ${c.text}`}>
+                        {c.dot} {TIPO_LABELS[item.tipoReferencia]}
+                        {item.tipoReferencia === "ativo" && item.ativoRelacionado ? ` — ${item.ativoRelacionado}` : ""}
+                      </span>
+                    ) : (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                        {TIPO_LABELS[item.tipoReferencia] ?? item.tipoReferencia}
+                      </span>
+                    );
+                  })()}
                   {item.ano && <span className="text-xs text-muted-foreground">{item.ano}</span>}
                 </div>
                 <p className="text-sm font-medium leading-snug">{item.titulo}</p>
@@ -615,6 +659,7 @@ export default function CatalogPage() {
       doi: data.doi || undefined,
       descricao: data.descricao || undefined,
       tipoReferencia: data.tipoReferencia,
+      ativoRelacionado: data.ativoRelacionado || undefined,
       autoInclude: data.autoInclude,
     };
   }
