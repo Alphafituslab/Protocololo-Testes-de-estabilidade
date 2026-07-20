@@ -519,6 +519,13 @@ function CoaDetail({ id }: { id: number }) {
   if (isError || !coa) return <div className="flex items-center justify-center min-h-screen text-destructive">Laudo não encontrado.</div>;
 
   const results = coa.results ?? [];
+  const CAT_ORDER = Object.fromEntries(STANDARD_PARAMS.map((g, i) => [g.category, i]));
+  const sortedResults = [...results].sort((a, b) => {
+    const ca = CAT_ORDER[a.category] ?? 99;
+    const cb = CAT_ORDER[b.category] ?? 99;
+    if (ca !== cb) return ca - cb;
+    return a.sortOrder - b.sortOrder;
+  });
   const hasNaoConforme = results.some(r => r.status === "nao_conforme");
   const allConforme = results.length > 0 && results.every(r => r.status === "conforme");
   const conclusao = hasNaoConforme ? "REPROVADO" : allConforme ? "APROVADO" : "PENDENTE";
@@ -707,7 +714,7 @@ function CoaDetail({ id }: { id: number }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {results.map((r, i) => (
+                    {sortedResults.map((r, i) => (
                       <ResultRow
                         key={r.id}
                         result={r}
@@ -939,7 +946,7 @@ function CoaDetail({ id }: { id: number }) {
             <tbody>
               {results.length === 0 ? (
                 <tr><td colSpan={7} style={{ textAlign: "center", color: "#94a3b8", fontStyle: "italic" }}>Nenhum resultado registrado</td></tr>
-              ) : results.map((r, i) => (
+              ) : sortedResults.map((r, i) => (
                 <tr key={r.id} style={i % 2 === 1 ? { background: "#f8fafc" } : {}}>
                   <td>{r.category}</td>
                   <td style={{ fontWeight: 600 }}>{r.parameter}</td>
