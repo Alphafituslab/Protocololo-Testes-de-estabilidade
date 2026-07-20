@@ -1142,7 +1142,8 @@ function ResultRow({
     const selected = methodologies.find(m => m.shortName === shortName);
     setMethod(shortName);
     const changes: Partial<CoaResult> = { method: shortName };
-    if (selected?.criteria && !spec) {
+    // Sempre aplica o critério da metodologia selecionada (inclusive ao trocar)
+    if (selected?.criteria) {
       setSpec(selected.criteria);
       changes.spec = selected.criteria;
     }

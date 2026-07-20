@@ -164,13 +164,30 @@ router.post("/coa/:id/results", requireAuth, async (req, res) => {
   }
 });
 
+// Schema sem defaults para atualizações parciais (evita sobrescrever campos com "")
+const resultUpdateSchema = z.object({
+  category: z.string().optional(),
+  parameter: z.string().optional(),
+  result: z.string().optional(),
+  unit: z.string().optional(),
+  spec: z.string().optional(),
+  method: z.string().optional(),
+  status: z.string().optional(),
+  sortOrder: z.number().int().optional(),
+});
+
 router.put("/coa/:id/results/:resultId", requireAuth, async (req, res) => {
   try {
     const resultId = Number(req.params.resultId);
     if (!resultId) return void res.status(400).json({ error: "ID inválido" });
-    const parsed = resultBodySchema.partial().safeParse(req.body);
+    const parsed = resultUpdateSchema.safeParse(req.body);
     if (!parsed.success) return void res.status(400).json({ error: String(parsed.error) });
-    const [r] = await db.update(coaResultsTable).set(parsed.data).where(eq(coaResultsTable.id, resultId)).returning();
+    // Apenas campos explicitamente enviados no body
+    const updateData = Object.fromEntries(
+      Object.entries(parsed.data).filter(([, v]) => v !== undefined)
+    );
+    if (Object.keys(updateData).length === 0) return void res.status(400).json({ error: "Nenhum campo para atualizar" });
+    const [r] = await db.update(coaResultsTable).set(updateData).where(eq(coaResultsTable.id, resultId)).returning();
     if (!r) return void res.status(404).json({ error: "Resultado não encontrado" });
     res.json(r);
   } catch (e) {
