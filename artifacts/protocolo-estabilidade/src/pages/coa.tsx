@@ -480,9 +480,9 @@ function CoaDetail({ id }: { id: number }) {
 
   // ── History state ──
   const [showHistoryInPdf, setShowHistoryInPdf] = useState(false);
-  const [historyCollapsed, setHistoryCollapsed] = useState(false);
-  const [pdfSectionsCollapsed, setPdfSectionsCollapsed] = useState(false);
-  const [clientAccessCollapsed, setClientAccessCollapsed] = useState(false);
+  const [historyCollapsed, setHistoryCollapsed] = useState(true);
+  const [pdfSectionsCollapsed, setPdfSectionsCollapsed] = useState(true);
+  const [clientAccessCollapsed, setClientAccessCollapsed] = useState(true);
 
   // ── Client sharing state ──
   const [shareOpen, setShareOpen] = useState(false);
