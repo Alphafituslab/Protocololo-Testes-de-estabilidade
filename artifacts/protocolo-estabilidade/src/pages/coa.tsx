@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/use-auth";
 import {
   Plus, Trash2, Printer, ArrowLeft, ClipboardList,
   ChevronDown, CheckCircle2, XCircle, Clock, Save, Search, X,
-  UserPlus, Mail, Users, Trash, AlertTriangle, UserCheck
+  UserPlus, Mail, Users, Trash, AlertTriangle, UserCheck, PenLine, ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -472,9 +472,9 @@ function CoaDetail({ id }: { id: number }) {
   const [signDialogOpen, setSignDialogOpen] = useState(false);
   const [signForm, setSignForm] = useState({
     role: "",
-    dateChoice: "today" as "today" | "docDate",
+    dateChoice: "hoje" as "emissao" | "hoje",
     customDate: new Date().toISOString().slice(0, 10),
-    customTime: new Date().toTimeString().slice(0, 5),
+    customTime: new Date().toTimeString().slice(0, 8),
   });
 
   // ── History state ──
@@ -662,7 +662,9 @@ function CoaDetail({ id }: { id: number }) {
       await saveNow();
       const signerName = header.responsibleTech || coa?.responsibleTech || user?.displayName || user?.username || "";
       const signerRole = signForm.role.trim() || null;
-      const chosenDate = `${signForm.customDate}T${signForm.customTime}:00`;
+      const dateStr = signForm.dateChoice === "emissao" ? signForm.customDate : new Date().toISOString().slice(0, 10);
+      const timeStr = signForm.customTime || new Date().toTimeString().slice(0, 8);
+      const chosenDate = `${dateStr}T${timeStr}`;
       return apiFetch(`/api/coa/${id}/sign`, token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1665,88 +1667,136 @@ function CoaDetail({ id }: { id: number }) {
       </Dialog>
 
       {/* ── Dialog Assinar Digitalmente ─────────────────────────────────── */}
-      <Dialog open={signDialogOpen} onOpenChange={setSignDialogOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              ✍️ Assinar Digitalmente
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-1">
-            <p className="text-xs text-muted-foreground">Confirme os dados abaixo. A assinatura será registrada com seu nome de usuário.</p>
-
-            {/* Usuário logado */}
-            <div className="border rounded-lg px-4 py-3 flex items-center gap-3 bg-slate-50">
-              <div className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold uppercase shrink-0">
-                {(user?.displayName || user?.username || "?").slice(0, 1)}
+      {signDialogOpen && (() => {
+        const initials = (user?.displayName ?? "?").split(" ").filter(Boolean).slice(0, 2).map((n: string) => n[0]?.toUpperCase()).join("");
+        const todayDateStr = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+        const fmtInputDate = (d: string) => { const [y,m,day] = d.split("-"); return day && m && y ? `${day}/${m}/${y}` : "—"; };
+        const emissaoDisplay = signForm.customDate ? fmtInputDate(signForm.customDate) : todayDateStr;
+        return (
+          <div className="print:hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setSignDialogOpen(false)}>
+            <div className="bg-white rounded-xl shadow-2xl w-[420px] max-w-[95vw] max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
+                <h3 className="font-bold text-base flex items-center gap-2 text-gray-900">
+                  <PenLine className="h-4 w-4 text-primary" /> Assinar Digitalmente
+                </h3>
+                <button type="button" onClick={() => setSignDialogOpen(false)} className="text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 w-7 h-7 flex items-center justify-center transition-colors">
+                  <span className="text-xl leading-none">×</span>
+                </button>
               </div>
-              <div>
-                <div className="font-semibold text-sm">{user?.displayName || user?.username}</div>
-                <div className="text-xs text-muted-foreground capitalize">{user?.role || "Usuário"}</div>
-                <div className="text-xs text-emerald-600 font-medium flex items-center gap-1">✅ Usuário verificado</div>
+
+              <div className="px-6 py-4 space-y-4">
+                <p className="text-xs text-gray-500">Confirme os dados abaixo. A assinatura será registrada com seu nome de usuário.</p>
+
+                {/* User card */}
+                <div className="border border-gray-200 rounded-lg p-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{initials}</div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm text-gray-900 truncate">{user?.displayName || user?.username}</p>
+                    <p className="text-xs text-gray-400 capitalize">{user?.role === "admin" ? "Admin" : "Analista"}</p>
+                    <p className="text-[10px] text-emerald-600 flex items-center gap-1 mt-0.5"><ShieldCheck className="h-3 w-3" /> Usuário verificado</p>
+                  </div>
+                </div>
+
+                {/* Signature preview */}
+                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
+                  <p className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-1 text-center">Prévia da assinatura</p>
+                  <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "1.5rem", lineHeight: 1.4, color: "#1e3a5f", fontWeight: 600, textAlign: "center" }}>
+                    {header.responsibleTech || coa?.responsibleTech || user?.displayName || user?.username}
+                  </p>
+                </div>
+
+                {/* Role */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Cargo / Função nesta assinatura</label>
+                  <select
+                    value={signForm.role || "Responsável Técnico"}
+                    onChange={e => setSignForm(f => ({ ...f, role: e.target.value }))}
+                    className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  >
+                    {["Responsável Técnico", "Farmacêutico", "Analista Sênior", "Analista", "Supervisor de Qualidade", "Gerente de Qualidade", "Diretor Técnico"].map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Date choice */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Data da assinatura</label>
+                  <div className="space-y-2">
+                    {(["emissao", "hoje"] as const).map(opt => {
+                      const isEmissao = opt === "emissao";
+                      const label = isEmissao ? "Data de Emissão do documento" : "Data de hoje";
+                      const sub   = isEmissao ? emissaoDisplay : todayDateStr;
+                      const sel   = signForm.dateChoice === opt;
+                      return (
+                        <div key={opt}>
+                          <button
+                            type="button"
+                            onClick={() => setSignForm(f => ({ ...f, dateChoice: opt }))}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all text-left ${sel ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300 bg-white"}`}
+                          >
+                            <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${sel ? "border-primary" : "border-gray-300"}`}>
+                              {sel && <span className="w-2 h-2 rounded-full bg-primary block" />}
+                            </span>
+                            <span>
+                              <span className={`block text-sm font-medium ${sel ? "text-primary" : "text-gray-700"}`}>{label}</span>
+                              <span className="block text-xs text-gray-400 mt-0.5">{sub}</span>
+                            </span>
+                          </button>
+                          {sel && isEmissao && (
+                            <div className="mt-1.5 px-1">
+                              <input
+                                type="date"
+                                value={signForm.customDate}
+                                onChange={e => setSignForm(f => ({ ...f, customDate: e.target.value }))}
+                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Time */}
+                <div className="flex items-center gap-3">
+                  <label className="text-xs font-medium text-gray-700 w-14 flex-shrink-0">Horário</label>
+                  <input
+                    type="time"
+                    step="1"
+                    value={signForm.customTime}
+                    onChange={e => setSignForm(f => ({ ...f, customTime: e.target.value }))}
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  />
+                  <span className="text-xs text-gray-400">Altere se necessário</span>
+                </div>
               </div>
-            </div>
 
-            {/* Prévia da assinatura em cursivo */}
-            <div className="border rounded-lg bg-white p-3">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2 font-medium">Prévia da Assinatura</p>
-              <div className="flex justify-center">
-                <span style={{ fontFamily: "'Dancing Script', cursive", fontSize: "28px", color: "#1e3a5f" }}>
-                  {header.responsibleTech || coa?.responsibleTech || user?.displayName || user?.username}
-                </span>
+              {/* Footer */}
+              <div className="flex gap-3 px-6 pb-5">
+                <button
+                  type="button"
+                  onClick={() => setSignDialogOpen(false)}
+                  className="flex-1 border border-gray-200 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => signMut.mutate()}
+                  disabled={signMut.isPending}
+                  className="flex-1 bg-primary text-white rounded-lg py-2.5 text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  {signMut.isPending ? "Assinando…" : "Confirmar Assinatura"}
+                </button>
               </div>
-            </div>
-
-            {/* Cargo / Função */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-700">Cargo / Função nesta assinatura</label>
-              <Select
-                value={signForm.role || "Responsável Técnico"}
-                onValueChange={v => setSignForm(f => ({ ...f, role: v }))}
-              >
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue placeholder="Selecione o cargo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {["Responsável Técnico", "Farmacêutico", "Analista Sênior", "Analista", "Supervisor de Qualidade", "Gerente de Qualidade", "Diretor Técnico"].map(r => (
-                    <SelectItem key={r} value={r}>{r}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Data e Horário da assinatura */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-700">Data e horário da assinatura</label>
-              <div className="flex gap-2">
-                <input
-                  type="date"
-                  className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  value={signForm.customDate}
-                  onChange={e => setSignForm(f => ({ ...f, customDate: e.target.value }))}
-                />
-                <input
-                  type="time"
-                  className="w-28 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  value={signForm.customTime}
-                  onChange={e => setSignForm(f => ({ ...f, customTime: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-1">
-              <Button variant="outline" className="flex-1" onClick={() => setSignDialogOpen(false)}>Cancelar</Button>
-              <Button
-                className="flex-1 bg-primary hover:bg-primary/90 text-white gap-2"
-                onClick={() => signMut.mutate()}
-                disabled={signMut.isPending}
-              >
-                🔒 {signMut.isPending ? "Assinando…" : "Confirmar Assinatura"}
-              </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        );
+      })()}
 
       {/* Unsign confirmation */}
       <AlertDialog open={unsignOpen} onOpenChange={setUnsignOpen}>
