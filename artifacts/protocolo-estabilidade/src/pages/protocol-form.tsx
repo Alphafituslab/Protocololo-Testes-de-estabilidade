@@ -1,5 +1,6 @@
 import { useParams, useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -19,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertTriangle } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
@@ -160,6 +161,9 @@ export default function ProtocolForm() {
   const selectedProductType = productTypes.find((pt) => pt.name === watchedProductType);
   const isPowderProduct = selectedProductType?.isPowder ?? false;
 
+  const savedValuesRef = useRef<FormValues | null>(null);
+  const guard = useUnsavedChangesGuard(form.formState.isDirty);
+
   const handleApiError = (err: unknown, action: string) => {
     if (err instanceof ApiError && err.status === 409) {
       const body = err.data as { error?: string; field?: string } | null;
@@ -178,6 +182,8 @@ export default function ProtocolForm() {
       onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: getListProtocolsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetProtocolStatsQueryKey() });
+        if (savedValuesRef.current) form.reset(savedValuesRef.current);
+        guard.clear();
         toast({ title: "Protocolo criado com sucesso" });
         setLocation(`/protocols/${data.id}`);
       },
@@ -190,14 +196,15 @@ export default function ProtocolForm() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(Number(id)) });
         queryClient.invalidateQueries({ queryKey: getListProtocolsQueryKey() });
-        toast({ title: "Protocolo atualizado com sucesso" });
-        setLocation(`/protocols/${id}`);
+        if (savedValuesRef.current) form.reset(savedValuesRef.current);
+        toast({ title: "Protocolo salvo com sucesso ✓" });
       },
       onError: (err) => handleApiError(err, "atualizar"),
     },
   });
 
   const onSubmit = (values: FormValues) => {
+    savedValuesRef.current = values;
     if (isEdit) {
       updateProtocol.mutate({ id: Number(id), data: values });
     } else {
@@ -207,8 +214,30 @@ export default function ProtocolForm() {
 
   const isPending = createProtocol.isPending || updateProtocol.isPending;
 
+  const isDirty = form.formState.isDirty;
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 pb-24">
+      {/* ── Sticky unsaved-changes bar ── */}
+      {isDirty && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between gap-4 px-4 py-3 bg-amber-50 border-t-2 border-amber-400 shadow-lg print:hidden">
+          <div className="flex items-center gap-2 text-amber-800 text-sm font-medium">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+            Alterações não salvas — salve para não perder as informações
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            disabled={isPending}
+            className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white"
+            onClick={() => form.handleSubmit(onSubmit)()}
+          >
+            {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            Salvar agora
+          </Button>
+        </div>
+      )}
+
       <div className="flex items-center gap-4">
         <Link href={isEdit ? `/protocols/${id}` : "/"}>
           <Button variant="ghost" size="sm" data-testid="button-back">
@@ -216,8 +245,9 @@ export default function ProtocolForm() {
           </Button>
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             {isEdit ? "Editar Protocolo" : "Novo Protocolo"}
+            {isDirty && <span className="text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">não salvo</span>}
           </h1>
           <p className="text-sm text-muted-foreground">
             {isEdit ? "Atualize as informações do protocolo de estabilidade" : "Preencha os dados do novo protocolo de estabilidade"}
