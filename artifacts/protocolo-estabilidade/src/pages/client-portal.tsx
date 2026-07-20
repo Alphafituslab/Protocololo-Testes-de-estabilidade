@@ -17,6 +17,7 @@ type AssignedCoa = {
   status: string;
   notes: string | null;
   responsibleTech: string | null;
+  signedAt: string | null;
 };
 
 type AssignedProtocol = {
@@ -161,8 +162,8 @@ export default function ClientPortalPage() {
             ) : (
               <div className="space-y-2">
                 {coas.map(c => {
-                  // CoA is considered finalized when it has conclusion (notes) AND responsible tech AND is not a draft
-                  const isFinalized = c.status !== "rascunho" && !!c.notes && !!c.responsibleTech;
+                  // CoA is considered finalized when it has been formally signed via the sign action
+                  const isFinalized = !!c.signedAt;
                   const printBlockedReason = !c.canPrint
                     ? "O laboratório ainda não liberou o download deste CoA."
                     : !isFinalized

@@ -22,6 +22,7 @@ export * from "./client_protocol_access";
 export * from "./login_log";
 export * from "./coa_documents";
 export * from "./coa_results";
+export * from "./coa_audit_log";
 export * from "./client_coa_access";
 export * from "./anvisa_notifications";
 export * from "./companies";

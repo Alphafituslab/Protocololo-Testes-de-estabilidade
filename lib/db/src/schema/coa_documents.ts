@@ -19,6 +19,8 @@ export const coaDocumentsTable = pgTable("coa_documents", {
   status: text("status").notNull().default("rascunho"),
   linkedProtocolId: integer("linked_protocol_id"),
   linkedLotId: integer("linked_lot_id"),
+  signedAt: timestamp("signed_at", { withTimezone: true }),
+  signedBy: text("signed_by"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

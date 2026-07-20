@@ -1,11 +1,17 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { coaDocumentsTable, coaResultsTable, protocolsTable, lotsTable, analysisResultsTable, clientCoaAccessTable, usersTable } from "@workspace/db";
+import { coaDocumentsTable, coaResultsTable, protocolsTable, lotsTable, analysisResultsTable, clientCoaAccessTable, usersTable, coaAuditLogTable } from "@workspace/db";
 import { requireAuth } from "../lib/session";
 import { eq, desc, asc, and, isNull } from "drizzle-orm";
 import { z } from "zod/v4";
 import bcrypt from "bcryptjs";
 import { sendClientCoaAccessEmail } from "../lib/mailer.js";
+
+async function logAudit(coaId: number, userId: number | null, userName: string, action: string, description?: string) {
+  try {
+    await db.insert(coaAuditLogTable).values({ coaId, userId, userName, action, description: description ?? null });
+  } catch (_) { /* non-critical, never throw */ }
+}
 
 const router = Router();
 
@@ -91,6 +97,8 @@ router.post("/coa", requireAuth, async (req, res) => {
     await db.insert(coaResultsTable).values(
       DEFAULT_COA_PARAMS.map((p, i) => ({ coaId: doc.id, ...p, sortOrder: i }))
     );
+    const user = req.authUser!;
+    await logAudit(doc.id, user.id, user.displayName || user.username, "Criado", "CoA criado");
     res.status(201).json(doc);
   } catch (e) {
     req.log.error(e);
@@ -348,6 +356,9 @@ router.post("/coa/:id/share-client", requireAuth, async (req, res) => {
       accessExpiresAt: expiresAt, appUrl,
     });
 
+    const actor = req.authUser!;
+    await logAudit(coaId, actor.id, actor.displayName || actor.username, "Acesso concedido",
+      `Acesso liberado para ${resolvedName} <${email}>${canPrint ? " (com PDF)" : ""}`);
     res.status(201).json({ access, emailSent: emailResult.ok, emailError: emailResult.error ?? null });
   } catch (e) {
     req.log.error(e);
@@ -358,13 +369,85 @@ router.post("/coa/:id/share-client", requireAuth, async (req, res) => {
 // Revoke client CoA access
 router.delete("/coa/:id/clients/:accessId", requireAuth, async (req, res) => {
   try {
+    const coaId = Number(req.params.id);
     const accessId = Number(req.params.accessId);
     if (!accessId) return void res.status(400).json({ error: "ID inválido" });
+    const [revoked] = await db.select({
+      displayName: usersTable.displayName, email: usersTable.email,
+    }).from(clientCoaAccessTable)
+      .innerJoin(usersTable, eq(clientCoaAccessTable.clientUserId, usersTable.id))
+      .where(eq(clientCoaAccessTable.id, accessId)).limit(1);
     await db.delete(clientCoaAccessTable).where(eq(clientCoaAccessTable.id, accessId));
+    const actor = req.authUser!;
+    if (revoked) {
+      await logAudit(coaId, actor.id, actor.displayName || actor.username, "Acesso revogado",
+        `Acesso removido de ${revoked.displayName} <${revoked.email ?? ""}>`);
+    }
     res.json({ ok: true });
   } catch (e) {
     req.log.error(e);
     res.status(500).json({ error: "Erro ao revogar acesso" });
+  }
+});
+
+// ── Assinatura ────────────────────────────────────────────────────────────────
+
+router.post("/coa/:id/sign", requireAuth, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return void res.status(400).json({ error: "ID inválido" });
+    const user = req.authUser!;
+    const { signedBy } = req.body as { signedBy?: string };
+    const signerName = signedBy?.trim() || user.displayName || user.username;
+    const now = new Date();
+    const [updated] = await db.update(coaDocumentsTable)
+      .set({ signedAt: now, signedBy: signerName, status: "emitido", updatedAt: now })
+      .where(eq(coaDocumentsTable.id, id))
+      .returning();
+    if (!updated) return void res.status(404).json({ error: "CoA não encontrado" });
+    await logAudit(id, user.id, user.displayName || user.username, "Assinado",
+      `Documento assinado por ${signerName}`);
+    res.json(updated);
+  } catch (e) {
+    req.log.error(e);
+    res.status(500).json({ error: "Erro ao assinar CoA" });
+  }
+});
+
+router.post("/coa/:id/unsign", requireAuth, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return void res.status(400).json({ error: "ID inválido" });
+    const user = req.authUser!;
+    const now = new Date();
+    const [updated] = await db.update(coaDocumentsTable)
+      .set({ signedAt: null, signedBy: null, status: "rascunho", updatedAt: now })
+      .where(eq(coaDocumentsTable.id, id))
+      .returning();
+    if (!updated) return void res.status(404).json({ error: "CoA não encontrado" });
+    await logAudit(id, user.id, user.displayName || user.username, "Assinatura cancelada",
+      "Assinatura removida para correções");
+    res.json(updated);
+  } catch (e) {
+    req.log.error(e);
+    res.status(500).json({ error: "Erro ao cancelar assinatura" });
+  }
+});
+
+// ── Histórico ─────────────────────────────────────────────────────────────────
+
+router.get("/coa/:id/history", requireAuth, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return void res.status(400).json({ error: "ID inválido" });
+    const rows = await db.select().from(coaAuditLogTable)
+      .where(eq(coaAuditLogTable.coaId, id))
+      .orderBy(desc(coaAuditLogTable.createdAt))
+      .limit(100);
+    res.json(rows);
+  } catch (e) {
+    req.log.error(e);
+    res.status(500).json({ error: "Erro ao buscar histórico" });
   }
 });
 

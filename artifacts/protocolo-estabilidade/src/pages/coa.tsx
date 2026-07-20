@@ -41,10 +41,22 @@ interface CoaDocument {
   cep: string;
   notes: string | null;
   status: string;
+  signedAt: string | null;
+  signedBy: string | null;
   createdAt: string;
   updatedAt: string;
   linkedProtocolId: number | null;
   linkedLotId: number | null;
+}
+
+interface CoaAuditEntry {
+  id: number;
+  coaId: number;
+  userId: number | null;
+  userName: string;
+  action: string;
+  description: string | null;
+  createdAt: string;
 }
 
 interface CoaResult {
@@ -446,8 +458,12 @@ function CoaDetail({ id }: { id: number }) {
     resumo: true,
   });
 
-  // ── Signature confirmation state ──
-  const [signedConfirmed, setSignedConfirmed] = useState(false);
+  // ── Signature state ──
+  const [signConfirmed, setSignConfirmed] = useState(false);
+  const [unsignOpen, setUnsignOpen] = useState(false);
+
+  // ── History state ──
+  const [showHistoryInPdf, setShowHistoryInPdf] = useState(false);
 
   // ── Client sharing state ──
   const [shareOpen, setShareOpen] = useState(false);
@@ -604,6 +620,38 @@ function CoaDetail({ id }: { id: number }) {
       qc.invalidateQueries({ queryKey: ["coa", id] });
       toast({ title: "Laudo marcado como emitido" });
     },
+  });
+
+  const signMut = useMutation({
+    mutationFn: () => apiFetch(`/api/coa/${id}/sign`, token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ signedBy: coa?.responsibleTech || "" }),
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["coa", id] });
+      qc.invalidateQueries({ queryKey: ["coa-history", id] });
+      setSignConfirmed(false);
+      toast({ title: "✅ Documento assinado com sucesso!" });
+    },
+    onError: (e) => toast({ title: "Erro ao assinar", description: String(e), variant: "destructive" }),
+  });
+
+  const unsignMut = useMutation({
+    mutationFn: () => apiFetch(`/api/coa/${id}/unsign`, token, { method: "POST" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["coa", id] });
+      qc.invalidateQueries({ queryKey: ["coa-history", id] });
+      setUnsignOpen(false);
+      toast({ title: "Assinatura cancelada — documento em rascunho" });
+    },
+    onError: (e) => toast({ title: "Erro", description: String(e), variant: "destructive" }),
+  });
+
+  const { data: history = [] } = useQuery<CoaAuditEntry[]>({
+    queryKey: ["coa-history", id],
+    queryFn: () => apiFetch(`/api/coa/${id}/history`, token),
+    enabled: !!id && !isCliente,
   });
 
   // ── Result row debounce (must be before any early returns — Rules of Hooks) ──
@@ -865,118 +913,15 @@ function CoaDetail({ id }: { id: number }) {
               </div>
             )}
 
-            {/* Assinatura — aparece quando há conclusão definida e ainda não emitido */}
-            {conclusao !== "PENDENTE" && coa.status !== "emitido" && (() => {
-              const reqFields: { label: string; value: string }[] = [
-                { label: "Produto", value: header.productName },
-                { label: "Lote", value: header.lotNumber },
-                { label: "Data de Fabricação", value: header.manufacturingDate },
-                { label: "Data de Validade", value: header.expiryDate },
-                { label: "Responsável Técnico", value: header.responsibleTech },
-                { label: "Empresa", value: header.company },
-              ];
-              const missingFields = reqFields.filter(f => !f.value.trim()).map(f => f.label);
-              const canEmit = missingFields.length === 0 && signedConfirmed;
-              return (
-                <div className="border-t px-5 py-5 bg-amber-50/60 border-b border-amber-100 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    <span className="text-sm font-semibold text-amber-700">Certificado pronto para assinatura — siga os passos abaixo antes de emitir</span>
-                  </div>
-
-                  {/* Campos obrigatórios */}
-                  {missingFields.length > 0 && (
-                    <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2">
-                      <p className="text-xs font-semibold text-red-700 mb-1">Campos obrigatórios não preenchidos:</p>
-                      <ul className="text-xs text-red-600 list-disc list-inside space-y-0.5">
-                        {missingFields.map(f => <li key={f}>{f}</li>)}
-                      </ul>
-                    </div>
-                  )}
-
-                  <div className="flex flex-col sm:flex-row gap-6 items-end">
-                    {/* Bloco de assinatura visual */}
-                    <div className="flex-1 flex flex-col items-center min-w-[220px]">
-                      <div className="w-full h-16 border border-dashed border-slate-300 rounded mb-2 bg-white flex items-center justify-center">
-                        <span className="text-xs text-slate-400 italic">← espaço para assinatura (no impresso)</span>
-                      </div>
-                      <div className="w-full border-t-2 border-slate-500 pt-2 text-center">
-                        <div className="font-semibold text-sm text-slate-700">
-                          {header.responsibleTech || coa.responsibleTech || "Responsável Técnico"}
-                        </div>
-                        {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
-                          <div className="text-xs text-muted-foreground">
-                            CRQ/CRF/CFQ: {header.responsibleTechCrq || coa.responsibleTechCrq}
-                          </div>
-                        )}
-                        <div className="text-xs text-muted-foreground">
-                          {header.company || coa.company || ""}
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground mt-1">Assinatura do Responsável Técnico</span>
-                    </div>
-
-                    {/* Passos + botões */}
-                    <div className="flex flex-col gap-3 min-w-[210px]">
-                      <Button
-                        onClick={() => window.print()}
-                        variant="outline"
-                        className="gap-1.5 border-amber-400 text-amber-800 hover:bg-amber-50"
-                      >
-                        <Printer className="h-4 w-4" />
-                        1. Imprimir para Assinar
-                      </Button>
-
-                      {/* Confirmação de assinatura */}
-                      <label className="flex items-start gap-2 cursor-pointer select-none rounded-md border border-amber-300 bg-white px-3 py-2">
-                        <input
-                          type="checkbox"
-                          className="mt-0.5 h-4 w-4 accent-green-600 shrink-0"
-                          checked={signedConfirmed}
-                          onChange={e => setSignedConfirmed(e.target.checked)}
-                        />
-                        <span className="text-xs text-slate-700 leading-snug">
-                          Confirmo que o certificado foi <strong>impresso e assinado</strong> pelo Responsável Técnico
-                        </span>
-                      </label>
-
-                      <Button
-                        onClick={() => emitMut.mutate()}
-                        disabled={!canEmit || emitMut.isPending}
-                        className="gap-1.5 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
-                        title={!canEmit ? (missingFields.length > 0 ? `Preencha: ${missingFields.join(", ")}` : "Confirme a assinatura primeiro") : ""}
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                        2. Marcar como Emitido
-                      </Button>
-
-                      {!canEmit && (
-                        <p className="text-[11px] text-muted-foreground text-center leading-snug">
-                          {missingFields.length > 0
-                            ? "Preencha todos os campos obrigatórios acima"
-                            : "Marque a confirmação de assinatura"}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-            {/* Após emissão — mostra selo simples sem o aviso */}
-            {coa.status === "emitido" && (
-              <div className="border-t px-5 py-3 bg-green-50/60 flex items-center justify-between">
+            {/* Status badge inline — a assinatura formal está na seção "Assinatura e Validação" abaixo */}
+            {coa.signedAt && (
+              <div className="border-t px-5 py-3 bg-emerald-50/60 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span className="text-sm font-semibold text-green-700">Laudo Emitido</span>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <span className="text-sm font-semibold text-emerald-700">Assinado por {coa.signedBy}</span>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => window.print()}
-                >
-                  <Printer className="h-4 w-4" />
-                  Imprimir / Salvar PDF
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.print()}>
+                  <Printer className="h-4 w-4" /> Imprimir / Salvar PDF
                 </Button>
               </div>
             )}
@@ -1012,6 +957,76 @@ function CoaDetail({ id }: { id: number }) {
             />
             <p className="text-xs text-muted-foreground">Este texto aparece no PDF quando a seção "Resumo" estiver ativada nas configurações abaixo. Clique em um dos chips para preencher automaticamente.</p>
           </div>
+
+          {/* ── Assinatura e Validação (admin only) ── */}
+          {!isCliente && (
+          <div className={`border-2 rounded-xl p-5 space-y-4 ${coa.signedAt ? "border-emerald-300 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="font-semibold text-sm uppercase tracking-wide flex items-center gap-2 text-gray-700">
+                  ✍️ Assinatura e Validação do Documento
+                </h2>
+                {coa.signedAt ? (
+                  <p className="text-sm text-emerald-700 mt-1 font-medium">
+                    Assinado por <strong>{coa.signedBy}</strong> em{" "}
+                    {new Date(coa.signedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                  </p>
+                ) : (
+                  <p className="text-xs text-amber-700 mt-1">
+                    Este documento ainda não foi assinado. Após a assinatura, o status muda para <strong>Emitido</strong> e o download do PDF é liberado para o cliente.
+                  </p>
+                )}
+              </div>
+              {coa.signedAt && (
+                <span className="flex items-center gap-1.5 bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-full px-3 py-1 text-xs font-semibold shrink-0">
+                  ✅ Documento Assinado
+                </span>
+              )}
+            </div>
+
+            {!coa.signedAt ? (
+              <div className="space-y-3">
+                {(!coa.responsibleTech || !coa.productName || !coa.lotNumber) && (
+                  <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-3 py-2">
+                    <span className="shrink-0">⚠️</span>
+                    <span>Preencha os campos obrigatórios antes de assinar: {[!coa.productName && "Produto", !coa.lotNumber && "Lote", !coa.responsibleTech && "Responsável Técnico"].filter(Boolean).join(", ")}.</span>
+                  </div>
+                )}
+                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={signConfirmed}
+                    onChange={e => setSignConfirmed(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded accent-primary shrink-0"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Confirmo que revisei todas as informações, análises e conclusões deste Certificado de Análise e estou ciente de que, ao assinar, o documento será oficialmente emitido e o download do PDF será liberado para os clientes com acesso.
+                  </span>
+                </label>
+                <Button
+                  onClick={() => signMut.mutate()}
+                  disabled={!signConfirmed || !coa.responsibleTech || !coa.productName || !coa.lotNumber || signMut.isPending}
+                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {signMut.isPending ? "Assinando…" : "✍️ Assinar Documento"}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 flex-wrap">
+                <p className="text-xs text-gray-500 flex-1">Para fazer correções, cancele a assinatura. O status voltará para rascunho e o PDF será bloqueado para clientes.</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive border-destructive hover:bg-red-50 shrink-0"
+                  onClick={() => setUnsignOpen(true)}
+                  disabled={unsignMut.isPending}
+                >
+                  Cancelar assinatura
+                </Button>
+              </div>
+            )}
+          </div>
+          )}
 
           {/* ── Configurar PDF (admin only) ── */}
           {!isCliente && (
@@ -1100,6 +1115,57 @@ function CoaDetail({ id }: { id: number }) {
                         <Trash className="h-3.5 w-3.5" />
                       </Button>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          )}
+
+          {/* ── Histórico de Mudanças (admin only) ── */}
+          {!isCliente && (
+          <div className="border rounded-xl bg-card shadow-sm p-5 space-y-4 print:hidden">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                  📋 Histórico de Mudanças
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">Auditoria de todas as ações realizadas neste documento.</p>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={showHistoryInPdf}
+                  onChange={e => setShowHistoryInPdf(e.target.checked)}
+                  className="h-4 w-4 rounded accent-primary"
+                />
+                Incluir no PDF
+              </label>
+            </div>
+            {history.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Nenhum registro de auditoria ainda.</p>
+            ) : (
+              <div className="divide-y border rounded-lg overflow-hidden">
+                {history.map(entry => (
+                  <div key={entry.id} className="flex items-start gap-3 px-3 py-2.5 bg-background hover:bg-muted/20 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-xs font-semibold rounded-full px-2 py-0.5 ${
+                          entry.action === "Assinado" ? "bg-emerald-100 text-emerald-700" :
+                          entry.action === "Assinatura cancelada" ? "bg-red-100 text-red-700" :
+                          entry.action === "Acesso concedido" ? "bg-blue-100 text-blue-700" :
+                          entry.action === "Acesso revogado" ? "bg-orange-100 text-orange-700" :
+                          "bg-slate-100 text-slate-600"
+                        }`}>{entry.action}</span>
+                        <span className="text-xs text-muted-foreground">{entry.userName}</span>
+                      </div>
+                      {entry.description && (
+                        <p className="text-xs text-gray-600 mt-0.5">{entry.description}</p>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">
+                      {new Date(entry.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -1366,6 +1432,39 @@ function CoaDetail({ id }: { id: number }) {
           </div>
         </div>
 
+        {/* Histórico de Mudanças no PDF */}
+        {showHistoryInPdf && history.length > 0 && (
+          <div style={{ marginTop: "18px", pageBreakInside: "avoid" }}>
+            <div style={{ borderBottom: "1.5px solid #1e3a5f", paddingBottom: "4px", marginBottom: "8px" }}>
+              <span style={{ fontSize: "9pt", fontWeight: 800, color: "#1e3a5f", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Histórico de Mudanças — Auditoria
+              </span>
+            </div>
+            <table style={{ width: "100%", fontSize: "8pt", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "#f1f5f9" }}>
+                  <th style={{ padding: "3px 6px", textAlign: "left", border: "1px solid #cbd5e1", width: "130px" }}>Data/Hora</th>
+                  <th style={{ padding: "3px 6px", textAlign: "left", border: "1px solid #cbd5e1", width: "120px" }}>Ação</th>
+                  <th style={{ padding: "3px 6px", textAlign: "left", border: "1px solid #cbd5e1", width: "130px" }}>Usuário</th>
+                  <th style={{ padding: "3px 6px", textAlign: "left", border: "1px solid #cbd5e1" }}>Descrição</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map(entry => (
+                  <tr key={entry.id}>
+                    <td style={{ padding: "3px 6px", border: "1px solid #cbd5e1", whiteSpace: "nowrap" }}>
+                      {new Date(entry.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                    </td>
+                    <td style={{ padding: "3px 6px", border: "1px solid #cbd5e1", fontWeight: 600 }}>{entry.action}</td>
+                    <td style={{ padding: "3px 6px", border: "1px solid #cbd5e1" }}>{entry.userName}</td>
+                    <td style={{ padding: "3px 6px", border: "1px solid #cbd5e1", color: "#475569" }}>{entry.description || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {/* Footer */}
         <div style={{ borderTop: "1px solid #e2e8f0", marginTop: "16px", paddingTop: "6px", textAlign: "center", fontSize: "7.5pt", color: "#94a3b8" }}>
           Documento gerado em {todayBR()} — Sistema Protocolo Técnico ANVISA — {header.company || coa.company || "ALPHAFITUS Laboratório Nutracêutico"}
@@ -1434,6 +1533,27 @@ function CoaDetail({ id }: { id: number }) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Unsign confirmation */}
+      <AlertDialog open={unsignOpen} onOpenChange={setUnsignOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar assinatura?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O documento voltará para <strong>Rascunho</strong> e o download do PDF será bloqueado para todos os clientes até que seja assinado novamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Manter assinado</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => unsignMut.mutate()}
+            >
+              Cancelar assinatura
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete result confirmation */}
       <AlertDialog open={deleteResultId !== null} onOpenChange={() => setDeleteResultId(null)}>

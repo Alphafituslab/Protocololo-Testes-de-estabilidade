@@ -384,6 +384,7 @@ router.get("/my/coa", requireAuth, async (req, res): Promise<void> => {
       status: coaDocumentsTable.status,
       notes: coaDocumentsTable.notes,
       responsibleTech: coaDocumentsTable.responsibleTech,
+      signedAt: coaDocumentsTable.signedAt,
     })
     .from(clientCoaAccessTable)
     .innerJoin(coaDocumentsTable, eq(clientCoaAccessTable.coaId, coaDocumentsTable.id))
