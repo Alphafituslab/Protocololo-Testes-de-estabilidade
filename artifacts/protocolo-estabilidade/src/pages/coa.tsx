@@ -436,7 +436,7 @@ function CoaDetail({ id }: { id: number }) {
 
   // ── Client sharing state ──
   const [shareOpen, setShareOpen] = useState(false);
-  const [shareForm, setShareForm] = useState({ displayName: "", email: "", accessExpiresAt: "" });
+  const [shareForm, setShareForm] = useState({ displayName: "", email: "", accessExpiresAt: "", canPrint: false });
   const [shareLoading, setShareLoading] = useState(false);
   const [revokeId, setRevokeId] = useState<number | null>(null);
 
@@ -605,8 +605,10 @@ function CoaDetail({ id }: { id: number }) {
     return a.sortOrder - b.sortOrder;
   });
   const hasNaoConforme = results.some(r => r.status === "nao_conforme");
-  const allConforme = results.length > 0 && results.every(r => r.status === "conforme");
-  const conclusao = hasNaoConforme ? "REPROVADO" : allConforme ? "APROVADO" : "PENDENTE";
+  const hasAR = results.some(r => r.status === "ar");
+  const allConforme = results.length > 0 && results.every(r => r.status === "conforme" || r.status === "ar");
+  const allConformeStrict = results.length > 0 && results.every(r => r.status === "conforme");
+  const conclusao = hasNaoConforme ? "REPROVADO" : allConformeStrict ? "APROVADO" : (allConforme && hasAR) ? "AR" : "PENDENTE";
 
   const addParam = (category: string, parameter: string) => {
     if (!parameter.trim()) return;
@@ -822,16 +824,21 @@ function CoaDetail({ id }: { id: number }) {
                 <span className="text-sm font-semibold text-muted-foreground">Conclusão:</span>
                 {conclusao === "APROVADO" && (
                   <span className="flex items-center gap-1.5 font-bold text-green-600 text-sm">
-                    <CheckCircle2 className="h-4 w-4" /> APROVADO
+                    <CheckCircle2 className="h-4 w-4" /> CONFORME
                   </span>
                 )}
                 {conclusao === "REPROVADO" && (
                   <span className="flex items-center gap-1.5 font-bold text-red-500 text-sm">
-                    <XCircle className="h-4 w-4" /> REPROVADO
+                    <XCircle className="h-4 w-4" /> NÃO CONFORME
+                  </span>
+                )}
+                {conclusao === "AR" && (
+                  <span className="flex items-center gap-1.5 font-bold text-amber-600 text-sm">
+                    <AlertTriangle className="h-4 w-4" /> APROVADO COM RESSALVA
                   </span>
                 )}
                 {conclusao === "PENDENTE" && (
-                  <span className="flex items-center gap-1.5 text-amber-500 text-sm font-medium">
+                  <span className="flex items-center gap-1.5 text-slate-400 text-sm font-medium">
                     <Clock className="h-4 w-4" /> Aguardando avaliação
                   </span>
                 )}
@@ -1094,6 +1101,7 @@ function CoaDetail({ id }: { id: number }) {
             thead th { background-color: #f1f5f9 !important; font-weight: 700; }
             .status-conforme { color: #16a34a; font-weight: bold; }
             .status-nao_conforme { color: #dc2626; font-weight: bold; }
+            .status-ar { color: #b45309; font-weight: bold; }
             .status-pendente { color: #94a3b8; }
           }
         `}</style>
@@ -1178,7 +1186,7 @@ function CoaDetail({ id }: { id: number }) {
                   <td>{r.spec || "—"}</td>
                   <td>{r.method || "—"}</td>
                   <td className={`status-${r.status}`}>
-                    {r.status === "conforme" ? "✓ Conforme" : r.status === "nao_conforme" ? "✗ Não Conforme" : "Pendente"}
+                    {r.status === "conforme" ? "✓ Conforme" : r.status === "nao_conforme" ? "✗ Não Conforme" : r.status === "ar" ? "⚠ Aprovado com Ressalva" : "Pendente"}
                   </td>
                 </tr>
               ))}
@@ -1187,18 +1195,35 @@ function CoaDetail({ id }: { id: number }) {
         </div>
 
         {/* Conclusion */}
-        <div style={{ border: "1px solid #e2e8f0", borderRadius: "4px", padding: "6px 10px", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontWeight: 700, color: "#475569" }}>CONCLUSÃO:</span>
-          {conclusao === "APROVADO" && (
-            <span style={{ fontWeight: 900, fontSize: "11pt", color: "#16a34a", letterSpacing: "0.05em" }}>✓ PRODUTO APROVADO</span>
-          )}
-          {conclusao === "REPROVADO" && (
-            <span style={{ fontWeight: 900, fontSize: "11pt", color: "#dc2626", letterSpacing: "0.05em" }}>✗ PRODUTO REPROVADO</span>
-          )}
-          {conclusao === "PENDENTE" && (
-            <span style={{ fontWeight: 700, fontSize: "10pt", color: "#94a3b8" }}>Avaliação Pendente</span>
-          )}
-        </div>
+        {conclusao === "APROVADO" && (
+          <div style={{ border: "2px solid #16a34a", borderRadius: "4px", padding: "8px 12px", marginBottom: "16px", background: "#f0fdf4" }}>
+            <div style={{ fontWeight: 900, fontSize: "10pt", color: "#15803d", letterSpacing: "0.04em", marginBottom: "5px" }}>CONCLUSÃO: ✓ CONFORME</div>
+            <p style={{ fontSize: "8.5pt", color: "#1e293b", lineHeight: "1.55", margin: 0 }}>
+              Os resultados apresentados neste Certificado de Análise demonstram conformidade com as especificações previamente estabelecidas para os ensaios executados, considerando os critérios de aceitação, métodos analíticos aplicáveis e requisitos regulatórios vigentes. Não foram evidenciadas não conformidades nos parâmetros avaliados, sendo o lote considerado <strong>CONFORME</strong> para os ensaios realizados.
+            </p>
+          </div>
+        )}
+        {conclusao === "REPROVADO" && (
+          <div style={{ border: "2px solid #dc2626", borderRadius: "4px", padding: "8px 12px", marginBottom: "16px", background: "#fef2f2" }}>
+            <div style={{ fontWeight: 900, fontSize: "10pt", color: "#b91c1c", letterSpacing: "0.04em", marginBottom: "5px" }}>CONCLUSÃO: ✗ NÃO CONFORME</div>
+            <p style={{ fontSize: "8.5pt", color: "#1e293b", lineHeight: "1.55", margin: 0 }}>
+              Os resultados apresentados evidenciam desvio em relação a um ou mais critérios de aceitação estabelecidos nas especificações técnicas, metodologia analítica aplicável ou requisitos regulatórios pertinentes. Em razão da(s) não conformidade(s) identificada(s), o lote é considerado <strong>NÃO CONFORME</strong> para os ensaios executados, não atendendo aos requisitos definidos para sua plena conformidade analítica.
+            </p>
+          </div>
+        )}
+        {conclusao === "AR" && (
+          <div style={{ border: "2px solid #b45309", borderRadius: "4px", padding: "8px 12px", marginBottom: "16px", background: "#fffbeb" }}>
+            <div style={{ fontWeight: 900, fontSize: "10pt", color: "#92400e", letterSpacing: "0.04em", marginBottom: "5px" }}>CONCLUSÃO: ⚠ APROVADO COM RESSALVA</div>
+            <p style={{ fontSize: "8.5pt", color: "#1e293b", lineHeight: "1.55", margin: 0 }}>
+              Os resultados apresentados demonstram atendimento aos requisitos aplicáveis para os ensaios executados, sendo registrada ressalva técnica relacionada a condição específica descrita neste certificado, a qual não compromete a qualidade, segurança, identidade ou desempenho do produto. Em razão da avaliação técnica realizada, o lote é considerado <strong>APROVADO COM RESSALVA</strong>, devendo a observação registrada ser considerada para fins de rastreabilidade e gestão da qualidade.
+            </p>
+          </div>
+        )}
+        {conclusao === "PENDENTE" && (
+          <div style={{ border: "1px solid #e2e8f0", borderRadius: "4px", padding: "6px 10px", marginBottom: "16px" }}>
+            <span style={{ fontWeight: 700, fontSize: "10pt", color: "#94a3b8" }}>CONCLUSÃO: Avaliação Pendente</span>
+          </div>
+        )}
         </div>
         )}
 
@@ -1568,6 +1593,7 @@ function ResultRow({
             <SelectItem value="pendente">Pendente</SelectItem>
             <SelectItem value="conforme">✓ Conforme</SelectItem>
             <SelectItem value="nao_conforme">✗ Não Conforme</SelectItem>
+            <SelectItem value="ar">⚠ Aprovado com Ressalva</SelectItem>
           </SelectContent>
         </Select>
       </td>
