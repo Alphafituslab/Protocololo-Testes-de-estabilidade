@@ -203,7 +203,7 @@ router.post("/clients/:userId/send-email", ...canManageUsers, async (req, res): 
   const passwordHash = await bcrypt.hash(rawPassword, 10);
   await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, userId));
 
-  // Find most recent protocol for context (optional)
+  // Find most recent protocol access for context (optional)
   const [access] = await db
     .select({ productName: protocolsTable.productName, certNumber: protocolsTable.certNumber })
     .from(clientProtocolAccessTable)
@@ -212,24 +212,37 @@ router.post("/clients/:userId/send-email", ...canManageUsers, async (req, res): 
     .orderBy(desc(clientProtocolAccessTable.createdAt))
     .limit(1);
 
+  // Check if the client has any standalone CoA access
+  const [coaAccess] = await db
+    .select({ productName: coaDocumentsTable.productName })
+    .from(clientCoaAccessTable)
+    .innerJoin(coaDocumentsTable, eq(clientCoaAccessTable.coaId, coaDocumentsTable.id))
+    .where(eq(clientCoaAccessTable.clientUserId, userId))
+    .orderBy(desc(clientCoaAccessTable.createdAt))
+    .limit(1);
+
   const domains = process.env.REPLIT_DOMAINS?.split(",") ?? [];
   const appUrl = domains.length > 0 ? `https://${domains[0].trim()}/client-portal` : "https://seu-dominio.replit.app/client-portal";
 
-  // Only show "Relatório ANVISA" if the client actually has protocol access;
-  // CoA-only clients (no protocol entry) must not see the report option.
   const hasProtocolAccess = !!access;
+  const hasCoaAccess = !!coaAccess;
+
+  // productName: prefer protocol name, fall back to CoA name, then generic
+  const productName = access?.productName ?? coaAccess?.productName ?? "Portal do Cliente";
 
   const emailResult = await sendClientAccessEmail({
     toEmail: user.email,
     toName: user.displayName,
     username: user.username,
     password: rawPassword,
-    productName: access?.productName ?? "Certificado de Análise",
+    productName,
     certNumber: access?.certNumber ?? null,
     accessExpiresAt: user.accessExpiresAt ?? null,
     appUrl,
+    // Only show each doc type if the client actually has access to it
     canViewCertificate: hasProtocolAccess,
     canViewReport: hasProtocolAccess,
+    canViewCoa: hasCoaAccess,
   });
 
   res.json({ emailSent: emailResult.ok, emailError: emailResult.error ?? null });

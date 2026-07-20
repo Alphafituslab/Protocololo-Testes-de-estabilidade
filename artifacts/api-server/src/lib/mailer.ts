@@ -22,6 +22,8 @@ export interface ClientAccessEmailPayload {
   appUrl: string;
   canViewCertificate: boolean;
   canViewReport: boolean;
+  /** True when the client has access to standalone CoA documents (not protocol certificate) */
+  canViewCoa?: boolean;
 }
 
 export async function sendClientAccessEmail(payload: ClientAccessEmailPayload): Promise<{ ok: boolean; error?: string }> {
@@ -40,6 +42,7 @@ export async function sendClientAccessEmail(payload: ClientAccessEmailPayload): 
   const docList = [
     payload.canViewCertificate ? "✅ Certificado de Análise" : null,
     payload.canViewReport ? "✅ Relatório ANVISA" : null,
+    payload.canViewCoa ? "✅ Certificado de Análise (CoA)" : null,
   ].filter(Boolean).join("<br>");
 
   const html = `
