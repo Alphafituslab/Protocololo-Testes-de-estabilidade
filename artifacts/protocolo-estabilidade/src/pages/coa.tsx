@@ -1089,7 +1089,7 @@ function CoaDetail({ id }: { id: number }) {
                         {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
                           <div className="text-xs text-slate-500">CRQ/CRF/CFQ: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
                         )}
-                        <div className="text-xs text-slate-400">{header.company || coa.company || ""}</div>
+                        <div className="text-xs text-emerald-600">{header.company || coa.company || ""}</div>
                         <div className="text-xs text-emerald-600 font-medium mt-1">
                           ✅ Assinado digitalmente em {new Date(coa.signedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
                         </div>
@@ -1522,47 +1522,6 @@ function CoaDetail({ id }: { id: number }) {
           </div>
         </div>
         )}
-
-        {/* Signature block */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "28px", gap: "24px" }}>
-          {/* Local e Data — preenchido com data de assinatura se disponível */}
-          <div style={{ flex: 1, maxWidth: "260px" }}>
-            <div style={{ height: "40px" }} />
-            <div style={{ borderTop: "1px solid #475569", paddingTop: "5px" }}>
-              {coa.signedAt ? (
-                <div style={{ fontSize: "8pt", color: "#1e293b", fontWeight: 600 }}>
-                  {header.company || coa.company || "Local"}, {new Date(coa.signedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
-                </div>
-              ) : (
-                <div style={{ fontSize: "8pt", color: "#475569" }}>Local e Data</div>
-              )}
-            </div>
-          </div>
-          {/* Assinatura do RT — cursiva quando assinado digitalmente */}
-          <div style={{ flex: 1, maxWidth: "280px", textAlign: "center" }}>
-            {coa.signedAt ? (
-              <div style={{ fontFamily: "'Dancing Script', cursive", fontSize: "22pt", color: "#1e3a5f", height: "52px", display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: "4px" }}>
-                {coa.signedBy}
-              </div>
-            ) : (
-              <div style={{ height: "52px" }} />
-            )}
-            <div style={{ borderTop: "2px solid #1e3a5f", paddingTop: "6px" }}>
-              <div style={{ fontWeight: 700, fontSize: "9pt" }}>{coa.signedBy || header.responsibleTech || coa.responsibleTech || "Responsável Técnico"}</div>
-              {coa.signedRole && <div style={{ fontSize: "8pt", color: "#1e293b" }}>{coa.signedRole}</div>}
-              {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
-                <div style={{ fontSize: "8pt", color: "#475569" }}>CRQ/CRF/CFQ: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
-              )}
-              <div style={{ fontSize: "8pt", color: "#475569" }}>{header.company || coa.company || ""}</div>
-              <div style={{ fontSize: "7pt", color: "#94a3b8", marginTop: "2px" }}>Assinatura do Responsável Técnico</div>
-              {coa.signedAt && (
-                <div style={{ fontSize: "7pt", color: "#16a34a", marginTop: "3px", fontWeight: 600 }}>
-                  ✓ Assinado digitalmente — {new Date(coa.signedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
 
         {/* Histórico de Mudanças no PDF */}
         {showHistoryInPdf && history.length > 0 && (
