@@ -636,9 +636,21 @@ function CoaDetail({ id }: { id: number }) {
                 <Label className="text-xs">CNPJ</Label>
                 <Input value={header.cnpj} onChange={e => setField("cnpj", e.target.value)} placeholder="00.000.000/0000-00" />
               </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">IE (Inscrição Estadual)</Label>
+                <Input value={header.ie} onChange={e => setField("ie", e.target.value)} placeholder="000.000.000.000" />
+              </div>
               <div className="md:col-span-2 space-y-1.5">
                 <Label className="text-xs">Empresa / Fabricante</Label>
                 <Input value={header.company} onChange={e => setField("company", e.target.value)} placeholder="Ex: ALPHAFITUS Laboratório Nutracêutico" />
+              </div>
+              <div className="lg:col-span-2 space-y-1.5">
+                <Label className="text-xs">Endereço</Label>
+                <Input value={header.address} onChange={e => setField("address", e.target.value)} placeholder="Ex: Rua das Palmeiras, 123 – Bairro – Cidade/UF" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">CEP</Label>
+                <Input value={header.cep} onChange={e => setField("cep", e.target.value)} placeholder="00000-000" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Responsável Técnico</Label>
@@ -872,6 +884,9 @@ function CoaDetail({ id }: { id: number }) {
                 {header.company || coa.company || "ALPHAFITUS Laboratório Nutracêutico"}
               </div>
               {(header.cnpj || coa.cnpj) && <div>CNPJ: {header.cnpj || coa.cnpj}</div>}
+              {(header.ie || coa.ie) && <div>IE: {header.ie || coa.ie}</div>}
+              {(header.address || coa.address) && <div>{header.address || coa.address}</div>}
+              {(header.cep || coa.cep) && <div>CEP: {header.cep || coa.cep}</div>}
             </div>
           </div>
         </div>
