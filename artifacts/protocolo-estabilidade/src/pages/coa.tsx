@@ -647,15 +647,7 @@ function CoaDetail({ id }: { id: number }) {
       await saveNow();
       const signerName = header.responsibleTech || coa?.responsibleTech || user?.displayName || user?.username || "";
       const signerRole = signForm.role.trim() || null;
-      // Build the chosen date+time ISO string
-      let chosenDate: string;
-      if (signForm.dateChoice === "docDate") {
-        // Use the manufacturing/emission date from the CoA
-        const docDate = header.manufacturingDate || coa?.manufacturingDate || new Date().toISOString().slice(0, 10);
-        chosenDate = `${docDate}T${signForm.customTime}:00`;
-      } else {
-        chosenDate = `${signForm.customDate}T${signForm.customTime}:00`;
-      }
+      const chosenDate = `${signForm.customDate}T${signForm.customTime}:00`;
       return apiFetch(`/api/coa/${id}/sign`, token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1700,55 +1692,23 @@ function CoaDetail({ id }: { id: number }) {
               </Select>
             </div>
 
-            {/* Data da assinatura */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-slate-700">Data da assinatura</label>
-              <label className={`flex items-start gap-2.5 border rounded-lg px-3 py-2.5 cursor-pointer transition-colors ${signForm.dateChoice === "docDate" ? "border-primary bg-primary/5" : "border-muted"}`}>
-                <input
-                  type="radio"
-                  name="dateChoice"
-                  className="mt-0.5 accent-primary"
-                  checked={signForm.dateChoice === "docDate"}
-                  onChange={() => setSignForm(f => ({ ...f, dateChoice: "docDate" }))}
-                />
-                <div>
-                  <div className="text-sm font-medium">Data de Fabricação do documento</div>
-                  <div className="text-xs text-muted-foreground">{header.manufacturingDate || coa?.manufacturingDate || "—"}</div>
-                </div>
-              </label>
-              <label className={`flex items-start gap-2.5 border rounded-lg px-3 py-2.5 cursor-pointer transition-colors ${signForm.dateChoice === "today" ? "border-primary bg-primary/5" : "border-muted"}`}>
-                <input
-                  type="radio"
-                  name="dateChoice"
-                  className="mt-0.5 accent-primary"
-                  checked={signForm.dateChoice === "today"}
-                  onChange={() => setSignForm(f => ({ ...f, dateChoice: "today" }))}
-                />
-                <div>
-                  <div className="text-sm font-medium">Data de hoje</div>
-                  <div className="text-xs text-muted-foreground">{new Date().toLocaleDateString("pt-BR")}</div>
-                </div>
-              </label>
-              {signForm.dateChoice === "today" && (
+            {/* Data e Horário da assinatura */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700">Data e horário da assinatura</label>
+              <div className="flex gap-2">
                 <input
                   type="date"
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   value={signForm.customDate}
                   onChange={e => setSignForm(f => ({ ...f, customDate: e.target.value }))}
                 />
-              )}
-            </div>
-
-            {/* Horário */}
-            <div className="flex items-center gap-3">
-              <label className="text-xs font-medium text-slate-700 shrink-0">Horário</label>
-              <input
-                type="time"
-                className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                value={signForm.customTime}
-                onChange={e => setSignForm(f => ({ ...f, customTime: e.target.value }))}
-              />
-              <span className="text-xs text-muted-foreground">Altere se necessário</span>
+                <input
+                  type="time"
+                  className="w-28 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={signForm.customTime}
+                  onChange={e => setSignForm(f => ({ ...f, customTime: e.target.value }))}
+                />
+              </div>
             </div>
 
             <div className="flex gap-2 pt-1">
