@@ -310,18 +310,20 @@ router.post("/coa/:id/share-client", requireAuth, async (req, res) => {
 
     let clientUserId: number;
     let resolvedName: string;
+    let finalUsername: string;
     if (existing) {
       clientUserId = existing.id;
       resolvedName = displayName || existing.displayName;
+      finalUsername = existing.username;
       await db.update(usersTable)
         .set({ passwordHash, displayName: resolvedName, ...(expiresAt ? { accessExpiresAt: expiresAt } : {}) })
         .where(eq(usersTable.id, clientUserId));
     } else {
-      const username = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16)
+      finalUsername = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16)
         + Math.floor(Math.random() * 900 + 100);
       resolvedName = displayName || email.split("@")[0];
       const [newUser] = await db.insert(usersTable).values({
-        username, displayName: resolvedName, email, role: "cliente",
+        username: finalUsername, displayName: resolvedName, email, role: "cliente",
         passwordHash, active: true,
         ...(expiresAt ? { accessExpiresAt: expiresAt } : {}),
       }).returning();
@@ -340,7 +342,7 @@ router.post("/coa/:id/share-client", requireAuth, async (req, res) => {
     const appUrl = domains.length > 0 ? `https://${domains[0].trim()}/client-portal` : "https://seu-dominio.replit.app/client-portal";
     emailResult = await sendClientCoaAccessEmail({
       toEmail: email, toName: resolvedName,
-      username: existing?.username ?? (email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16)),
+      username: finalUsername,
       password: rawPassword,
       productName: coa.productName, lotNumber: coa.lotNumber,
       accessExpiresAt: expiresAt, appUrl,
