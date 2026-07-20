@@ -288,8 +288,8 @@ router.post("/coa/:id/share-client", requireAuth, async (req, res) => {
   try {
     const coaId = Number(req.params.id);
     if (!coaId) return void res.status(400).json({ error: "ID inválido" });
-    const { displayName, email, accessExpiresAt } = req.body as {
-      displayName?: string; email?: string; accessExpiresAt?: string;
+    const { displayName, email, accessExpiresAt, canPrint } = req.body as {
+      displayName?: string; email?: string; accessExpiresAt?: string; canPrint?: boolean;
     };
     if (!email) return void res.status(400).json({ error: "E-mail é obrigatório" });
 
@@ -330,7 +330,7 @@ router.post("/coa/:id/share-client", requireAuth, async (req, res) => {
 
     // Grant CoA access
     const [access] = await db.insert(clientCoaAccessTable)
-      .values({ clientUserId, coaId, canPrint: true })
+      .values({ clientUserId, coaId, canPrint: canPrint ?? false })
       .onConflictDoNothing()
       .returning();
 

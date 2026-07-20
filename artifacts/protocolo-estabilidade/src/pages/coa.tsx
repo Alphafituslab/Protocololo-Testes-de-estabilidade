@@ -1111,7 +1111,7 @@ function CoaDetail({ id }: { id: number }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div>
               <div style={{ fontSize: "15pt", fontWeight: 800, color: "#1e3a5f", letterSpacing: "0.02em" }}>
-                LAUDO DE ANÁLISE
+                CERTIFICADO DE ANÁLISE
               </div>
               <div style={{ fontSize: "9pt", color: "#475569", marginTop: "2px" }}>
                 Nº {String(coa.id).padStart(4, "0")} &nbsp;·&nbsp; Emissão: {todayBR()}
@@ -1379,35 +1379,76 @@ function CoaDetail({ id }: { id: number }) {
             <p className="text-sm text-muted-foreground">
               Informe os dados do cliente. O sistema criará (ou reutilizará) o usuário e enviará as credenciais por e-mail automaticamente.
             </p>
-            <div className="space-y-1">
-              <Label htmlFor="share-name">Nome do cliente</Label>
-              <Input
-                id="share-name"
-                placeholder="Ex: João Silva"
-                value={shareForm.displayName}
-                onChange={e => setShareForm(f => ({ ...f, displayName: e.target.value }))}
-              />
+
+            {/* Identificação */}
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="share-name">Nome do cliente</Label>
+                <Input
+                  id="share-name"
+                  placeholder="Ex: João Silva"
+                  value={shareForm.displayName}
+                  onChange={e => setShareForm(f => ({ ...f, displayName: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="share-email">E-mail <span className="text-destructive">*</span></Label>
+                <Input
+                  id="share-email"
+                  type="email"
+                  placeholder="cliente@empresa.com"
+                  value={shareForm.email}
+                  onChange={e => setShareForm(f => ({ ...f, email: e.target.value }))}
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="share-email">E-mail <span className="text-destructive">*</span></Label>
-              <Input
-                id="share-email"
-                type="email"
-                placeholder="cliente@empresa.com"
-                value={shareForm.email}
-                onChange={e => setShareForm(f => ({ ...f, email: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="share-expiry">Acesso válido até (opcional)</Label>
+
+            {/* Período de acesso */}
+            <div className="rounded-lg border p-3 space-y-1 bg-muted/30">
+              <Label htmlFor="share-expiry" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Período de acesso</Label>
               <Input
                 id="share-expiry"
                 type="date"
                 value={shareForm.accessExpiresAt}
                 onChange={e => setShareForm(f => ({ ...f, accessExpiresAt: e.target.value }))}
               />
+              <p className="text-xs text-muted-foreground">Deixe em branco para acesso sem data de expiração.</p>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
+
+            {/* O que o cliente pode ver */}
+            <div className="rounded-lg border p-3 space-y-2 bg-muted/30">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">O que o cliente pode fazer</span>
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <div className="mt-0.5">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={true}
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <div className="text-sm font-medium">Visualizar o CoA no portal</div>
+                  <div className="text-xs text-muted-foreground">O cliente pode ver os resultados online (sempre habilitado)</div>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <div className="mt-0.5">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={shareForm.canPrint}
+                    onChange={e => setShareForm(f => ({ ...f, canPrint: e.target.checked }))}
+                  />
+                </div>
+                <div>
+                  <div className="text-sm font-medium">Imprimir / baixar PDF</div>
+                  <div className="text-xs text-muted-foreground">Permite que o cliente imprima ou salve o certificado em PDF</div>
+                </div>
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
               <Button variant="outline" onClick={() => setShareOpen(false)} disabled={shareLoading}>Cancelar</Button>
               <Button
                 disabled={!shareForm.email || shareLoading}
@@ -1431,7 +1472,7 @@ function CoaDetail({ id }: { id: number }) {
                           : "Acesso criado. (E-mail não configurado no servidor — envie as credenciais manualmente.)",
                       });
                       setShareOpen(false);
-                      setShareForm({ displayName: "", email: "", accessExpiresAt: "" });
+                      setShareForm({ displayName: "", email: "", accessExpiresAt: "", canPrint: false });
                       void refetchClients();
                     }
                   } finally {

@@ -205,7 +205,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   const { isAdmin } = useAuth();
   return (
     <div className="min-h-screen w-full flex bg-background">
-      <aside className="w-64 border-r border-border bg-card flex flex-col">
+      <aside className="w-64 border-r border-border bg-card flex flex-col print:hidden">
         <div className="p-4 border-b border-border flex items-center justify-center">
           <img src="/logo-alphafitus.png" alt="Alphafitus" className="h-12 w-auto" />
         </div>
@@ -229,7 +229,7 @@ function Layout({ children }: { children: React.ReactNode }) {
         <SidebarFooter />
       </aside>
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-14 border-b border-border bg-card flex items-center px-6 justify-between">
+        <header className="h-14 border-b border-border bg-card flex items-center px-6 justify-between print:hidden">
           <h1 className="font-medium">Protocolo de Estabilidade</h1>
           <UserMenu />
         </header>
