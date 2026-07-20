@@ -569,6 +569,15 @@ function CoaDetail({ id }: { id: number }) {
     saveTimer.current = setTimeout(() => updateDocMut.mutate(data), 800);
   }, [id]);
 
+  const saveNow = useCallback((data?: typeof header): Promise<void> => {
+    if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+    const payload = data ?? header;
+    return new Promise((resolve, reject) => {
+      updateDocMut.mutate(payload, { onSuccess: () => resolve(), onError: reject });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [header, id]);
+
   const setField = (field: keyof typeof header, value: string) => {
     const next = { ...header, [field]: value };
     setHeader(next);
@@ -623,16 +632,21 @@ function CoaDetail({ id }: { id: number }) {
   });
 
   const signMut = useMutation({
-    mutationFn: () => apiFetch(`/api/coa/${id}/sign`, token, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ signedBy: coa?.responsibleTech || "" }),
-    }),
+    mutationFn: async () => {
+      // Salva qualquer mudança pendente antes de assinar
+      await saveNow();
+      const signerName = header.responsibleTech || coa?.responsibleTech || "";
+      return apiFetch(`/api/coa/${id}/sign`, token, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signedBy: signerName }),
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["coa", id] });
       qc.invalidateQueries({ queryKey: ["coa-history", id] });
       setSignConfirmed(false);
-      toast({ title: "✅ Documento assinado com sucesso!" });
+      toast({ title: "✅ Documento assinado e emitido com sucesso!" });
     },
     onError: (e) => toast({ title: "Erro ao assinar", description: String(e), variant: "destructive" }),
   });
@@ -747,14 +761,19 @@ function CoaDetail({ id }: { id: number }) {
             <div className="flex items-center gap-2">
               {!isCliente && (
                 <>
-                  {coa.status === "emitido"
-                    ? <Badge className="bg-green-100 text-green-700 border-green-200">Emitido</Badge>
+                  {coa.signedAt
+                    ? <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">✅ Emitido</Badge>
                     : <Badge variant="secondary">Rascunho</Badge>}
-                  {coa.status !== "emitido" && (
-                    <Button size="sm" variant="outline" onClick={() => emitMut.mutate()} disabled={emitMut.isPending}>
-                      <Save className="h-3.5 w-3.5 mr-1.5" /> Marcar como Emitido
-                    </Button>
-                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => { await saveNow(); toast({ title: "✅ Alterações salvas!" }); }}
+                    disabled={updateDocMut.isPending}
+                    className="gap-1.5"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    {updateDocMut.isPending ? "Salvando…" : "Salvar"}
+                  </Button>
                 </>
               )}
               <Button size="sm" onClick={() => window.print()} className="gap-1.5">
@@ -986,10 +1005,10 @@ function CoaDetail({ id }: { id: number }) {
 
             {!coa.signedAt ? (
               <div className="space-y-3">
-                {(!coa.responsibleTech || !coa.productName || !coa.lotNumber) && (
+                {(!(header.productName || coa.productName) || !(header.lotNumber || coa.lotNumber) || !(header.responsibleTech || coa.responsibleTech)) && (
                   <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-3 py-2">
                     <span className="shrink-0">⚠️</span>
-                    <span>Preencha os campos obrigatórios antes de assinar: {[!coa.productName && "Produto", !coa.lotNumber && "Lote", !coa.responsibleTech && "Responsável Técnico"].filter(Boolean).join(", ")}.</span>
+                    <span>Preencha os campos obrigatórios antes de assinar: {[!(header.productName || coa.productName) && "Produto", !(header.lotNumber || coa.lotNumber) && "Lote", !(header.responsibleTech || coa.responsibleTech) && "Responsável Técnico"].filter(Boolean).join(", ")}.</span>
                   </div>
                 )}
                 <label className="flex items-start gap-2.5 cursor-pointer select-none">
@@ -1005,10 +1024,10 @@ function CoaDetail({ id }: { id: number }) {
                 </label>
                 <Button
                   onClick={() => signMut.mutate()}
-                  disabled={!signConfirmed || !coa.responsibleTech || !coa.productName || !coa.lotNumber || signMut.isPending}
+                  disabled={!signConfirmed || !(header.responsibleTech || coa.responsibleTech) || !(header.productName || coa.productName) || !(header.lotNumber || coa.lotNumber) || signMut.isPending}
                   className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
-                  {signMut.isPending ? "Assinando…" : "✍️ Assinar Documento"}
+                  {signMut.isPending ? "Salvando e assinando…" : "✍️ Assinar e Emitir Documento"}
                 </Button>
               </div>
             ) : (
