@@ -434,6 +434,9 @@ function CoaDetail({ id }: { id: number }) {
     resumo: true,
   });
 
+  // ── Signature confirmation state ──
+  const [signedConfirmed, setSignedConfirmed] = useState(false);
+
   // ── Client sharing state ──
   const [shareOpen, setShareOpen] = useState(false);
   const [shareForm, setShareForm] = useState({ displayName: "", email: "", accessExpiresAt: "", canPrint: false });
@@ -845,57 +848,103 @@ function CoaDetail({ id }: { id: number }) {
               </div>
             )}
 
-            {/* Assinatura — aparece apenas quando todos os itens estão Conformes e ainda não emitido */}
-            {allConforme && coa.status !== "emitido" && (
-              <div className="border-t px-5 py-5 bg-red-50/50 border-b border-red-100">
-                <div className="flex items-center gap-2 mb-4">
-                  <AlertTriangle className="h-4 w-4 text-red-600" />
-                  <span className="text-sm font-semibold text-red-600">Certificado pronto para assinatura — assine e depois marque como Emitido</span>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-6 items-end">
-                  {/* Bloco de assinatura */}
-                  <div className="flex-1 flex flex-col items-center min-w-[220px]">
-                    {/* Espaço para assinatura manuscrita */}
-                    <div className="w-full h-16 border border-dashed border-slate-300 rounded mb-2 bg-white flex items-center justify-center">
-                      <span className="text-xs text-slate-400 italic">← espaço para assinatura (no impresso)</span>
+            {/* Assinatura — aparece quando há conclusão definida e ainda não emitido */}
+            {conclusao !== "PENDENTE" && coa.status !== "emitido" && (() => {
+              const reqFields: { label: string; value: string }[] = [
+                { label: "Produto", value: header.productName },
+                { label: "Lote", value: header.lotNumber },
+                { label: "Data de Fabricação", value: header.manufacturingDate },
+                { label: "Data de Validade", value: header.expiryDate },
+                { label: "Responsável Técnico", value: header.responsibleTech },
+                { label: "Empresa", value: header.company },
+              ];
+              const missingFields = reqFields.filter(f => !f.value.trim()).map(f => f.label);
+              const canEmit = missingFields.length === 0 && signedConfirmed;
+              return (
+                <div className="border-t px-5 py-5 bg-amber-50/60 border-b border-amber-100 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <span className="text-sm font-semibold text-amber-700">Certificado pronto para assinatura — siga os passos abaixo antes de emitir</span>
+                  </div>
+
+                  {/* Campos obrigatórios */}
+                  {missingFields.length > 0 && (
+                    <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2">
+                      <p className="text-xs font-semibold text-red-700 mb-1">Campos obrigatórios não preenchidos:</p>
+                      <ul className="text-xs text-red-600 list-disc list-inside space-y-0.5">
+                        {missingFields.map(f => <li key={f}>{f}</li>)}
+                      </ul>
                     </div>
-                    <div className="w-full border-t-2 border-slate-500 pt-2 text-center">
-                      <div className="font-semibold text-sm text-slate-700">
-                        {header.responsibleTech || coa.responsibleTech || "Responsável Técnico"}
+                  )}
+
+                  <div className="flex flex-col sm:flex-row gap-6 items-end">
+                    {/* Bloco de assinatura visual */}
+                    <div className="flex-1 flex flex-col items-center min-w-[220px]">
+                      <div className="w-full h-16 border border-dashed border-slate-300 rounded mb-2 bg-white flex items-center justify-center">
+                        <span className="text-xs text-slate-400 italic">← espaço para assinatura (no impresso)</span>
                       </div>
-                      {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
-                        <div className="text-xs text-muted-foreground">
-                          CRQ/CRF/CFQ: {header.responsibleTechCrq || coa.responsibleTechCrq}
+                      <div className="w-full border-t-2 border-slate-500 pt-2 text-center">
+                        <div className="font-semibold text-sm text-slate-700">
+                          {header.responsibleTech || coa.responsibleTech || "Responsável Técnico"}
                         </div>
-                      )}
-                      <div className="text-xs text-muted-foreground">
-                        {header.company || coa.company || ""}
+                        {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
+                          <div className="text-xs text-muted-foreground">
+                            CRQ/CRF/CFQ: {header.responsibleTechCrq || coa.responsibleTechCrq}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground">
+                          {header.company || coa.company || ""}
+                        </div>
                       </div>
+                      <span className="text-[10px] text-muted-foreground mt-1">Assinatura do Responsável Técnico</span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground mt-1">Assinatura do Responsável Técnico</span>
-                  </div>
-                  {/* Botões Emitir + Imprimir */}
-                  <div className="flex flex-col gap-2">
-                    <Button
-                      onClick={() => window.print()}
-                      variant="outline"
-                      className="gap-1.5 border-red-300 text-red-700 hover:bg-red-50"
-                    >
-                      <Printer className="h-4 w-4" />
-                      1. Imprimir para Assinar
-                    </Button>
-                    <Button
-                      onClick={() => emitMut.mutate()}
-                      disabled={emitMut.isPending}
-                      className="bg-green-600 hover:bg-green-700 text-white gap-1.5"
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      2. Marcar como Emitido
-                    </Button>
+
+                    {/* Passos + botões */}
+                    <div className="flex flex-col gap-3 min-w-[210px]">
+                      <Button
+                        onClick={() => window.print()}
+                        variant="outline"
+                        className="gap-1.5 border-amber-400 text-amber-800 hover:bg-amber-50"
+                      >
+                        <Printer className="h-4 w-4" />
+                        1. Imprimir para Assinar
+                      </Button>
+
+                      {/* Confirmação de assinatura */}
+                      <label className="flex items-start gap-2 cursor-pointer select-none rounded-md border border-amber-300 bg-white px-3 py-2">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 h-4 w-4 accent-green-600 shrink-0"
+                          checked={signedConfirmed}
+                          onChange={e => setSignedConfirmed(e.target.checked)}
+                        />
+                        <span className="text-xs text-slate-700 leading-snug">
+                          Confirmo que o certificado foi <strong>impresso e assinado</strong> pelo Responsável Técnico
+                        </span>
+                      </label>
+
+                      <Button
+                        onClick={() => emitMut.mutate()}
+                        disabled={!canEmit || emitMut.isPending}
+                        className="gap-1.5 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                        title={!canEmit ? (missingFields.length > 0 ? `Preencha: ${missingFields.join(", ")}` : "Confirme a assinatura primeiro") : ""}
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        2. Marcar como Emitido
+                      </Button>
+
+                      {!canEmit && (
+                        <p className="text-[11px] text-muted-foreground text-center leading-snug">
+                          {missingFields.length > 0
+                            ? "Preencha todos os campos obrigatórios acima"
+                            : "Marque a confirmação de assinatura"}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
             {/* Após emissão — mostra selo simples sem o aviso */}
             {coa.status === "emitido" && (
               <div className="border-t px-5 py-3 bg-green-50/60 flex items-center justify-between">
@@ -1096,6 +1145,7 @@ function CoaDetail({ id }: { id: number }) {
           @page { margin: 12mm 14mm; size: A4 portrait; }
           @media print {
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            aside, header, nav { display: none !important; }
             table { border-collapse: collapse; width: 100%; }
             th, td { border: 1px solid #cbd5e1; padding: 3px 6px; text-align: left; font-size: 9pt; }
             thead th { background-color: #f1f5f9 !important; font-weight: 700; }
