@@ -474,7 +474,7 @@ function App() {
             <Router />
           </WouterRouter>
         </AuthProvider>
-        <Toaster />
+        <div className="print:hidden"><Toaster /></div>
       </TooltipProvider>
     </QueryClientProvider>
   );

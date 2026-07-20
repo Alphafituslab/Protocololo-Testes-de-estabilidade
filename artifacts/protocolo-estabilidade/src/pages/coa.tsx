@@ -135,6 +135,13 @@ function todayBR() {
   return new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+function getCrLabel(name: string): string {
+  const n = (name ?? "").toLowerCase();
+  if (n.includes("edson")) return "CRQ";
+  if (n.includes("clayton") || n.includes("caroline")) return "CRF";
+  return "CRF";
+}
+
 async function apiFetch<T>(url: string, token: string | null, opts?: RequestInit): Promise<T> {
   const r = await fetch(url, {
     ...opts,
@@ -852,7 +859,7 @@ function CoaDetail({ id }: { id: number }) {
                 <Input value={header.responsibleTech} onChange={e => setField("responsibleTech", e.target.value)} placeholder="Nome completo" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">CRQ / CRF / CFQ</Label>
+                <Label className="text-xs">{getCrLabel(header.responsibleTech || coa.responsibleTech || "")} (Nº do registro)</Label>
                 <Input value={header.responsibleTechCrq} onChange={e => setField("responsibleTechCrq", e.target.value)} placeholder="Ex: 13303282" />
               </div>
             </div>
@@ -1045,7 +1052,7 @@ function CoaDetail({ id }: { id: number }) {
                       <div style={{ borderTop: "2px solid #1e3a5f", paddingTop: "6px" }}>
                         <div className="font-bold text-sm text-slate-800">{header.responsibleTech || coa.responsibleTech || "Responsável Técnico"}</div>
                         {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
-                          <div className="text-xs text-slate-500">CRQ/CRF/CFQ: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
+                          <div className="text-xs text-slate-500">{getCrLabel(header.responsibleTech || coa.responsibleTech || "")}: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
                         )}
                         <div className="text-xs text-slate-400">Assinatura do Responsável Técnico</div>
                       </div>
@@ -1087,7 +1094,7 @@ function CoaDetail({ id }: { id: number }) {
                         <div className="font-bold text-sm text-slate-800">{coa.signedBy}</div>
                         {coa.signedRole && <div className="text-xs text-slate-500">{coa.signedRole}</div>}
                         {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
-                          <div className="text-xs text-slate-500">CRQ/CRF/CFQ: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
+                          <div className="text-xs text-slate-500">{getCrLabel(header.responsibleTech || coa.responsibleTech || "")}: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
                         )}
                         <div className="text-xs text-emerald-600">{header.company || coa.company || ""}</div>
                         <div className="text-xs text-emerald-600 font-medium mt-1">
@@ -1542,7 +1549,7 @@ function CoaDetail({ id }: { id: number }) {
                   <div style={{ fontWeight: 700, fontSize: "7.5pt", color: "#1e293b" }}>{coa.signedBy}</div>
                   {coa.signedRole && <div style={{ fontSize: "7pt", color: "#475569", marginTop: "1px" }}>{coa.signedRole}</div>}
                   {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
-                    <div style={{ fontSize: "7pt", color: "#475569", marginTop: "1px" }}>CRQ/CRF/CFQ: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
+                    <div style={{ fontSize: "7pt", color: "#475569", marginTop: "1px" }}>{getCrLabel(header.responsibleTech || coa.responsibleTech || "")}: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
                   )}
                   <div style={{ fontSize: "7pt", color: "#16a34a", marginTop: "1px" }}>{header.company || coa.company || ""}</div>
                   <div style={{ fontSize: "6.5pt", color: "#16a34a", fontWeight: 600, marginTop: "4px" }}>
