@@ -530,6 +530,12 @@ function CoaDetail({ id }: { id: number }) {
     onError: (e) => toast({ title: "Erro", description: String(e), variant: "destructive" }),
   });
 
+  const seedDefaultsMut = useMutation({
+    mutationFn: () => apiFetch(`/api/coa/${id}/seed-defaults`, token, { method: "POST" }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["coa", id] }); toast({ title: "Análises padrão adicionadas!" }); },
+    onError: (e) => toast({ title: "Erro", description: String(e), variant: "destructive" }),
+  });
+
   const updateResultMut = useMutation({
     mutationFn: ({ resultId, data }: { resultId: number; data: Partial<CoaResult> }) =>
       apiFetch(`/api/coa/${id}/results/${resultId}`, token, {
@@ -743,8 +749,17 @@ function CoaDetail({ id }: { id: number }) {
             </div>
 
             {results.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground text-sm">
-                Nenhuma análise adicionada. Clique em "Adicionar Análise" para começar.
+              <div className="text-center py-10 space-y-3">
+                <p className="text-muted-foreground text-sm">Nenhuma análise cadastrada neste laudo.</p>
+                <button
+                  onClick={() => seedDefaultsMut.mutate()}
+                  disabled={seedDefaultsMut.isPending}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60"
+                >
+                  {seedDefaultsMut.isPending
+                    ? <><span className="h-3.5 w-3.5 border-2 border-primary-foreground/40 border-t-primary-foreground rounded-full animate-spin" /> Adicionando…</>
+                    : <><Plus className="h-3.5 w-3.5" /> Preencher análises padrão (Físico-Química + Microbiológica)</>}
+                </button>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -1064,8 +1079,13 @@ function CoaDetail({ id }: { id: number }) {
           <DialogHeader>
             <DialogTitle>Adicionar Análise</DialogTitle>
           </DialogHeader>
+          <p className="text-xs text-muted-foreground -mt-1">
+            Físico-Química e Microbiológica são pré-carregadas automaticamente.
+            Escolha abaixo os parâmetros adicionais necessários.
+          </p>
           <div className="space-y-4">
-            {STANDARD_PARAMS.map(group => (
+            {/* Somente Teor do Ativo e Embalagem aparecem como chips */}
+            {STANDARD_PARAMS.filter(g => g.category === "Teor do Ativo" || g.category === "Embalagem").map(group => (
               <div key={group.category}>
                 <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">{group.category}</div>
                 <div className="flex flex-wrap gap-1.5">
@@ -1073,7 +1093,8 @@ function CoaDetail({ id }: { id: number }) {
                     <button
                       key={p}
                       onClick={() => addParam(group.category, p)}
-                      className="text-xs px-2.5 py-1 rounded-full border border-primary/30 bg-primary/5 text-primary hover:bg-primary/15 transition-colors font-medium"
+                      disabled={addResultMut.isPending}
+                      className="text-xs px-2.5 py-1 rounded-full border border-primary/30 bg-primary/5 text-primary hover:bg-primary/15 transition-colors font-medium disabled:opacity-50"
                     >
                       + {p}
                     </button>
@@ -1105,7 +1126,7 @@ function CoaDetail({ id }: { id: number }) {
                   className="h-8 text-xs flex-1"
                   onKeyDown={e => { if (e.key === "Enter" && customParam.trim()) addParam(customCategory, customParam); }}
                 />
-                <Button size="sm" className="h-8" onClick={() => addParam(customCategory, customParam)} disabled={!customParam.trim()}>
+                <Button size="sm" className="h-8" onClick={() => addParam(customCategory, customParam)} disabled={!customParam.trim() || addResultMut.isPending}>
                   Adicionar
                 </Button>
               </div>

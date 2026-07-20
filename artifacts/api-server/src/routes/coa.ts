@@ -7,6 +7,27 @@ import { z } from "zod/v4";
 
 const router = Router();
 
+// Parâmetros padrão auto-inseridos em todo CoA novo em branco
+const DEFAULT_COA_PARAMS: { category: string; parameter: string }[] = [
+  { category: "Físico-Química", parameter: "pH" },
+  { category: "Físico-Química", parameter: "Perda por dessecação" },
+  { category: "Físico-Química", parameter: "Cor" },
+  { category: "Físico-Química", parameter: "Odor" },
+  { category: "Físico-Química", parameter: "Aparência" },
+  { category: "Físico-Química", parameter: "Cinzas totais" },
+  { category: "Físico-Química", parameter: "Dissolução" },
+  { category: "Físico-Química", parameter: "Massa média" },
+  { category: "Físico-Química", parameter: "Kcal" },
+  { category: "Físico-Química", parameter: "Sódio" },
+  { category: "Microbiológica", parameter: "Coliformes totais" },
+  { category: "Microbiológica", parameter: "Salmonella spp." },
+  { category: "Microbiológica", parameter: "Estafilococos coagulase+" },
+  { category: "Microbiológica", parameter: "Bolores e leveduras" },
+  { category: "Microbiológica", parameter: "Escherichia coli" },
+  { category: "Microbiológica", parameter: "Enterobacteriaceae" },
+  { category: "Microbiológica", parameter: "Contagem de Micro-organismos Aeróbios Mesófilos" },
+];
+
 const docBodySchema = z.object({
   productName: z.string().optional(),
   lotNumber: z.string().optional(),
@@ -64,10 +85,34 @@ router.post("/coa", requireAuth, async (req, res) => {
       linkedProtocolId: parsed.data.linkedProtocolId ?? null,
       linkedLotId: parsed.data.linkedLotId ?? null,
     }).returning();
+    // Auto-semeia Físico-Química + Microbiológica em todo CoA novo
+    await db.insert(coaResultsTable).values(
+      DEFAULT_COA_PARAMS.map((p, i) => ({ coaId: doc.id, ...p, sortOrder: i }))
+    );
     res.status(201).json(doc);
   } catch (e) {
     req.log.error(e);
     res.status(500).json({ error: "Erro ao criar CoA" });
+  }
+});
+
+// Semeia parâmetros padrão em CoAs existentes (idempotente — só insere os que faltam)
+router.post("/coa/:id/seed-defaults", requireAuth, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return void res.status(400).json({ error: "ID inválido" });
+    const existing = await db.select({ parameter: coaResultsTable.parameter })
+      .from(coaResultsTable).where(eq(coaResultsTable.coaId, id));
+    const existingSet = new Set(existing.map(r => r.parameter));
+    const toInsert = DEFAULT_COA_PARAMS.filter(p => !existingSet.has(p.parameter));
+    if (toInsert.length === 0) return void res.json({ inserted: 0 });
+    await db.insert(coaResultsTable).values(
+      toInsert.map((p, i) => ({ coaId: id, ...p, sortOrder: existing.length + i }))
+    );
+    res.json({ inserted: toInsert.length });
+  } catch (e) {
+    req.log.error(e);
+    res.status(500).json({ error: "Erro ao semear análises padrão" });
   }
 });
 
