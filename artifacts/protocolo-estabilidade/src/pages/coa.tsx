@@ -1425,26 +1425,26 @@ function CoaDetail({ id }: { id: number }) {
           <table>
             <thead>
               <tr>
-                <th>Categoria</th>
-                <th>Parâmetro</th>
-                <th>Resultado Encontrado</th>
-                <th>Unidade</th>
-                <th>Especificação</th>
-                <th>Método Analítico</th>
-                <th>Situação</th>
+                <th style={{ width: "12%" }}>Categoria</th>
+                <th style={{ width: "16%" }}>Parâmetro</th>
+                <th style={{ width: "12%" }}>Resultado Encontrado</th>
+                <th style={{ width: "16%" }}>Especificação</th>
+                <th style={{ width: "32%" }}>Método Analítico</th>
+                <th style={{ width: "12%" }}>Situação</th>
               </tr>
             </thead>
             <tbody>
               {results.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: "center", color: "#94a3b8", fontStyle: "italic" }}>Nenhum resultado registrado</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", color: "#94a3b8", fontStyle: "italic" }}>Nenhum resultado registrado</td></tr>
               ) : sortedResults.map((r, i) => (
                 <tr key={r.id} style={i % 2 === 1 ? { background: "#f8fafc" } : {}}>
                   <td>{r.category}</td>
                   <td style={{ fontWeight: 600 }}>{r.parameter}</td>
                   <td style={{ fontWeight: 700 }}>{r.result || "—"}</td>
-                  <td>{r.unit}</td>
                   <td>{r.spec || "—"}</td>
-                  <td>{r.method || "—"}</td>
+                  <td style={{ fontSize: "7.5pt", lineHeight: "1.4" }}>
+                    {methodologies.find(m => m.shortName === r.method)?.citation || r.method || "—"}
+                  </td>
                   <td className={`status-${r.status}`}>
                     {r.status === "conforme" ? "✓ Conforme" : r.status === "nao_conforme" ? "✗ Não Conforme" : r.status === "ar" ? "⚠ Aprovado com Ressalva" : "Pendente"}
                   </td>
