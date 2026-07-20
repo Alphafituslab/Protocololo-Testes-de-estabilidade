@@ -1371,10 +1371,10 @@ function CoaDetail({ id }: { id: number }) {
           @media print {
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             aside, header, nav { display: none !important; }
-            table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-            th, td { border: 1px solid #cbd5e1; padding: 3px 5px; text-align: left; font-size: 7.5pt; white-space: nowrap; overflow: hidden; }
+            table { border-collapse: collapse; width: 100%; table-layout: auto; }
+            th, td { border: 1px solid #cbd5e1; padding: 3px 5px; text-align: left; font-size: 7pt; white-space: nowrap; }
             thead th { background-color: #f1f5f9 !important; font-weight: 700; }
-            .cell-method { white-space: normal !important; font-size: 7pt; line-height: 1.35; overflow: visible; }
+            .cell-method { white-space: normal !important; font-size: 6.5pt; line-height: 1.35; width: 99%; }
             .status-conforme { color: #16a34a; font-weight: bold; }
             .status-nao_conforme { color: #dc2626; font-weight: bold; }
             .status-ar { color: #b45309; font-weight: bold; }
@@ -1448,12 +1448,12 @@ function CoaDetail({ id }: { id: number }) {
           <table>
             <thead>
               <tr>
-                <th style={{ width: "11%" }}>Categoria</th>
-                <th style={{ width: "14%" }}>Parâmetro</th>
-                <th style={{ width: "14%" }}>Especificação</th>
-                <th style={{ width: "11%" }}>Resultado Encontrado</th>
-                <th style={{ width: "38%" }} className="cell-method">Método Analítico</th>
-                <th style={{ width: "12%" }}>Situação</th>
+                <th>Categoria</th>
+                <th>Parâmetro</th>
+                <th>Especificação</th>
+                <th>Resultado Encontrado</th>
+                <th className="cell-method">Método Analítico</th>
+                <th>Situação</th>
               </tr>
             </thead>
             <tbody>
