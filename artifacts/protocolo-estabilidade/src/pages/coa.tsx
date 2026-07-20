@@ -812,6 +812,55 @@ function CoaDetail({ id }: { id: number }) {
                 )}
               </div>
             )}
+
+            {/* Assinatura — aparece apenas quando todos os itens estão Conformes */}
+            {allConforme && (
+              <div className="border-t px-5 py-5 bg-green-50/60">
+                <div className="flex items-center gap-2 mb-4">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span className="text-sm font-semibold text-green-700">Produto aprovado — Certificado pronto para assinatura</span>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-6 items-end">
+                  {/* Data de emissão */}
+                  <div className="space-y-1 flex-1 max-w-[200px]">
+                    <label className="text-xs font-medium text-muted-foreground">Data de Emissão</label>
+                    <Input
+                      type="date"
+                      defaultValue={new Date().toISOString().split("T")[0]}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  {/* Bloco de assinatura */}
+                  <div className="flex-1 flex flex-col items-center min-w-[220px]">
+                    <div className="w-full border-t-2 border-slate-400 pt-2 text-center">
+                      <div className="font-semibold text-sm text-slate-700">
+                        {header.responsibleTech || coa.responsibleTech || "Responsável Técnico"}
+                      </div>
+                      {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
+                        <div className="text-xs text-muted-foreground">
+                          CRQ/CRF/CFQ: {header.responsibleTechCrq || coa.responsibleTechCrq}
+                        </div>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        {header.company || coa.company || ""}
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground mt-1">Assinatura do Responsável Técnico</span>
+                  </div>
+                  {/* Botão Emitir */}
+                  <div>
+                    <Button
+                      onClick={() => emitMut.mutate()}
+                      disabled={emitMut.isPending || coa.status === "emitido"}
+                      className="bg-green-600 hover:bg-green-700 text-white gap-1.5"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      {coa.status === "emitido" ? "Emitido" : "Marcar como Emitido"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── Resumo / Observações ── */}
@@ -1256,7 +1305,13 @@ function ResultRow({
       </td>
       <td className="px-2 py-1">
         <Select value={status} onValueChange={v => { setStatus(v); scheduleSave({ status: v }); }}>
-          <SelectTrigger className="h-7 text-xs">
+          <SelectTrigger className={`h-7 text-xs font-semibold border ${
+            status === "conforme"
+              ? "bg-green-50 text-green-700 border-green-300 focus:ring-green-300"
+              : status === "nao_conforme"
+              ? "bg-red-50 text-red-700 border-red-300 focus:ring-red-300"
+              : "bg-amber-50 text-amber-700 border-amber-200 focus:ring-amber-200"
+          }`}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
