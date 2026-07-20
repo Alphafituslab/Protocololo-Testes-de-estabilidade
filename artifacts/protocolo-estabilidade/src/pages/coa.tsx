@@ -472,6 +472,9 @@ function CoaDetail({ id }: { id: number }) {
 
   // ── History state ──
   const [showHistoryInPdf, setShowHistoryInPdf] = useState(false);
+  const [historyCollapsed, setHistoryCollapsed] = useState(false);
+  const [pdfSectionsCollapsed, setPdfSectionsCollapsed] = useState(false);
+  const [clientAccessCollapsed, setClientAccessCollapsed] = useState(false);
 
   // ── Client sharing state ──
   const [shareOpen, setShareOpen] = useState(false);
@@ -1114,27 +1117,38 @@ function CoaDetail({ id }: { id: number }) {
           {/* ── Configurar PDF (admin only) ── */}
           {!isCliente && (
           <div className="border rounded-xl bg-slate-50 p-4 space-y-3">
-            <h2 className="font-semibold text-sm text-slate-600 uppercase tracking-wide flex items-center gap-2">
-              🖨️ Configurar Seções do PDF
-            </h2>
-            <p className="text-xs text-slate-500">Escolha quais seções aparecerão ao imprimir / salvar como PDF:</p>
-            <div className="flex flex-wrap gap-4">
-              {([
-                { key: "identificacao", label: "Identificação do Produto" },
-                { key: "analises",      label: "Tabela de Análises + Conclusão" },
-                { key: "resumo",        label: "Resumo / Observações" },
-              ] as { key: keyof typeof printSections; label: string }[]).map(({ key, label }) => (
-                <label key={key} className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={printSections[key]}
-                    onChange={e => setPrintSections(prev => ({ ...prev, [key]: e.target.checked }))}
-                    className="h-4 w-4 rounded accent-primary"
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
+            <button
+              type="button"
+              className="w-full flex items-center justify-between gap-2 text-left"
+              onClick={() => setPdfSectionsCollapsed(v => !v)}
+            >
+              <h2 className="font-semibold text-sm text-slate-600 uppercase tracking-wide flex items-center gap-2">
+                🖨️ Configurar Seções do PDF
+              </h2>
+              <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${pdfSectionsCollapsed ? "-rotate-90" : ""}`} />
+            </button>
+            {!pdfSectionsCollapsed && (
+              <>
+                <p className="text-xs text-slate-500">Escolha quais seções aparecerão ao imprimir / salvar como PDF:</p>
+                <div className="flex flex-wrap gap-4">
+                  {([
+                    { key: "identificacao", label: "Identificação do Produto" },
+                    { key: "analises",      label: "Tabela de Análises + Conclusão" },
+                    { key: "resumo",        label: "Resumo / Observações" },
+                  ] as { key: keyof typeof printSections; label: string }[]).map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={printSections[key]}
+                        onChange={e => setPrintSections(prev => ({ ...prev, [key]: e.target.checked }))}
+                        className="h-4 w-4 rounded accent-primary"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
           )}
 
@@ -1142,22 +1156,32 @@ function CoaDetail({ id }: { id: number }) {
           {!isCliente && (
           <div className="border rounded-xl bg-card shadow-sm p-5 space-y-4 print:hidden">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div>
+              <button
+                type="button"
+                className="flex items-center gap-2 text-left flex-1 min-w-0"
+                onClick={() => setClientAccessCollapsed(v => !v)}
+              >
                 <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                   <Users className="h-4 w-4" /> Acesso do Cliente (Portal)
                 </h2>
-                <p className="text-xs text-muted-foreground mt-1">
+                <ChevronDown className={`h-4 w-4 text-muted-foreground/50 transition-transform duration-200 ${clientAccessCollapsed ? "-rotate-90" : ""}`} />
+              </button>
+              {!clientAccessCollapsed && (
+                <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => { setShareEmailError(null); setShareOpen(true); }}>
+                  <UserPlus className="h-4 w-4" /> Adicionar Cliente
+                </Button>
+              )}
+            </div>
+
+            {!clientAccessCollapsed && (
+              <>
+                <p className="text-xs text-muted-foreground">
                   Clientes criados aqui aparecem automaticamente em{" "}
                   <a href="/catalog" className="underline text-primary hover:opacity-80" onClick={e => { e.preventDefault(); (window as Window).location.href = "/catalog#clientes"; }}>
                     Cadastros → Clientes com Acesso ao Portal
                   </a>{" "}
                   para gerenciar acesso, excluir ou estender prazo.
                 </p>
-              </div>
-              <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => { setShareEmailError(null); setShareOpen(true); }}>
-                <UserPlus className="h-4 w-4" /> Adicionar Cliente
-              </Button>
-            </div>
 
             {coaClients.length === 0 ? (
               <p className="text-xs text-muted-foreground italic">Nenhum cliente com acesso a este CoA ainda.</p>
@@ -1202,6 +1226,8 @@ function CoaDetail({ id }: { id: number }) {
                 ))}
               </div>
             )}
+              </>
+            )}
           </div>
           )}
 
@@ -1209,23 +1235,29 @@ function CoaDetail({ id }: { id: number }) {
           {!isCliente && (
           <div className="border rounded-xl bg-card shadow-sm p-5 space-y-4 print:hidden">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div>
+              <button
+                type="button"
+                className="flex items-center gap-2 text-left flex-1 min-w-0"
+                onClick={() => setHistoryCollapsed(v => !v)}
+              >
                 <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                   📋 Histórico de Mudanças
                 </h2>
-                <p className="text-xs text-muted-foreground mt-1">Auditoria de todas as ações realizadas neste documento.</p>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={showHistoryInPdf}
-                  onChange={e => setShowHistoryInPdf(e.target.checked)}
-                  className="h-4 w-4 rounded accent-primary"
-                />
-                Incluir no PDF
-              </label>
+                <ChevronDown className={`h-4 w-4 text-muted-foreground/50 transition-transform duration-200 ${historyCollapsed ? "-rotate-90" : ""}`} />
+              </button>
+              {!historyCollapsed && (
+                <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={showHistoryInPdf}
+                    onChange={e => setShowHistoryInPdf(e.target.checked)}
+                    className="h-4 w-4 rounded accent-primary"
+                  />
+                  Incluir no PDF
+                </label>
+              )}
             </div>
-            {history.length === 0 ? (
+            {!historyCollapsed && (history.length === 0 ? (
               <p className="text-xs text-muted-foreground italic">Nenhum registro de auditoria ainda.</p>
             ) : (
               <div className="divide-y border rounded-lg overflow-hidden">
@@ -1252,7 +1284,7 @@ function CoaDetail({ id }: { id: number }) {
                   </div>
                 ))}
               </div>
-            )}
+            ))}
           </div>
           )}
         </div>
