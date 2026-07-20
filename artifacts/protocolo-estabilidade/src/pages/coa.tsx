@@ -43,6 +43,7 @@ interface CoaDocument {
   status: string;
   signedAt: string | null;
   signedBy: string | null;
+  signedRole: string | null;
   createdAt: string;
   updatedAt: string;
   linkedProtocolId: number | null;
@@ -461,6 +462,13 @@ function CoaDetail({ id }: { id: number }) {
   // ── Signature state ──
   const [signConfirmed, setSignConfirmed] = useState(false);
   const [unsignOpen, setUnsignOpen] = useState(false);
+  const [signDialogOpen, setSignDialogOpen] = useState(false);
+  const [signForm, setSignForm] = useState({
+    role: "",
+    dateChoice: "today" as "today" | "docDate",
+    customDate: new Date().toISOString().slice(0, 10),
+    customTime: new Date().toTimeString().slice(0, 5),
+  });
 
   // ── History state ──
   const [showHistoryInPdf, setShowHistoryInPdf] = useState(false);
@@ -633,19 +641,29 @@ function CoaDetail({ id }: { id: number }) {
 
   const signMut = useMutation({
     mutationFn: async () => {
-      // Salva qualquer mudança pendente antes de assinar
       await saveNow();
-      const signerName = header.responsibleTech || coa?.responsibleTech || "";
+      const signerName = header.responsibleTech || coa?.responsibleTech || user?.displayName || user?.username || "";
+      const signerRole = signForm.role.trim() || null;
+      // Build the chosen date+time ISO string
+      let chosenDate: string;
+      if (signForm.dateChoice === "docDate") {
+        // Use the manufacturing/emission date from the CoA
+        const docDate = header.manufacturingDate || coa?.manufacturingDate || new Date().toISOString().slice(0, 10);
+        chosenDate = `${docDate}T${signForm.customTime}:00`;
+      } else {
+        chosenDate = `${signForm.customDate}T${signForm.customTime}:00`;
+      }
       return apiFetch(`/api/coa/${id}/sign`, token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ signedBy: signerName }),
+        body: JSON.stringify({ signedBy: signerName, signedRole: signerRole, signedAt: new Date(chosenDate).toISOString() }),
       });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["coa", id] });
       qc.invalidateQueries({ queryKey: ["coa-history", id] });
       setSignConfirmed(false);
+      setSignDialogOpen(false);
       toast({ title: "✅ Documento assinado e emitido com sucesso!" });
     },
     onError: (e) => toast({ title: "Erro ao assinar", description: String(e), variant: "destructive" }),
@@ -1004,44 +1022,90 @@ function CoaDetail({ id }: { id: number }) {
             </div>
 
             {!coa.signedAt ? (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {(!(header.productName || coa.productName) || !(header.lotNumber || coa.lotNumber) || !(header.responsibleTech || coa.responsibleTech)) && (
                   <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-3 py-2">
                     <span className="shrink-0">⚠️</span>
                     <span>Preencha os campos obrigatórios antes de assinar: {[!(header.productName || coa.productName) && "Produto", !(header.lotNumber || coa.lotNumber) && "Lote", !(header.responsibleTech || coa.responsibleTech) && "Responsável Técnico"].filter(Boolean).join(", ")}.</span>
                   </div>
                 )}
-                <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={signConfirmed}
-                    onChange={e => setSignConfirmed(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded accent-primary shrink-0"
-                  />
-                  <span className="text-sm text-gray-700">
-                    Confirmo que revisei todas as informações, análises e conclusões deste Certificado de Análise e estou ciente de que, ao assinar, o documento será oficialmente emitido e o download do PDF será liberado para os clientes com acesso.
-                  </span>
-                </label>
+                {/* Prévia do bloco de assinatura — como aparecerá no documento */}
+                <div className="border border-dashed border-amber-300 rounded-xl p-4 bg-white">
+                  <p className="text-xs text-amber-600 font-medium mb-3 uppercase tracking-wide">Prévia da assinatura no documento</p>
+                  <div className="flex justify-end">
+                    <div className="text-center min-w-[220px]">
+                      <div className="h-10 flex items-end justify-center pb-1">
+                        <span style={{ fontFamily: "Dancing Script, cursive", fontSize: "22px", color: "#1e3a5f", opacity: 0.4 }}>
+                          {header.responsibleTech || coa.responsibleTech || "Responsável Técnico"}
+                        </span>
+                      </div>
+                      <div style={{ borderTop: "2px solid #1e3a5f", paddingTop: "6px" }}>
+                        <div className="font-bold text-sm text-slate-800">{header.responsibleTech || coa.responsibleTech || "Responsável Técnico"}</div>
+                        {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
+                          <div className="text-xs text-slate-500">CRQ/CRF/CFQ: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
+                        )}
+                        <div className="text-xs text-slate-400">Assinatura do Responsável Técnico</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <Button
-                  onClick={() => signMut.mutate()}
-                  disabled={!signConfirmed || !(header.responsibleTech || coa.responsibleTech) || !(header.productName || coa.productName) || !(header.lotNumber || coa.lotNumber) || signMut.isPending}
+                  onClick={() => {
+                    setSignForm(f => ({
+                      ...f,
+                      customDate: new Date().toISOString().slice(0, 10),
+                      customTime: new Date().toTimeString().slice(0, 5),
+                    }));
+                    setSignDialogOpen(true);
+                  }}
+                  disabled={!(header.responsibleTech || coa.responsibleTech) || !(header.productName || coa.productName) || !(header.lotNumber || coa.lotNumber)}
                   className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
-                  {signMut.isPending ? "Salvando e assinando…" : "✍️ Assinar e Emitir Documento"}
+                  ✍️ Assinar Digitalmente
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-3 flex-wrap">
-                <p className="text-xs text-gray-500 flex-1">Para fazer correções, cancele a assinatura. O status voltará para rascunho e o PDF será bloqueado para clientes.</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive border-destructive hover:bg-red-50 shrink-0"
-                  onClick={() => setUnsignOpen(true)}
-                  disabled={unsignMut.isPending}
-                >
-                  Cancelar assinatura
-                </Button>
+              /* ── Bloco de assinatura após assinar (ASSINATURAS) ── */
+              <div className="space-y-4">
+                <div className="border border-emerald-200 rounded-xl overflow-hidden bg-white">
+                  <div className="bg-slate-800 px-4 py-2.5 flex items-center gap-2">
+                    <span className="text-emerald-400 text-sm">🔒</span>
+                    <span className="text-white font-semibold text-xs uppercase tracking-widest">Assinaturas</span>
+                  </div>
+                  <div className="p-5 flex justify-center">
+                    <div className="text-center min-w-[260px] max-w-[320px]">
+                      {/* Cursive signature */}
+                      <div className="h-14 flex items-end justify-center pb-1">
+                        <span style={{ fontFamily: "Dancing Script, cursive", fontSize: "28px", color: "#1e3a5f" }}>
+                          {coa.signedBy}
+                        </span>
+                      </div>
+                      <div style={{ borderTop: "2px solid #1e3a5f", paddingTop: "8px" }}>
+                        <div className="font-bold text-sm text-slate-800">{coa.signedBy}</div>
+                        {coa.signedRole && <div className="text-xs text-slate-500">{coa.signedRole}</div>}
+                        {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
+                          <div className="text-xs text-slate-500">CRQ/CRF/CFQ: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
+                        )}
+                        <div className="text-xs text-slate-400">{header.company || coa.company || ""}</div>
+                        <div className="text-xs text-emerald-600 font-medium mt-1">
+                          ✅ Assinado digitalmente em {new Date(coa.signedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <p className="text-xs text-gray-500 flex-1">Para fazer correções, cancele a assinatura. O status voltará para rascunho e o PDF será bloqueado para clientes.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive border-destructive hover:bg-red-50 shrink-0"
+                    onClick={() => setUnsignOpen(true)}
+                    disabled={unsignMut.isPending}
+                  >
+                    Cancelar assinatura
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -1429,24 +1493,41 @@ function CoaDetail({ id }: { id: number }) {
 
         {/* Signature block */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "28px", gap: "24px" }}>
-          {/* Local e Data */}
+          {/* Local e Data — preenchido com data de assinatura se disponível */}
           <div style={{ flex: 1, maxWidth: "260px" }}>
             <div style={{ height: "40px" }} />
             <div style={{ borderTop: "1px solid #475569", paddingTop: "5px" }}>
-              <div style={{ fontSize: "8pt", color: "#475569" }}>Local e Data</div>
+              {coa.signedAt ? (
+                <div style={{ fontSize: "8pt", color: "#1e293b", fontWeight: 600 }}>
+                  {header.company || coa.company || "Local"}, {new Date(coa.signedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
+                </div>
+              ) : (
+                <div style={{ fontSize: "8pt", color: "#475569" }}>Local e Data</div>
+              )}
             </div>
           </div>
-          {/* Assinatura do RT */}
-          <div style={{ flex: 1, maxWidth: "260px", textAlign: "center" }}>
-            {/* Espaço em branco para assinatura manuscrita */}
-            <div style={{ height: "52px" }} />
+          {/* Assinatura do RT — cursiva quando assinado digitalmente */}
+          <div style={{ flex: 1, maxWidth: "280px", textAlign: "center" }}>
+            {coa.signedAt ? (
+              <div style={{ fontFamily: "'Dancing Script', cursive", fontSize: "22pt", color: "#1e3a5f", height: "52px", display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: "4px" }}>
+                {coa.signedBy}
+              </div>
+            ) : (
+              <div style={{ height: "52px" }} />
+            )}
             <div style={{ borderTop: "2px solid #1e3a5f", paddingTop: "6px" }}>
-              <div style={{ fontWeight: 700, fontSize: "9pt" }}>{header.responsibleTech || coa.responsibleTech || "Responsável Técnico"}</div>
+              <div style={{ fontWeight: 700, fontSize: "9pt" }}>{coa.signedBy || header.responsibleTech || coa.responsibleTech || "Responsável Técnico"}</div>
+              {coa.signedRole && <div style={{ fontSize: "8pt", color: "#1e293b" }}>{coa.signedRole}</div>}
               {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
                 <div style={{ fontSize: "8pt", color: "#475569" }}>CRQ/CRF/CFQ: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
               )}
               <div style={{ fontSize: "8pt", color: "#475569" }}>{header.company || coa.company || ""}</div>
               <div style={{ fontSize: "7pt", color: "#94a3b8", marginTop: "2px" }}>Assinatura do Responsável Técnico</div>
+              {coa.signedAt && (
+                <div style={{ fontSize: "7pt", color: "#16a34a", marginTop: "3px", fontWeight: 600 }}>
+                  ✓ Assinado digitalmente — {new Date(coa.signedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1548,6 +1629,122 @@ function CoaDetail({ id }: { id: number }) {
                   Adicionar
                 </Button>
               </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog Assinar Digitalmente ─────────────────────────────────── */}
+      <Dialog open={signDialogOpen} onOpenChange={setSignDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              ✍️ Assinar Digitalmente
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <p className="text-xs text-muted-foreground">Confirme os dados abaixo. A assinatura será registrada com seu nome de usuário.</p>
+
+            {/* Usuário logado */}
+            <div className="border rounded-lg px-4 py-3 flex items-center gap-3 bg-slate-50">
+              <div className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold uppercase shrink-0">
+                {(user?.displayName || user?.username || "?").slice(0, 1)}
+              </div>
+              <div>
+                <div className="font-semibold text-sm">{user?.displayName || user?.username}</div>
+                <div className="text-xs text-muted-foreground capitalize">{user?.role || "Usuário"}</div>
+                <div className="text-xs text-emerald-600 font-medium flex items-center gap-1">✅ Usuário verificado</div>
+              </div>
+            </div>
+
+            {/* Prévia da assinatura em cursivo */}
+            <div className="border rounded-lg bg-white p-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2 font-medium">Prévia da Assinatura</p>
+              <div className="flex justify-center">
+                <span style={{ fontFamily: "'Dancing Script', cursive", fontSize: "28px", color: "#1e3a5f" }}>
+                  {header.responsibleTech || coa?.responsibleTech || user?.displayName || user?.username}
+                </span>
+              </div>
+            </div>
+
+            {/* Cargo / Função */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700">Cargo / Função nesta assinatura</label>
+              <Select
+                value={signForm.role || "Responsável Técnico"}
+                onValueChange={v => setSignForm(f => ({ ...f, role: v }))}
+              >
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecione o cargo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {["Responsável Técnico", "Farmacêutico", "Analista Sênior", "Analista", "Supervisor de Qualidade", "Gerente de Qualidade", "Diretor Técnico"].map(r => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Data da assinatura */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-slate-700">Data da assinatura</label>
+              <label className={`flex items-start gap-2.5 border rounded-lg px-3 py-2.5 cursor-pointer transition-colors ${signForm.dateChoice === "docDate" ? "border-primary bg-primary/5" : "border-muted"}`}>
+                <input
+                  type="radio"
+                  name="dateChoice"
+                  className="mt-0.5 accent-primary"
+                  checked={signForm.dateChoice === "docDate"}
+                  onChange={() => setSignForm(f => ({ ...f, dateChoice: "docDate" }))}
+                />
+                <div>
+                  <div className="text-sm font-medium">Data de Fabricação do documento</div>
+                  <div className="text-xs text-muted-foreground">{header.manufacturingDate || coa?.manufacturingDate || "—"}</div>
+                </div>
+              </label>
+              <label className={`flex items-start gap-2.5 border rounded-lg px-3 py-2.5 cursor-pointer transition-colors ${signForm.dateChoice === "today" ? "border-primary bg-primary/5" : "border-muted"}`}>
+                <input
+                  type="radio"
+                  name="dateChoice"
+                  className="mt-0.5 accent-primary"
+                  checked={signForm.dateChoice === "today"}
+                  onChange={() => setSignForm(f => ({ ...f, dateChoice: "today" }))}
+                />
+                <div>
+                  <div className="text-sm font-medium">Data de hoje</div>
+                  <div className="text-xs text-muted-foreground">{new Date().toLocaleDateString("pt-BR")}</div>
+                </div>
+              </label>
+              {signForm.dateChoice === "today" && (
+                <input
+                  type="date"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={signForm.customDate}
+                  onChange={e => setSignForm(f => ({ ...f, customDate: e.target.value }))}
+                />
+              )}
+            </div>
+
+            {/* Horário */}
+            <div className="flex items-center gap-3">
+              <label className="text-xs font-medium text-slate-700 shrink-0">Horário</label>
+              <input
+                type="time"
+                className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                value={signForm.customTime}
+                onChange={e => setSignForm(f => ({ ...f, customTime: e.target.value }))}
+              />
+              <span className="text-xs text-muted-foreground">Altere se necessário</span>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={() => setSignDialogOpen(false)}>Cancelar</Button>
+              <Button
+                className="flex-1 bg-primary hover:bg-primary/90 text-white gap-2"
+                onClick={() => signMut.mutate()}
+                disabled={signMut.isPending}
+              >
+                🔒 {signMut.isPending ? "Assinando…" : "Confirmar Assinatura"}
+              </Button>
             </div>
           </div>
         </DialogContent>

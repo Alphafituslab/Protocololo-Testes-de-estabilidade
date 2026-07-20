@@ -397,16 +397,21 @@ router.post("/coa/:id/sign", requireAuth, async (req, res) => {
     const id = Number(req.params.id);
     if (!id) return void res.status(400).json({ error: "ID inválido" });
     const user = req.authUser!;
-    const { signedBy } = req.body as { signedBy?: string };
+    const { signedBy, signedRole, signedAt: signedAtRaw } = req.body as {
+      signedBy?: string; signedRole?: string; signedAt?: string;
+    };
     const signerName = signedBy?.trim() || user.displayName || user.username;
+    const signerRole = signedRole?.trim() || null;
+    // Use chosen date/time if provided (ISO string), otherwise use now
+    const signedAt = signedAtRaw ? new Date(signedAtRaw) : new Date();
     const now = new Date();
     const [updated] = await db.update(coaDocumentsTable)
-      .set({ signedAt: now, signedBy: signerName, status: "emitido", updatedAt: now })
+      .set({ signedAt, signedBy: signerName, signedRole: signerRole, status: "emitido", updatedAt: now })
       .where(eq(coaDocumentsTable.id, id))
       .returning();
     if (!updated) return void res.status(404).json({ error: "CoA não encontrado" });
     await logAudit(id, user.id, user.displayName || user.username, "Assinado",
-      `Documento assinado por ${signerName}`);
+      `Documento assinado por ${signerName}${signerRole ? ` (${signerRole})` : ""} em ${signedAt.toLocaleString("pt-BR")}`);
     res.json(updated);
   } catch (e) {
     req.log.error(e);
