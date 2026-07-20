@@ -35,6 +35,9 @@ interface CoaDocument {
   responsibleTech: string;
   responsibleTechCrq: string;
   cnpj: string;
+  ie: string;
+  address: string;
+  cep: string;
   notes: string | null;
   status: string;
   createdAt: string;
@@ -59,7 +62,7 @@ interface CoaResult {
 interface ProtocolOption { id: number; productName: string; }
 interface LotOption { id: number; lotNumber: string; manufacturingDate: string; expiryDate: string | null; }
 interface ProtocolResultItem { id: number; parameter: string; category: string; result: string; status: string; period: number; }
-interface LinkedProtocolDetail { id: number; productName: string; companyName: string; cnpj: string; approvedBy: string | null; }
+interface LinkedProtocolDetail { id: number; productName: string; companyName: string; cnpj: string; ie: string | null; address: string | null; cep: string | null; approvedBy: string | null; }
 interface Methodology { id: number; shortName: string; citation: string; category: string | null; parameter: string | null; criteria: string | null; }
 
 interface CoaWithResults extends CoaDocument {
@@ -400,7 +403,8 @@ function CoaDetail({ id }: { id: number }) {
   // ── Local header state ──
   const [header, setHeader] = useState({
     productName: "", lotNumber: "", manufacturingDate: "", expiryDate: "",
-    company: "", responsibleTech: "", responsibleTechCrq: "", cnpj: "", notes: "",
+    company: "", responsibleTech: "", responsibleTechCrq: "", cnpj: "",
+    ie: "", address: "", cep: "", notes: "",
   });
 
   useEffect(() => {
@@ -414,21 +418,35 @@ function CoaDetail({ id }: { id: number }) {
         responsibleTech: coa.responsibleTech ?? "",
         responsibleTechCrq: coa.responsibleTechCrq ?? "",
         cnpj: coa.cnpj ?? "",
+        ie: coa.ie ?? "",
+        address: coa.address ?? "",
+        cep: coa.cep ?? "",
         notes: coa.notes ?? "",
       });
     }
   }, [coa?.id]);
 
-  // ── Auto-fill empty header fields from linked protocol (state only — DB save happens on blur) ──
+  // ── Auto-fill empty header fields from linked protocol and immediately persist ──
   useEffect(() => {
     if (!linkedProto || !coa) return;
-    setHeader(prev => ({
-      ...prev,
-      company: prev.company || linkedProto.companyName || "",
-      cnpj: prev.cnpj || linkedProto.cnpj || "",
-      responsibleTech: prev.responsibleTech || linkedProto.approvedBy || "",
-    }));
-  }, [linkedProto?.id, coa?.id]);
+    setHeader(prev => {
+      const next = {
+        ...prev,
+        company: prev.company || linkedProto.companyName || "",
+        cnpj: prev.cnpj || linkedProto.cnpj || "",
+        ie: prev.ie || linkedProto.ie || "",
+        address: prev.address || linkedProto.address || "",
+        cep: prev.cep || linkedProto.cep || "",
+        responsibleTech: prev.responsibleTech || linkedProto.approvedBy || "",
+      };
+      // Save auto-filled values to DB immediately (only if something changed)
+      const changed = Object.keys(next).some(k => next[k as keyof typeof next] !== prev[k as keyof typeof prev]);
+      if (changed) {
+        setTimeout(() => updateDocMut.mutate(next), 0);
+      }
+      return next;
+    });
+  }, [linkedProto?.id, coa?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-save header ──
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
