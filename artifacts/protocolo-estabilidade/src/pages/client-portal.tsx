@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, LogOut, FileText, Award, AlertTriangle, Clock, CheckCircle2, XCircle, ShieldAlert, Printer, ClipboardCheck } from "lucide-react";
+import { Loader2, LogOut, FileText, Award, AlertTriangle, Clock, CheckCircle2, XCircle, ShieldAlert, Printer, ClipboardCheck, Download } from "lucide-react";
 
 type AssignedCoa = {
   id: number;
@@ -15,6 +15,8 @@ type AssignedCoa = {
   manufacturingDate: string | null;
   expiryDate: string | null;
   status: string;
+  notes: string | null;
+  responsibleTech: string | null;
 };
 
 type AssignedProtocol = {
@@ -158,41 +160,70 @@ export default function ClientPortalPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                {coas.map(c => (
-                  <div key={c.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <ClipboardCheck className="h-4 w-4 text-primary shrink-0" />
-                          <h3 className="font-semibold text-gray-900 truncate">{c.productName}</h3>
-                          {c.lotNumber && (
-                            <span className="text-xs text-gray-400 font-mono shrink-0">Lote: {c.lotNumber}</span>
+                {coas.map(c => {
+                  // CoA is considered finalized when it has conclusion (notes) AND responsible tech AND is not a draft
+                  const isFinalized = c.status !== "rascunho" && !!c.notes && !!c.responsibleTech;
+                  const printBlockedReason = !c.canPrint
+                    ? "O laboratório ainda não liberou o download deste CoA."
+                    : !isFinalized
+                      ? "O CoA ainda não foi concluído e assinado pelo responsável técnico."
+                      : null;
+
+                  return (
+                    <div key={c.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <ClipboardCheck className="h-4 w-4 text-primary shrink-0" />
+                            <h3 className="font-semibold text-gray-900 truncate">{c.productName}</h3>
+                            {c.lotNumber && (
+                              <span className="text-xs text-gray-400 font-mono shrink-0">Lote: {c.lotNumber}</span>
+                            )}
+                            {isFinalized && (
+                              <span className="text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded px-1.5 py-0.5 shrink-0">Finalizado</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 flex-wrap text-xs text-gray-500 mt-1">
+                            {c.manufacturingDate && <span>Fabricação: {new Date(c.manufacturingDate + "T12:00:00").toLocaleDateString("pt-BR")}</span>}
+                            {c.expiryDate && <span>Validade: {new Date(c.expiryDate + "T12:00:00").toLocaleDateString("pt-BR")}</span>}
+                            {c.responsibleTech && <span className="font-medium text-gray-600">RT: {c.responsibleTech}</span>}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1.5 shrink-0">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5 text-xs"
+                            onClick={() => navigate(`/coa/${c.coaId}`)}
+                          >
+                            <ClipboardCheck className="h-3.5 w-3.5" /> Ver CoA
+                          </Button>
+                          {c.canPrint && (
+                            <Button
+                              size="sm"
+                              variant={isFinalized ? "default" : "outline"}
+                              disabled={!isFinalized}
+                              className={`gap-1.5 text-xs ${isFinalized ? "bg-primary hover:bg-primary/90 text-white" : "opacity-50 cursor-not-allowed"}`}
+                              title={printBlockedReason ?? "Salvar como PDF"}
+                              onClick={() => {
+                                if (!isFinalized) return;
+                                window.open(`/coa/${c.coaId}?print=1`, "_blank");
+                              }}
+                            >
+                              <Download className="h-3.5 w-3.5" /> Baixar PDF
+                            </Button>
                           )}
                         </div>
-                        <div className="flex items-center gap-3 flex-wrap text-xs text-gray-500 mt-1">
-                          {c.manufacturingDate && <span>Fabricação: {new Date(c.manufacturingDate + "T12:00:00").toLocaleDateString("pt-BR")}</span>}
-                          {c.expiryDate && <span>Validade: {new Date(c.expiryDate + "T12:00:00").toLocaleDateString("pt-BR")}</span>}
+                      </div>
+                      {printBlockedReason && (
+                        <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-1.5 text-xs text-amber-600">
+                          <Printer className="h-3.5 w-3.5 shrink-0" />
+                          {printBlockedReason}
                         </div>
-                      </div>
-                      <div className="flex flex-col gap-1.5 shrink-0">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="gap-1.5 text-xs"
-                          onClick={() => navigate(`/coa/${c.coaId}`)}
-                        >
-                          <ClipboardCheck className="h-3.5 w-3.5" /> Ver CoA
-                        </Button>
-                      </div>
+                      )}
                     </div>
-                    {!c.canPrint && (
-                      <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-1.5 text-xs text-amber-600">
-                        <Printer className="h-3.5 w-3.5 shrink-0" />
-                        Visualização apenas — impressão não autorizada neste laudo.
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

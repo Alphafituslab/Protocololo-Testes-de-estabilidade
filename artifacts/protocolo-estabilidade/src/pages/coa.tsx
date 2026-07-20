@@ -422,7 +422,19 @@ function CoaDetail({ id }: { id: number }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const isCliente = user?.role === "cliente";
+
+  // Auto-trigger print when ?print=1 is in the URL (client download flow)
+  React.useEffect(() => {
+    if (!isCliente) return undefined;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("print") === "1") {
+      const t = setTimeout(() => window.print(), 1200);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [isCliente]);
   const [addParamOpen, setAddParamOpen] = useState(false);
   const [customParam, setCustomParam] = useState("");
   const [customCategory, setCustomCategory] = useState("Físico-Química");
@@ -676,8 +688,8 @@ function CoaDetail({ id }: { id: number }) {
         {/* Top bar */}
         <div className="sticky top-0 z-30 bg-background border-b shadow-sm">
           <div className="max-w-6xl mx-auto px-6 py-3 flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/coa")} className="gap-1.5 text-muted-foreground">
-              <ArrowLeft className="h-4 w-4" /> Laudos
+            <Button variant="ghost" size="sm" onClick={() => navigate(isCliente ? "/client-portal" : "/coa")} className="gap-1.5 text-muted-foreground">
+              <ArrowLeft className="h-4 w-4" /> {isCliente ? "Portal" : "Laudos"}
             </Button>
             <div className="flex-1 min-w-0">
               <h1 className="font-semibold text-foreground truncate">
@@ -685,16 +697,20 @@ function CoaDetail({ id }: { id: number }) {
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              {coa.status === "emitido"
-                ? <Badge className="bg-green-100 text-green-700 border-green-200">Emitido</Badge>
-                : <Badge variant="secondary">Rascunho</Badge>}
-              {coa.status !== "emitido" && (
-                <Button size="sm" variant="outline" onClick={() => emitMut.mutate()} disabled={emitMut.isPending}>
-                  <Save className="h-3.5 w-3.5 mr-1.5" /> Marcar como Emitido
-                </Button>
+              {!isCliente && (
+                <>
+                  {coa.status === "emitido"
+                    ? <Badge className="bg-green-100 text-green-700 border-green-200">Emitido</Badge>
+                    : <Badge variant="secondary">Rascunho</Badge>}
+                  {coa.status !== "emitido" && (
+                    <Button size="sm" variant="outline" onClick={() => emitMut.mutate()} disabled={emitMut.isPending}>
+                      <Save className="h-3.5 w-3.5 mr-1.5" /> Marcar como Emitido
+                    </Button>
+                  )}
+                </>
               )}
               <Button size="sm" onClick={() => window.print()} className="gap-1.5">
-                <Printer className="h-3.5 w-3.5" /> Imprimir Laudo
+                <Printer className="h-3.5 w-3.5" /> {isCliente ? "Salvar PDF" : "Imprimir Laudo"}
               </Button>
             </div>
           </div>
@@ -997,7 +1013,8 @@ function CoaDetail({ id }: { id: number }) {
             <p className="text-xs text-muted-foreground">Este texto aparece no PDF quando a seção "Resumo" estiver ativada nas configurações abaixo. Clique em um dos chips para preencher automaticamente.</p>
           </div>
 
-          {/* ── Configurar PDF ── */}
+          {/* ── Configurar PDF (admin only) ── */}
+          {!isCliente && (
           <div className="border rounded-xl bg-slate-50 p-4 space-y-3">
             <h2 className="font-semibold text-sm text-slate-600 uppercase tracking-wide flex items-center gap-2">
               🖨️ Configurar Seções do PDF
@@ -1021,8 +1038,10 @@ function CoaDetail({ id }: { id: number }) {
               ))}
             </div>
           </div>
+          )}
 
-          {/* ── Liberar para Cliente ── */}
+          {/* ── Liberar para Cliente (admin only) ── */}
+          {!isCliente && (
           <div className="border rounded-xl bg-card shadow-sm p-5 space-y-4 print:hidden">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
@@ -1086,6 +1105,7 @@ function CoaDetail({ id }: { id: number }) {
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
 
