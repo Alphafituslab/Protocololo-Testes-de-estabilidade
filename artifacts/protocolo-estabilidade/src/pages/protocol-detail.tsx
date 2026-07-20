@@ -1342,12 +1342,25 @@ function ParamMethodSelector({
   const hasCatalog = catalogEntries.length > 0;
 
   const norm = normalizeSearch(search);
+  const paramNorm = normalizeSearch(paramName);
   const filteredCatalog = catalogEntries.filter(
     m => normalizeSearch(m.shortName).includes(norm) || normalizeSearch(m.citation).includes(norm)
   );
   const filteredMethodologies = methodologies.filter(
     m => normalizeSearch(m.shortName).includes(norm) || normalizeSearch(m.citation).includes(norm) || normalizeSearch(m.subject ?? "").includes(norm)
   );
+  // Suggested: methodologies whose subject matches the param name exactly, shown first when no search and no catalog
+  const suggestedIds = new Set<number>();
+  const suggestedMethodologies = (!search && paramNorm.length > 0 && !hasCatalog)
+    ? filteredMethodologies.filter(m => {
+        const matches = normalizeSearch(m.subject ?? "") === paramNorm;
+        if (matches) suggestedIds.add(m.id);
+        return matches;
+      })
+    : [];
+  const otherMethodologies = suggestedMethodologies.length > 0
+    ? filteredMethodologies.filter(m => !suggestedIds.has(m.id))
+    : filteredMethodologies;
 
   return (
     <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(""); }}>
@@ -1450,14 +1463,51 @@ function ParamMethodSelector({
           </>
         )}
 
+        {/* Sugerido: metodologias cujo subject bate com o nome do parâmetro */}
+        {suggestedMethodologies.length > 0 && (
+          <>
+            <p className="text-[9px] uppercase tracking-widest text-primary/70 font-bold px-1 mb-1">
+              Sugerido — {paramName}
+            </p>
+            <div className="space-y-0.5 mb-2">
+              {suggestedMethodologies.map((m) => (
+                <button
+                  type="button"
+                  key={m.id}
+                  onClick={() => { onSelect(m.shortName, m.citation); setOpen(false); setSearch(""); }}
+                  className={`w-full text-left text-xs px-2 py-1.5 rounded border transition-colors hover:bg-primary/10 ${
+                    selected === m.shortName
+                      ? "border-primary/40 bg-primary/10 text-primary font-semibold"
+                      : "border-primary/15 bg-primary/5"
+                  }`}
+                >
+                  <div className="flex items-center gap-1">
+                    <BookOpen className="h-2.5 w-2.5 text-primary/50 flex-shrink-0" />
+                    <span className="font-medium text-[11px]">{m.shortName}</span>
+                  </div>
+                  <div className="text-[9px] text-muted-foreground truncate leading-tight pl-3.5">{m.citation}</div>
+                </button>
+              ))}
+            </div>
+            {otherMethodologies.length > 0 && (
+              <>
+                <div className="border-t my-1.5" />
+                <p className="text-[9px] uppercase tracking-widest text-muted-foreground/50 font-bold px-1 mb-1">
+                  Biblioteca geral
+                </p>
+              </>
+            )}
+          </>
+        )}
+
         {/* Todas as metodologias cadastradas */}
         {filteredMethodologies.length === 0 && filteredCatalog.length === 0 ? (
           <p className="text-xs text-muted-foreground italic px-1 py-2 text-center">
             {search ? `Nenhuma metodologia encontrada para "${search}"` : "Nenhuma metodologia cadastrada."}
           </p>
-        ) : filteredMethodologies.length > 0 ? (
+        ) : otherMethodologies.length > 0 ? (
           <div className="space-y-0.5 max-h-48 overflow-y-auto">
-            {filteredMethodologies.map((m) => (
+            {otherMethodologies.map((m) => (
               <button
                 type="button"
                 key={m.id}
@@ -2325,6 +2375,9 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const undoHandlerRef = useRef<() => void>(() => {});
   const bankSyncTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const lastParamNameChangeRef = useRef<{ uid: string; prevName: string; currentName: string } | null>(null);
+  const paramNameUndoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const undoParamNameHandlerRef = useRef<() => void>(() => {});
   undoHandlerRef.current = () => {
     if (!lastRemovedParamRef.current) return;
     const { param, index } = lastRemovedParamRef.current;
@@ -2345,9 +2398,14 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
   };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && lastRemovedParamRef.current) {
-        e.preventDefault();
-        undoHandlerRef.current();
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        if (lastRemovedParamRef.current) {
+          e.preventDefault();
+          undoHandlerRef.current();
+        } else if (lastParamNameChangeRef.current) {
+          e.preventDefault();
+          undoParamNameHandlerRef.current();
+        }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -2468,6 +2526,16 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
 
   const updateParam = (uid: string, field: "parameter" | "criterion", val: string) => {
     setEditableParams((prev) => prev.map((p) => (p.uid === uid ? { ...p, [field]: val } : p)));
+  };
+
+  undoParamNameHandlerRef.current = () => {
+    if (!lastParamNameChangeRef.current) return;
+    const { uid, prevName, currentName } = lastParamNameChangeRef.current;
+    lastParamNameChangeRef.current = null;
+    if (paramNameUndoTimerRef.current) { clearTimeout(paramNameUndoTimerRef.current); paramNameUndoTimerRef.current = null; }
+    updateParam(uid, "parameter", prevName);
+    renameResultParam(currentName, prevName);
+    toast({ title: "Nome restaurado", description: prevName ? `Revertido para "${prevName}".` : "Nome revertido." });
   };
 
   const addParam = (category: string, parameter = "", criterion = "") => {
@@ -3385,6 +3453,10 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
                                       focusedOriginalName.current = null;
                                       if (orig !== null && orig !== param.parameter && param.parameter.trim()) {
                                         renameResultParam(orig, param.parameter);
+                                        if (paramNameUndoTimerRef.current) clearTimeout(paramNameUndoTimerRef.current);
+                                        lastParamNameChangeRef.current = { uid: param.uid, prevName: orig, currentName: param.parameter };
+                                        paramNameUndoTimerRef.current = setTimeout(() => { lastParamNameChangeRef.current = null; }, 10000);
+                                        toast({ title: "Nome alterado", description: "Pressione Ctrl+Z para desfazer (10s)" });
                                       }
                                     }}
                                     autoComplete="new-password"
