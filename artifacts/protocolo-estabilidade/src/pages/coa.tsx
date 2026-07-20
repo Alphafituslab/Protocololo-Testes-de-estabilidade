@@ -443,7 +443,7 @@ function CoaDetail({ id }: { id: number }) {
     if (!isCliente) return undefined;
     const params = new URLSearchParams(window.location.search);
     if (params.get("print") === "1") {
-      const t = setTimeout(() => window.print(), 1200);
+      const t = setTimeout(() => handlePrint(), 1200);
       return () => clearTimeout(t);
     }
     return undefined;
@@ -594,6 +594,14 @@ function CoaDetail({ id }: { id: number }) {
     setHeader(next);
     scheduleHeaderSave(next);
   };
+
+  const handlePrint = useCallback(() => {
+    const num = coa ? String(coa.id).padStart(4, "0") : "0000";
+    const prev = document.title;
+    document.title = `CERTIFICADO DE ANÁLISE Nº ${num} · Emissão: ${todayBR()}`;
+    window.print();
+    setTimeout(() => { document.title = prev; }, 2000);
+  }, [coa]);
 
   // ── Mutations ──
   const addResultMut = useMutation({
@@ -789,7 +797,7 @@ function CoaDetail({ id }: { id: number }) {
                   </Button>
                 </>
               )}
-              <Button size="sm" onClick={() => window.print()} className="gap-1.5">
+              <Button size="sm" onClick={handlePrint} className="gap-1.5">
                 <Printer className="h-3.5 w-3.5" /> {isCliente ? "Salvar PDF" : "Imprimir Laudo"}
               </Button>
             </div>
@@ -952,7 +960,7 @@ function CoaDetail({ id }: { id: number }) {
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                   <span className="text-sm font-semibold text-emerald-700">Assinado por {coa.signedBy}</span>
                 </div>
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.print()}>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrint}>
                   <Printer className="h-4 w-4" /> Imprimir / Salvar PDF
                 </Button>
               </div>
@@ -1368,13 +1376,20 @@ function CoaDetail({ id }: { id: number }) {
 
         {/* Header */}
         <div style={{ borderBottom: "2px solid #1e3a5f", paddingBottom: "8px", marginBottom: "10px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-            <div>
-              <div style={{ fontSize: "15pt", fontWeight: 800, color: "#1e3a5f", letterSpacing: "0.02em" }}>
-                CERTIFICADO DE ANÁLISE
-              </div>
-              <div style={{ fontSize: "9pt", color: "#475569", marginTop: "2px" }}>
-                Nº {String(coa.id).padStart(4, "0")} &nbsp;·&nbsp; Emissão: {todayBR()}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <img
+                src={`${import.meta.env.BASE_URL}logo-alphafitus.png`}
+                alt="Alphafitus"
+                style={{ height: "52px", width: "auto", objectFit: "contain" }}
+              />
+              <div>
+                <div style={{ fontSize: "15pt", fontWeight: 800, color: "#1e3a5f", letterSpacing: "0.02em" }}>
+                  CERTIFICADO DE ANÁLISE
+                </div>
+                <div style={{ fontSize: "9pt", color: "#475569", marginTop: "2px" }}>
+                  Nº {String(coa.id).padStart(4, "0")} &nbsp;·&nbsp; Emissão: {todayBR()}
+                </div>
               </div>
             </div>
             <div style={{ textAlign: "right", fontSize: "9pt", color: "#475569" }}>
