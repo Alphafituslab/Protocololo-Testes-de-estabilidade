@@ -1,14 +1,17 @@
 import { Router, type IRouter } from "express";
 import { db, anvisaNumberBank } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
 
 const router: IRouter = Router();
 
-// GET /anvisa-number-bank
+// GET /anvisa-number-bank?protocolId=X
 router.get("/anvisa-number-bank", requireAuth, async (req, res) => {
   try {
-    const rows = await db.select().from(anvisaNumberBank).orderBy(desc(anvisaNumberBank.createdAt));
+    const protocolId = req.query.protocolId ? Number(req.query.protocolId) : null;
+    const rows = protocolId
+      ? await db.select().from(anvisaNumberBank).where(eq(anvisaNumberBank.protocolId, protocolId)).orderBy(desc(anvisaNumberBank.createdAt))
+      : await db.select().from(anvisaNumberBank).orderBy(desc(anvisaNumberBank.createdAt));
     res.json(rows);
   } catch (err) {
     req.log.error(err, "GET /anvisa-number-bank failed");
@@ -19,11 +22,13 @@ router.get("/anvisa-number-bank", requireAuth, async (req, res) => {
 // POST /anvisa-number-bank
 router.post("/anvisa-number-bank", requireAuth, async (req, res) => {
   try {
-    const { label, expedienteNumber, processNumber, transactionNumber, protocolNumber } =
-      req.body as { label?: string; expedienteNumber?: string; processNumber?: string; transactionNumber?: string; protocolNumber?: string };
+    const { protocolId, label, expedienteNumber, processNumber, transactionNumber, protocolNumber } =
+      req.body as { protocolId?: number; label?: string; expedienteNumber?: string; processNumber?: string; transactionNumber?: string; protocolNumber?: string };
+    if (!protocolId) return res.status(400).json({ error: "protocolId é obrigatório" });
     const [row] = await db
       .insert(anvisaNumberBank)
       .values({
+        protocolId,
         label: label?.trim() || null,
         expedienteNumber: expedienteNumber?.trim() || null,
         processNumber: processNumber?.trim() || null,

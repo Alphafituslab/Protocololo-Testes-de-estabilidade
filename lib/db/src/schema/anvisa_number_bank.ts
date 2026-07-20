@@ -1,7 +1,9 @@
-import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { protocolsTable } from "./protocols";
 
 export const anvisaNumberBank = pgTable("anvisa_number_bank", {
   id: serial("id").primaryKey(),
+  protocolId: integer("protocol_id").notNull().references(() => protocolsTable.id, { onDelete: "cascade" }),
   label: text("label"),
   expedienteNumber: text("expediente_number"),
   processNumber: text("process_number"),

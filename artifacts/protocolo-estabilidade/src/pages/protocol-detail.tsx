@@ -9326,9 +9326,9 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
   });
 
   const { data: savedNumbers = [] } = useQuery<NumberRecord[]>({
-    queryKey: ["anvisa-number-bank"],
+    queryKey: ["anvisa-number-bank", protocolId],
     queryFn: async () => {
-      const res = await fetch("/api/anvisa-number-bank", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`/api/anvisa-number-bank?protocolId=${protocolId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error();
       return res.json();
     },
@@ -9577,6 +9577,7 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
+          protocolId,
           label: form.expedienteNumber.trim() || form.processNumber.trim() || null,
           expedienteNumber: form.expedienteNumber.trim() || null,
           processNumber: form.processNumber.trim() || null,
@@ -9584,7 +9585,7 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
           protocolNumber: form.protocolNumber.trim() || null,
         }),
       });
-      queryClient.invalidateQueries({ queryKey: ["anvisa-number-bank"] });
+      queryClient.invalidateQueries({ queryKey: ["anvisa-number-bank", protocolId] });
       toast({ title: "Números salvos no banco" });
     } catch { toast({ title: "Erro ao salvar números", variant: "destructive" }); }
     finally { setSavingNumber(false); }
@@ -9599,7 +9600,7 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ label: editNumber.label || null, expedienteNumber: editNumber.exp || null, processNumber: editNumber.proc || null, transactionNumber: editNumber.trans || null, protocolNumber: editNumber.prot || null }),
       });
-      queryClient.invalidateQueries({ queryKey: ["anvisa-number-bank"] });
+      queryClient.invalidateQueries({ queryKey: ["anvisa-number-bank", protocolId] });
       setEditNumberId(null);
       setEditNumber({ label: "", exp: "", proc: "", trans: "", prot: "" });
       toast({ title: "Números atualizados" });
@@ -9611,7 +9612,7 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
     setDeletingNumberId(id);
     try {
       await fetch(`/api/anvisa-number-bank/${id}`, { method: "DELETE", headers: token ? { Authorization: `Bearer ${token}` } : {} });
-      queryClient.invalidateQueries({ queryKey: ["anvisa-number-bank"] });
+      queryClient.invalidateQueries({ queryKey: ["anvisa-number-bank", protocolId] });
       toast({ title: "Registro removido" });
     } catch { toast({ title: "Erro ao remover registro", variant: "destructive" }); }
     finally { setDeletingNumberId(null); }
@@ -9775,7 +9776,7 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
             <span className="flex items-center gap-2">
               <Building2 className="h-3.5 w-3.5 text-gray-500" />
               Banco de Empresas
-              {savedCompanies.length > 0 && <span className="bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5 text-[10px] font-bold">{savedCompanies.length}</span>}
+              <span className="text-[10px] text-gray-400 font-normal">(banco global)</span>
             </span>
             {companyMgr ? <ChevronDown className="h-3.5 w-3.5 text-gray-400" /> : <ChevronRight className="h-3.5 w-3.5 text-gray-400" />}
           </button>
@@ -9845,8 +9846,8 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
             className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors">
             <span className="flex items-center gap-2">
               <Database className="h-3.5 w-3.5 text-gray-500" />
-              Banco de Números ANVISA
-              {savedNumbers.length > 0 && <span className="bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5 text-[10px] font-bold">{savedNumbers.length}</span>}
+              Números ANVISA deste protocolo
+              {savedNumbers.length > 0 && <span className="bg-blue-100 text-blue-700 rounded-full px-1.5 py-0.5 text-[10px] font-bold">{savedNumbers.length}</span>}
             </span>
             {numberMgr ? <ChevronDown className="h-3.5 w-3.5 text-gray-400" /> : <ChevronRight className="h-3.5 w-3.5 text-gray-400" />}
           </button>
@@ -9874,9 +9875,9 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
                       await fetch("/api/anvisa-number-bank", {
                         method: "POST",
                         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-                        body: JSON.stringify({ label: editNumber.label || null, expedienteNumber: editNumber.exp || null, processNumber: editNumber.proc || null, transactionNumber: editNumber.trans || null, protocolNumber: editNumber.prot || null }),
+                        body: JSON.stringify({ protocolId, label: editNumber.label || null, expedienteNumber: editNumber.exp || null, processNumber: editNumber.proc || null, transactionNumber: editNumber.trans || null, protocolNumber: editNumber.prot || null }),
                       });
-                      queryClient.invalidateQueries({ queryKey: ["anvisa-number-bank"] });
+                      queryClient.invalidateQueries({ queryKey: ["anvisa-number-bank", protocolId] });
                       setEditNumber({ label: "", exp: "", proc: "", trans: "", prot: "" }); setEditNumberId(null);
                       toast({ title: "Números salvos" });
                     } catch { toast({ title: "Erro ao salvar", variant: "destructive" }); }
