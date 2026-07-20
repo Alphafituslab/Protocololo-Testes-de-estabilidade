@@ -93,6 +93,15 @@ const STANDARD_PARAMS: { category: string; params: string[] }[] = [
   },
 ];
 
+// ── Dados fixos da empresa ────────────────────────────────────────────────────
+const COMPANY_DEFAULTS = {
+  company:  "ALPHAFITUS LABORATÓRIO NUTRACÊUTICO LTDA",
+  cnpj:     "",
+  ie:       "253385210",
+  address:  "Agenor Martinho Lima 41",
+  cep:      "88823290",
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtDate(d: string) {
@@ -408,42 +417,44 @@ function CoaDetail({ id }: { id: number }) {
   });
 
   useEffect(() => {
-    if (coa) {
-      setHeader({
-        productName: coa.productName ?? "",
-        lotNumber: coa.lotNumber ?? "",
-        manufacturingDate: coa.manufacturingDate ?? "",
-        expiryDate: coa.expiryDate ?? "",
-        company: coa.company ?? "",
-        responsibleTech: coa.responsibleTech ?? "",
-        responsibleTechCrq: coa.responsibleTechCrq ?? "",
-        cnpj: coa.cnpj ?? "",
-        ie: coa.ie ?? "",
-        address: coa.address ?? "",
-        cep: coa.cep ?? "",
-        notes: coa.notes ?? "",
-      });
-    }
-  }, [coa?.id]);
+    if (!coa) return;
+    const next = {
+      productName: coa.productName ?? "",
+      lotNumber: coa.lotNumber ?? "",
+      manufacturingDate: coa.manufacturingDate ?? "",
+      expiryDate: coa.expiryDate ?? "",
+      company:          coa.company          || COMPANY_DEFAULTS.company,
+      responsibleTech:  coa.responsibleTech  ?? "",
+      responsibleTechCrq: coa.responsibleTechCrq ?? "",
+      cnpj:    coa.cnpj    || COMPANY_DEFAULTS.cnpj,
+      ie:      coa.ie      || COMPANY_DEFAULTS.ie,
+      address: coa.address || COMPANY_DEFAULTS.address,
+      cep:     coa.cep     || COMPANY_DEFAULTS.cep,
+      notes:   coa.notes   ?? "",
+    };
+    setHeader(next);
+    // Se algum campo da empresa estava vazio no DB, persiste os defaults agora
+    const needsSave = (
+      !coa.company  || !coa.ie || !coa.address || !coa.cep
+    );
+    if (needsSave) setTimeout(() => updateDocMut.mutate(next), 0);
+  }, [coa?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Auto-fill empty header fields from linked protocol and immediately persist ──
+  // ── Auto-fill campos adicionais do protocolo vinculado e persiste ──
   useEffect(() => {
     if (!linkedProto || !coa) return;
     setHeader(prev => {
       const next = {
         ...prev,
-        company: prev.company || linkedProto.companyName || "",
-        cnpj: prev.cnpj || linkedProto.cnpj || "",
-        ie: prev.ie || linkedProto.ie || "",
-        address: prev.address || linkedProto.address || "",
-        cep: prev.cep || linkedProto.cep || "",
+        company:  prev.company  || linkedProto.companyName || COMPANY_DEFAULTS.company,
+        cnpj:     prev.cnpj     || linkedProto.cnpj        || COMPANY_DEFAULTS.cnpj,
+        ie:       prev.ie       || linkedProto.ie           || COMPANY_DEFAULTS.ie,
+        address:  prev.address  || linkedProto.address      || COMPANY_DEFAULTS.address,
+        cep:      prev.cep      || linkedProto.cep          || COMPANY_DEFAULTS.cep,
         responsibleTech: prev.responsibleTech || linkedProto.approvedBy || "",
       };
-      // Save auto-filled values to DB immediately (only if something changed)
       const changed = Object.keys(next).some(k => next[k as keyof typeof next] !== prev[k as keyof typeof prev]);
-      if (changed) {
-        setTimeout(() => updateDocMut.mutate(next), 0);
-      }
+      if (changed) setTimeout(() => updateDocMut.mutate(next), 0);
       return next;
     });
   }, [linkedProto?.id, coa?.id]); // eslint-disable-line react-hooks/exhaustive-deps
