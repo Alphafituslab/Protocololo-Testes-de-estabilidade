@@ -1120,8 +1120,8 @@ function CoaDetail({ id }: { id: number }) {
                       <Button
                         size="sm" variant="outline"
                         className="h-7 px-2 text-xs gap-1 text-muted-foreground"
-                        onClick={() => (window.location.href = "/catalog")}
-                        title="Gerenciar em Cadastros"
+                        onClick={() => navigate("/users")}
+                        title="Gerenciar em Cadastros → Clientes com Acesso ao Portal"
                       >
                         <UserCheck className="h-3 w-3" /> Gerenciar
                       </Button>
