@@ -5884,6 +5884,7 @@ function MethodologiaTab({
   const [category, setCategory] = useState("");
   const [subjectField, setSubjectField] = useState("");
   const [libSearch, setLibSearch] = useState("");
+  const [paramSearch, setParamSearch] = useState("");
   const [dupWarning, setDupWarning] = useState<{ match: (typeof methodologies)[0]; proceed: () => void } | null>(null);
   const [parameterField, setParameterField] = useState("");
   const [criteriaField, setCriteriaField] = useState("");
@@ -5981,18 +5982,41 @@ function MethodologiaTab({
           SEÇÃO 1 — PARÂMETROS CADASTRADOS
       ═══════════════════════════════════════════════════════════════ */}
       <div>
-        <div className="flex items-start justify-between mb-3 gap-2">
+        <div className="flex items-start justify-between mb-3 gap-2 flex-wrap">
           <div>
             <h3 className="font-semibold">Parâmetros Cadastrados</h3>
             <p className="text-sm text-muted-foreground">
               Todos os parâmetros de análise do protocolo. Clique em qualquer campo para editar o nome ou o critério.
             </p>
           </div>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
+            <input
+              type="text"
+              value={paramSearch}
+              onChange={e => setParamSearch(e.target.value)}
+              placeholder="Procurar parâmetro…"
+              className="pl-8 pr-7 py-1.5 text-xs border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary/40 w-52 placeholder:text-muted-foreground/40"
+            />
+            {paramSearch && (
+              <button
+                type="button"
+                onClick={() => setParamSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="space-y-3">
           {paramCategories.map(({ label, key }) => {
-            const catParams = editableParams.filter(p => p.category === key);
+            const _pq = paramSearch.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const catParams = editableParams.filter(p =>
+              p.category === key &&
+              (!_pq || p.parameter.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(_pq))
+            );
             return (
               <div key={key} className="border rounded-lg overflow-hidden">
                 <div className="bg-muted/50 px-3 py-1.5 border-b flex items-center justify-between">
