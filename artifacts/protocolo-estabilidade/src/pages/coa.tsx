@@ -1371,9 +1371,10 @@ function CoaDetail({ id }: { id: number }) {
           @media print {
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             aside, header, nav { display: none !important; }
-            table { border-collapse: collapse; width: 100%; }
-            th, td { border: 1px solid #cbd5e1; padding: 3px 6px; text-align: left; font-size: 9pt; }
+            table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+            th, td { border: 1px solid #cbd5e1; padding: 3px 5px; text-align: left; font-size: 7.5pt; white-space: nowrap; overflow: hidden; }
             thead th { background-color: #f1f5f9 !important; font-weight: 700; }
+            .cell-method { white-space: normal !important; font-size: 7pt; line-height: 1.35; overflow: visible; }
             .status-conforme { color: #16a34a; font-weight: bold; }
             .status-nao_conforme { color: #dc2626; font-weight: bold; }
             .status-ar { color: #b45309; font-weight: bold; }
@@ -1447,11 +1448,11 @@ function CoaDetail({ id }: { id: number }) {
           <table>
             <thead>
               <tr>
-                <th style={{ width: "12%" }}>Categoria</th>
-                <th style={{ width: "16%" }}>Parâmetro</th>
-                <th style={{ width: "16%" }}>Especificação</th>
-                <th style={{ width: "12%" }}>Resultado Encontrado</th>
-                <th style={{ width: "32%" }}>Método Analítico</th>
+                <th style={{ width: "11%" }}>Categoria</th>
+                <th style={{ width: "14%" }}>Parâmetro</th>
+                <th style={{ width: "14%" }}>Especificação</th>
+                <th style={{ width: "11%" }}>Resultado Encontrado</th>
+                <th style={{ width: "38%" }} className="cell-method">Método Analítico</th>
                 <th style={{ width: "12%" }}>Situação</th>
               </tr>
             </thead>
@@ -1464,11 +1465,11 @@ function CoaDetail({ id }: { id: number }) {
                   <td style={{ fontWeight: 600 }}>{r.parameter}</td>
                   <td>{r.spec || "—"}</td>
                   <td style={{ fontWeight: 700 }}>{r.result || "—"}</td>
-                  <td style={{ fontSize: "7.5pt", lineHeight: "1.4" }}>
+                  <td className="cell-method">
                     {methodologies.find(m => m.shortName === r.method)?.citation || r.method || "—"}
                   </td>
                   <td className={`status-${r.status}`}>
-                    {r.status === "conforme" ? "✓ Conforme" : r.status === "nao_conforme" ? "✗ Não Conforme" : r.status === "ar" ? "⚠ Aprovado com Ressalva" : "Pendente"}
+                    {r.status === "conforme" ? "✓ Conforme" : r.status === "nao_conforme" ? "✗ Não Conforme" : r.status === "ar" ? "⚠ Aprovado c/ Ressalva" : "Pendente"}
                   </td>
                 </tr>
               ))}
