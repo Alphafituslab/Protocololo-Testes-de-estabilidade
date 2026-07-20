@@ -60,6 +60,7 @@ interface ProtocolOption { id: number; productName: string; }
 interface LotOption { id: number; lotNumber: string; manufacturingDate: string; expiryDate: string | null; }
 interface ProtocolResultItem { id: number; parameter: string; category: string; result: string; status: string; period: number; }
 interface LinkedProtocolDetail { id: number; productName: string; companyName: string; cnpj: string; approvedBy: string | null; }
+interface Methodology { id: number; shortName: string; citation: string; category: string | null; parameter: string | null; criteria: string | null; }
 
 interface CoaWithResults extends CoaDocument {
   results: CoaResult[];
@@ -390,6 +391,12 @@ function CoaDetail({ id }: { id: number }) {
     enabled: !!coa?.linkedProtocolId,
   });
 
+  // Fetch methodologies for method select + criteria auto-fill
+  const { data: methodologies = [] } = useQuery<Methodology[]>({
+    queryKey: ["methodologies-coa"],
+    queryFn: () => apiFetch("/api/methodologies", token),
+  });
+
   // ── Local header state ──
   const [header, setHeader] = useState({
     productName: "", lotNumber: "", manufacturingDate: "", expiryDate: "",
@@ -448,7 +455,7 @@ function CoaDetail({ id }: { id: number }) {
 
   // ── Mutations ──
   const addResultMut = useMutation({
-    mutationFn: (body: { category: string; parameter: string; sortOrder: number }) =>
+    mutationFn: (body: { category: string; parameter: string; sortOrder: number; spec?: string; method?: string }) =>
       apiFetch(`/api/coa/${id}/results`, token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -500,7 +507,14 @@ function CoaDetail({ id }: { id: number }) {
 
   const addParam = (category: string, parameter: string) => {
     if (!parameter.trim()) return;
-    addResultMut.mutate({ category, parameter: parameter.trim(), sortOrder: results.length });
+    const match = methodologies.find(m => m.parameter === parameter.trim());
+    addResultMut.mutate({
+      category,
+      parameter: parameter.trim(),
+      sortOrder: results.length,
+      spec: match?.criteria ?? "",
+      method: match?.shortName ?? "",
+    });
   };
   const scheduleResultSave = (resultId: number, data: Partial<CoaResult>) => {
     if (resultTimers.current[resultId]) clearTimeout(resultTimers.current[resultId]);
@@ -524,10 +538,17 @@ function CoaDetail({ id }: { id: number }) {
       }
       for (let i = 0; i < toImport.length; i++) {
         const pr = toImport[i];
+        const match = methodologies.find(m => m.parameter === pr.parameter);
         await apiFetch(`/api/coa/${id}/results`, token, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ category: pr.category, parameter: pr.parameter, sortOrder: results.length + i }),
+          body: JSON.stringify({
+            category: pr.category,
+            parameter: pr.parameter,
+            sortOrder: results.length + i,
+            spec: match?.criteria ?? "",
+            method: match?.shortName ?? "",
+          }),
         });
       }
       await qc.invalidateQueries({ queryKey: ["coa", id] });
@@ -649,9 +670,8 @@ function CoaDetail({ id }: { id: number }) {
                       <th className="px-3 py-2 text-left font-medium w-28">Categoria</th>
                       <th className="px-3 py-2 text-left font-medium w-40">Parâmetro</th>
                       <th className="px-3 py-2 text-left font-medium w-32">Resultado Encontrado</th>
-                      <th className="px-3 py-2 text-left font-medium w-20">Unidade</th>
-                      <th className="px-3 py-2 text-left font-medium w-36">Especificação</th>
-                      <th className="px-3 py-2 text-left font-medium w-32">Método</th>
+                      <th className="px-3 py-2 text-left font-medium w-44">Critérios de Aceitação</th>
+                      <th className="px-3 py-2 text-left font-medium w-40">Metodologia</th>
                       <th className="px-3 py-2 text-left font-medium w-36">Situação</th>
                       <th className="px-3 py-2 w-8" />
                     </tr>
@@ -662,6 +682,7 @@ function CoaDetail({ id }: { id: number }) {
                         key={r.id}
                         result={r}
                         even={i % 2 === 0}
+                        methodologies={methodologies}
                         onSave={(data) => scheduleResultSave(r.id, data)}
                         onDelete={() => setDeleteResultId(r.id)}
                       />
@@ -1031,26 +1052,38 @@ function CoaDetail({ id }: { id: number }) {
 // ── ResultRow — inline editable ───────────────────────────────────────────────
 
 function ResultRow({
-  result, even, onSave, onDelete,
+  result, even, methodologies, onSave, onDelete,
 }: {
   result: CoaResult;
   even: boolean;
+  methodologies: Methodology[];
   onSave: (data: Partial<CoaResult>) => void;
   onDelete: () => void;
 }) {
   const [r, setR] = useState(result.result);
-  const [unit, setUnit] = useState(result.unit);
   const [spec, setSpec] = useState(result.spec);
   const [method, setMethod] = useState(result.method);
   const [status, setStatus] = useState(result.status);
 
   useEffect(() => {
-    setR(result.result); setUnit(result.unit);
+    setR(result.result);
     setSpec(result.spec); setMethod(result.method);
     setStatus(result.status);
-  }, [result.id, result.result, result.unit, result.spec, result.method, result.status]);
+  }, [result.id, result.result, result.spec, result.method, result.status]);
 
   const save = (field: Partial<CoaResult>) => onSave(field);
+
+  const handleMethodSelect = (shortName: string) => {
+    const selected = methodologies.find(m => m.shortName === shortName);
+    setMethod(shortName);
+    save({ method: shortName });
+    if (selected?.criteria && !spec) {
+      setSpec(selected.criteria);
+      save({ method: shortName, spec: selected.criteria });
+    } else {
+      save({ method: shortName });
+    }
+  };
 
   return (
     <tr className={`border-b last:border-0 ${even ? "" : "bg-muted/10"}`}>
@@ -1066,27 +1099,26 @@ function ResultRow({
       </td>
       <td className="px-2 py-1">
         <Input
-          value={unit} onChange={e => setUnit(e.target.value)}
-          onBlur={() => save({ unit })}
-          className="h-7 text-xs"
-          placeholder="un."
-        />
-      </td>
-      <td className="px-2 py-1">
-        <Input
           value={spec} onChange={e => setSpec(e.target.value)}
           onBlur={() => save({ spec })}
           className="h-7 text-xs"
           placeholder="Ex: 6,0 – 8,0"
         />
       </td>
-      <td className="px-2 py-1">
-        <Input
-          value={method} onChange={e => setMethod(e.target.value)}
-          onBlur={() => save({ method })}
-          className="h-7 text-xs"
-          placeholder="AOAC, USP…"
-        />
+      <td className="px-2 py-1 min-w-[160px]">
+        <Select value={method} onValueChange={handleMethodSelect}>
+          <SelectTrigger className="h-7 text-xs">
+            <SelectValue placeholder="Selecionar metodologia…" />
+          </SelectTrigger>
+          <SelectContent className="max-h-64 overflow-y-auto">
+            {methodologies.map(m => (
+              <SelectItem key={m.id} value={m.shortName}>
+                <span className="font-medium">{m.shortName}</span>
+                {m.parameter && <span className="text-muted-foreground ml-1 text-[10px]">— {m.parameter}</span>}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </td>
       <td className="px-2 py-1">
         <Select value={status} onValueChange={v => { setStatus(v); save({ status: v }); }}>
