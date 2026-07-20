@@ -1065,24 +1065,37 @@ function ResultRow({
   const [method, setMethod] = useState(result.method);
   const [status, setStatus] = useState(result.status);
 
+  // Sync ONLY when the row identity changes (not on every server refetch).
+  // This prevents background refetches from overwriting what the user is typing.
   useEffect(() => {
     setR(result.result);
-    setSpec(result.spec); setMethod(result.method);
+    setSpec(result.spec);
+    setMethod(result.method);
     setStatus(result.status);
-  }, [result.id, result.result, result.spec, result.method, result.status]);
+  }, [result.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const save = (field: Partial<CoaResult>) => onSave(field);
+  // Accumulate pending field changes so that one field's debounce doesn't cancel another's.
+  const pendingRef = useRef<Partial<CoaResult>>({});
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleSave = (changes: Partial<CoaResult>) => {
+    pendingRef.current = { ...pendingRef.current, ...changes };
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      onSave({ ...pendingRef.current });
+      pendingRef.current = {};
+    }, 500);
+  };
 
   const handleMethodSelect = (shortName: string) => {
     const selected = methodologies.find(m => m.shortName === shortName);
     setMethod(shortName);
-    save({ method: shortName });
+    const changes: Partial<CoaResult> = { method: shortName };
     if (selected?.criteria && !spec) {
       setSpec(selected.criteria);
-      save({ method: shortName, spec: selected.criteria });
-    } else {
-      save({ method: shortName });
+      changes.spec = selected.criteria;
     }
+    scheduleSave(changes);
   };
 
   return (
@@ -1092,7 +1105,7 @@ function ResultRow({
       <td className="px-2 py-1">
         <Input
           value={r} onChange={e => setR(e.target.value)}
-          onBlur={() => save({ result: r })}
+          onBlur={() => scheduleSave({ result: r })}
           className="h-7 text-xs font-semibold"
           placeholder="Valor encontrado"
         />
@@ -1100,7 +1113,7 @@ function ResultRow({
       <td className="px-2 py-1">
         <Input
           value={spec} onChange={e => setSpec(e.target.value)}
-          onBlur={() => save({ spec })}
+          onBlur={() => scheduleSave({ spec })}
           className="h-7 text-xs"
           placeholder="Ex: 6,0 – 8,0"
         />
@@ -1121,7 +1134,7 @@ function ResultRow({
         </Select>
       </td>
       <td className="px-2 py-1">
-        <Select value={status} onValueChange={v => { setStatus(v); save({ status: v }); }}>
+        <Select value={status} onValueChange={v => { setStatus(v); scheduleSave({ status: v }); }}>
           <SelectTrigger className="h-7 text-xs">
             <SelectValue />
           </SelectTrigger>
