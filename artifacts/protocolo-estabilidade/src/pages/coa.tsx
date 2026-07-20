@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/use-auth";
 import {
   Plus, Trash2, Printer, ArrowLeft, ClipboardList,
   ChevronDown, CheckCircle2, XCircle, Clock, Save, Search, X,
-  UserPlus, Mail, Users, Trash
+  UserPlus, Mail, Users, Trash, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -838,26 +838,21 @@ function CoaDetail({ id }: { id: number }) {
               </div>
             )}
 
-            {/* Assinatura — aparece apenas quando todos os itens estão Conformes */}
-            {allConforme && (
-              <div className="border-t px-5 py-5 bg-green-50/60">
+            {/* Assinatura — aparece apenas quando todos os itens estão Conformes e ainda não emitido */}
+            {allConforme && coa.status !== "emitido" && (
+              <div className="border-t px-5 py-5 bg-red-50/50 border-b border-red-100">
                 <div className="flex items-center gap-2 mb-4">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span className="text-sm font-semibold text-green-700">Produto aprovado — Certificado pronto para assinatura</span>
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  <span className="text-sm font-semibold text-red-600">Certificado pronto para assinatura — assine e depois marque como Emitido</span>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-6 items-end">
-                  {/* Data de emissão */}
-                  <div className="space-y-1 flex-1 max-w-[200px]">
-                    <label className="text-xs font-medium text-muted-foreground">Data de Emissão</label>
-                    <Input
-                      type="date"
-                      defaultValue={new Date().toISOString().split("T")[0]}
-                      className="h-8 text-sm"
-                    />
-                  </div>
                   {/* Bloco de assinatura */}
                   <div className="flex-1 flex flex-col items-center min-w-[220px]">
-                    <div className="w-full border-t-2 border-slate-400 pt-2 text-center">
+                    {/* Espaço para assinatura manuscrita */}
+                    <div className="w-full h-16 border border-dashed border-slate-300 rounded mb-2 bg-white flex items-center justify-center">
+                      <span className="text-xs text-slate-400 italic">← espaço para assinatura (no impresso)</span>
+                    </div>
+                    <div className="w-full border-t-2 border-slate-500 pt-2 text-center">
                       <div className="font-semibold text-sm text-slate-700">
                         {header.responsibleTech || coa.responsibleTech || "Responsável Técnico"}
                       </div>
@@ -875,23 +870,41 @@ function CoaDetail({ id }: { id: number }) {
                   {/* Botões Emitir + Imprimir */}
                   <div className="flex flex-col gap-2">
                     <Button
+                      onClick={() => window.print()}
+                      variant="outline"
+                      className="gap-1.5 border-red-300 text-red-700 hover:bg-red-50"
+                    >
+                      <Printer className="h-4 w-4" />
+                      1. Imprimir para Assinar
+                    </Button>
+                    <Button
                       onClick={() => emitMut.mutate()}
-                      disabled={emitMut.isPending || coa.status === "emitido"}
+                      disabled={emitMut.isPending}
                       className="bg-green-600 hover:bg-green-700 text-white gap-1.5"
                     >
                       <CheckCircle2 className="h-4 w-4" />
-                      {coa.status === "emitido" ? "✓ Emitido" : "Marcar como Emitido"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gap-1.5 border-green-300 text-green-700 hover:bg-green-50"
-                      onClick={() => window.print()}
-                    >
-                      <Printer className="h-4 w-4" />
-                      Imprimir / Salvar PDF
+                      2. Marcar como Emitido
                     </Button>
                   </div>
                 </div>
+              </div>
+            )}
+            {/* Após emissão — mostra selo simples sem o aviso */}
+            {coa.status === "emitido" && (
+              <div className="border-t px-5 py-3 bg-green-50/60 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span className="text-sm font-semibold text-green-700">Laudo Emitido</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => window.print()}
+                >
+                  <Printer className="h-4 w-4" />
+                  Imprimir / Salvar PDF
+                </Button>
               </div>
             )}
           </div>
@@ -1201,15 +1214,26 @@ function CoaDetail({ id }: { id: number }) {
         </div>
         )}
 
-        {/* Signature */}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "24px" }}>
-          <div style={{ textAlign: "center", minWidth: "200px" }}>
-            <div style={{ borderTop: "1px solid #475569", paddingTop: "6px" }}>
-              <div style={{ fontWeight: 700 }}>{header.responsibleTech || coa.responsibleTech || "Responsável Técnico"}</div>
+        {/* Signature block */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "28px", gap: "24px" }}>
+          {/* Local e Data */}
+          <div style={{ flex: 1, maxWidth: "260px" }}>
+            <div style={{ height: "40px" }} />
+            <div style={{ borderTop: "1px solid #475569", paddingTop: "5px" }}>
+              <div style={{ fontSize: "8pt", color: "#475569" }}>Local e Data</div>
+            </div>
+          </div>
+          {/* Assinatura do RT */}
+          <div style={{ flex: 1, maxWidth: "260px", textAlign: "center" }}>
+            {/* Espaço em branco para assinatura manuscrita */}
+            <div style={{ height: "52px" }} />
+            <div style={{ borderTop: "2px solid #1e3a5f", paddingTop: "6px" }}>
+              <div style={{ fontWeight: 700, fontSize: "9pt" }}>{header.responsibleTech || coa.responsibleTech || "Responsável Técnico"}</div>
               {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
                 <div style={{ fontSize: "8pt", color: "#475569" }}>CRQ/CRF/CFQ: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
               )}
               <div style={{ fontSize: "8pt", color: "#475569" }}>{header.company || coa.company || ""}</div>
+              <div style={{ fontSize: "7pt", color: "#94a3b8", marginTop: "2px" }}>Assinatura do Responsável Técnico</div>
             </div>
           </div>
         </div>
