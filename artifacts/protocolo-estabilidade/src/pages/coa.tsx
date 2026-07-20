@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/use-auth";
 import {
   Plus, Trash2, Printer, ArrowLeft, ClipboardList,
-  ChevronDown, CheckCircle2, XCircle, Clock, Save
+  ChevronDown, CheckCircle2, XCircle, Clock, Save, Search, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -158,6 +158,7 @@ function CoaList() {
   const [fromProtoOpen, setFromProtoOpen] = useState(false);
   const [selProtoId, setSelProtoId] = useState<number | null>(null);
   const [selLotId, setSelLotId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
 
   const { data: docs = [], isLoading } = useQuery<CoaDocument[]>({
     queryKey: ["coa-list"],
@@ -213,6 +214,14 @@ function CoaList() {
     onError: (e) => toast({ title: "Erro ao excluir", description: String(e), variant: "destructive" }),
   });
 
+  const q = search.trim().toLowerCase();
+  const filteredDocs = q
+    ? docs.filter(d =>
+        (d.productName || "").toLowerCase().includes(q) ||
+        (d.lotNumber || "").toLowerCase().includes(q)
+      )
+    : docs;
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-5xl mx-auto px-6 py-8">
@@ -237,6 +246,27 @@ function CoaList() {
           </div>
         </div>
 
+        {/* Search */}
+        {!isLoading && docs.length > 0 && (
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar por produto ou lote…"
+              className="pl-9 pr-8"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Table */}
         {isLoading ? (
           <div className="text-center text-muted-foreground py-12">Carregando…</div>
@@ -245,6 +275,12 @@ function CoaList() {
             <ClipboardList className="h-10 w-10 mx-auto mb-3 opacity-30" />
             <p className="font-medium">Nenhum laudo criado ainda</p>
             <p className="text-sm mt-1">Clique em "Novo Laudo" para começar</p>
+          </div>
+        ) : filteredDocs.length === 0 ? (
+          <div className="text-center py-12 border border-dashed rounded-xl text-muted-foreground">
+            <Search className="h-8 w-8 mx-auto mb-3 opacity-30" />
+            <p className="font-medium">Nenhum resultado para "{search}"</p>
+            <p className="text-sm mt-1">Tente buscar por outro nome de produto ou número de lote</p>
           </div>
         ) : (
           <div className="border rounded-xl overflow-hidden bg-card shadow-sm">
@@ -260,7 +296,7 @@ function CoaList() {
                 </tr>
               </thead>
               <tbody>
-                {docs.map((doc, i) => (
+                {filteredDocs.map((doc, i) => (
                   <tr
                     key={doc.id}
                     className={`border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
