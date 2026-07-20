@@ -1,10 +1,10 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable, clientProtocolAccessTable, protocolsTable, loginLogTable } from "@workspace/db";
+import { db, usersTable, clientProtocolAccessTable, clientCoaAccessTable, protocolsTable, coaDocumentsTable, loginLogTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
 import { PERM, requirePermission } from "../lib/permissions";
 import bcrypt from "bcryptjs";
-import { sendClientAccessEmail } from "../lib/mailer.js";
+import { sendClientAccessEmail, sendClientCoaAccessEmail } from "../lib/mailer.js";
 
 const router: IRouter = Router();
 
@@ -229,6 +229,149 @@ router.post("/clients/:userId/send-email", ...canManageUsers, async (req, res): 
   });
 
   res.json({ emailSent: emailResult.ok, emailError: emailResult.error ?? null });
+});
+
+// ── CoA Client Access ──────────────────────────────────────────────────────────
+
+// List CoAs assigned to a client user
+router.get("/clients/:userId/coa", ...canManageUsers, async (req, res): Promise<void> => {
+  const userId = parseInt(String(req.params["userId"] ?? ""));
+  if (isNaN(userId)) { res.status(400).json({ error: "ID inválido." }); return; }
+
+  const rows = await db
+    .select({
+      id: clientCoaAccessTable.id,
+      coaId: clientCoaAccessTable.coaId,
+      canPrint: clientCoaAccessTable.canPrint,
+      createdAt: clientCoaAccessTable.createdAt,
+      productName: coaDocumentsTable.productName,
+      lotNumber: coaDocumentsTable.lotNumber,
+      status: coaDocumentsTable.status,
+    })
+    .from(clientCoaAccessTable)
+    .innerJoin(coaDocumentsTable, eq(clientCoaAccessTable.coaId, coaDocumentsTable.id))
+    .where(eq(clientCoaAccessTable.clientUserId, userId))
+    .orderBy(desc(clientCoaAccessTable.createdAt));
+
+  res.json(rows);
+});
+
+// Assign a CoA to a client user (creates user if not exists, sends email)
+router.post("/clients/:userId/coa", ...canManageUsers, async (req, res): Promise<void> => {
+  const userId = parseInt(String(req.params["userId"] ?? ""));
+  if (isNaN(userId)) { res.status(400).json({ error: "ID inválido." }); return; }
+
+  const { coaId, canPrint } = req.body as { coaId?: number; canPrint?: boolean };
+  if (!coaId) { res.status(400).json({ error: "coaId é obrigatório." }); return; }
+
+  const [user] = await db.select({
+    id: usersTable.id, role: usersTable.role, email: usersTable.email,
+    displayName: usersTable.displayName, username: usersTable.username,
+    accessExpiresAt: usersTable.accessExpiresAt,
+  }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!user) { res.status(404).json({ error: "Usuário não encontrado." }); return; }
+  if (user.role !== "cliente") { res.status(400).json({ error: "Apenas clientes podem ter CoAs atribuídos." }); return; }
+
+  const [coa] = await db.select({
+    id: coaDocumentsTable.id, productName: coaDocumentsTable.productName, lotNumber: coaDocumentsTable.lotNumber,
+  }).from(coaDocumentsTable).where(eq(coaDocumentsTable.id, coaId)).limit(1);
+  if (!coa) { res.status(404).json({ error: "CoA não encontrado." }); return; }
+
+  const charset = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const rawPassword = Array.from({ length: 12 }, () => charset[Math.floor(Math.random() * charset.length)]).join("");
+  const passwordHash = await bcrypt.hash(rawPassword, 10);
+  await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, userId));
+
+  try {
+    const [row] = await db.insert(clientCoaAccessTable).values({
+      clientUserId: userId,
+      coaId,
+      canPrint: canPrint ?? true,
+    }).returning();
+
+    let emailResult: { ok: boolean; error?: string } = { ok: false, error: "Cliente sem e-mail cadastrado." };
+    if (user.email) {
+      const domains = process.env.REPLIT_DOMAINS?.split(",") ?? [];
+      const appUrl = domains.length > 0 ? `https://${domains[0].trim()}/client-portal` : "https://seu-dominio.replit.app/client-portal";
+      emailResult = await sendClientCoaAccessEmail({
+        toEmail: user.email,
+        toName: user.displayName,
+        username: user.username,
+        password: rawPassword,
+        productName: coa.productName,
+        lotNumber: coa.lotNumber,
+        accessExpiresAt: user.accessExpiresAt ?? null,
+        appUrl,
+      });
+    }
+
+    res.status(201).json({ ...row, emailSent: emailResult.ok, emailError: emailResult.error ?? null });
+  } catch {
+    res.status(409).json({ error: "Este CoA já está atribuído a este cliente." });
+  }
+});
+
+// Revoke a CoA from a client user
+router.delete("/clients/:userId/coa/:accessId", ...canManageUsers, async (req, res): Promise<void> => {
+  const userId = parseInt(String(req.params["userId"] ?? ""));
+  const accessId = parseInt(String(req.params["accessId"] ?? ""));
+  if (isNaN(userId) || isNaN(accessId)) { res.status(400).json({ error: "IDs inválidos." }); return; }
+
+  const [deleted] = await db
+    .delete(clientCoaAccessTable)
+    .where(and(eq(clientCoaAccessTable.id, accessId), eq(clientCoaAccessTable.clientUserId, userId)))
+    .returning({ id: clientCoaAccessTable.id });
+
+  if (!deleted) { res.status(404).json({ error: "Acesso não encontrado." }); return; }
+  res.json({ ok: true });
+});
+
+// Get client users who have access to a specific CoA (for the CoA detail page)
+router.get("/coa/:coaId/clients", requireAuth, async (req, res): Promise<void> => {
+  const coaId = parseInt(String(req.params["coaId"] ?? ""));
+  if (isNaN(coaId)) { res.status(400).json({ error: "ID inválido." }); return; }
+
+  const rows = await db
+    .select({
+      id: clientCoaAccessTable.id,
+      clientUserId: clientCoaAccessTable.clientUserId,
+      canPrint: clientCoaAccessTable.canPrint,
+      createdAt: clientCoaAccessTable.createdAt,
+      displayName: usersTable.displayName,
+      username: usersTable.username,
+      email: usersTable.email,
+    })
+    .from(clientCoaAccessTable)
+    .innerJoin(usersTable, eq(clientCoaAccessTable.clientUserId, usersTable.id))
+    .where(eq(clientCoaAccessTable.coaId, coaId))
+    .orderBy(desc(clientCoaAccessTable.createdAt));
+
+  res.json(rows);
+});
+
+// My CoAs — for "cliente" role
+router.get("/my/coa", requireAuth, async (req, res): Promise<void> => {
+  const user = req.authUser!;
+  if (user.role !== "cliente") { res.status(403).json({ error: "Apenas clientes podem acessar esta rota." }); return; }
+
+  const rows = await db
+    .select({
+      id: clientCoaAccessTable.id,
+      coaId: clientCoaAccessTable.coaId,
+      canPrint: clientCoaAccessTable.canPrint,
+      createdAt: clientCoaAccessTable.createdAt,
+      productName: coaDocumentsTable.productName,
+      lotNumber: coaDocumentsTable.lotNumber,
+      manufacturingDate: coaDocumentsTable.manufacturingDate,
+      expiryDate: coaDocumentsTable.expiryDate,
+      status: coaDocumentsTable.status,
+    })
+    .from(clientCoaAccessTable)
+    .innerJoin(coaDocumentsTable, eq(clientCoaAccessTable.coaId, coaDocumentsTable.id))
+    .where(eq(clientCoaAccessTable.clientUserId, user.id))
+    .orderBy(desc(clientCoaAccessTable.createdAt));
+
+  res.json(rows);
 });
 
 // My protocols — for "cliente" role to fetch their own assigned protocols

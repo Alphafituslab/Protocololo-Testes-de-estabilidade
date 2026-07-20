@@ -1,9 +1,11 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { coaDocumentsTable, coaResultsTable, protocolsTable, lotsTable, analysisResultsTable } from "@workspace/db";
+import { coaDocumentsTable, coaResultsTable, protocolsTable, lotsTable, analysisResultsTable, clientCoaAccessTable, usersTable } from "@workspace/db";
 import { requireAuth } from "../lib/session";
 import { eq, desc, asc, and, isNull } from "drizzle-orm";
 import { z } from "zod/v4";
+import bcrypt from "bcryptjs";
+import { sendClientCoaAccessEmail } from "../lib/mailer.js";
 
 const router = Router();
 
@@ -250,6 +252,117 @@ router.delete("/coa/:id/results/:resultId", requireAuth, async (req, res) => {
   } catch (e) {
     req.log.error(e);
     res.status(500).json({ error: "Erro ao deletar resultado" });
+  }
+});
+
+// ── Client CoA sharing ────────────────────────────────────────────────────────
+
+// List clients who have access to this CoA
+router.get("/coa/:id/clients", requireAuth, async (req, res) => {
+  try {
+    const coaId = Number(req.params.id);
+    if (!coaId) return void res.status(400).json({ error: "ID inválido" });
+    const rows = await db
+      .select({
+        id: clientCoaAccessTable.id,
+        clientUserId: clientCoaAccessTable.clientUserId,
+        canPrint: clientCoaAccessTable.canPrint,
+        createdAt: clientCoaAccessTable.createdAt,
+        displayName: usersTable.displayName,
+        username: usersTable.username,
+        email: usersTable.email,
+      })
+      .from(clientCoaAccessTable)
+      .innerJoin(usersTable, eq(clientCoaAccessTable.clientUserId, usersTable.id))
+      .where(eq(clientCoaAccessTable.coaId, coaId))
+      .orderBy(desc(clientCoaAccessTable.createdAt));
+    res.json(rows);
+  } catch (e) {
+    req.log.error(e);
+    res.status(500).json({ error: "Erro ao listar clientes" });
+  }
+});
+
+// Create/reuse client user and grant CoA access in one step
+router.post("/coa/:id/share-client", requireAuth, async (req, res) => {
+  try {
+    const coaId = Number(req.params.id);
+    if (!coaId) return void res.status(400).json({ error: "ID inválido" });
+    const { displayName, email, accessExpiresAt } = req.body as {
+      displayName?: string; email?: string; accessExpiresAt?: string;
+    };
+    if (!email) return void res.status(400).json({ error: "E-mail é obrigatório" });
+
+    const [coa] = await db.select({
+      productName: coaDocumentsTable.productName,
+      lotNumber: coaDocumentsTable.lotNumber,
+    }).from(coaDocumentsTable).where(eq(coaDocumentsTable.id, coaId)).limit(1);
+    if (!coa) return void res.status(404).json({ error: "CoA não encontrado" });
+
+    const charset = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    const rawPassword = Array.from({ length: 12 }, () => charset[Math.floor(Math.random() * charset.length)]).join("");
+    const passwordHash = await bcrypt.hash(rawPassword, 10);
+    const expiresAt = accessExpiresAt ? new Date(accessExpiresAt) : null;
+
+    // Find existing cliente user with this email, or create one
+    const [existing] = await db.select().from(usersTable)
+      .where(and(eq(usersTable.email, email), eq(usersTable.role, "cliente"))).limit(1);
+
+    let clientUserId: number;
+    let resolvedName: string;
+    if (existing) {
+      clientUserId = existing.id;
+      resolvedName = displayName || existing.displayName;
+      await db.update(usersTable)
+        .set({ passwordHash, displayName: resolvedName, ...(expiresAt ? { accessExpiresAt: expiresAt } : {}) })
+        .where(eq(usersTable.id, clientUserId));
+    } else {
+      const username = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16)
+        + Math.floor(Math.random() * 900 + 100);
+      resolvedName = displayName || email.split("@")[0];
+      const [newUser] = await db.insert(usersTable).values({
+        username, displayName: resolvedName, email, role: "cliente",
+        passwordHash, active: true,
+        ...(expiresAt ? { accessExpiresAt: expiresAt } : {}),
+      }).returning();
+      clientUserId = newUser.id;
+    }
+
+    // Grant CoA access
+    const [access] = await db.insert(clientCoaAccessTable)
+      .values({ clientUserId, coaId, canPrint: true })
+      .onConflictDoNothing()
+      .returning();
+
+    // Send email
+    let emailResult: { ok: boolean; error?: string } = { ok: true };
+    const domains = process.env.REPLIT_DOMAINS?.split(",") ?? [];
+    const appUrl = domains.length > 0 ? `https://${domains[0].trim()}/client-portal` : "https://seu-dominio.replit.app/client-portal";
+    emailResult = await sendClientCoaAccessEmail({
+      toEmail: email, toName: resolvedName,
+      username: existing?.username ?? (email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16)),
+      password: rawPassword,
+      productName: coa.productName, lotNumber: coa.lotNumber,
+      accessExpiresAt: expiresAt, appUrl,
+    });
+
+    res.status(201).json({ access, emailSent: emailResult.ok, emailError: emailResult.error ?? null });
+  } catch (e) {
+    req.log.error(e);
+    res.status(500).json({ error: "Erro ao compartilhar CoA com cliente" });
+  }
+});
+
+// Revoke client CoA access
+router.delete("/coa/:id/clients/:accessId", requireAuth, async (req, res) => {
+  try {
+    const accessId = Number(req.params.accessId);
+    if (!accessId) return void res.status(400).json({ error: "ID inválido" });
+    await db.delete(clientCoaAccessTable).where(eq(clientCoaAccessTable.id, accessId));
+    res.json({ ok: true });
+  } catch (e) {
+    req.log.error(e);
+    res.status(500).json({ error: "Erro ao revogar acesso" });
   }
 });
 

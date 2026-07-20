@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/use-auth";
 import {
   Plus, Trash2, Printer, ArrowLeft, ClipboardList,
-  ChevronDown, CheckCircle2, XCircle, Clock, Save, Search, X
+  ChevronDown, CheckCircle2, XCircle, Clock, Save, Search, X,
+  UserPlus, Mail, Users, Trash
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,6 +92,13 @@ const STANDARD_PARAMS: { category: string; params: string[] }[] = [
     category: "Embalagem",
     params: ["Torque de tampa", "Selagem por indução", "Integridade selagem", "Headspace"],
   },
+];
+
+// ── Templates predefinidos para Resumo / Observações ─────────────────────────
+const NOTES_TEMPLATES = [
+  "Produto aprovado conforme todas as especificações técnicas estabelecidas. Todas as análises físico-químicas, microbiológicas e de teor de ativos apresentaram resultados dentro dos limites preconizados.",
+  "Produto aprovado com ressalva. Todos os parâmetros críticos estão em conformidade. Observou-se variação aceitável em parâmetros não críticos, sem impacto na qualidade, segurança ou eficácia do produto.",
+  "Produto reprovado. Foram identificados desvios nos parâmetros analisados que não atendem às especificações técnicas estabelecidas. O lote não está liberado para comercialização.",
 ];
 
 // ── Dados fixos da empresa ────────────────────────────────────────────────────
@@ -426,6 +434,12 @@ function CoaDetail({ id }: { id: number }) {
     resumo: true,
   });
 
+  // ── Client sharing state ──
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareForm, setShareForm] = useState({ displayName: "", email: "", accessExpiresAt: "" });
+  const [shareLoading, setShareLoading] = useState(false);
+  const [revokeId, setRevokeId] = useState<number | null>(null);
+
   const { data: coa, isLoading, isError } = useQuery<CoaWithResults>({
     queryKey: ["coa", id],
     queryFn: () => apiFetch(`/api/coa/${id}`, token),
@@ -443,6 +457,17 @@ function CoaDetail({ id }: { id: number }) {
   const { data: methodologies = [] } = useQuery<Methodology[]>({
     queryKey: ["methodologies-coa"],
     queryFn: () => apiFetch("/api/methodologies", token),
+  });
+
+  // Fetch clients with CoA access
+  type CoaClientAccess = {
+    id: number; clientUserId: number; canPrint: boolean; createdAt: string;
+    displayName: string; username: string; email: string | null;
+  };
+  const { data: coaClients = [], refetch: refetchClients } = useQuery<CoaClientAccess[]>({
+    queryKey: ["coa-clients", id],
+    queryFn: () => apiFetch(`/api/coa/${id}/clients`, token),
+    enabled: !!id,
   });
 
   // ── Local header state ──
@@ -847,15 +872,23 @@ function CoaDetail({ id }: { id: number }) {
                     </div>
                     <span className="text-[10px] text-muted-foreground mt-1">Assinatura do Responsável Técnico</span>
                   </div>
-                  {/* Botão Emitir */}
-                  <div>
+                  {/* Botões Emitir + Imprimir */}
+                  <div className="flex flex-col gap-2">
                     <Button
                       onClick={() => emitMut.mutate()}
                       disabled={emitMut.isPending || coa.status === "emitido"}
                       className="bg-green-600 hover:bg-green-700 text-white gap-1.5"
                     >
                       <CheckCircle2 className="h-4 w-4" />
-                      {coa.status === "emitido" ? "Emitido" : "Marcar como Emitido"}
+                      {coa.status === "emitido" ? "✓ Emitido" : "Marcar como Emitido"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gap-1.5 border-green-300 text-green-700 hover:bg-green-50"
+                      onClick={() => window.print()}
+                    >
+                      <Printer className="h-4 w-4" />
+                      Imprimir / Salvar PDF
                     </Button>
                   </div>
                 </div>
@@ -864,17 +897,34 @@ function CoaDetail({ id }: { id: number }) {
           </div>
 
           {/* ── Resumo / Observações ── */}
-          <div className="border rounded-xl bg-card shadow-sm p-5 space-y-2">
+          <div className="border rounded-xl bg-card shadow-sm p-5 space-y-3">
             <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
               Resumo / Observações do Comparativo
             </h2>
+            <div className="flex flex-wrap gap-2">
+              {NOTES_TEMPLATES.map((tpl, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  title={tpl}
+                  onClick={() => setField("notes", tpl)}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-medium transition-colors cursor-pointer ${
+                    header.notes === tpl
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-muted/40 border-muted-foreground/20 text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {i === 0 ? "✅ Aprovado" : i === 1 ? "⚠️ Aprovado c/ ressalva" : "❌ Reprovado"}
+                </button>
+              ))}
+            </div>
             <textarea
               className="w-full min-h-[100px] text-sm rounded-md border border-input bg-background px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-ring"
               placeholder="Descreva brevemente o resultado geral das análises, desvios encontrados, conclusões do comparativo com o protocolo, condições especiais ou informações relevantes que devem constar no laudo…"
               value={header.notes}
               onChange={e => setField("notes", e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">Este texto aparece no PDF quando a seção "Resumo" estiver ativada nas configurações abaixo.</p>
+            <p className="text-xs text-muted-foreground">Este texto aparece no PDF quando a seção "Resumo" estiver ativada nas configurações abaixo. Clique em um dos chips para preencher automaticamente.</p>
           </div>
 
           {/* ── Configurar PDF ── */}
@@ -900,6 +950,55 @@ function CoaDetail({ id }: { id: number }) {
                 </label>
               ))}
             </div>
+          </div>
+
+          {/* ── Liberar para Cliente ── */}
+          <div className="border rounded-xl bg-card shadow-sm p-5 space-y-4 print:hidden">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                  <Users className="h-4 w-4" /> Acesso do Cliente (Portal)
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Conceda acesso a este CoA para um cliente visualizar no Portal do Cliente.
+                </p>
+              </div>
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShareOpen(true)}>
+                <UserPlus className="h-4 w-4" /> Adicionar Cliente
+              </Button>
+            </div>
+
+            {coaClients.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Nenhum cliente com acesso a este CoA ainda.</p>
+            ) : (
+              <div className="divide-y border rounded-lg overflow-hidden">
+                {coaClients.map(c => (
+                  <div key={c.id} className="flex items-center justify-between px-3 py-2.5 bg-background hover:bg-muted/30 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{c.displayName}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Mail className="h-3 w-3 shrink-0" />
+                        {c.email ?? c.username}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-muted-foreground hidden sm:block">
+                        {new Date(c.createdAt).toLocaleDateString("pt-BR")}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-red-50"
+                        onClick={() => setRevokeId(c.id)}
+                        title="Revogar acesso"
+                      >
+                        <Trash className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1198,6 +1297,117 @@ function CoaDetail({ id }: { id: number }) {
               onClick={() => deleteResultId && deleteResultMut.mutate(deleteResultId)}
             >
               Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Share CoA with client dialog */}
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" /> Conceder Acesso ao Cliente
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Informe os dados do cliente. O sistema criará (ou reutilizará) o usuário e enviará as credenciais por e-mail automaticamente.
+            </p>
+            <div className="space-y-1">
+              <Label htmlFor="share-name">Nome do cliente</Label>
+              <Input
+                id="share-name"
+                placeholder="Ex: João Silva"
+                value={shareForm.displayName}
+                onChange={e => setShareForm(f => ({ ...f, displayName: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="share-email">E-mail <span className="text-destructive">*</span></Label>
+              <Input
+                id="share-email"
+                type="email"
+                placeholder="cliente@empresa.com"
+                value={shareForm.email}
+                onChange={e => setShareForm(f => ({ ...f, email: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="share-expiry">Acesso válido até (opcional)</Label>
+              <Input
+                id="share-expiry"
+                type="date"
+                value={shareForm.accessExpiresAt}
+                onChange={e => setShareForm(f => ({ ...f, accessExpiresAt: e.target.value }))}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShareOpen(false)} disabled={shareLoading}>Cancelar</Button>
+              <Button
+                disabled={!shareForm.email || shareLoading}
+                onClick={async () => {
+                  if (!shareForm.email) return;
+                  setShareLoading(true);
+                  try {
+                    const res = await fetch(`/api/coa/${id}/share-client`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                      body: JSON.stringify(shareForm),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                      toast({ title: "Erro", description: data.error ?? "Falha ao compartilhar", variant: "destructive" });
+                    } else {
+                      toast({
+                        title: "Acesso concedido",
+                        description: data.emailSent
+                          ? "E-mail com credenciais enviado ao cliente."
+                          : "Acesso criado. (E-mail não configurado no servidor — envie as credenciais manualmente.)",
+                      });
+                      setShareOpen(false);
+                      setShareForm({ displayName: "", email: "", accessExpiresAt: "" });
+                      void refetchClients();
+                    }
+                  } finally {
+                    setShareLoading(false);
+                  }
+                }}
+              >
+                {shareLoading ? <><Save className="h-4 w-4 animate-spin mr-1.5" /> Salvando…</> : <><Mail className="h-4 w-4 mr-1.5" /> Conceder Acesso</>}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revoke CoA access confirmation */}
+      <AlertDialog open={revokeId !== null} onOpenChange={() => setRevokeId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revogar acesso?</AlertDialogTitle>
+            <AlertDialogDescription>O cliente perderá o acesso a este CoA no portal. Esta ação não pode ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!revokeId) return;
+                const res = await fetch(`/api/coa/${id}/clients/${revokeId}`, {
+                  method: "DELETE",
+                  headers: token ? { Authorization: `Bearer ${token}` } : {},
+                });
+                if (res.ok) {
+                  toast({ title: "Acesso revogado" });
+                  void refetchClients();
+                } else {
+                  toast({ title: "Erro ao revogar", variant: "destructive" });
+                }
+                setRevokeId(null);
+              }}
+            >
+              Revogar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
