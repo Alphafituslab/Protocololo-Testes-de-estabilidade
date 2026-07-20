@@ -1427,8 +1427,8 @@ function CoaDetail({ id }: { id: number }) {
               <tr>
                 <th style={{ width: "12%" }}>Categoria</th>
                 <th style={{ width: "16%" }}>Parâmetro</th>
-                <th style={{ width: "12%" }}>Resultado Encontrado</th>
                 <th style={{ width: "16%" }}>Especificação</th>
+                <th style={{ width: "12%" }}>Resultado Encontrado</th>
                 <th style={{ width: "32%" }}>Método Analítico</th>
                 <th style={{ width: "12%" }}>Situação</th>
               </tr>
@@ -1440,8 +1440,8 @@ function CoaDetail({ id }: { id: number }) {
                 <tr key={r.id} style={i % 2 === 1 ? { background: "#f8fafc" } : {}}>
                   <td>{r.category}</td>
                   <td style={{ fontWeight: 600 }}>{r.parameter}</td>
-                  <td style={{ fontWeight: 700 }}>{r.result || "—"}</td>
                   <td>{r.spec || "—"}</td>
+                  <td style={{ fontWeight: 700 }}>{r.result || "—"}</td>
                   <td style={{ fontSize: "7.5pt", lineHeight: "1.4" }}>
                     {methodologies.find(m => m.shortName === r.method)?.citation || r.method || "—"}
                   </td>
