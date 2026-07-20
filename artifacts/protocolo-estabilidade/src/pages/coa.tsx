@@ -605,8 +605,11 @@ function CoaDetail({ id }: { id: number }) {
 
   const handlePrint = useCallback(() => {
     const num = coa ? String(coa.id).padStart(4, "0") : "0000";
+    const emissao = coa?.signedAt
+      ? new Date(coa.signedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
+      : todayBR();
     const prev = document.title;
-    document.title = `CERTIFICADO DE ANÁLISE Nº ${num} · Emissão: ${todayBR()}`;
+    document.title = `CERTIFICADO DE ANÁLISE Nº ${num} · Emissão: ${emissao}`;
     window.print();
     setTimeout(() => { document.title = prev; }, 2000);
   }, [coa]);
@@ -1399,7 +1402,7 @@ function CoaDetail({ id }: { id: number }) {
                   CERTIFICADO DE ANÁLISE
                 </div>
                 <div style={{ fontSize: "9pt", color: "#475569", marginTop: "2px" }}>
-                  Nº {String(coa.id).padStart(4, "0")} &nbsp;·&nbsp; Emissão: {todayBR()}
+                  Nº {String(coa.id).padStart(4, "0")} &nbsp;·&nbsp; Emissão: {coa.signedAt ? new Date(coa.signedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : todayBR()}
                 </div>
               </div>
             </div>
