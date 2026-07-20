@@ -301,11 +301,11 @@ function CoaList() {
 
       {/* Gerar de Protocolo Dialog */}
       <Dialog open={fromProtoOpen} onOpenChange={setFromProtoOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <DialogTitle>Gerar CoA a partir de Protocolo</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
+          <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
             <div className="space-y-1.5">
               <Label className="text-xs">Protocolo</Label>
               <Select
@@ -315,7 +315,7 @@ function CoaList() {
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o protocolo…" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-60 overflow-y-auto">
                   {allProtocols.map(p => (
                     <SelectItem key={p.id} value={String(p.id)}>{p.productName || `Protocolo #${p.id}`}</SelectItem>
                   ))}
@@ -332,7 +332,7 @@ function CoaList() {
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o lote…" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-60 overflow-y-auto">
                     {protoLots.map(l => (
                       <SelectItem key={l.id} value={String(l.id)}>{l.lotNumber} — {fmtDate(l.manufacturingDate)}</SelectItem>
                     ))}
@@ -343,15 +343,15 @@ function CoaList() {
             <p className="text-xs text-muted-foreground">
               O CoA será vinculado ao protocolo e lote selecionados. Você poderá visualizar o comparativo de resultados e definir se o lote está liberado.
             </p>
-            <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" onClick={() => setFromProtoOpen(false)}>Cancelar</Button>
-              <Button
-                disabled={!selProtoId || !selLotId || createFromProtoMut.isPending}
-                onClick={() => createFromProtoMut.mutate()}
-              >
-                {createFromProtoMut.isPending ? "Criando…" : "Criar CoA"}
-              </Button>
-            </div>
+          </div>
+          <div className="flex justify-end gap-2 px-6 py-4 border-t shrink-0">
+            <Button variant="outline" onClick={() => setFromProtoOpen(false)}>Cancelar</Button>
+            <Button
+              disabled={!selProtoId || !selLotId || createFromProtoMut.isPending}
+              onClick={() => createFromProtoMut.mutate()}
+            >
+              {createFromProtoMut.isPending ? "Criando…" : "Criar CoA"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
