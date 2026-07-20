@@ -1202,6 +1202,22 @@ function CoaDetail({ id }: { id: number }) {
         </div>
         )}
 
+        {/* Legenda */}
+        <div style={{ borderTop: "1px solid #e2e8f0", marginTop: "10px", paddingTop: "8px", marginBottom: "10px" }}>
+          <p style={{ fontSize: "7.5pt", color: "#1e293b", fontWeight: 700, marginBottom: "4px", lineHeight: "1.5" }}>
+            Este documento deve ser reproduzido integralmente. A reprodução parcial somente é permitida mediante autorização formal e escrita do laboratório.
+          </p>
+          <p style={{ fontSize: "7.5pt", color: "#475569", marginBottom: "4px", lineHeight: "1.5" }}>
+            Os resultados apresentados referem-se exclusivamente às amostras recebidas e foram obtidos e reportados de acordo com as condições analíticas estabelecidas e metodologias aplicáveis.
+          </p>
+          <p style={{ fontSize: "7.5pt", color: "#475569", lineHeight: "1.5" }}>
+            <strong>NA</strong> = Não se aplica &nbsp;&nbsp;
+            <strong>ND</strong> = Não detectado &nbsp;&nbsp;
+            <strong>LQ</strong> = Limite de quantificação &nbsp;&nbsp;
+            <strong>AR</strong> = Aprovado com Ressalva
+          </p>
+        </div>
+
         {/* Notes / Summary */}
         {printSections.resumo && (header.notes || coa.notes) && (
         <div style={{ border: "1px solid #e2e8f0", borderRadius: "4px", padding: "8px 10px", marginBottom: "12px", background: "#fafafa" }}>
