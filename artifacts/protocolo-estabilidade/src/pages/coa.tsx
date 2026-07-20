@@ -1115,6 +1115,7 @@ function ResultRow({
   const [spec, setSpec] = useState(result.spec);
   const [method, setMethod] = useState(result.method);
   const [status, setStatus] = useState(result.status);
+  const [param, setParam] = useState(result.parameter);
 
   // Sync ONLY when the row identity changes (not on every server refetch).
   // This prevents background refetches from overwriting what the user is typing.
@@ -1123,6 +1124,7 @@ function ResultRow({
     setSpec(result.spec);
     setMethod(result.method);
     setStatus(result.status);
+    setParam(result.parameter);
   }, [result.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Accumulate pending field changes so that one field's debounce doesn't cancel another's.
@@ -1152,8 +1154,18 @@ function ResultRow({
 
   return (
     <tr className={`border-b last:border-0 ${even ? "" : "bg-muted/10"}`}>
-      <td className="px-3 py-1.5 text-xs text-muted-foreground">{result.category}</td>
-      <td className="px-3 py-1.5 font-medium text-sm">{result.parameter}</td>
+      <td className="px-3 py-1.5 text-xs text-muted-foreground">{result.category || <span className="italic text-muted-foreground/40">—</span>}</td>
+      <td className="px-2 py-1">
+        <input
+          value={param}
+          onChange={e => setParam(e.target.value)}
+          onBlur={() => param !== result.parameter && scheduleSave({ parameter: param })}
+          className={`w-full bg-transparent font-medium text-sm border-b transition-colors focus:outline-none ${
+            param ? "border-transparent focus:border-primary" : "border-dashed border-destructive/50 focus:border-destructive placeholder:text-destructive/50"
+          }`}
+          placeholder="Nome do parâmetro"
+        />
+      </td>
       <td className="px-2 py-1">
         <Input
           value={r} onChange={e => setR(e.target.value)}
