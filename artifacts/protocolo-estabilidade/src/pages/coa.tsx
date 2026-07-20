@@ -2021,16 +2021,22 @@ function ResultRow({
           placeholder="Ex: 6,0 – 8,0"
         />
       </td>
-      <td className="px-2 py-1 min-w-[160px]">
+      <td className="px-2 py-1 min-w-[200px] max-w-[320px]">
         <Select value={method} onValueChange={handleMethodSelect}>
-          <SelectTrigger className="h-7 text-xs">
-            <SelectValue placeholder="Selecionar metodologia…" />
+          <SelectTrigger className="h-auto min-h-7 text-xs py-1 px-2 items-start">
+            <span className="text-left block leading-snug line-clamp-3 whitespace-normal break-words">
+              {method
+                ? (methodologies.find(m => m.shortName === method)?.citation || method)
+                : <span className="text-muted-foreground/70 italic">Selecionar metodologia…</span>}
+            </span>
           </SelectTrigger>
-          <SelectContent className="max-h-64 overflow-y-auto">
+          <SelectContent className="max-h-72 overflow-y-auto">
             {methodologies.map(m => (
               <SelectItem key={m.id} value={m.shortName}>
-                <span className="font-medium">{m.shortName}</span>
-                {m.parameter && <span className="text-muted-foreground ml-1 text-[10px]">— {m.parameter}</span>}
+                <div className="flex flex-col gap-0.5 py-0.5">
+                  <span className="font-medium text-xs">{m.shortName}</span>
+                  {m.citation && <span className="text-muted-foreground text-[10px] leading-snug line-clamp-2 max-w-xs">{m.citation}</span>}
+                </div>
               </SelectItem>
             ))}
           </SelectContent>
