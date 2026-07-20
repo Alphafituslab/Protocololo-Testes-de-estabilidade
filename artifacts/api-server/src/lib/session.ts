@@ -9,6 +9,7 @@ export type AuthUser = {
   role: string;
   hplcAccess: boolean;
   permissions: string[];
+  registrationNumber: string | null;
 };
 
 declare global {
@@ -33,6 +34,7 @@ export const sessionMiddleware: RequestHandler = async (req, _res, next): Promis
           role: usersTable.role,
           hplcAccess: usersTable.hplcAccess,
           permissions: usersTable.permissions,
+          registrationNumber: usersTable.registrationNumber,
         })
         .from(sessionsTable)
         .innerJoin(usersTable, eq(sessionsTable.userId, usersTable.id))

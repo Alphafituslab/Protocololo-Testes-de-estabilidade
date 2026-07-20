@@ -10,6 +10,7 @@ export type AuthUser = {
   hplcAccess?: boolean;
   permissions: string[];
   accessExpiresAt?: string | null;
+  registrationNumber?: string | null;
 };
 
 export type AuthContextValue = {

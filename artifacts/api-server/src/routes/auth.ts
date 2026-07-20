@@ -95,6 +95,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
       hplcAccess: user.hplcAccess,
       permissions: user.permissions ?? [],
       accessExpiresAt: user.accessExpiresAt ?? null,
+      registrationNumber: user.registrationNumber ?? null,
     },
   });
 });

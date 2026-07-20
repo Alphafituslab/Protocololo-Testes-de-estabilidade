@@ -22,6 +22,7 @@ export const coaDocumentsTable = pgTable("coa_documents", {
   signedAt: timestamp("signed_at", { withTimezone: true }),
   signedBy: text("signed_by"),
   signedRole: text("signed_role"),
+  signedRegistration: text("signed_registration"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

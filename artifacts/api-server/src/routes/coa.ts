@@ -397,16 +397,17 @@ router.post("/coa/:id/sign", requireAuth, async (req, res) => {
     const id = Number(req.params.id);
     if (!id) return void res.status(400).json({ error: "ID inválido" });
     const user = req.authUser!;
-    const { signedBy, signedRole, signedAt: signedAtRaw } = req.body as {
-      signedBy?: string; signedRole?: string; signedAt?: string;
+    const { signedBy, signedRole, signedAt: signedAtRaw, signedRegistration } = req.body as {
+      signedBy?: string; signedRole?: string; signedAt?: string; signedRegistration?: string;
     };
     const signerName = signedBy?.trim() || user.displayName || user.username;
     const signerRole = signedRole?.trim() || null;
+    const signerReg = signedRegistration?.trim() || user.registrationNumber || null;
     // Use chosen date/time if provided (ISO string), otherwise use now
     const signedAt = signedAtRaw ? new Date(signedAtRaw) : new Date();
     const now = new Date();
     const [updated] = await db.update(coaDocumentsTable)
-      .set({ signedAt, signedBy: signerName, signedRole: signerRole, status: "emitido", updatedAt: now })
+      .set({ signedAt, signedBy: signerName, signedRole: signerRole, signedRegistration: signerReg, status: "emitido", updatedAt: now })
       .where(eq(coaDocumentsTable.id, id))
       .returning();
     if (!updated) return void res.status(404).json({ error: "CoA não encontrado" });

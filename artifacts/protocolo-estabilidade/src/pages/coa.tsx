@@ -44,6 +44,7 @@ interface CoaDocument {
   signedAt: string | null;
   signedBy: string | null;
   signedRole: string | null;
+  signedRegistration: string | null;
   createdAt: string;
   updatedAt: string;
   linkedProtocolId: number | null;
@@ -668,7 +669,7 @@ function CoaDetail({ id }: { id: number }) {
       return apiFetch(`/api/coa/${id}/sign`, token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ signedBy: signerName, signedRole: signerRole, signedAt: new Date(chosenDate).toISOString() }),
+        body: JSON.stringify({ signedBy: signerName, signedRole: signerRole, signedAt: new Date(chosenDate).toISOString(), signedRegistration: user?.registrationNumber ?? null }),
       });
     },
     onSuccess: () => {
@@ -1053,8 +1054,8 @@ function CoaDetail({ id }: { id: number }) {
                       </div>
                       <div style={{ borderTop: "2px solid #1e3a5f", paddingTop: "6px" }}>
                         <div className="font-bold text-sm text-slate-800">{header.responsibleTech || coa.responsibleTech || "Responsável Técnico"}</div>
-                        {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
-                          <div className="text-xs text-slate-500">{getCrLabel(header.responsibleTech || coa.responsibleTech || "")}: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
+                        {coa.signedRegistration && (
+                          <div className="text-xs text-slate-500">{getCrLabel(coa.signedBy || "")}: {coa.signedRegistration}</div>
                         )}
                         <div className="text-xs text-slate-400">Assinatura do Responsável Técnico</div>
                       </div>
@@ -1095,8 +1096,8 @@ function CoaDetail({ id }: { id: number }) {
                       <div style={{ borderTop: "2px solid #1e3a5f", paddingTop: "8px" }}>
                         <div className="font-bold text-sm text-slate-800">{coa.signedBy}</div>
                         {coa.signedRole && <div className="text-xs text-slate-500">{coa.signedRole}</div>}
-                        {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
-                          <div className="text-xs text-slate-500">{getCrLabel(header.responsibleTech || coa.responsibleTech || "")}: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
+                        {coa.signedRegistration && (
+                          <div className="text-xs text-slate-500">{getCrLabel(coa.signedBy || "")}: {coa.signedRegistration}</div>
                         )}
                         <div className="text-xs text-emerald-600">{header.company || coa.company || ""}</div>
                         <div className="text-xs text-emerald-600 font-medium mt-1">
@@ -1551,8 +1552,8 @@ function CoaDetail({ id }: { id: number }) {
                 <div style={{ borderTop: "1.5px solid #1e3a5f", paddingTop: "6px" }}>
                   <div style={{ fontWeight: 700, fontSize: "7.5pt", color: "#1e293b" }}>{coa.signedBy}</div>
                   {coa.signedRole && <div style={{ fontSize: "7pt", color: "#475569", marginTop: "1px" }}>{coa.signedRole}</div>}
-                  {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
-                    <div style={{ fontSize: "7pt", color: "#475569", marginTop: "1px" }}>{getCrLabel(header.responsibleTech || coa.responsibleTech || "")}: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
+                  {coa.signedRegistration && (
+                    <div style={{ fontSize: "7pt", color: "#475569", marginTop: "1px" }}>{getCrLabel(coa.signedBy || "")}: {coa.signedRegistration}</div>
                   )}
                   <div style={{ fontSize: "7pt", color: "#16a34a", marginTop: "1px" }}>{header.company || coa.company || ""}</div>
                   <div style={{ fontSize: "6.5pt", color: "#16a34a", fontWeight: 600, marginTop: "4px" }}>

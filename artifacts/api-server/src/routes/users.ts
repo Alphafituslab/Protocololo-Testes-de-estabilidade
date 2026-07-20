@@ -15,6 +15,7 @@ const PUBLIC_FIELDS = {
   role: usersTable.role, active: usersTable.active, hplcAccess: usersTable.hplcAccess,
   permissions: usersTable.permissions, createdAt: usersTable.createdAt,
   accessExpiresAt: usersTable.accessExpiresAt, email: usersTable.email,
+  registrationNumber: usersTable.registrationNumber,
 };
 
 function sanitizeRole(role: string | undefined): string {
@@ -66,9 +67,9 @@ router.delete("/users/:userId", requireAuth, requireAdmin, async (req, res): Pro
 router.put("/users/:userId", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const userId = parseInt(String(req.params["userId"] ?? ""));
   if (isNaN(userId)) { res.status(400).json({ error: "ID inválido." }); return; }
-  const { username, displayName, password, role, active, hplcAccess, permissions, accessExpiresAt, email } = req.body as {
+  const { username, displayName, password, role, active, hplcAccess, permissions, accessExpiresAt, email, registrationNumber } = req.body as {
     username?: string; displayName?: string; password?: string; role?: string; active?: boolean;
-    hplcAccess?: boolean; permissions?: string[]; accessExpiresAt?: string | null; email?: string;
+    hplcAccess?: boolean; permissions?: string[]; accessExpiresAt?: string | null; email?: string; registrationNumber?: string | null;
   };
   const updates: Partial<typeof usersTable.$inferInsert> = {};
   if (username) updates.username = username.trim().toLowerCase();
@@ -79,6 +80,7 @@ router.put("/users/:userId", requireAuth, requireAdmin, async (req, res): Promis
     updates.accessExpiresAt = accessExpiresAt ? new Date(accessExpiresAt) : null;
   }
   if ("email" in req.body) updates.email = email ? email.trim().toLowerCase() : null;
+  if ("registrationNumber" in req.body) updates.registrationNumber = registrationNumber?.trim() || null;
   if (typeof active === "boolean") {
     if (!active && req.authUser?.id === userId) { res.status(400).json({ error: "Não é possível desativar o próprio usuário." }); return; }
     updates.active = active;

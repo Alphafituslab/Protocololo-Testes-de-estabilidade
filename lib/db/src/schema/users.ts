@@ -13,6 +13,7 @@ export const usersTable = pgTable("users", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   accessExpiresAt: timestamp("access_expires_at", { withTimezone: true }),
   email: text("email"),
+  registrationNumber: text("registration_number"),
 });
 
 export type DbUser = typeof usersTable.$inferSelect;
