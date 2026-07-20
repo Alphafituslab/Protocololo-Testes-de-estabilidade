@@ -1523,6 +1523,34 @@ function CoaDetail({ id }: { id: number }) {
         </div>
         )}
 
+        {/* ── Assinatura Digital no PDF ── */}
+        {coa.signedAt && (
+          <div style={{ marginTop: "20px", pageBreakInside: "avoid", display: "flex", justifyContent: "center" }}>
+            <div style={{ border: "1px solid #e2e8f0", borderRadius: "6px", overflow: "hidden", width: "280px" }}>
+              <div style={{ background: "#1e293b", padding: "6px 14px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ color: "#34d399", fontSize: "10pt" }}>🔒</span>
+                <span style={{ color: "#fff", fontSize: "7.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>Assinatura Digital</span>
+              </div>
+              <div style={{ background: "#fff", padding: "12px 16px 10px", textAlign: "center" }}>
+                <div style={{ fontFamily: "'Dancing Script', cursive", fontSize: "20pt", color: "#1e3a5f", lineHeight: 1.1, marginBottom: "8px" }}>
+                  {coa.signedBy}
+                </div>
+                <div style={{ borderTop: "1.5px solid #1e3a5f", paddingTop: "7px" }}>
+                  <div style={{ fontWeight: 700, fontSize: "8.5pt", color: "#1e293b" }}>{coa.signedBy}</div>
+                  {coa.signedRole && <div style={{ fontSize: "7.5pt", color: "#475569", marginTop: "1px" }}>{coa.signedRole}</div>}
+                  {(header.responsibleTechCrq || coa.responsibleTechCrq) && (
+                    <div style={{ fontSize: "7.5pt", color: "#475569", marginTop: "1px" }}>CRQ/CRF/CFQ: {header.responsibleTechCrq || coa.responsibleTechCrq}</div>
+                  )}
+                  <div style={{ fontSize: "7.5pt", color: "#16a34a", marginTop: "1px" }}>{header.company || coa.company || ""}</div>
+                  <div style={{ fontSize: "7pt", color: "#16a34a", fontWeight: 600, marginTop: "5px" }}>
+                    ✅ Assinado digitalmente em {new Date(coa.signedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Histórico de Mudanças no PDF */}
         {showHistoryInPdf && history.length > 0 && (
           <div style={{ marginTop: "18px", pageBreakInside: "avoid" }}>
