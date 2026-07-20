@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/use-auth";
 import {
   Plus, Trash2, Printer, ArrowLeft, ClipboardList,
   ChevronDown, CheckCircle2, XCircle, Clock, Save, Search, X,
-  UserPlus, Mail, Users, Trash, AlertTriangle
+  UserPlus, Mail, Users, Trash, AlertTriangle, UserCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -441,6 +441,7 @@ function CoaDetail({ id }: { id: number }) {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareForm, setShareForm] = useState({ displayName: "", email: "", accessExpiresAt: "", canPrint: false });
   const [shareLoading, setShareLoading] = useState(false);
+  const [shareEmailError, setShareEmailError] = useState<string | null>(null);
   const [revokeId, setRevokeId] = useState<number | null>(null);
 
   const { data: coa, isLoading, isError } = useQuery<CoaWithResults>({
@@ -1023,16 +1024,20 @@ function CoaDetail({ id }: { id: number }) {
 
           {/* ── Liberar para Cliente ── */}
           <div className="border rounded-xl bg-card shadow-sm p-5 space-y-4 print:hidden">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
                 <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                   <Users className="h-4 w-4" /> Acesso do Cliente (Portal)
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Conceda acesso a este CoA para um cliente visualizar no Portal do Cliente.
+                  Clientes criados aqui aparecem automaticamente em{" "}
+                  <a href="/catalog" className="underline text-primary hover:opacity-80" onClick={e => { e.preventDefault(); (window as Window).location.href = "/catalog#clientes"; }}>
+                    Cadastros → Clientes com Acesso ao Portal
+                  </a>{" "}
+                  para gerenciar acesso, excluir ou estender prazo.
                 </p>
               </div>
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShareOpen(true)}>
+              <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => { setShareEmailError(null); setShareOpen(true); }}>
                 <UserPlus className="h-4 w-4" /> Adicionar Cliente
               </Button>
             </div>
@@ -1042,10 +1047,15 @@ function CoaDetail({ id }: { id: number }) {
             ) : (
               <div className="divide-y border rounded-lg overflow-hidden">
                 {coaClients.map(c => (
-                  <div key={c.id} className="flex items-center justify-between px-3 py-2.5 bg-background hover:bg-muted/30 transition-colors">
+                  <div key={c.id} className="flex items-center justify-between px-3 py-2.5 bg-background hover:bg-muted/30 transition-colors gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{c.displayName}</p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-medium text-foreground truncate">{c.displayName}</p>
+                        {c.canPrint && (
+                          <span className="text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded px-1.5 py-0.5 shrink-0">PDF liberado</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                         <Mail className="h-3 w-3 shrink-0" />
                         {c.email ?? c.username}
                       </p>
@@ -1055,11 +1065,18 @@ function CoaDetail({ id }: { id: number }) {
                         {new Date(c.createdAt).toLocaleDateString("pt-BR")}
                       </span>
                       <Button
-                        size="sm"
-                        variant="ghost"
+                        size="sm" variant="outline"
+                        className="h-7 px-2 text-xs gap-1 text-muted-foreground"
+                        onClick={() => (window.location.href = "/catalog")}
+                        title="Gerenciar em Cadastros"
+                      >
+                        <UserCheck className="h-3 w-3" /> Gerenciar
+                      </Button>
+                      <Button
+                        size="sm" variant="ghost"
                         className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-red-50"
                         onClick={() => setRevokeId(c.id)}
-                        title="Revogar acesso"
+                        title="Revogar acesso a este CoA"
                       >
                         <Trash className="h-3.5 w-3.5" />
                       </Button>
@@ -1498,13 +1515,27 @@ function CoaDetail({ id }: { id: number }) {
               </label>
             </div>
 
+            {/* Feedback de e-mail */}
+            {shareEmailError && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2.5 space-y-1">
+                <p className="text-xs font-semibold text-red-700 flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> Falha ao enviar o e-mail
+                </p>
+                <p className="text-xs text-red-600">{shareEmailError}</p>
+                <p className="text-xs text-red-500 mt-1">
+                  Corrija o e-mail acima e clique em <strong>Reenviar E-mail</strong>, ou feche e acesse <strong>Cadastros → Clientes</strong> para enviar depois.
+                </p>
+              </div>
+            )}
+
             <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" onClick={() => setShareOpen(false)} disabled={shareLoading}>Cancelar</Button>
+              <Button variant="outline" onClick={() => { setShareOpen(false); setShareEmailError(null); }} disabled={shareLoading}>Fechar</Button>
               <Button
                 disabled={!shareForm.email || shareLoading}
                 onClick={async () => {
                   if (!shareForm.email) return;
                   setShareLoading(true);
+                  setShareEmailError(null);
                   try {
                     const res = await fetch(`/api/coa/${id}/share-client`, {
                       method: "POST",
@@ -1514,14 +1545,15 @@ function CoaDetail({ id }: { id: number }) {
                     const data = await res.json();
                     if (!res.ok) {
                       toast({ title: "Erro", description: data.error ?? "Falha ao compartilhar", variant: "destructive" });
+                    } else if (!data.emailSent) {
+                      // Acesso criado mas e-mail falhou — mantém dialog aberto com erro
+                      setShareEmailError(data.emailError ?? "O e-mail não pôde ser enviado. Verifique o endereço e tente novamente.");
+                      void refetchClients();
+                      toast({ title: "Acesso criado", description: "Mas o e-mail não foi enviado — veja o aviso abaixo.", variant: "destructive" });
                     } else {
-                      toast({
-                        title: "Acesso concedido",
-                        description: data.emailSent
-                          ? "E-mail com credenciais enviado ao cliente."
-                          : "Acesso criado. (E-mail não configurado no servidor — envie as credenciais manualmente.)",
-                      });
+                      toast({ title: "✅ Acesso concedido", description: `E-mail com credenciais enviado para ${shareForm.email}.` });
                       setShareOpen(false);
+                      setShareEmailError(null);
                       setShareForm({ displayName: "", email: "", accessExpiresAt: "", canPrint: false });
                       void refetchClients();
                     }
@@ -1530,7 +1562,11 @@ function CoaDetail({ id }: { id: number }) {
                   }
                 }}
               >
-                {shareLoading ? <><Save className="h-4 w-4 animate-spin mr-1.5" /> Salvando…</> : <><Mail className="h-4 w-4 mr-1.5" /> Conceder Acesso</>}
+                {shareLoading
+                  ? <><Save className="h-4 w-4 animate-spin mr-1.5" /> Enviando…</>
+                  : shareEmailError
+                    ? <><Mail className="h-4 w-4 mr-1.5" /> Reenviar E-mail</>
+                    : <><Mail className="h-4 w-4 mr-1.5" /> Conceder Acesso</>}
               </Button>
             </div>
           </div>
