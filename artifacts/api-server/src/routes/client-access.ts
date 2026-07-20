@@ -215,17 +215,21 @@ router.post("/clients/:userId/send-email", ...canManageUsers, async (req, res): 
   const domains = process.env.REPLIT_DOMAINS?.split(",") ?? [];
   const appUrl = domains.length > 0 ? `https://${domains[0].trim()}/client-portal` : "https://seu-dominio.replit.app/client-portal";
 
+  // Only show "Relatório ANVISA" if the client actually has protocol access;
+  // CoA-only clients (no protocol entry) must not see the report option.
+  const hasProtocolAccess = !!access;
+
   const emailResult = await sendClientAccessEmail({
     toEmail: user.email,
     toName: user.displayName,
     username: user.username,
     password: rawPassword,
-    productName: access?.productName ?? "Protocolo de Estabilidade",
+    productName: access?.productName ?? "Certificado de Análise",
     certNumber: access?.certNumber ?? null,
     accessExpiresAt: user.accessExpiresAt ?? null,
     appUrl,
-    canViewCertificate: true,
-    canViewReport: true,
+    canViewCertificate: hasProtocolAccess,
+    canViewReport: hasProtocolAccess,
   });
 
   res.json({ emailSent: emailResult.ok, emailError: emailResult.error ?? null });
