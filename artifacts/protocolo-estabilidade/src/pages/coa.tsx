@@ -895,8 +895,8 @@ function CoaDetail({ id }: { id: number }) {
                     <tr className="border-b bg-muted/20 text-xs text-muted-foreground">
                       <th className="px-3 py-2 text-left font-medium w-28">Categoria</th>
                       <th className="px-3 py-2 text-left font-medium w-40">Parâmetro</th>
-                      <th className="px-3 py-2 text-left font-medium w-32">Resultado Encontrado</th>
                       <th className="px-3 py-2 text-left font-medium w-44">Critérios de Aceitação</th>
+                      <th className="px-3 py-2 text-left font-medium w-32">Resultado Encontrado</th>
                       <th className="px-3 py-2 text-left font-medium w-40">Metodologia</th>
                       <th className="px-3 py-2 text-left font-medium w-36">Situação</th>
                       <th className="px-3 py-2 w-8" />
@@ -2007,18 +2007,18 @@ function ResultRow({
       </td>
       <td className="px-2 py-1">
         <Input
-          value={r} onChange={e => setR(e.target.value)}
-          onBlur={() => scheduleSave({ result: r })}
-          className="h-7 text-xs font-semibold"
-          placeholder="Valor encontrado"
-        />
-      </td>
-      <td className="px-2 py-1">
-        <Input
           value={spec} onChange={e => setSpec(e.target.value)}
           onBlur={() => scheduleSave({ spec })}
           className="h-7 text-xs"
           placeholder="Ex: 6,0 – 8,0"
+        />
+      </td>
+      <td className="px-2 py-1">
+        <Input
+          value={r} onChange={e => setR(e.target.value)}
+          onBlur={() => scheduleSave({ result: r })}
+          className="h-7 text-xs font-semibold"
+          placeholder="Valor encontrado"
         />
       </td>
       <td className="px-2 py-1 min-w-[200px] max-w-[320px]">
