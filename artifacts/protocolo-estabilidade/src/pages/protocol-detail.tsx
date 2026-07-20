@@ -1858,6 +1858,11 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
     currentCriterion: string; newCriterion: string;
     paramName: string; methodName: string;
   } | null>(null);
+  const [paramNameConfirmPending, setParamNameConfirmPending] = useState<{
+    onChangeName: () => void;
+    onKeepName: () => void;
+    currentName: string; newName: string; methodName: string;
+  } | null>(null);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ProductTemplate | null>(null);
   const [clearParamsConfirmOpen, setClearParamsConfirmOpen] = useState(false);
@@ -3404,25 +3409,25 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
                                       const _fallbackName = param.parameter || (s ? (getParamsForMethodology(s)[0]?.paramName ?? "") : "");
                                       const finalName = libParam ?? _fallbackName;
 
-                                      // Critério que a metodologia traria
+                                      // Nome e critério que a metodologia traria
+                                      const revMatches = s && !libParam ? getParamsForMethodology(s) : [];
+                                      const newParamName = libParam ?? (revMatches.length === 1 ? revMatches[0].paramName : null);
+                                      const nameWouldChange = !!(newParamName && newParamName !== param.parameter && param.parameter.trim() !== "");
+
                                       let pendingCrit: string | null = null;
                                       if (s) {
                                         if (libCriteria) pendingCrit = libCriteria;
-                                        else if (!libParam) {
-                                          const m = getParamsForMethodology(s);
-                                          if (m.length === 1 && m[0].criterion) pendingCrit = m[0].criterion;
-                                        }
+                                        else if (!libParam && revMatches.length === 1 && revMatches[0].criterion) pendingCrit = revMatches[0].criterion;
                                       }
 
-                                      const doApply = (replaceCriterion: boolean) => {
+                                      const doApply = (replaceCriterion: boolean, changeName: boolean) => {
                                         if (s) {
                                           if (libParam) {
-                                            updateParam(param.uid, "parameter", libParam);
+                                            if (changeName) updateParam(param.uid, "parameter", libParam);
                                           } else {
-                                            const matches = getParamsForMethodology(s);
-                                            if (matches.length === 1) {
-                                              updateParam(param.uid, "parameter", matches[0].paramName);
-                                              if (replaceCriterion) updateParam(param.uid, "criterion", matches[0].criterion);
+                                            if (revMatches.length === 1) {
+                                              if (changeName) updateParam(param.uid, "parameter", revMatches[0].paramName);
+                                              if (replaceCriterion) updateParam(param.uid, "criterion", revMatches[0].criterion);
                                             }
                                           }
                                           if (libCriteria && replaceCriterion) updateParam(param.uid, "criterion", libCriteria);
@@ -3431,10 +3436,18 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
                                       };
 
                                       const existCrit = param.criterion.trim();
-                                      if (pendingCrit && existCrit && pendingCrit !== existCrit) {
-                                        setCriterionConfirmPending({ applyFn: doApply, currentCriterion: existCrit, newCriterion: pendingCrit, paramName: param.parameter, methodName: s ?? "" });
+                                      const handleAfterNameDecision = (changeName: boolean) => {
+                                        if (pendingCrit && existCrit && pendingCrit !== existCrit) {
+                                          setCriterionConfirmPending({ applyFn: (rc) => doApply(rc, changeName), currentCriterion: existCrit, newCriterion: pendingCrit, paramName: param.parameter, methodName: s ?? "" });
+                                        } else {
+                                          doApply(true, changeName);
+                                        }
+                                      };
+
+                                      if (nameWouldChange) {
+                                        setParamNameConfirmPending({ onChangeName: () => handleAfterNameDecision(true), onKeepName: () => handleAfterNameDecision(false), currentName: param.parameter, newName: newParamName!, methodName: s ?? "" });
                                       } else {
-                                        doApply(true);
+                                        handleAfterNameDecision(true);
                                       }
                                     }}
                                   />
@@ -3580,6 +3593,20 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
           </div>
         );
       })}
+      {/* Dialog — metodologia alteraria nome do parâmetro já digitado */}
+      {paramNameConfirmPending && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setParamNameConfirmPending(null)}>
+          <div className="bg-white rounded-lg shadow-xl w-96 p-5 space-y-3" onClick={e => e.stopPropagation()}>
+            <p className="font-semibold text-sm">Alterar nome do parâmetro?</p>
+            <p className="text-xs text-muted-foreground">Nome atual: <span className="font-medium text-foreground">"{paramNameConfirmPending.currentName}"</span></p>
+            <p className="text-xs text-muted-foreground">A metodologia <strong>{paramNameConfirmPending.methodName}</strong> sugere: <span className="font-medium text-foreground">"{paramNameConfirmPending.newName}"</span></p>
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" onClick={() => { paramNameConfirmPending.onKeepName(); setParamNameConfirmPending(null); }} className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted">Manter o digitado</button>
+              <button type="button" onClick={() => { paramNameConfirmPending.onChangeName(); setParamNameConfirmPending(null); }} className="text-xs px-3 py-1.5 rounded bg-primary text-white hover:opacity-90">Alterar nome</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Dialog — metodologia sobrescreveria critério já preenchido */}
       {criterionConfirmPending && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setCriterionConfirmPending(null)}>
