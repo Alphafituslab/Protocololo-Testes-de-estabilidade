@@ -660,7 +660,7 @@ function CoaDetail({ id }: { id: number }) {
   const signMut = useMutation({
     mutationFn: async () => {
       await saveNow();
-      const signerName = header.responsibleTech || coa?.responsibleTech || user?.displayName || user?.username || "";
+      const signerName = user?.displayName || user?.username || "";
       const signerRole = signForm.role.trim() || null;
       const dateStr = signForm.dateChoice === "emissao" ? signForm.customDate : new Date().toISOString().slice(0, 10);
       const timeStr = signForm.customTime || new Date().toTimeString().slice(0, 8);
@@ -1702,7 +1702,7 @@ function CoaDetail({ id }: { id: number }) {
                 <div className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
                   <p className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-1 text-center">Prévia da assinatura</p>
                   <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "1.5rem", lineHeight: 1.4, color: "#1e3a5f", fontWeight: 600, textAlign: "center" }}>
-                    {header.responsibleTech || coa?.responsibleTech || user?.displayName || user?.username}
+                    {user?.displayName || user?.username}
                   </p>
                 </div>
 
