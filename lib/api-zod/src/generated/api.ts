@@ -806,6 +806,9 @@ export const CreateLotBody = zod.object({
   expiryDate: zod.string().optional(),
   quantity: zod.number(),
   notes: zod.string().optional(),
+  studyCondition: zod.enum(["longa_duracao", "acelerado"]).optional().nullable(),
+  temperatureC: zod.number().optional().nullable(),
+  humidityRh: zod.number().optional().nullable(),
 });
 
 /**
@@ -822,6 +825,9 @@ export const UpdateLotBody = zod.object({
   expiryDate: zod.string().optional(),
   quantity: zod.number(),
   notes: zod.string().optional(),
+  studyCondition: zod.enum(["longa_duracao", "acelerado"]).optional().nullable(),
+  temperatureC: zod.number().optional().nullable(),
+  humidityRh: zod.number().optional().nullable(),
 });
 
 export const UpdateLotResponse = zod.object({
@@ -832,6 +838,9 @@ export const UpdateLotResponse = zod.object({
   expiryDate: zod.string().nullish(),
   quantity: zod.number(),
   notes: zod.string().nullish(),
+  studyCondition: zod.string().nullish(),
+  temperatureC: zod.number().nullish(),
+  humidityRh: zod.number().nullish(),
   createdAt: zod.string(),
 });
 
