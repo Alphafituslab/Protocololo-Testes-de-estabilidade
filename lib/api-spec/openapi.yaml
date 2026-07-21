@@ -2308,6 +2308,10 @@ components:
         notes:
           type: string
           nullable: true
+        pureza:
+          type: string
+          nullable: true
+          description: "Pureza elementar do composto em % (ex: '40' para CaCO3 com 40% de Ca elementar). Usada para correção estequiométrica."
         createdAt:
           type: string
           format: date-time
@@ -2337,6 +2341,10 @@ components:
         notes:
           type: string
           nullable: true
+        pureza:
+          type: string
+          nullable: true
+          description: "Pureza elementar do composto em % (ex: '40' para CaCO3 com 40% de Ca elementar)"
 
     BibliographicReference:
       type: object

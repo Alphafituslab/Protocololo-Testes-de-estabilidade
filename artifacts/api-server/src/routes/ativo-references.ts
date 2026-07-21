@@ -24,7 +24,7 @@ router.get("/ativo-references/lookup", async (req, res): Promise<void> => {
 });
 
 router.post("/ativo-references", async (req, res): Promise<void> => {
-  const { parameter, minValue, maxValue, unit, overage, source, notes } = req.body as {
+  const { parameter, minValue, maxValue, unit, overage, source, notes, pureza } = req.body as {
     parameter: string;
     minValue?: string | null;
     maxValue?: string | null;
@@ -32,6 +32,7 @@ router.post("/ativo-references", async (req, res): Promise<void> => {
     overage?: string | null;
     source?: string | null;
     notes?: string | null;
+    pureza?: string | null;
   };
   if (!parameter?.trim()) {
     res.status(400).json({ error: "parameter is required" });
@@ -39,7 +40,7 @@ router.post("/ativo-references", async (req, res): Promise<void> => {
   }
   const [created] = await db
     .insert(ativoReferencesTable)
-    .values({ parameter: parameter.trim(), minValue: minValue ?? null, maxValue: maxValue ?? null, unit: unit ?? "mg", overage: overage ?? null, source: source ?? null, notes: notes ?? null })
+    .values({ parameter: parameter.trim(), minValue: minValue ?? null, maxValue: maxValue ?? null, unit: unit ?? "mg", overage: overage ?? null, source: source ?? null, notes: notes ?? null, pureza: pureza ?? null })
     .returning();
   res.status(201).json(created);
 });
@@ -47,7 +48,7 @@ router.post("/ativo-references", async (req, res): Promise<void> => {
 router.put("/ativo-references/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "invalid id" }); return; }
-  const { parameter, minValue, maxValue, unit, overage, source, notes } = req.body as {
+  const { parameter, minValue, maxValue, unit, overage, source, notes, pureza } = req.body as {
     parameter?: string;
     minValue?: string | null;
     maxValue?: string | null;
@@ -55,6 +56,7 @@ router.put("/ativo-references/:id", async (req, res): Promise<void> => {
     overage?: string | null;
     source?: string | null;
     notes?: string | null;
+    pureza?: string | null;
   };
   const [updated] = await db
     .update(ativoReferencesTable)
@@ -66,6 +68,7 @@ router.put("/ativo-references/:id", async (req, res): Promise<void> => {
       ...(overage !== undefined && { overage: overage ?? null }),
       ...(source !== undefined && { source: source ?? null }),
       ...(notes !== undefined && { notes: notes ?? null }),
+      ...(pureza !== undefined && { pureza: pureza ?? null }),
     })
     .where(eq(ativoReferencesTable.id, id))
     .returning();

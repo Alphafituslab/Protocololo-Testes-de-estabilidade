@@ -641,6 +641,8 @@ export interface AtivoReference {
   overage?: string | null;
   source?: string | null;
   notes?: string | null;
+  /** Pureza elementar do composto em % (ex: '40' para CaCO3 com 40% de Ca elementar). Usada para correção estequiométrica. */
+  pureza?: string | null;
   createdAt: string;
 }
 
@@ -653,6 +655,8 @@ export interface AtivoReferenceInput {
   overage?: string | null;
   source?: string | null;
   notes?: string | null;
+  /** Pureza elementar do composto em % (ex: '40' para CaCO3 com 40% de Ca elementar) */
+  pureza?: string | null;
 }
 
 export interface BibliographicReference {

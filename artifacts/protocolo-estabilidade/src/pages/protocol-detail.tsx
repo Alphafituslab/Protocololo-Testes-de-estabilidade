@@ -3148,6 +3148,73 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
                   ✓ Salvo automaticamente. Os limites são usados na aba Cinética para calcular o valor em mg/mcg e alertar quando fora da faixa ANVISA. Use "↩ banco" para restaurar o valor padrão cadastrado.
                 </p>
 
+                {/* ── Painel de Pureza Elementar / Correção Estequiométrica ── */}
+                {(() => {
+                  const ativosComPureza = catParams
+                    .map(p => ({ param: p, bankRef: ativoRefs.find(r => r.parameter === p.parameter) }))
+                    .filter(({ bankRef }) => bankRef?.pureza);
+                  if (ativosComPureza.length === 0) return null;
+                  return (
+                    <div className="mt-3 rounded-md border border-violet-200 bg-violet-50 p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">
+                          % Pureza Elementar — Correção Estequiométrica
+                        </span>
+                        <span className="text-[9px] bg-violet-100 text-violet-600 border border-violet-200 rounded px-1.5 py-0 font-semibold">
+                          ≠ overage
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-violet-600 mb-2">
+                        A pureza indica quanto do composto é nutriente elementar (ex: CaCO₃ tem ~40% de Ca).
+                        <strong> Qtd de composto = Declarada ÷ (Pureza / 100).</strong> Não é overage — é correção da estequiometria do composto.
+                      </p>
+                      <div className="overflow-x-auto">
+                        <table className="text-xs w-full">
+                          <thead>
+                            <tr className="text-violet-600 font-medium border-b border-violet-200">
+                              <th className="text-left pr-4 pb-1.5">Ativo</th>
+                              <th className="text-right pr-4 pb-1.5">% Pureza elementar</th>
+                              <th className="text-right pr-4 pb-1.5">Qtd declarada</th>
+                              <th className="text-right pb-1.5">Qtd composto necessária</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {ativosComPureza.map(({ param, bankRef }) => {
+                              const lim = ativoLimits[param.parameter] ?? { declared: "", unit: "mg" };
+                              const pct = parseFloat((bankRef!.pureza ?? "").replace(",", "."));
+                              const declared = parseFloat(lim.declared.replace(",", "."));
+                              const valid = !isNaN(pct) && pct > 0 && pct <= 100 && !isNaN(declared) && declared > 0;
+                              const qtdComposto = valid ? declared / (pct / 100) : null;
+                              return (
+                                <tr key={param.parameter} className="border-t border-violet-100">
+                                  <td className="pr-4 py-1.5 font-medium text-violet-900">
+                                    {param.parameter}
+                                  </td>
+                                  <td className="pr-4 py-1.5 text-right font-mono font-semibold text-violet-700">
+                                    {bankRef!.pureza}%
+                                  </td>
+                                  <td className="pr-4 py-1.5 text-right font-mono text-slate-600">
+                                    {lim.declared ? `${lim.declared} ${lim.unit}` : <span className="text-slate-300">— sem declarada</span>}
+                                  </td>
+                                  <td className="py-1.5 text-right">
+                                    {qtdComposto !== null ? (
+                                      <span className="font-mono font-semibold text-violet-800">
+                                        {qtdComposto % 1 === 0 ? qtdComposto : qtdComposto.toFixed(2)} {lim.unit} de composto
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-300 text-[10px]">informe a qtd declarada</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* ── Banco de Referências — CRUD ───────────────────────── */}
                 {refBankOpen && (
                   <div className="mt-3 border-t border-indigo-200 pt-3">

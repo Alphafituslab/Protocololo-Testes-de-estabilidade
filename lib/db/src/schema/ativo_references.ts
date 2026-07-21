@@ -11,6 +11,7 @@ export const ativoReferencesTable = pgTable("ativo_references", {
   overage: text("overage"),
   source: text("source"),
   notes: text("notes"),
+  pureza: text("pureza"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
