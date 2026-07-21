@@ -2113,15 +2113,12 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
   // Ref para evitar loop: rastreia o último overage auto-aplicado por parâmetro
   const lastAutoOvgRef = useRef<Record<string, string>>({});
 
-  // Auto-aplica overage implícito quando T0 médio > 100% da qtd declarada
+  // Auto-aplica overage implícito quando T0 médio > 100%
+  // Os resultados já são percentuais (ex: 104.25 = 104,25% da qty declarada)
   useEffect(() => {
     for (const [paramName, rawAvg] of Object.entries(t0RawAvgByParam)) {
       if (rawAvg === null) continue;
-      const declared = parseFloat(
-        (latestAtivoLimitsRef.current[paramName]?.declared ?? "").replace(",", ".")
-      );
-      if (isNaN(declared) || declared <= 0) continue;
-      const pct = (rawAvg / declared) * 100;
+      const pct = rawAvg; // já é % — não dividir por declared
       if (pct > 100) {
         const newOvg = (pct - 100).toFixed(1);
         if (lastAutoOvgRef.current[paramName] !== newOvg) {
@@ -2991,17 +2988,13 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
                               })()}
                               {/* ── Indicador T0 → overage implícito ── */}
                               {(() => {
-                                const rawAvg = t0RawAvgByParam[param.parameter];
-                                if (rawAvg === null || rawAvg === undefined) return null;
-                                const decl = parseFloat(lim.declared.replace(",", "."));
-                                if (isNaN(decl) || decl <= 0) return null;
-                                const t0Pct = (rawAvg / decl) * 100;
-                                if (t0Pct <= 100) return null;
+                                const t0Pct = t0RawAvgByParam[param.parameter];
+                                if (t0Pct === null || t0Pct === undefined || t0Pct <= 100) return null;
                                 const implOvg = t0Pct - 100;
                                 return (
                                   <span
                                     className="block text-[9px] text-orange-600 font-semibold text-right mt-0.5"
-                                    title={`T0 médio (${rawAvg.toFixed(2)} ${lim.unit}) = ${t0Pct.toFixed(2)}% da qtd declarada → overage implícito de ${implOvg.toFixed(2)}% detectado e aplicado automaticamente`}
+                                    title={`T0 médio = ${t0Pct.toFixed(2)}% da qtd declarada → overage implícito de ${implOvg.toFixed(2)}% detectado e aplicado automaticamente`}
                                   >
                                     ⬆ T0: {t0Pct.toFixed(1)}% (+{implOvg.toFixed(1)}% auto)
                                   </span>
