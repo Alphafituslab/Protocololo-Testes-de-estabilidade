@@ -2094,6 +2094,45 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
     }
   };
 
+  // ── T0 médio bruto por parâmetro ativo (em unidade de medida, não %) ─────
+  const t0RawAvgByParam = useMemo<Record<string, number | null>>(() => {
+    const ativoNames = new Set(
+      editableParams.filter(p => p.category === "teor_ativo").map(p => p.parameter)
+    );
+    const out: Record<string, number | null> = {};
+    for (const name of ativoNames) {
+      const vals = results
+        .filter(r => r.period === 0 && r.parameter === name)
+        .map(r => parseFloat(r.result ?? ""))
+        .filter(v => !isNaN(v) && v > 0);
+      out[name] = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    }
+    return out;
+  }, [results, editableParams]);
+
+  // Ref para evitar loop: rastreia o último overage auto-aplicado por parâmetro
+  const lastAutoOvgRef = useRef<Record<string, string>>({});
+
+  // Auto-aplica overage implícito quando T0 médio > 100% da qtd declarada
+  useEffect(() => {
+    for (const [paramName, rawAvg] of Object.entries(t0RawAvgByParam)) {
+      if (rawAvg === null) continue;
+      const declared = parseFloat(
+        (latestAtivoLimitsRef.current[paramName]?.declared ?? "").replace(",", ".")
+      );
+      if (isNaN(declared) || declared <= 0) continue;
+      const pct = (rawAvg / declared) * 100;
+      if (pct > 100) {
+        const newOvg = (pct - 100).toFixed(1);
+        if (lastAutoOvgRef.current[paramName] !== newOvg) {
+          lastAutoOvgRef.current[paramName] = newOvg;
+          setAtivoLimit(paramName, "overage", newOvg);
+        }
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t0RawAvgByParam]);
+
   // Auto-populate ativoLimits from reference bank. Bank is always source of truth for min/max/unit/overage/norma.
   // Uses latestAtivoLimitsRef so we always read the freshest local state (no stale closure).
   // Also calls onAtivoLimitsSync immediately so KineticsTab updates without waiting for DB round-trip.
@@ -2950,6 +2989,24 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
                                 }
                                 return null;
                               })()}
+                              {/* ── Indicador T0 → overage implícito ── */}
+                              {(() => {
+                                const rawAvg = t0RawAvgByParam[param.parameter];
+                                if (rawAvg === null || rawAvg === undefined) return null;
+                                const decl = parseFloat(lim.declared.replace(",", "."));
+                                if (isNaN(decl) || decl <= 0) return null;
+                                const t0Pct = (rawAvg / decl) * 100;
+                                if (t0Pct <= 100) return null;
+                                const implOvg = t0Pct - 100;
+                                return (
+                                  <span
+                                    className="block text-[9px] text-orange-600 font-semibold text-right mt-0.5"
+                                    title={`T0 médio (${rawAvg.toFixed(2)} ${lim.unit}) = ${t0Pct.toFixed(2)}% da qtd declarada → overage implícito de ${implOvg.toFixed(2)}% detectado e aplicado automaticamente`}
+                                  >
+                                    ⬆ T0: {t0Pct.toFixed(1)}% (+{implOvg.toFixed(1)}% auto)
+                                  </span>
+                                );
+                              })()}
                               {/* Recomendação automática de overage calculada pela aba Cinética */}
                               {(() => {
                                 const rec = (recommendedKineticsOverages ?? {})[param.parameter];
@@ -3011,6 +3068,21 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
                                     : "border-dashed border-indigo-200 text-indigo-300 focus:ring-indigo-300"
                                 }`}
                               />
+                              {/* Mín. efetivo com overage */}
+                              {(() => {
+                                const minNum = parseFloat(lim.min.replace(",", "."));
+                                const ovgNum = parseFloat(lim.overage.replace(",", "."));
+                                if (isNaN(minNum) || isNaN(ovgNum) || ovgNum <= 0) return null;
+                                const effMin = minNum * (1 + ovgNum / 100);
+                                return (
+                                  <span
+                                    className="block text-[9px] text-indigo-500 text-right mt-0.5"
+                                    title={`Mín. efetivo = ${lim.min} × (1 + ${ovgNum}%) considerando overage`}
+                                  >
+                                    c/ ovg: ≥{effMin % 1 === 0 ? effMin : effMin.toFixed(2)} {lim.unit}
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td className="pr-2 py-1">
                               <input
