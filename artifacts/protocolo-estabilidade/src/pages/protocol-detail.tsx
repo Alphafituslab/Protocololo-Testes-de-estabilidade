@@ -2011,7 +2011,7 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
   // Timer for debounced protocol save when ativoLimitsJson changes.
   const saveAtivoTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const setAtivoLimit = (param: string, field: "min" | "max" | "unit" | "declared" | "overage" | "norma", value: string) => {
+  const setAtivoLimit = (param: string, field: "min" | "max" | "unit" | "declared" | "overage" | "norma", value: string, options?: { skipBankSync?: boolean }) => {
     // 1. Compute next state using the always-fresh ref as base.
     const next = {
       ...latestAtivoLimitsRef.current,
@@ -2054,7 +2054,7 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
     }, 600);
 
     // 3. Debounced upsert to global ativo_references bank (1200 ms after last change per ativo)
-    if (field === "min" || field === "max" || field === "unit" || field === "overage" || field === "norma") {
+    if (!options?.skipBankSync && (field === "min" || field === "max" || field === "unit" || field === "overage" || field === "norma")) {
       const existing = bankSyncTimersRef.current[param];
       if (existing) clearTimeout(existing);
       bankSyncTimersRef.current[param] = setTimeout(() => {
@@ -2123,7 +2123,8 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
         const newOvg = (pct - 100).toFixed(2);
         if (lastAutoOvgRef.current[paramName] !== newOvg) {
           lastAutoOvgRef.current[paramName] = newOvg;
-          setAtivoLimit(paramName, "overage", newOvg);
+          // skipBankSync: overage auto-computado pelo T0 não deve sobrescrever o banco de referências
+          setAtivoLimit(paramName, "overage", newOvg, { skipBankSync: true });
         }
       }
     }
@@ -2145,7 +2146,9 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
         max:      ref.maxValue != null ? ref.maxValue : existing.max,
         unit:     ref.unit     != null ? ref.unit     : existing.unit,
         declared: existing.declared, // NEVER overridden by bank
-        overage:  ref.overage  != null ? ref.overage  : existing.overage,
+        // Banco só preenche overage se ainda está vazio — nunca sobrescreve valor já definido
+        // (T0 auto-fill ou entrada manual têm prioridade sobre o padrão do banco)
+        overage:  (ref.overage != null && !existing.overage) ? ref.overage : existing.overage,
         norma:    ref.source   != null ? ref.source   : existing.norma,
       };
       if (
