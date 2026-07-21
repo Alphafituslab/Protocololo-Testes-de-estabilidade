@@ -2120,7 +2120,7 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
       if (rawAvg === null) continue;
       const pct = rawAvg; // já é % — não dividir por declared
       if (pct > 100) {
-        const newOvg = (pct - 100).toFixed(1);
+        const newOvg = (pct - 100).toFixed(2);
         if (lastAutoOvgRef.current[paramName] !== newOvg) {
           lastAutoOvgRef.current[paramName] = newOvg;
           setAtivoLimit(paramName, "overage", newOvg);
@@ -2996,7 +2996,7 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
                                     className="block text-[9px] text-orange-600 font-semibold text-right mt-0.5"
                                     title={`T0 médio = ${t0Pct.toFixed(2)}% da qtd declarada → overage implícito de ${implOvg.toFixed(2)}% detectado e aplicado automaticamente`}
                                   >
-                                    ⬆ T0: {t0Pct.toFixed(1)}% (+{implOvg.toFixed(1)}% auto)
+                                    ⬆ T0: {t0Pct.toFixed(2)}% (+{implOvg.toFixed(2)}% auto)
                                   </span>
                                 );
                               })()}
