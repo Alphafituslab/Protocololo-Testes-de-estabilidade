@@ -2103,7 +2103,7 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
     for (const name of ativoNames) {
       const vals = results
         .filter(r => r.period === 0 && r.parameter === name)
-        .map(r => parseFloat(r.result ?? ""))
+        .map(r => r.numericResult ?? parseFloat((r.result ?? "").replace(",", ".")))
         .filter(v => !isNaN(v) && v > 0);
       out[name] = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
     }
