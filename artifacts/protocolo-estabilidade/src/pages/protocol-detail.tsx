@@ -4895,11 +4895,11 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                     </span>
                     <span className="text-xl font-semibold text-blue-700">meses</span>
                   </div>
-                  {limitingOverageParam && (
+                  {limitingBaselineParam && (
                     <div className="mt-2 inline-flex items-center gap-1.5 bg-blue-100 border border-blue-300 rounded-md px-2.5 py-1">
                       <span className="text-blue-600 text-xs">⚠</span>
                       <span className="text-xs font-semibold text-blue-800">Item limitante:</span>
-                      <span className="text-xs font-bold text-blue-900">{limitingOverageParam}</span>
+                      <span className="text-xs font-bold text-blue-900">{limitingBaselineParam}</span>
                     </div>
                   )}
                   <p className="text-xs text-blue-600 mt-1.5 opacity-80">
@@ -5066,11 +5066,11 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       <span className="text-3xl font-bold text-violet-800 tabular-nums">{extrapOvVal}</span>
                       <span className="text-xl font-semibold text-violet-700">meses</span>
                     </div>
-                    {limitingOverageParam && (
+                    {limitingBaselineParam && (
                       <div className="mt-2 inline-flex items-center gap-1.5 bg-amber-100 border border-amber-300 rounded-md px-2.5 py-1">
                         <span className="text-amber-600 text-xs">⚠</span>
                         <span className="text-xs font-semibold text-amber-800">Item limitante:</span>
-                        <span className="text-xs font-bold text-amber-900">{limitingOverageParam}</span>
+                        <span className="text-xs font-bold text-amber-900">{limitingBaselineParam}</span>
                       </div>
                     )}
                     <p className="text-[10px] text-violet-500 mt-1.5">
