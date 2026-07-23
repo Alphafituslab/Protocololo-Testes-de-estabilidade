@@ -2205,6 +2205,7 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
   type RefForm = { parameter: string; minValue: string; maxValue: string; unit: string; overage: string; source: string; notes: string };
   const emptyRefForm: RefForm = { parameter: "", minValue: "", maxValue: "", unit: "mg", overage: "", source: "", notes: "" };
   const [refBankOpen, setRefBankOpen] = useState(false);
+  const [showPureza, setShowPureza] = useState(false);
   const [refEditingId, setRefEditingId] = useState<number | null>(null);
   const [refForm, setRefForm] = useState<RefForm>(emptyRefForm);
   const [refSaving, setRefSaving] = useState(false);
@@ -3224,15 +3225,24 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
                   if (ativosComPureza.length === 0) return null;
                   return (
                     <div className="mt-3 rounded-md border border-violet-200 bg-violet-50 p-3">
-                      <div className="flex items-center gap-2 mb-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowPureza(v => !v)}
+                        className="flex items-center gap-2 w-full text-left group"
+                      >
                         <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">
                           % Pureza Elementar — Correção Estequiométrica
                         </span>
                         <span className="text-[9px] bg-violet-100 text-violet-600 border border-violet-200 rounded px-1.5 py-0 font-semibold">
                           ≠ overage
                         </span>
-                      </div>
-                      <p className="text-[10px] text-violet-600 mb-2">
+                        <span className="ml-auto text-[10px] text-violet-500 group-hover:text-violet-700 transition-colors">
+                          {showPureza ? "▲ ocultar" : "▼ ver detalhes"}
+                        </span>
+                      </button>
+                      {showPureza && (
+                      <>
+                      <p className="text-[10px] text-violet-600 mb-2 mt-2">
                         A pureza indica quanto do composto é nutriente elementar (ex: CaCO₃ tem ~40% de Ca).
                         <strong> Qtd de composto = Declarada ÷ (Pureza / 100).</strong> Não é overage — é correção da estequiometria do composto.
                       </p>
@@ -3279,6 +3289,8 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
                           </tbody>
                         </table>
                       </div>
+                      </>
+                      )}
                     </div>
                   );
                 })()}
