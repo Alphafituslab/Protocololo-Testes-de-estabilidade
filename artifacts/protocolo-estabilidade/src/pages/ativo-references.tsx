@@ -6,6 +6,8 @@ import {
   useUpdateAtivoReference,
   useDeleteAtivoReference,
   getListAtivoReferencesQueryKey,
+  useListProtocols,
+  getListProtocolsQueryKey,
   type AtivoReference,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +52,9 @@ export default function AtivoReferencesPage() {
   const { data: refs = [], isLoading } = useListAtivoReferences({
     query: { queryKey: getListAtivoReferencesQueryKey() },
   });
+  const { data: protocols = [] } = useListProtocols({}, {
+    query: { queryKey: getListProtocolsQueryKey() },
+  });
 
   const createRef = useCreateAtivoReference();
   const updateRef = useUpdateAtivoReference();
@@ -61,6 +66,25 @@ export default function AtivoReferencesPage() {
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<AtivoReference | null>(null);
   const [search, setSearch] = useState("");
+
+  // ── Mapa: nome do ativo normalizado → protocolos que o usam ───────
+  const ativoUsedByProtocols = useMemo<Record<string, string[]>>(() => {
+    const map: Record<string, string[]> = {};
+    for (const p of protocols) {
+      if (!p.ativoLimitsJson) continue;
+      try {
+        const limits = JSON.parse(p.ativoLimitsJson) as Record<string, unknown>;
+        for (const paramName of Object.keys(limits)) {
+          const key = normParam(paramName);
+          if (!map[key]) map[key] = [];
+          if (!map[key].includes(p.productName)) map[key].push(p.productName);
+        }
+      } catch {
+        // JSON malformado — ignora
+      }
+    }
+    return map;
+  }, [protocols]);
 
   // ── Detecção de duplicatas ─────────────────────────────────────────
   const duplicateGroups = useMemo(() => {
@@ -344,49 +368,86 @@ export default function AtivoReferencesPage() {
             Entradas com o mesmo nome podem causar conflito na seleção automática. Mantenha apenas uma de cada.
           </p>
           <div className="space-y-3">
-            {duplicateGroups.map((group) => (
-              <div key={group[0].id} className="rounded border border-amber-200 bg-white overflow-hidden">
-                <div className="px-3 py-1.5 bg-amber-100 border-b border-amber-200">
-                  <span className="text-xs font-bold text-amber-900 uppercase tracking-wide">
-                    Duplicata: "{group[0].parameter}"
-                  </span>
+            {duplicateGroups.map((group) => {
+              const usedIn = ativoUsedByProtocols[normParam(group[0].parameter)] ?? [];
+              return (
+                <div key={group[0].id} className="rounded border border-amber-200 bg-white overflow-hidden">
+                  <div className="px-3 py-1.5 bg-amber-100 border-b border-amber-200 flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-amber-900 uppercase tracking-wide">
+                      Duplicata: "{group[0].parameter}"
+                    </span>
+                    {usedIn.length > 0 && (
+                      <span className="text-[10px] text-amber-700 font-medium">
+                        Usado em {usedIn.length} protocolo{usedIn.length > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Protocolos que usam este ativo */}
+                  {usedIn.length > 0 && (
+                    <div className="px-3 py-2 bg-orange-50 border-b border-amber-100">
+                      <p className="text-[10px] font-semibold text-orange-700 uppercase tracking-wide mb-1">
+                        ⚠ Este ativo está sendo usado nos protocolos:
+                      </p>
+                      <ul className="space-y-0.5">
+                        {usedIn.map((name) => (
+                          <li key={name} className="text-xs text-orange-800 font-medium flex items-center gap-1">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+                            {name}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-[10px] text-orange-600 mt-1.5">
+                        Antes de excluir uma entrada, verifique se deseja substituir o ativo nesses protocolos.
+                      </p>
+                    </div>
+                  )}
+
+                  {usedIn.length === 0 && (
+                    <div className="px-3 py-1.5 bg-green-50 border-b border-amber-100">
+                      <p className="text-[10px] text-green-700">
+                        ✓ Nenhum protocolo usa este ativo — seguro excluir qualquer uma das entradas.
+                      </p>
+                    </div>
+                  )}
+
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/20 text-muted-foreground">
+                        <th className="px-3 py-1 text-left font-medium">#</th>
+                        <th className="px-3 py-1 text-right font-medium">Mín.</th>
+                        <th className="px-3 py-1 text-right font-medium">Máx.</th>
+                        <th className="px-3 py-1 text-left font-medium">Unidade</th>
+                        <th className="px-3 py-1 text-left font-medium">Norma</th>
+                        <th className="px-3 py-1"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.map((r) => {
+                        const globalIdx = refs.indexOf(r) + 1;
+                        return (
+                          <tr key={r.id} className="border-b last:border-0 hover:bg-amber-50/60">
+                            <td className="px-3 py-1.5 font-mono text-muted-foreground">{globalIdx}</td>
+                            <td className="px-3 py-1.5 text-right font-mono">{r.minValue ?? "—"}</td>
+                            <td className="px-3 py-1.5 text-right font-mono">{r.maxValue ?? "—"}</td>
+                            <td className="px-3 py-1.5 text-muted-foreground">{r.unit}</td>
+                            <td className="px-3 py-1.5 text-muted-foreground max-w-[160px] truncate">{r.source ?? ""}</td>
+                            <td className="px-3 py-1.5 text-right">
+                              <button
+                                onClick={() => handleDelete(r)}
+                                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-colors"
+                              >
+                                <Trash2 className="h-3 w-3" /> Excluir #{globalIdx}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b bg-muted/20 text-muted-foreground">
-                      <th className="px-3 py-1 text-left font-medium">#</th>
-                      <th className="px-3 py-1 text-right font-medium">Mín.</th>
-                      <th className="px-3 py-1 text-right font-medium">Máx.</th>
-                      <th className="px-3 py-1 text-left font-medium">Unidade</th>
-                      <th className="px-3 py-1 text-left font-medium">Norma</th>
-                      <th className="px-3 py-1"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {group.map((r) => {
-                      const globalIdx = refs.indexOf(r) + 1;
-                      return (
-                        <tr key={r.id} className="border-b last:border-0 hover:bg-amber-50/60">
-                          <td className="px-3 py-1.5 font-mono text-muted-foreground">{globalIdx}</td>
-                          <td className="px-3 py-1.5 text-right font-mono">{r.minValue ?? "—"}</td>
-                          <td className="px-3 py-1.5 text-right font-mono">{r.maxValue ?? "—"}</td>
-                          <td className="px-3 py-1.5 text-muted-foreground">{r.unit}</td>
-                          <td className="px-3 py-1.5 text-muted-foreground max-w-[160px] truncate">{r.source ?? ""}</td>
-                          <td className="px-3 py-1.5 text-right">
-                            <button
-                              onClick={() => handleDelete(r)}
-                              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-colors"
-                            >
-                              <Trash2 className="h-3 w-3" /> Excluir #{globalIdx}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
