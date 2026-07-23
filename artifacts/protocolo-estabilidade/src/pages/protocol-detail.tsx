@@ -2211,6 +2211,7 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
   const [refSaving, setRefSaving] = useState(false);
   const [pendingDeleteBankRef, setPendingDeleteBankRef] = useState<AtivoReference | null>(null);
   const [bankSearch, setBankSearch] = useState("");
+  const [pendingRenameConfirm, setPendingRenameConfirm] = useState<{ uid: string; oldName: string; newName: string } | null>(null);
 
   const createRef = useCreateAtivoReference();
   const updateRef = useUpdateAtivoReference();
@@ -3533,6 +3534,57 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
                   </div>
                 )}
 
+                {/* Dialog — confirmar apagar resultados ao renomear parâmetro */}
+                <AlertDialog open={pendingRenameConfirm !== null} onOpenChange={(open) => { if (!open) setPendingRenameConfirm(null); }}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Deseja apagar os resultados?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        O parâmetro <strong>"{pendingRenameConfirm?.oldName}"</strong> possui resultados preenchidos.
+                        <br /><br />
+                        • <strong>Sim</strong> — apaga todos os resultados e apenas renomeia o parâmetro para <strong>"{pendingRenameConfirm?.newName}"</strong>.<br />
+                        • <strong>Não</strong> — mantém os resultados e muda só o nome do parâmetro.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel
+                        onClick={() => {
+                          if (!pendingRenameConfirm) return;
+                          const { uid, oldName, newName } = pendingRenameConfirm;
+                          setPendingRenameConfirm(null);
+                          // NÃO — mantém resultados, migra para o novo nome
+                          renameResultParam(oldName, newName);
+                          if (paramNameUndoTimerRef.current) clearTimeout(paramNameUndoTimerRef.current);
+                          lastParamNameChangeRef.current = { uid, prevName: oldName, currentName: newName };
+                          paramNameUndoTimerRef.current = setTimeout(() => { lastParamNameChangeRef.current = null; }, 10000);
+                          toast({ title: "Nome alterado", description: "Resultados mantidos. Pressione Ctrl+Z para desfazer (10s)" });
+                        }}
+                      >
+                        Não — manter resultados
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={() => {
+                          if (!pendingRenameConfirm) return;
+                          const { uid, oldName, newName } = pendingRenameConfirm;
+                          setPendingRenameConfirm(null);
+                          // SIM — apaga resultados do nome antigo, não migra
+                          const oldResults = results.filter((r) => r.parameter === oldName);
+                          for (const r of oldResults) {
+                            if (r.id) renameDelete.mutate({ id: protocolId, resultId: r.id });
+                          }
+                          if (paramNameUndoTimerRef.current) clearTimeout(paramNameUndoTimerRef.current);
+                          lastParamNameChangeRef.current = { uid, prevName: oldName, currentName: newName };
+                          paramNameUndoTimerRef.current = setTimeout(() => { lastParamNameChangeRef.current = null; }, 10000);
+                          toast({ title: "Resultados apagados", description: `Parâmetro renomeado para "${newName}". Resultados anteriores removidos.` });
+                        }}
+                      >
+                        Sim — apagar resultados
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+
                 {/* Master password dialog for bank delete */}
                 <UnlockDialog
                   open={pendingDeleteBankRef !== null}
@@ -3632,11 +3684,18 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
                                       const orig = focusedOriginalName.current;
                                       focusedOriginalName.current = null;
                                       if (orig !== null && orig !== param.parameter && param.parameter.trim()) {
-                                        renameResultParam(orig, param.parameter);
-                                        if (paramNameUndoTimerRef.current) clearTimeout(paramNameUndoTimerRef.current);
-                                        lastParamNameChangeRef.current = { uid: param.uid, prevName: orig, currentName: param.parameter };
-                                        paramNameUndoTimerRef.current = setTimeout(() => { lastParamNameChangeRef.current = null; }, 10000);
-                                        toast({ title: "Nome alterado", description: "Pressione Ctrl+Z para desfazer (10s)" });
+                                        const hasResults = results.some((r) => r.parameter === orig);
+                                        if (hasResults) {
+                                          // Tem resultados preenchidos — perguntar antes de agir
+                                          setPendingRenameConfirm({ uid: param.uid, oldName: orig, newName: param.parameter });
+                                        } else {
+                                          // Sem resultados — renomear direto
+                                          renameResultParam(orig, param.parameter);
+                                          if (paramNameUndoTimerRef.current) clearTimeout(paramNameUndoTimerRef.current);
+                                          lastParamNameChangeRef.current = { uid: param.uid, prevName: orig, currentName: param.parameter };
+                                          paramNameUndoTimerRef.current = setTimeout(() => { lastParamNameChangeRef.current = null; }, 10000);
+                                          toast({ title: "Nome alterado", description: "Pressione Ctrl+Z para desfazer (10s)" });
+                                        }
                                       }
                                     }}
                                     autoComplete="new-password"
