@@ -2483,25 +2483,58 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
     if (!oldName.trim() || !newName.trim() || oldName === newName) return;
     const oldResults = results.filter((r) => r.parameter === oldName);
     for (const r of oldResults) {
-      // Upsert under new name first, then delete old record
-      renameUpsert.mutate({
-        id: protocolId,
-        data: {
-          lotId: r.lotId,
-          period: r.period,
-          analysisDate: r.analysisDate ?? new Date().toISOString().split("T")[0],
-          category: r.category as "fisico_quimica" | "microbiologica" | "teor_ativo" | "embalagem",
-          parameter: newName,
-          criterion: r.criterion ?? "",
-          result: r.result,
-          numericResult: r.numericResult ?? undefined,
-          status: r.status as "conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva",
+      // Upsert under new name first; delete old record ONLY after upsert succeeds
+      // (previously delete fired in parallel — race condition that lost data)
+      const resultId = r.id;
+      renameUpsert.mutate(
+        {
+          id: protocolId,
+          data: {
+            lotId: r.lotId,
+            period: r.period,
+            analysisDate: r.analysisDate ?? new Date().toISOString().split("T")[0],
+            category: r.category as "fisico_quimica" | "microbiologica" | "teor_ativo" | "embalagem",
+            parameter: newName,
+            criterion: r.criterion ?? "",
+            result: r.result,
+            numericResult: r.numericResult ?? undefined,
+            status: r.status as "conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva",
+          },
         },
-      });
-      renameDelete.mutate({ id: protocolId, resultId: r.id });
+        {
+          onSuccess: () => {
+            // Delete old record only after new one is safely stored
+            if (resultId) renameDelete.mutate({ id: protocolId, resultId });
+          },
+        },
+      );
+    }
+
+    // Also rename key in kineticsOverridesJson so T0/T3/T6 overrides survive the rename
+    if (initialKineticsOverridesJson) {
+      try {
+        const kov = JSON.parse(initialKineticsOverridesJson) as {
+          savedAt?: string;
+          params?: Record<string, unknown>;
+          customShelfLife?: string;
+          selectedShelfBox?: string;
+        };
+        if (kov.params && Object.prototype.hasOwnProperty.call(kov.params, oldName)) {
+          const entry = kov.params[oldName];
+          const updatedParams = { ...kov.params };
+          delete updatedParams[oldName];
+          updatedParams[newName] = entry;
+          updateProtocol.mutate({
+            id: protocolId,
+            data: { kineticsOverridesJson: JSON.stringify({ ...kov, params: updatedParams }) },
+          });
+        }
+      } catch {
+        // JSON malformado — ignora
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [protocolId, results]);
+  }, [protocolId, results, initialKineticsOverridesJson]);
 
   useEffect(() => {
     if (!isMountedParamsRef.current) {
