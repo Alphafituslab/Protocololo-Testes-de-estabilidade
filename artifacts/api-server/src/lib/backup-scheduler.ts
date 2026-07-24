@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { db, settingsTable, protocolsTable, lotsTable, analysisResultsTable, anvisaNumberBank } from "@workspace/db";
+import { db, settingsTable, protocolsTable, lotsTable, analysisResultsTable, anvisaNumberBank, bibliographicReferencesTable, protocolReferencesTable } from "@workspace/db";
 import { logger } from "./logger";
 import { objectStorageClient } from "./objectStorage";
 
@@ -132,21 +132,25 @@ export async function runBackup(): Promise<{ filename: string; size: number; exp
   const filename = `backup - protocolo de testes de estabilidade - ${dateStr} ${timeStr}.json`;
   const filepath = path.join(BACKUP_DIR, filename);
 
-  const [protocols, lots, results, anvisaEntries] = await Promise.all([
+  const [protocols, lots, results, anvisaEntries, bibliographicRefs, protocolRefs] = await Promise.all([
     db.select().from(protocolsTable),
     db.select().from(lotsTable),
     db.select().from(analysisResultsTable),
     db.select().from(anvisaNumberBank),
+    db.select().from(bibliographicReferencesTable),
+    db.select().from(protocolReferencesTable),
   ]);
 
   const payload = {
-    version: "2.1",
+    version: "2.2",
     exportedAt: now.toISOString(),
     tables: {
       protocols,
       lots,
       analysis_results: results,
       anvisa_number_bank: anvisaEntries,
+      bibliographic_references: bibliographicRefs,
+      protocol_references: protocolRefs,
     },
   };
 
