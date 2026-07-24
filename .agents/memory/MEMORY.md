@@ -1,3 +1,4 @@
+- [Bibliographic References Recovery](bibliographic-refs-recovery.md) — 38 refs no banco; backup v2.2 inclui bibliographic_references+protocol_references; publicar app para entrar em vigor.
 - [kineticsOverridesJson DB format](kinetics-overrides-db-format.md) — formato aninhado {savedAt, params:{[param]:{t6}}} não flat; leitores devem detectar `.params` primeiro.
 - [CertEditField — contentEditable obrigatório](cert-edit-field.md) — NUNCA substituir contentEditable por <input>: autofill do Chrome destrói campos do certificado silenciosamente.
 - [setCertEdit — sempre gravar no localStorage](cert-edits-persist.md) — setCertEdit deve sempre gravar no localStorage (não só quando bloqueado) pois contentEditable é autofill-proof.
