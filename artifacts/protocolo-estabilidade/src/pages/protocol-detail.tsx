@@ -2604,6 +2604,29 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramMethods, paramMethodsCitations, protocolId]);
 
+  // ── Save-now: ref sempre atualizado + listener para o evento do botão Salvar ──
+  const saveNowResultsRef = useRef({ editableParams, periodDates, paramMethods, paramMethodsCitations });
+  useEffect(() => {
+    saveNowResultsRef.current = { editableParams, periodDates, paramMethods, paramMethodsCitations };
+  }, [editableParams, periodDates, paramMethods, paramMethodsCitations]);
+  useEffect(() => {
+    const onSaveNow = () => {
+      const { editableParams, periodDates, paramMethods, paramMethodsCitations } = saveNowResultsRef.current;
+      const customParamsJson = JSON.stringify(editableParams);
+      const periodDatesJson = JSON.stringify(periodDates);
+      const paramMethodsJson = JSON.stringify(paramMethods);
+      const paramMethodsCitationsJson = JSON.stringify(paramMethodsCitations);
+      updateProtocol.mutate({ id: protocolId, data: { customParamsJson, periodDatesJson, paramMethodsJson, paramMethodsCitationsJson } });
+      queryClient.setQueryData(
+        getGetProtocolQueryKey(protocolId),
+        (old: Record<string, unknown> | undefined) => old ? { ...old, customParamsJson, periodDatesJson, paramMethodsJson, paramMethodsCitationsJson } : old,
+      );
+    };
+    window.addEventListener('protocol:save-now', onSaveNow);
+    return () => window.removeEventListener('protocol:save-now', onSaveNow);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const updateParam = (uid: string, field: "parameter" | "criterion", val: string) => {
     setEditableParams((prev) => prev.map((p) => (p.uid === uid ? { ...p, [field]: val } : p)));
   };
@@ -5930,6 +5953,24 @@ function MethodologiaTab({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editableParams]);
 
+  // ── Save-now: ref sempre atualizado + listener para o evento do botão Salvar ──
+  const saveNowMetodRef = useRef({ editableParams });
+  useEffect(() => { saveNowMetodRef.current = { editableParams }; }, [editableParams]);
+  useEffect(() => {
+    const onSaveNow = () => {
+      const { editableParams } = saveNowMetodRef.current;
+      const customParamsJson = JSON.stringify(editableParams);
+      updateProtocol.mutate({ id: protocolId, data: { customParamsJson } });
+      queryClient.setQueryData(
+        getGetProtocolQueryKey(protocolId),
+        (old: Record<string, unknown> | undefined) => old ? { ...old, customParamsJson } : old,
+      );
+    };
+    window.addEventListener('protocol:save-now', onSaveNow);
+    return () => window.removeEventListener('protocol:save-now', onSaveNow);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const addParam = (category: string, parameter = "", criterion = "") => {
     if (parameter.trim()) {
       const norm = (s: string) => s.trim().toLowerCase();
@@ -7434,6 +7475,7 @@ export default function ProtocolDetail() {
   const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
   const [deletePasswordOpen, setDeletePasswordOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("info");
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   const { data: protocol, isLoading } = useGetProtocol(numId, {
     query: { enabled: !!id, queryKey: getGetProtocolQueryKey(numId) },
@@ -7470,6 +7512,15 @@ export default function ProtocolDetail() {
     if (!needsPassword) { action(); return; }
     setPendingAction(() => action);
     setUnlockDialogOpen(true);
+  };
+
+  const handleSaveNow = () => {
+    setSaveState('saving');
+    window.dispatchEvent(new CustomEvent('protocol:save-now'));
+    setTimeout(() => {
+      setSaveState('saved');
+      setTimeout(() => setSaveState('idle'), 1200);
+    }, 1500);
   };
 
   const updateProtocol = useUpdateProtocol();
@@ -7694,6 +7745,18 @@ export default function ProtocolDetail() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
+          <Button
+            variant={saveState === 'saved' ? 'default' : 'outline'}
+            size="sm"
+            onClick={handleSaveNow}
+            disabled={saveState === 'saving'}
+            className={saveState === 'saved' ? 'bg-green-600 hover:bg-green-700 text-white border-green-600' : ''}
+          >
+            {saveState === 'saving' && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+            {saveState === 'saved' && <CheckCircle2 className="h-4 w-4 mr-1" />}
+            {saveState === 'idle' && <Save className="h-4 w-4 mr-1" />}
+            {saveState === 'saving' ? 'Salvando…' : saveState === 'saved' ? 'Salvo!' : 'Salvar'}
+          </Button>
           {hasPermission("protocols:finalize") && (
             <FinalizeSection
               protocolId={numId}
