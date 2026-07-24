@@ -351,7 +351,7 @@ export default function CertificatePage() {
   const _savedPrintPrefs = (() => {
     try {
       const raw = localStorage.getItem(CERT_PRINT_PREFS_KEY);
-      return raw ? (JSON.parse(raw) as { includePhotos?: boolean; includeHistory?: boolean; includeAttachments?: boolean; show?: Partial<ShowSections>; rowVisibility?: Record<string, boolean>; datePeriodsVisible?: number[]; photosExpanded?: boolean; historyExpanded?: boolean; attachmentsExpanded?: boolean; cineticaExpanded?: boolean; fundamentacaoExpanded?: boolean }) : null;
+      return raw ? (JSON.parse(raw) as { includePhotos?: boolean; includeHistory?: boolean; includeAttachments?: boolean; show?: Partial<ShowSections>; rowVisibility?: Record<string, boolean>; datePeriodsVisible?: number[] }) : null;
     } catch { return null; }
   })();
 
@@ -383,13 +383,13 @@ export default function CertificatePage() {
     );
 
   const [includePhotos, setIncludePhotos] = useState(() => _savedPrintPrefs?.includePhotos ?? true);
-  const [photosExpanded, setPhotosExpanded] = useState(() => _savedPrintPrefs?.photosExpanded ?? false);
+  const [photosExpanded, setPhotosExpanded] = useState(false);
   const [includeHistory, setIncludeHistory] = useState(() => _savedPrintPrefs?.includeHistory ?? true);
-  const [historyExpanded, setHistoryExpanded] = useState(() => _savedPrintPrefs?.historyExpanded ?? false);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
   const [includeAttachments, setIncludeAttachments] = useState(() => _savedPrintPrefs?.includeAttachments ?? true);
-  const [attachmentsExpanded, setAttachmentsExpanded] = useState(() => _savedPrintPrefs?.attachmentsExpanded ?? false);
-  const [cineticaExpanded, setCineticaExpanded] = useState(() => _savedPrintPrefs?.cineticaExpanded ?? true);
-  const [fundamentacaoExpanded, setFundamentacaoExpanded] = useState(() => _savedPrintPrefs?.fundamentacaoExpanded ?? true);
+  const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
+  const [cineticaExpanded, setCineticaExpanded] = useState(true);
+  const [fundamentacaoExpanded, setFundamentacaoExpanded] = useState(true);
 
   const [analyses, setAnalyses] = useState<Array<{
     parameter: string; category: string; method: string; specification: string | null;
@@ -403,21 +403,20 @@ export default function CertificatePage() {
   // server, so we never overwrite previously saved hidden rows with an empty map.
   useEffect(() => {
     try {
-      const expandedState = { photosExpanded, historyExpanded, attachmentsExpanded, cineticaExpanded, fundamentacaoExpanded };
       if (analyses === null) {
         // Analyses not loaded yet — persist only the non-row prefs so we don't
         // clobber a saved rowVisibility from a previous visit.
         const existing = (() => {
           try { return JSON.parse(localStorage.getItem(CERT_PRINT_PREFS_KEY) ?? "{}"); } catch { return {}; }
         })();
-        localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ ...existing, includePhotos, includeHistory, includeAttachments, show, datePeriodsVisible: certDatePeriods, ...expandedState }));
+        localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ ...existing, includePhotos, includeHistory, includeAttachments, show, datePeriodsVisible: certDatePeriods }));
         return;
       }
       const rowVisibility: Record<string, boolean> = {};
       for (const a of analyses) rowVisibility[a.parameter] = a.visible;
-      localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ includePhotos, includeHistory, includeAttachments, show, rowVisibility, datePeriodsVisible: certDatePeriods, ...expandedState }));
+      localStorage.setItem(CERT_PRINT_PREFS_KEY, JSON.stringify({ includePhotos, includeHistory, includeAttachments, show, rowVisibility, datePeriodsVisible: certDatePeriods }));
     } catch { /* ignore */ }
-  }, [includePhotos, includeHistory, includeAttachments, show, analyses, certDatePeriods, photosExpanded, historyExpanded, attachmentsExpanded, cineticaExpanded, fundamentacaoExpanded, CERT_PRINT_PREFS_KEY]);
+  }, [includePhotos, includeHistory, includeAttachments, show, analyses, certDatePeriods, CERT_PRINT_PREFS_KEY]);
 
   // ── Notify user when print preferences were restored from localStorage ──────
   const DEFAULT_SHOW: ShowSections = {
