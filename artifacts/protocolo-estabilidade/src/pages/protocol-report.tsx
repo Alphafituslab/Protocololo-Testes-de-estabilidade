@@ -637,6 +637,15 @@ export default function ProtocolReportPage() {
             </div>
           </Section>)}
 
+          {/* Objetivo do Estudo */}
+          {!!cert.studyObjective && ps("sObj", (
+            <Section num="" title="Objetivo do Estudo">
+              <p className="text-[9px] leading-relaxed text-gray-700" style={{ textAlign: "justify" }}>
+                {cert.studyObjective}
+              </p>
+            </Section>
+          ))}
+
           {/* 4. Lotes */}
           {lots.length > 0 && ps("s4", (
             <Section num="4" title="Lotes Piloto do Estudo">

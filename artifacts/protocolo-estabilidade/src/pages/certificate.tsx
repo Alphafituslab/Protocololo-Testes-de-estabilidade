@@ -1747,6 +1747,18 @@ export default function CertificatePage() {
         </div>
         )}
 
+        {/* ── OBJETIVO DO ESTUDO ───────────────────────────────────────────── */}
+        {!!cert.studyObjective && (
+        <div className="mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
+          <div className="bg-slate-700 px-5 py-1.5">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100">Objetivo do Estudo</h2>
+          </div>
+          <div className="px-5 py-4 text-gray-700 leading-relaxed text-[11px]" style={{ textAlign: "justify" }}>
+            {ef("studyObjective", cert.studyObjective ?? "", { multiline: true, className: "w-full bg-transparent resize-none text-[11px] leading-relaxed text-gray-700" })}
+          </div>
+        </div>
+        )}
+
         {/* ── CONDIÇÕES AMBIENTAIS ─────────────────────────────────────────── */}
         {show.condicoesAmbientais && (
           <div className="mb-10 border border-gray-200 rounded-lg overflow-hidden text-xs">
