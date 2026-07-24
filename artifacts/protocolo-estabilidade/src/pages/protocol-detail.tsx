@@ -2543,7 +2543,13 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
       return;
     }
     const timer = setTimeout(() => {
-      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: JSON.stringify(editableParams) } });
+      const newJson = JSON.stringify(editableParams);
+      updateProtocol.mutate({ id: protocolId, data: { customParamsJson: newJson } });
+      // Atualiza o cache para que ao voltar à aba o critério persista sem refetch
+      queryClient.setQueryData(
+        getGetProtocolQueryKey(protocolId),
+        (old: Record<string, unknown> | undefined) => old ? { ...old, customParamsJson: newJson } : old,
+      );
     }, 800);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
