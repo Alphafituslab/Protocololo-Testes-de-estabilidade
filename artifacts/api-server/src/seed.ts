@@ -3,11 +3,13 @@ import {
   ativoReferencesTable,
   methodologiesTable,
   bibliographicReferencesTable,
+  protocolReferencesTable,
+  protocolsTable,
   containerTypesTable,
   capsuleTypesTable,
   productTypesTable,
 } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { logger } from "./lib/logger";
 
 // ── Ativos ANVISA ─────────────────────────────────────────────────────────────
@@ -223,6 +225,45 @@ export async function seedProductTypes(): Promise<void> {
   }
 }
 
+// ── Backfill: garante que refs auto_include estejam em TODOS os protocolos ────
+// Idempotente: ON CONFLICT DO NOTHING — nunca duplica, nunca apaga refs manuais.
+export async function backfillAutoIncludeRefs(): Promise<void> {
+  try {
+    const autoRefs = await db
+      .select({ id: bibliographicReferencesTable.id })
+      .from(bibliographicReferencesTable)
+      .where(eq(bibliographicReferencesTable.autoInclude, true));
+
+    if (autoRefs.length === 0) return;
+
+    const protocols = await db.select({ id: protocolsTable.id }).from(protocolsTable);
+    if (protocols.length === 0) return;
+
+    const toInsert = protocols.flatMap((p) =>
+      autoRefs.map((r) => ({ protocolId: p.id, referenceId: r.id, sortOrder: 10000 + r.id }))
+    );
+
+    // Inserir em lotes de 500 para não estourar o limite do driver
+    let added = 0;
+    const BATCH = 500;
+    for (let i = 0; i < toInsert.length; i += BATCH) {
+      const result = await db
+        .insert(protocolReferencesTable)
+        .values(toInsert.slice(i, i + BATCH))
+        .onConflictDoNothing();
+      added += result.rowCount ?? 0;
+    }
+
+    if (added > 0) {
+      logger.info({ added, protocols: protocols.length, autoRefs: autoRefs.length }, "backfill auto-include refs: links added");
+    } else {
+      logger.info({ protocols: protocols.length, autoRefs: autoRefs.length }, "backfill auto-include refs: all up-to-date");
+    }
+  } catch (err) {
+    logger.error({ err }, "Failed to backfill auto-include refs");
+  }
+}
+
 export async function runAllSeeds(): Promise<void> {
   await Promise.all([
     seedAtivoReferences(),
@@ -232,4 +273,6 @@ export async function runAllSeeds(): Promise<void> {
     seedCapsuleTypes(),
     seedProductTypes(),
   ]);
+  // Roda após os seeds para garantir que as refs já existem no banco
+  await backfillAutoIncludeRefs();
 }
