@@ -296,10 +296,14 @@ export async function backfillAutoIncludeRefs(): Promise<void> {
  */
 export async function emergencyRestoreIfNeeded(): Promise<void> {
   try {
-    const rows = await db.select({ id: protocolsTable.id }).from(protocolsTable).limit(40);
-    if (rows.length >= 40) return; // banco OK, nada a fazer
+    const [protRows, lotRows] = await Promise.all([
+      db.select({ id: protocolsTable.id }).from(protocolsTable).limit(40),
+      db.select({ id: sql`id` }).from(sql`lots`).limit(50),
+    ]);
+    // Banco OK se tiver >= 40 protocolos E >= 50 lotes
+    if (protRows.length >= 40 && lotRows.length >= 50) return;
 
-    logger.warn({ count: rows.length }, "emergency-restore: banco incompleto — iniciando restauração automática do backup");
+    logger.warn({ protocols: protRows.length, lots: lotRows.length }, "emergency-restore: banco incompleto — iniciando restauração automática do backup");
 
     const BACKUP_FILENAME = "backup - protocolo de testes de estabilidade - 24-07-2026 20h00.json";
     const data = await downloadCloudBackup(BACKUP_FILENAME);
