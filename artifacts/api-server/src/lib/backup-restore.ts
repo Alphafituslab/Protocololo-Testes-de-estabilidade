@@ -27,45 +27,60 @@ function cleanRow(row: unknown, extra: Record<string, unknown> = {}): { id: numb
   return { id, rest: r };
 }
 
+const BATCH = 200;
+
+async function batchUpsert(
+  table: typeof protocolsTable | typeof lotsTable | typeof analysisResultsTable,
+  rows: { id: number; rest: Record<string, unknown> }[],
+): Promise<number> {
+  if (rows.length === 0) return 0;
+  let count = 0;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const chunk = rows.slice(i, i + BATCH);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const values = chunk.map(({ id, rest }) => ({ id, ...(rest as any) }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const firstRest = chunk[0]!.rest;
+    const setCols = Object.fromEntries(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      Object.keys(firstRest).map(k => [k, (table as any)[k]])
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db.insert(table) as any)
+      .values(values)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .onConflictDoUpdate({ target: (table as any).id, set: setCols });
+    count += chunk.length;
+  }
+  return count;
+}
+
 export async function runRestore(body: unknown): Promise<RestoreResult> {
   const payload = body as BackupPayload;
   if (!payload?.tables) throw new Error("Arquivo de backup inválido: campo 'tables' ausente.");
 
   const { protocols = [], lots = [], analysis_results = [] } = payload.tables;
 
-  let protocolsRestored = 0;
-  let lotsRestored = 0;
-  let resultsRestored = 0;
+  const protocolRows = protocols
+    .filter(p => p && typeof (p as Record<string, unknown>)["id"] === "number")
+    .map(p => cleanRow(p, { deletedAt: null }));
 
-  for (const p of protocols) {
-    if (!p || typeof (p as Record<string, unknown>)["id"] !== "number") continue;
-    const { id, rest } = cleanRow(p, { deletedAt: null });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await db.insert(protocolsTable).values({ id, ...(rest as any) })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .onConflictDoUpdate({ target: protocolsTable.id, set: rest as any });
-    protocolsRestored++;
-  }
+  const lotRows = lots
+    .filter(l => l && typeof (l as Record<string, unknown>)["id"] === "number")
+    .map(l => cleanRow(l, { deletedAt: null }));
 
-  for (const l of lots) {
-    if (!l || typeof (l as Record<string, unknown>)["id"] !== "number") continue;
-    const { id, rest } = cleanRow(l, { deletedAt: null });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await db.insert(lotsTable).values({ id, ...(rest as any) })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .onConflictDoUpdate({ target: lotsTable.id, set: rest as any });
-    lotsRestored++;
-  }
+  const resultRows = analysis_results
+    .filter(r => r && typeof (r as Record<string, unknown>)["id"] === "number")
+    .map(r => cleanRow(r, { deletedAt: null }));
 
-  for (const r of analysis_results) {
-    if (!r || typeof (r as Record<string, unknown>)["id"] !== "number") continue;
-    const { id, rest } = cleanRow(r, { deletedAt: null });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await db.insert(analysisResultsTable).values({ id, ...(rest as any) })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .onConflictDoUpdate({ target: analysisResultsTable.id, set: rest as any });
-    resultsRestored++;
-  }
+  // Protocolos e lotes primeiro (resultados dependem dos lotes)
+  const [protocolsRestored, lotsRestored] = await Promise.all([
+    batchUpsert(protocolsTable, protocolRows),
+    batchUpsert(lotsTable, lotRows),
+  ]);
+
+  // Resultados depois (podem ser muitos — batch de 200)
+  const resultsRestored = await batchUpsert(analysisResultsTable, resultRows);
 
   return {
     protocolsRestored,

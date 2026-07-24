@@ -289,16 +289,17 @@ export async function backfillAutoIncludeRefs(): Promise<void> {
 }
 
 /**
- * Restauração de emergência: se o banco tiver menos de 10 protocolos,
- * baixa o backup mais recente da nuvem e restaura automaticamente.
- * Roda apenas uma vez por startup — é idempotente (upsert).
+ * Restauração de emergência: se o banco tiver menos de 40 protocolos,
+ * baixa o backup de 24-07-2026 20h00 da nuvem e restaura automaticamente.
+ * Deve ser chamada em background (setImmediate/setTimeout) APÓS o servidor
+ * já estar respondendo ao healthcheck, para não ser morta pelo timeout do deploy.
  */
-async function emergencyRestoreIfNeeded(): Promise<void> {
+export async function emergencyRestoreIfNeeded(): Promise<void> {
   try {
-    const rows = await db.select({ id: protocolsTable.id }).from(protocolsTable).limit(10);
-    if (rows.length >= 10) return; // banco OK, nada a fazer
+    const rows = await db.select({ id: protocolsTable.id }).from(protocolsTable).limit(40);
+    if (rows.length >= 40) return; // banco OK, nada a fazer
 
-    logger.warn({ count: rows.length }, "emergency-restore: banco com poucos protocolos — iniciando restauração automática do backup");
+    logger.warn({ count: rows.length }, "emergency-restore: banco incompleto — iniciando restauração automática do backup");
 
     const BACKUP_FILENAME = "backup - protocolo de testes de estabilidade - 24-07-2026 20h00.json";
     const data = await downloadCloudBackup(BACKUP_FILENAME);
@@ -311,9 +312,6 @@ async function emergencyRestoreIfNeeded(): Promise<void> {
 }
 
 export async function runAllSeeds(): Promise<void> {
-  // Restauração de emergência antes de tudo
-  await emergencyRestoreIfNeeded();
-
   await Promise.all([
     seedAtivoReferences(),
     seedMethodologies(),
