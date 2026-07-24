@@ -1900,7 +1900,7 @@ const CATEGORY_PRESETS: Record<string, { parameter: string; criterion: string }[
 
 function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeriodDatesJson, initialParamMethodsJson, initialParamMethodsCitationsJson, protocolFinalStatus, protocolStatus, initialAtivoLimitsJson, initialKineticsOverridesJson, recommendedKineticsOverages, onAtivoLimitsSync }: { protocolId: number; isPowder?: boolean; initialCustomParamsJson?: string | null; initialPeriodDatesJson?: string | null; initialParamMethodsJson?: string | null; initialParamMethodsCitationsJson?: string | null; protocolFinalStatus?: string | null; protocolStatus?: string | null; initialAtivoLimitsJson?: string | null; initialKineticsOverridesJson?: string | null; recommendedKineticsOverages?: Record<string, number>; onAtivoLimitsSync?: (json: string) => void }) {
   const protocolIsAR = protocolFinalStatus === "aprovado_com_ressalva";
-  const isCriterionLocked = protocolStatus === "aprovado" || protocolStatus === "reprovado" || protocolStatus === "aprovado_com_ressalva";
+  const isCriterionLocked = false; // critério sempre editável — aprovação não bloqueia
   const [editUnlocked, setEditUnlocked] = useState(false);
   const [overageUndo, setOverageUndo] = useState<{ param: string; prevValue: string } | null>(null);
   const [criterionConfirmPending, setCriterionConfirmPending] = useState<{
@@ -5859,7 +5859,7 @@ function MethodologiaTab({
   initialCustomParamsJson?: string | null;
   protocolStatus?: string | null;
 }) {
-  const isCriterionLocked = protocolStatus === "aprovado" || protocolStatus === "reprovado" || protocolStatus === "aprovado_com_ressalva";
+  const isCriterionLocked = false; // critério sempre editável — aprovação não bloqueia
   const [criterionConfirmPending, setCriterionConfirmPending] = useState<{
     applyFn: (replace: boolean) => void;
     currentCriterion: string; newCriterion: string;
