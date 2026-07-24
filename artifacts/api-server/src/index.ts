@@ -1,13 +1,7 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
 import app from "./app";
-import { db } from "@workspace/db";
 import { logger } from "./lib/logger";
 import { runAllSeeds } from "./seed";
 import { startBackupScheduler } from "./lib/backup-scheduler";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const rawPort = process.env["PORT"];
 
@@ -30,8 +24,6 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
-  migrate(db, { migrationsFolder: path.join(__dirname, "migrations") })
-    .then(() => runAllSeeds())
-    .catch((e) => logger.error({ err: e }, "Migration/seed error"));
+  runAllSeeds().catch((e) => logger.error({ err: e }, "Seed error"));
   startBackupScheduler();
 });
