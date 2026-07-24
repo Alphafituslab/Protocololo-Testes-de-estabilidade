@@ -4,7 +4,7 @@ import { db, analysisResultsTable, lotsTable, protocolsTable } from "@workspace/
 import { UpsertResultBody, UpsertResultParams, ListResultsParams, DeleteResultParams } from "@workspace/api-zod";
 import { logAudit } from "../lib/audit";
 import { requireAuth } from "../lib/session";
-import { PERM, requirePermission, isProtocolSigned } from "../lib/permissions";
+import { PERM, requirePermission } from "../lib/permissions";
 
 const router: IRouter = Router();
 
@@ -76,12 +76,6 @@ router.post("/protocols/:id/results", requireAuth, requirePermission(PERM.RESULT
   const parsed = UpsertResultBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  // Post-signature lock: only admin can enter/edit results after protocol is signed
-  const signed = await isProtocolSigned(params.data.id);
-  if (signed && req.authUser?.role !== "admin") {
-    res.status(403).json({ error: "Protocolo assinado. Apenas o administrador pode alterar resultados." }); return;
-  }
-
   const existing = await db.select().from(analysisResultsTable).where(
     and(
       eq(analysisResultsTable.protocolId, params.data.id),
@@ -119,12 +113,6 @@ router.post("/protocols/:id/results", requireAuth, requirePermission(PERM.RESULT
 router.delete("/protocols/:id/results/:resultId", requireAuth, requirePermission(PERM.RESULTS_DELETE), async (req, res): Promise<void> => {
   const params = DeleteResultParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
-
-  // Post-signature lock: only admin can delete results after protocol is signed
-  const signed = await isProtocolSigned(params.data.id);
-  if (signed && req.authUser?.role !== "admin") {
-    res.status(403).json({ error: "Protocolo assinado. Apenas o administrador pode excluir resultados." }); return;
-  }
 
   const [deleted] = await db
     .update(analysisResultsTable)
