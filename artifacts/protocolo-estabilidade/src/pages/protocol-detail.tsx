@@ -2967,30 +2967,30 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
                   </div>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="text-xs w-full">
+                  <table className="text-xs w-full [&_td]:align-top [&_th]:align-top">
                     <thead>
                       <tr className="text-indigo-600 font-medium border-b border-indigo-200">
                         <th className="text-left pr-3 pb-1.5">Ativo</th>
-                        <th className="text-right pr-2 pb-1.5">Qtd declarada</th>
-                        <th className="text-right pr-2 pb-1.5">
+                        <th className="text-right pr-2 pb-1.5 w-28">Qtd declarada</th>
+                        <th className="text-right pr-2 pb-1.5 w-24">
                           Overage
                           <span className="block text-[9px] font-normal text-indigo-400 normal-case">% (opcional)</span>
                         </th>
-                        <th className="text-right pr-2 pb-1.5">
+                        <th className="text-right pr-2 pb-1.5 w-28">
                           Mín. ANVISA
                           <span className="block text-[9px] font-normal text-indigo-400 normal-case">opcional</span>
                         </th>
-                        <th className="text-right pr-2 pb-1.5">
+                        <th className="text-right pr-2 pb-1.5 w-28">
                           Máx. ANVISA
                           <span className="block text-[9px] font-normal text-indigo-400 normal-case">opcional</span>
                         </th>
-                        <th className="text-left pr-2 pb-1.5">
+                        <th className="text-left pr-2 pb-1.5 w-32">
                           Norma
                           <span className="block text-[9px] font-normal text-indigo-400 normal-case">salva no banco</span>
                         </th>
-                        <th className="text-left pb-1.5 pl-1">Unidade</th>
-                        <th className="text-left pb-1.5 pl-2"></th>
-                        <th className="text-right pb-1.5 pl-3 border-l border-indigo-200">
+                        <th className="text-left pb-1.5 pl-1 w-20">Unidade</th>
+                        <th className="text-left pb-1.5 pl-2 w-16"></th>
+                        <th className="text-right pb-1.5 pl-3 w-28 border-l border-indigo-200">
                           Conf. T6
                           <span className="block text-[9px] font-normal text-indigo-400 normal-case">média lotes</span>
                         </th>
