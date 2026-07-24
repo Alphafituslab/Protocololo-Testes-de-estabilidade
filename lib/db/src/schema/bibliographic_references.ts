@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, boolean, unique } from "drizzle-orm/pg-core";
 import { protocolsTable } from "./protocols";
 
 export const bibliographicReferencesTable = pgTable("bibliographic_references", {
@@ -25,7 +25,7 @@ export const protocolReferencesTable = pgTable("protocol_references", {
   referenceId: integer("reference_id").notNull().references(() => bibliographicReferencesTable.id, { onDelete: "cascade" }),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [unique("protocol_references_protocol_id_reference_id_unique").on(t.protocolId, t.referenceId)]);
 
 export type DbBibliographicReference = typeof bibliographicReferencesTable.$inferSelect;
 export type DbProtocolReference = typeof protocolReferencesTable.$inferSelect;

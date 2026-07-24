@@ -225,6 +225,28 @@ export async function seedProductTypes(): Promise<void> {
   }
 }
 
+// ── Deduplicação: remove duplicatas de protocol_references antes do backfill ──
+// Mantém o registro com menor id por (protocol_id, reference_id).
+// Idempotente — não faz nada se não houver duplicatas.
+async function deduplicateProtocolReferences(): Promise<void> {
+  try {
+    const result = await db.execute(sql`
+      DELETE FROM protocol_references
+      WHERE id NOT IN (
+        SELECT MIN(id)
+        FROM protocol_references
+        GROUP BY protocol_id, reference_id
+      )
+    `);
+    const deleted = result.rowCount ?? 0;
+    if (deleted > 0) {
+      logger.info({ deleted }, "protocol_references: duplicatas removidas");
+    }
+  } catch (err) {
+    logger.error({ err }, "Failed to deduplicate protocol_references");
+  }
+}
+
 // ── Backfill: garante que refs auto_include estejam em TODOS os protocolos ────
 // Idempotente: ON CONFLICT DO NOTHING — nunca duplica, nunca apaga refs manuais.
 export async function backfillAutoIncludeRefs(): Promise<void> {
@@ -273,6 +295,7 @@ export async function runAllSeeds(): Promise<void> {
     seedCapsuleTypes(),
     seedProductTypes(),
   ]);
-  // Roda após os seeds para garantir que as refs já existem no banco
+  // Roda após os seeds: primeiro remove duplicatas, depois preenche faltantes
+  await deduplicateProtocolReferences();
   await backfillAutoIncludeRefs();
 }
