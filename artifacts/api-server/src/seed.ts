@@ -11,6 +11,8 @@ import {
 } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "./lib/logger";
+import { downloadCloudBackup } from "./lib/backup-scheduler";
+import { runRestore } from "./lib/backup-restore";
 
 // ── Ativos ANVISA ─────────────────────────────────────────────────────────────
 const DEFAULT_ATIVOS = [
@@ -286,7 +288,32 @@ export async function backfillAutoIncludeRefs(): Promise<void> {
   }
 }
 
+/**
+ * Restauração de emergência: se o banco tiver menos de 10 protocolos,
+ * baixa o backup mais recente da nuvem e restaura automaticamente.
+ * Roda apenas uma vez por startup — é idempotente (upsert).
+ */
+async function emergencyRestoreIfNeeded(): Promise<void> {
+  try {
+    const rows = await db.select({ id: protocolsTable.id }).from(protocolsTable).limit(10);
+    if (rows.length >= 10) return; // banco OK, nada a fazer
+
+    logger.warn({ count: rows.length }, "emergency-restore: banco com poucos protocolos — iniciando restauração automática do backup");
+
+    const BACKUP_FILENAME = "backup - protocolo de testes de estabilidade - 24-07-2026 20h00.json";
+    const data = await downloadCloudBackup(BACKUP_FILENAME);
+    const result = await runRestore(data);
+
+    logger.info(result, "emergency-restore: restauração concluída");
+  } catch (err) {
+    logger.error({ err }, "emergency-restore: falhou — verifique o Object Storage e as credenciais");
+  }
+}
+
 export async function runAllSeeds(): Promise<void> {
+  // Restauração de emergência antes de tudo
+  await emergencyRestoreIfNeeded();
+
   await Promise.all([
     seedAtivoReferences(),
     seedMethodologies(),
