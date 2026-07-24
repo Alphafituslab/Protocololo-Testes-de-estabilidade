@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, bibliographicReferencesTable, protocolReferencesTable } from "@workspace/db";
+import { db, bibliographicReferencesTable, protocolReferencesTable, protocolsTable } from "@workspace/db";
 import { eq, and, asc } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
 import { PERM, requirePermission } from "../lib/permissions";
@@ -146,6 +146,61 @@ router.delete("/protocols/:id/bibliographic-references/:refId", requireAuth, asy
   await db.delete(protocolReferencesTable)
     .where(and(eq(protocolReferencesTable.protocolId, protocolId), eq(protocolReferencesTable.referenceId, referenceId)));
   res.json({ ok: true });
+});
+
+// ── Backfill: propaga refs autoInclude para TODOS os protocolos existentes ────
+// Seguro: onConflictDoNothing garante que protocolos que já têm a ref não duplicam.
+router.post("/bibliographic-references/sync-auto-include", requireAuth, requirePermission(PERM.CATALOG_MANAGE), async (_req, res): Promise<void> => {
+  // 1. Todas as refs marcadas como autoInclude
+  const autoRefs = await db
+    .select({ id: bibliographicReferencesTable.id })
+    .from(bibliographicReferencesTable)
+    .where(eq(bibliographicReferencesTable.autoInclude, true));
+
+  if (autoRefs.length === 0) {
+    res.json({ added: 0, protocols: 0, message: "Nenhuma referência marcada como auto-incluir." });
+    return;
+  }
+
+  // 2. Todos os IDs de protocolos
+  const protocols = await db.select({ id: protocolsTable.id }).from(protocolsTable);
+
+  if (protocols.length === 0) {
+    res.json({ added: 0, protocols: 0, message: "Nenhum protocolo encontrado." });
+    return;
+  }
+
+  // 3. Monta todas as combinações (protocolId × referenceId)
+  //    sortOrder alto (10000+) para ir ao final sem interferir na ordem manual
+  const toInsert = protocols.flatMap((p, pi) =>
+    autoRefs.map((r, ri) => ({
+      protocolId: p.id,
+      referenceId: r.id,
+      sortOrder: 10000 + ri,
+    }))
+  );
+
+  // 4. Insere em lotes de 500 para não estourar o limite do driver
+  let totalInserted = 0;
+  const BATCH = 500;
+  for (let i = 0; i < toInsert.length; i += BATCH) {
+    const batch = toInsert.slice(i, i + BATCH);
+    const result = await db
+      .insert(protocolReferencesTable)
+      .values(batch)
+      .onConflictDoNothing();
+    // rowCount é o número de linhas efetivamente inseridas (0 se já existia)
+    totalInserted += (result.rowCount ?? 0);
+  }
+
+  res.json({
+    ok: true,
+    autoRefs: autoRefs.length,
+    protocols: protocols.length,
+    added: totalInserted,
+    skipped: toInsert.length - totalInserted,
+    message: `${totalInserted} vínculo(s) adicionado(s), ${toInsert.length - totalInserted} já existiam (sem duplicatas).`,
+  });
 });
 
 export default router;
