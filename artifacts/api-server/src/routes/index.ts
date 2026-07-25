@@ -31,10 +31,13 @@ import anvisaNumberBankRouter from "./anvisa-number-bank";
 
 const router: IRouter = Router();
 
+// Health check must come BEFORE sessionMiddleware so it never hits the DB
+// and always responds 200 even if the session store isn't ready yet.
+router.use(healthRouter);
+
 router.use(sessionMiddleware);
 
 router.use(authRouter);
-router.use(healthRouter);
 router.use(protocolsRouter);
 router.use(lotsRouter);
 router.use(resultsRouter);
