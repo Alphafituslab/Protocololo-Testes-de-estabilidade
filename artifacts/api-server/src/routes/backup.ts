@@ -64,6 +64,27 @@ router.get("/backup/cloud-history", requireAuth, requirePermission(PERM.SETTINGS
   }
 });
 
+// Rota temporária de inspeção — NÃO restaura, apenas retorna resumo do backup de nuvem
+router.get("/backup/cloud-inspect/:filename", requireAuth, requirePermission(PERM.SETTINGS_MANAGE), async (req, res): Promise<void> => {
+  try {
+    const data = await downloadCloudBackup(String(req.params["filename"])) as Record<string, unknown>;
+    const tables = (data.tables ?? data) as Record<string, unknown[]>;
+    const pr = (tables.protocol_references ?? []) as Record<string, unknown>[];
+    const br = (tables.bibliographic_references ?? []) as Record<string, unknown>[];
+    res.json({
+      version: data.version,
+      exportedAt: data.exportedAt,
+      protocolRefsCount: pr.length,
+      bibliographicRefsCount: br.length,
+      protocolRefs: pr,
+      bibliographicRefs: br.map((r) => ({ id: r["id"], titulo: r["titulo"], autoInclude: r["autoInclude"] ?? r["auto_include"] })),
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
+});
+
 router.post("/backup/cloud-restore/:filename", requireAuth, requirePermission(PERM.SETTINGS_MANAGE), async (req, res): Promise<void> => {
   try {
     const data = await downloadCloudBackup(String(req.params["filename"]));

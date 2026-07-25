@@ -195,12 +195,30 @@ function BibliographicReferencesTable({
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<BibliographicReference | null>(null);
+  const [dupError, setDupError] = useState<string | null>(null);
 
-  function openCreate() { setEditItem(null); setDialogOpen(true); }
-  function openEdit(item: BibliographicReference) { setEditItem(item); setDialogOpen(true); }
-  function closeDialog() { setDialogOpen(false); setEditItem(null); }
+  function openCreate() { setEditItem(null); setDupError(null); setDialogOpen(true); }
+  function openEdit(item: BibliographicReference) { setEditItem(item); setDupError(null); setDialogOpen(true); }
+  function closeDialog() { setDialogOpen(false); setEditItem(null); setDupError(null); }
 
   function handleSave(data: typeof EMPTY_FORM) {
+    const titulo = data.titulo.trim().toLowerCase();
+    const doi = data.doi.trim().toLowerCase();
+
+    const dup = items.find(r => {
+      if (editItem && r.id === editItem.id) return false;
+      const tituloMatch = r.titulo.trim().toLowerCase() === titulo;
+      const doiMatch = doi && r.doi && r.doi.trim().toLowerCase() === doi;
+      return tituloMatch || doiMatch;
+    });
+
+    if (dup) {
+      const motivo = doi && dup.doi && dup.doi.trim().toLowerCase() === doi ? "DOI/URL" : "título";
+      setDupError(`Já existe uma referência com o mesmo ${motivo}: "${dup.titulo}"`);
+      return;
+    }
+
+    setDupError(null);
     if (editItem) {
       onEdit(editItem.id, data);
     } else {
@@ -283,6 +301,12 @@ function BibliographicReferencesTable({
           <DialogHeader>
             <DialogTitle>{editItem ? "Editar Referência" : "Nova Referência Bibliográfica"}</DialogTitle>
           </DialogHeader>
+          {dupError && (
+            <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive flex items-start gap-2">
+              <span className="mt-0.5 flex-shrink-0">⚠️</span>
+              <span>{dupError}</span>
+            </div>
+          )}
           <BibliographicReferenceForm
             initial={editItem ?? undefined}
             onSave={handleSave}
@@ -638,8 +662,8 @@ export default function CatalogPage() {
   const updateProduct = useUpdateProductType({ mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListProductTypesQueryKey() }); toast({ title: "Tipo de produto atualizado" }); }, onError: () => toast({ title: "Erro ao atualizar", variant: "destructive" }) } });
   const deleteProduct = useDeleteProductType({ mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListProductTypesQueryKey() }); toast({ title: "Tipo de produto excluído" }); setPendingDelete(null); }, onError: () => toast({ title: "Erro ao excluir", variant: "destructive" }) } });
 
-  const createReference = useCreateBibliographicReference({ mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListBibliographicReferencesQueryKey() }); toast({ title: "Referência adicionada" }); }, onError: () => toast({ title: "Erro ao adicionar", variant: "destructive" }) } });
-  const updateReference = useUpdateBibliographicReference({ mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListBibliographicReferencesQueryKey() }); toast({ title: "Referência atualizada" }); }, onError: () => toast({ title: "Erro ao atualizar", variant: "destructive" }) } });
+  const createReference = useCreateBibliographicReference({ mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListBibliographicReferencesQueryKey() }); toast({ title: "Referência adicionada" }); }, onError: (err) => { const msg = (err as { data?: { error?: string } })?.data?.error; toast({ title: "Erro ao adicionar referência", description: msg ?? "Tente novamente.", variant: "destructive" }); } } });
+  const updateReference = useUpdateBibliographicReference({ mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListBibliographicReferencesQueryKey() }); toast({ title: "Referência atualizada" }); }, onError: (err) => { const msg = (err as { data?: { error?: string } })?.data?.error; toast({ title: "Erro ao atualizar referência", description: msg ?? "Tente novamente.", variant: "destructive" }); } } });
   const deleteReference = useDeleteBibliographicReference({ mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListBibliographicReferencesQueryKey() }); toast({ title: "Referência excluída" }); setPendingDelete(null); }, onError: () => toast({ title: "Erro ao excluir", variant: "destructive" }) } });
 
   function handleDelete(section: CatalogSection, id: number, name: string) {
