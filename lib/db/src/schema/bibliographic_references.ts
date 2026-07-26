@@ -15,6 +15,7 @@ export const bibliographicReferencesTable = pgTable("bibliographic_references", 
   tipoReferencia: text("tipo_referencia").notNull().default("geral"),
   ativoRelacionado: text("ativo_relacionado"),
   autoInclude: boolean("auto_include").notNull().default(false),
+  color: text("color"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

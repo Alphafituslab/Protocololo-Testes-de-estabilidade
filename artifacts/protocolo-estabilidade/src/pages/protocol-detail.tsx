@@ -8817,7 +8817,32 @@ function formatAbntRef(r: BibliographicReference): string {
 const EMPTY_NEW_REF: BibliographicReferenceInput = {
   titulo: "", autores: "", ano: undefined, fonte: "",
   tipoReferencia: "geral", ativoRelacionado: "", descricao: "", doi: "",
-  volume: "", numero: "", paginas: "",
+  volume: "", numero: "", paginas: "", color: "",
+};
+
+const REF_COLOR_SWATCHES_PD = [
+  { value: "",         label: "Padrão",  tw: "bg-gray-300",   ring: "ring-gray-400" },
+  { value: "vermelho", label: "Vermelho",tw: "bg-red-500",    ring: "ring-red-400" },
+  { value: "laranja",  label: "Laranja", tw: "bg-orange-500", ring: "ring-orange-400" },
+  { value: "amarelo",  label: "Amarelo", tw: "bg-yellow-400", ring: "ring-yellow-400" },
+  { value: "verde",    label: "Verde",   tw: "bg-green-500",  ring: "ring-green-400" },
+  { value: "ciano",    label: "Ciano",   tw: "bg-teal-500",   ring: "ring-teal-400" },
+  { value: "azul",     label: "Azul",    tw: "bg-blue-500",   ring: "ring-blue-400" },
+  { value: "violeta",  label: "Violeta", tw: "bg-violet-500", ring: "ring-violet-400" },
+  { value: "rosa",     label: "Rosa",    tw: "bg-pink-500",   ring: "ring-pink-400" },
+  { value: "cinza",    label: "Cinza",   tw: "bg-slate-500",  ring: "ring-slate-400" },
+];
+
+const COLOR_BLOCK_PD: Record<string, { border: string; bg: string; dot: string; label: string }> = {
+  vermelho: { border: "border-l-red-400",    bg: "bg-red-50",    dot: "bg-red-400",    label: "Vermelho" },
+  laranja:  { border: "border-l-orange-400", bg: "bg-orange-50", dot: "bg-orange-400", label: "Laranja" },
+  amarelo:  { border: "border-l-yellow-400", bg: "bg-yellow-50", dot: "bg-yellow-400", label: "Amarelo" },
+  verde:    { border: "border-l-green-400",  bg: "bg-green-50",  dot: "bg-green-400",  label: "Verde" },
+  ciano:    { border: "border-l-teal-400",   bg: "bg-teal-50",   dot: "bg-teal-400",   label: "Ciano" },
+  azul:     { border: "border-l-blue-400",   bg: "bg-blue-50",   dot: "bg-blue-400",   label: "Azul" },
+  violeta:  { border: "border-l-violet-400", bg: "bg-violet-50", dot: "bg-violet-400", label: "Violeta" },
+  rosa:     { border: "border-l-pink-400",   bg: "bg-pink-50",   dot: "bg-pink-400",   label: "Rosa" },
+  cinza:    { border: "border-l-slate-400",  bg: "bg-slate-50",  dot: "bg-slate-400",  label: "Cinza" },
 };
 
 function RefSelectRow({ ref, selectedIds, toggleSelect }: {
@@ -9037,89 +9062,109 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
             </div>
           </div>
         ) : (
-          <div className="space-y-3">
-            {protocolRefs.map((ref, idx) => (
-              <div key={ref.id} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors group">
-                {/* Reorder buttons */}
-                <div className="flex flex-col gap-0.5 flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30"
-                    onClick={() => moveRef(idx, -1)}
-                    disabled={idx === 0}
-                    title="Mover para cima"
-                  >▲</button>
-                  <button
-                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30"
-                    onClick={() => moveRef(idx, 1)}
-                    disabled={idx === protocolRefs.length - 1}
-                    title="Mover para baixo"
-                  >▼</button>
-                </div>
-                <span className="text-sm font-bold text-muted-foreground w-6 mt-0.5 flex-shrink-0">{idx + 1}.</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    {(() => {
-                      const c = TIPO_COLORS_REF[ref.tipoReferencia];
-                      return c ? (
-                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.bg} ${c.text}`}>
-                          {c.dot} {TIPO_LABELS_REF[ref.tipoReferencia]}
-                          {ref.tipoReferencia === "ativo" && ref.ativoRelacionado ? ` — ${ref.ativoRelacionado}` : ""}
-                        </span>
-                      ) : (
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                          {TIPO_LABELS_REF[ref.tipoReferencia] ?? ref.tipoReferencia}
-                        </span>
-                      );
-                    })()}
-                    {ref.autoInclude && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">auto-incluída</span>
-                    )}
-                    {ref.ano && <span className="text-xs text-muted-foreground">{ref.ano}</span>}
+          <div className="space-y-4">
+            {protocolRefs.map((ref, idx) => {
+              const colorBlock = ref.color ? COLOR_BLOCK_PD[ref.color] : null;
+              return (
+                <div
+                  key={ref.id}
+                  className={`flex items-start gap-3 py-4 group border-b border-border last:border-b-0 ${colorBlock ? `border-l-4 ${colorBlock.border} pl-3 -ml-3` : ""}`}
+                >
+                  {/* Reorder buttons */}
+                  <div className="flex flex-col gap-0.5 flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30"
+                      onClick={() => moveRef(idx, -1)}
+                      disabled={idx === 0}
+                      title="Mover para cima"
+                    >▲</button>
+                    <button
+                      className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30"
+                      onClick={() => moveRef(idx, 1)}
+                      disabled={idx === protocolRefs.length - 1}
+                      title="Mover para baixo"
+                    >▼</button>
                   </div>
-                  <p className="text-sm font-semibold leading-snug">{ref.titulo}</p>
-                  {ref.autores && <p className="text-xs text-muted-foreground mt-0.5">{ref.autores}</p>}
-                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">{formatAbntRef(ref)}</p>
-                  {ref.descricao && (
-                    <p className="text-xs text-muted-foreground mt-1.5 border-l-2 border-primary/30 pl-2 italic">{ref.descricao}</p>
-                  )}
-                  {ref.doi && (
-                    <a href={ref.doi} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline mt-1 inline-flex items-center gap-0.5">
-                      <ExternalLink className="h-2.5 w-2.5" />
-                      {ref.doi.length > 60 ? ref.doi.slice(0, 60) + "…" : ref.doi}
-                    </a>
-                  )}
-                </div>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
-                      title="Remover do protocolo"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Remover referência?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Esta referência será removida deste protocolo (continuará no banco de cadastros).
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction
-                        className="bg-destructive text-white hover:bg-destructive/90"
-                        onClick={() => removeRef.mutate({ id: protocolId, refId: ref.id })}
+                  <span className="text-sm font-bold text-muted-foreground w-6 mt-0.5 flex-shrink-0">{idx + 1}.</span>
+                  <div className="flex-1 min-w-0">
+                    {/* Tipo badge + cor + ano */}
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      {(() => {
+                        const c = TIPO_COLORS_REF[ref.tipoReferencia];
+                        return c ? (
+                          <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium ${c.bg} ${c.text}`}>
+                            {colorBlock
+                              ? <span className={`inline-block w-2 h-2 rounded-full ${colorBlock.dot}`} />
+                              : <span>{c.dot}</span>}
+                            {TIPO_LABELS_REF[ref.tipoReferencia]}
+                            {ref.tipoReferencia === "ativo" && ref.ativoRelacionado ? ` — ${ref.ativoRelacionado}` : ""}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                            {colorBlock && <span className={`inline-block w-2 h-2 rounded-full ${colorBlock.dot}`} />}
+                            {TIPO_LABELS_REF[ref.tipoReferencia] ?? ref.tipoReferencia}
+                          </span>
+                        );
+                      })()}
+                      {ref.autoInclude && (
+                        <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold">★ auto-incluída</span>
+                      )}
+                      {ref.ano && <span className="text-xs text-muted-foreground">{ref.ano}</span>}
+                    </div>
+                    {/* Título */}
+                    <p className="text-sm font-semibold leading-snug">{ref.titulo}</p>
+                    {/* Autores */}
+                    {ref.autores && <p className="text-xs text-muted-foreground mt-0.5">{ref.autores}</p>}
+                    {/* Citação ABNT */}
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed italic">{formatAbntRef(ref)}</p>
+                    {/* Descrição */}
+                    {ref.descricao && (
+                      <div className="mt-2 border border-muted rounded px-3 py-2 bg-muted/30">
+                        <p className="text-xs text-muted-foreground leading-relaxed">{ref.descricao}</p>
+                      </div>
+                    )}
+                    {/* DOI / URL */}
+                    {ref.doi && (
+                      <a href={ref.doi} target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-primary underline mt-1.5 inline-flex items-center gap-0.5">
+                        <ExternalLink className="h-2.5 w-2.5" />
+                        {ref.doi.length > 60 ? ref.doi.slice(0, 60) + "…" : ref.doi}
+                      </a>
+                    )}
+                  </div>
+                  {/* Remove button */}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
+                        title="Remover do protocolo"
                       >
-                        Remover
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            ))}
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remover referência?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta referência será removida deste protocolo (continuará no banco de cadastros).
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-white hover:bg-destructive/90"
+                          onClick={() => removeRef.mutate({ id: protocolId, refId: ref.id })}
+                        >
+                          Remover
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              );
+            })}
           </div>
         )}
       </CardContent>
@@ -9357,6 +9402,25 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                     onChange={e => setNewRef(r => ({ ...r, descricao: e.target.value }))}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
                   />
+                </div>
+
+                {/* Cor do bloco */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1.5">Cor do bloco</label>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    {REF_COLOR_SWATCHES_PD.map(s => (
+                      <button
+                        key={s.value}
+                        type="button"
+                        title={s.label}
+                        onClick={() => setNewRef(r => ({ ...r, color: s.value }))}
+                        className={`w-6 h-6 rounded-full border-2 transition-all ${s.tw} ${newRef.color === s.value ? `ring-2 ring-offset-1 ${s.ring} border-white` : "border-white hover:scale-110"}`}
+                      />
+                    ))}
+                    <span className="text-xs text-muted-foreground ml-1">
+                      {newRef.color ? REF_COLOR_SWATCHES_PD.find(s => s.value === newRef.color)?.label : "Padrão"}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Auto-incluir */}

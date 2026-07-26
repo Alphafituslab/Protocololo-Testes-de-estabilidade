@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Check, X, Package, Pill, FlaskConical, BookOpenCheck, ExternalLink } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, Package, Pill, FlaskConical, BookOpenCheck, ExternalLink, ChevronDown, ChevronRight, Copy } from "lucide-react";
 
 const TIPO_LABELS: Record<string, string> = {
   geral: "Geral",
@@ -38,15 +38,65 @@ const TIPO_LABELS: Record<string, string> = {
 };
 
 const TIPO_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  geral:       { bg: "bg-emerald-100",  text: "text-emerald-800", dot: "🟢" },
-  ativo:       { bg: "bg-blue-100",     text: "text-blue-800",    dot: "🔵" },
-  analitica:   { bg: "bg-purple-100",   text: "text-purple-800",  dot: "🟣" },
-  regulatoria: { bg: "bg-orange-100",   text: "text-orange-800",  dot: "🟠" },
-  embalagem:   { bg: "bg-yellow-100",   text: "text-yellow-800",  dot: "🟡" },
-  degradacao:  { bg: "bg-red-100",      text: "text-red-800",     dot: "🔴" },
+  geral:          { bg: "bg-emerald-100",  text: "text-emerald-800", dot: "🟢" },
+  ativo:          { bg: "bg-blue-100",     text: "text-blue-800",    dot: "🔵" },
+  analitica:      { bg: "bg-purple-100",   text: "text-purple-800",  dot: "🟣" },
+  regulatoria:    { bg: "bg-orange-100",   text: "text-orange-800",  dot: "🟠" },
+  embalagem:      { bg: "bg-yellow-100",   text: "text-yellow-800",  dot: "🟡" },
+  degradacao:     { bg: "bg-red-100",      text: "text-red-800",     dot: "🔴" },
+  artigo:         { bg: "bg-sky-100",      text: "text-sky-800",     dot: "🔷" },
+  livro:          { bg: "bg-teal-100",     text: "text-teal-800",    dot: "📘" },
+  site:           { bg: "bg-slate-100",    text: "text-slate-700",   dot: "🌐" },
+  regulamentacao: { bg: "bg-amber-100",    text: "text-amber-800",   dot: "📋" },
+  norma:          { bg: "bg-cyan-100",     text: "text-cyan-800",    dot: "📐" },
+  outro:          { bg: "bg-gray-100",     text: "text-gray-700",    dot: "•" },
 };
 
-const TIPO_ORDER = ["geral", "ativo", "analitica", "regulatoria", "embalagem", "degradacao"] as const;
+// dot color for group header (Tailwind bg class)
+const TIPO_DOT_TW: Record<string, string> = {
+  geral:          "bg-emerald-500",
+  ativo:          "bg-blue-500",
+  analitica:      "bg-purple-500",
+  regulatoria:    "bg-orange-500",
+  embalagem:      "bg-yellow-400",
+  degradacao:     "bg-red-500",
+  artigo:         "bg-sky-500",
+  livro:          "bg-teal-500",
+  site:           "bg-slate-400",
+  regulamentacao: "bg-amber-500",
+  norma:          "bg-cyan-500",
+  outro:          "bg-gray-400",
+};
+
+const TIPO_ORDER = [
+  "geral","ativo","analitica","regulatoria","embalagem","degradacao",
+  "artigo","livro","site","regulamentacao","norma","outro",
+];
+
+const REF_COLOR_SWATCHES = [
+  { value: "",         label: "Padrão",  tw: "bg-gray-300",    ring: "ring-gray-400" },
+  { value: "vermelho", label: "Vermelho",tw: "bg-red-500",     ring: "ring-red-400" },
+  { value: "laranja",  label: "Laranja", tw: "bg-orange-500",  ring: "ring-orange-400" },
+  { value: "amarelo",  label: "Amarelo", tw: "bg-yellow-400",  ring: "ring-yellow-400" },
+  { value: "verde",    label: "Verde",   tw: "bg-green-500",   ring: "ring-green-400" },
+  { value: "ciano",    label: "Ciano",   tw: "bg-teal-500",    ring: "ring-teal-400" },
+  { value: "azul",     label: "Azul",    tw: "bg-blue-500",    ring: "ring-blue-400" },
+  { value: "violeta",  label: "Violeta", tw: "bg-violet-500",  ring: "ring-violet-400" },
+  { value: "rosa",     label: "Rosa",    tw: "bg-pink-500",    ring: "ring-pink-400" },
+  { value: "cinza",    label: "Cinza",   tw: "bg-slate-500",   ring: "ring-slate-400" },
+];
+
+const COLOR_BLOCK: Record<string, { border: string; bg: string; dot: string; label: string }> = {
+  vermelho: { border: "border-l-red-400",    bg: "bg-red-50",    dot: "bg-red-400",    label: "Vermelho" },
+  laranja:  { border: "border-l-orange-400", bg: "bg-orange-50", dot: "bg-orange-400", label: "Laranja" },
+  amarelo:  { border: "border-l-yellow-400", bg: "bg-yellow-50", dot: "bg-yellow-400", label: "Amarelo" },
+  verde:    { border: "border-l-green-400",  bg: "bg-green-50",  dot: "bg-green-400",  label: "Verde" },
+  ciano:    { border: "border-l-teal-400",   bg: "bg-teal-50",   dot: "bg-teal-400",   label: "Ciano" },
+  azul:     { border: "border-l-blue-400",   bg: "bg-blue-50",   dot: "bg-blue-400",   label: "Azul" },
+  violeta:  { border: "border-l-violet-400", bg: "bg-violet-50", dot: "bg-violet-400", label: "Violeta" },
+  rosa:     { border: "border-l-pink-400",   bg: "bg-pink-50",   dot: "bg-pink-400",   label: "Rosa" },
+  cinza:    { border: "border-l-slate-400",  bg: "bg-slate-50",  dot: "bg-slate-400",  label: "Cinza" },
+};
 
 function formatAbntPlain(r: BibliographicReference): string {
   const parts: string[] = [];
@@ -61,7 +111,7 @@ function formatAbntPlain(r: BibliographicReference): string {
   return parts.join(" ");
 }
 
-const EMPTY_FORM = { titulo: "", autores: "", ano: "", fonte: "", volume: "", numero: "", paginas: "", doi: "", descricao: "", tipoReferencia: "geral", ativoRelacionado: "", autoInclude: false };
+const EMPTY_FORM = { titulo: "", autores: "", ano: "", fonte: "", volume: "", numero: "", paginas: "", doi: "", descricao: "", tipoReferencia: "geral", ativoRelacionado: "", autoInclude: false, color: "" };
 
 function BibliographicReferenceForm({
   initial,
@@ -85,6 +135,7 @@ function BibliographicReferenceForm({
     tipoReferencia: initial.tipoReferencia ?? "geral",
     ativoRelacionado: initial.ativoRelacionado ?? "",
     autoInclude: initial.autoInclude ?? false,
+    color: initial.color ?? "",
   } : { ...EMPTY_FORM });
 
   const f = (k: keyof typeof EMPTY_FORM) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm(p => ({ ...p, [k]: e.target.value }));
@@ -156,6 +207,23 @@ function BibliographicReferenceForm({
           <Textarea placeholder="Breve descrição do conteúdo desta referência..." value={form.descricao} onChange={f("descricao")} className="text-sm min-h-[60px] resize-none" />
         </div>
         <div className="col-span-2">
+          <label className="text-xs font-medium text-muted-foreground mb-2 block">Cor do bloco</label>
+          <div className="flex flex-wrap gap-2">
+            {REF_COLOR_SWATCHES.map(s => (
+              <button
+                key={s.value}
+                type="button"
+                title={s.label}
+                onClick={() => setForm(p => ({ ...p, color: s.value }))}
+                className={`w-6 h-6 rounded-full border-2 transition-all ${s.tw} ${form.color === s.value ? `ring-2 ring-offset-1 ${s.ring} border-white` : "border-white hover:scale-110"}`}
+              />
+            ))}
+            <span className="text-xs text-muted-foreground self-center ml-1">
+              {form.color ? REF_COLOR_SWATCHES.find(s => s.value === form.color)?.label : "Padrão"}
+            </span>
+          </div>
+        </div>
+        <div className="col-span-2">
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -193,38 +261,191 @@ function BibliographicReferencesTable({
   onEdit: (id: number, data: typeof EMPTY_FORM) => void;
   onDelete: (id: number, titulo: string) => void;
 }) {
+  const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<BibliographicReference | null>(null);
   const [dupError, setDupError] = useState<string | null>(null);
+  // all tipo groups expanded by default
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    () => new Set(TIPO_ORDER)
+  );
+  const [expandedRefs, setExpandedRefs] = useState<Set<number>>(new Set());
 
   function openCreate() { setEditItem(null); setDupError(null); setDialogOpen(true); }
   function openEdit(item: BibliographicReference) { setEditItem(item); setDupError(null); setDialogOpen(true); }
   function closeDialog() { setDialogOpen(false); setEditItem(null); setDupError(null); }
 
+  function toggleGroup(tipo: string) {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(tipo)) next.delete(tipo); else next.add(tipo);
+      return next;
+    });
+  }
+  function toggleRef(id: number) {
+    setExpandedRefs(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
   function handleSave(data: typeof EMPTY_FORM) {
     const titulo = data.titulo.trim().toLowerCase();
     const doi = data.doi.trim().toLowerCase();
-
     const dup = items.find(r => {
       if (editItem && r.id === editItem.id) return false;
-      const tituloMatch = r.titulo.trim().toLowerCase() === titulo;
-      const doiMatch = doi && r.doi && r.doi.trim().toLowerCase() === doi;
-      return tituloMatch || doiMatch;
+      return r.titulo.trim().toLowerCase() === titulo || (doi && r.doi && r.doi.trim().toLowerCase() === doi);
     });
-
     if (dup) {
       const motivo = doi && dup.doi && dup.doi.trim().toLowerCase() === doi ? "DOI/URL" : "título";
       setDupError(`Já existe uma referência com o mesmo ${motivo}: "${dup.titulo}"`);
       return;
     }
-
     setDupError(null);
-    if (editItem) {
-      onEdit(editItem.id, data);
-    } else {
-      onCreate(data);
-    }
+    if (editItem) onEdit(editItem.id, data); else onCreate(data);
     closeDialog();
+  }
+
+  function copyAbnt(item: BibliographicReference) {
+    navigator.clipboard.writeText(formatAbntPlain(item)).then(() => {
+      toast({ description: "Citação ABNT copiada para a área de transferência." });
+    });
+  }
+
+  // Group items by tipoReferencia preserving TIPO_ORDER
+  const byTipo: Record<string, BibliographicReference[]> = {};
+  for (const item of items) {
+    const k = item.tipoReferencia ?? "outro";
+    if (!byTipo[k]) byTipo[k] = [];
+    byTipo[k].push(item);
+  }
+  const presentedTypes = TIPO_ORDER.filter(t => (byTipo[t]?.length ?? 0) > 0);
+  // also handle unknown types
+  const unknownTypes = Object.keys(byTipo).filter(t => !TIPO_ORDER.includes(t));
+
+  function renderGroup(tipo: string) {
+    const refs = byTipo[tipo] ?? [];
+    if (!refs.length) return null;
+    const isOpen = expandedGroups.has(tipo);
+    const dotTw = TIPO_DOT_TW[tipo] ?? "bg-gray-400";
+    const label = (TIPO_LABELS[tipo] ?? tipo).toUpperCase();
+    const labelFull = `REFERÊNCIA ${label === "GERAL" ? "GERAL" : label === "ATIVO/INGREDIENTE" ? "DO ATIVO" : label}`;
+    const assuntosCount = tipo === "ativo"
+      ? new Set(refs.map(r => r.ativoRelacionado?.trim() || r.titulo)).size
+      : refs.length;
+
+    return (
+      <div key={tipo} className="rounded-xl border border-border overflow-hidden">
+        {/* Group header */}
+        <button
+          type="button"
+          onClick={() => toggleGroup(tipo)}
+          className="w-full flex items-center gap-2.5 px-4 py-3 bg-muted/40 hover:bg-muted/70 transition-colors text-left"
+        >
+          {isOpen
+            ? <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            : <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
+          <span className={`inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotTw}`} />
+          <span className="text-xs font-bold tracking-wide text-foreground">{labelFull}</span>
+          <span className="text-xs text-muted-foreground font-normal">{refs.length} {refs.length === 1 ? "referência" : "referências"}</span>
+          <span className="ml-auto text-xs text-muted-foreground">{assuntosCount} {assuntosCount === 1 ? "assunto" : "assuntos"}</span>
+        </button>
+
+        {/* Refs list */}
+        {isOpen && (
+          <div className="divide-y divide-border">
+            {refs.map(item => {
+              const isRefOpen = expandedRefs.has(item.id);
+              const colorBlock = item.color ? COLOR_BLOCK[item.color] : null;
+              return (
+                <div key={item.id} className={colorBlock ? `border-l-4 ${colorBlock.border}` : ""}>
+                  {/* Ref collapsed row */}
+                  <button
+                    type="button"
+                    onClick={() => toggleRef(item.id)}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-muted/30 transition-colors text-left"
+                  >
+                    {isRefOpen
+                      ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />}
+                    <span className="text-sm font-medium text-foreground leading-snug flex-1 min-w-0 truncate">
+                      {item.titulo}
+                    </span>
+                    {item.autoInclude && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold flex-shrink-0">★</span>
+                    )}
+                    {colorBlock && (
+                      <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${colorBlock.dot}`} title={colorBlock.label} />
+                    )}
+                    {item.ano && (
+                      <span className="text-xs text-muted-foreground flex-shrink-0">{item.ano}</span>
+                    )}
+                  </button>
+
+                  {/* Ref expanded content */}
+                  {isRefOpen && (
+                    <div className="px-10 pb-4 pt-1 bg-background space-y-2">
+                      {/* Badges */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {(() => {
+                          const c = TIPO_COLORS[item.tipoReferencia];
+                          return c ? (
+                            <span className={`text-xs px-2 py-0.5 rounded font-medium ${c.bg} ${c.text}`}>
+                              {c.dot} {TIPO_LABELS[item.tipoReferencia]}
+                              {item.tipoReferencia === "ativo" && item.ativoRelacionado ? ` — ${item.ativoRelacionado}` : ""}
+                            </span>
+                          ) : null;
+                        })()}
+                        {item.autoInclude && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-semibold">★ auto-incluída</span>
+                        )}
+                        {colorBlock && (
+                          <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded ${colorBlock.bg}`}>
+                            <span className={`inline-block w-2 h-2 rounded-full ${colorBlock.dot}`} />
+                            {colorBlock.label}
+                          </span>
+                        )}
+                      </div>
+                      {/* ABNT citation */}
+                      <p className="text-xs text-slate-600 leading-relaxed border-l-2 border-muted pl-3 italic">
+                        {formatAbntPlain(item)}
+                      </p>
+                      {item.descricao && (
+                        <p className="text-xs text-muted-foreground border-l-2 border-muted-foreground/30 pl-3">{item.descricao}</p>
+                      )}
+                      {item.doi && (
+                        <a href={item.doi} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-primary underline inline-flex items-center gap-0.5">
+                          <ExternalLink className="h-2.5 w-2.5" />
+                          {item.doi.length > 60 ? item.doi.slice(0, 60) + "…" : item.doi}
+                        </a>
+                      )}
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-1 pt-1">
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                          onClick={() => copyAbnt(item)} title="Copiar citação ABNT">
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                          onClick={() => openEdit(item)} title="Editar">
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => onDelete(item.id, item.titulo)} title="Excluir">
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -236,6 +457,9 @@ function BibliographicReferencesTable({
               <BookOpenCheck className="h-4 w-4 text-primary" />
               <CardTitle className="text-base">Referências Bibliográficas</CardTitle>
               <span className="text-xs text-muted-foreground">(ABNT NBR 6023)</span>
+              {items.length > 0 && (
+                <span className="text-xs text-muted-foreground">· {items.length} cadastradas</span>
+              )}
             </div>
             <Button size="sm" variant="outline" onClick={openCreate}>
               <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar
@@ -245,54 +469,14 @@ function BibliographicReferencesTable({
             Banco de referências cadastradas. Selecione as desejadas em cada protocolo.
           </p>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
           {items.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-8">
               Nenhuma referência cadastrada. Clique em "Adicionar" para começar.
             </p>
           )}
-          {items.map((item, idx) => (
-            <div key={item.id} className="flex items-start gap-3 px-3 py-3 rounded-lg hover:bg-muted/40 group border border-transparent hover:border-muted-foreground/10 transition-colors">
-              <span className="text-xs font-bold text-muted-foreground w-5 mt-0.5 flex-shrink-0">{idx + 1}.</span>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                  {(() => {
-                    const c = TIPO_COLORS[item.tipoReferencia];
-                    return c ? (
-                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.bg} ${c.text}`}>
-                        {c.dot} {TIPO_LABELS[item.tipoReferencia]}
-                        {item.tipoReferencia === "ativo" && item.ativoRelacionado ? ` — ${item.ativoRelacionado}` : ""}
-                      </span>
-                    ) : (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                        {TIPO_LABELS[item.tipoReferencia] ?? item.tipoReferencia}
-                      </span>
-                    );
-                  })()}
-                  {item.ano && <span className="text-xs text-muted-foreground">{item.ano}</span>}
-                </div>
-                <p className="text-sm font-medium leading-snug">{item.titulo}</p>
-                {item.autores && <p className="text-xs text-muted-foreground mt-0.5">{item.autores}</p>}
-                <p className="text-xs text-slate-500 mt-1 leading-relaxed italic">{formatAbntPlain(item)}</p>
-                {item.descricao && (
-                  <p className="text-xs text-muted-foreground mt-1 border-l-2 border-muted pl-2">{item.descricao}</p>
-                )}
-                {item.doi && (
-                  <a href={item.doi} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline mt-1 inline-flex items-center gap-0.5">
-                    <ExternalLink className="h-2.5 w-2.5" /> {item.doi.length > 50 ? item.doi.slice(0, 50) + "…" : item.doi}
-                  </a>
-                )}
-              </div>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
-                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEdit(item)} title="Editar">
-                  <Pencil className="h-3 w-3" />
-                </Button>
-                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => onDelete(item.id, item.titulo)} title="Excluir">
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-          ))}
+          {presentedTypes.map(tipo => renderGroup(tipo))}
+          {unknownTypes.map(tipo => renderGroup(tipo))}
         </CardContent>
       </Card>
 
@@ -685,6 +869,7 @@ export default function CatalogPage() {
       tipoReferencia: data.tipoReferencia,
       ativoRelacionado: data.ativoRelacionado || undefined,
       autoInclude: data.autoInclude,
+      color: data.color || undefined,
     };
   }
 

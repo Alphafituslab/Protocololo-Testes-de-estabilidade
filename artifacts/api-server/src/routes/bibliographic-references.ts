@@ -17,7 +17,7 @@ router.post("/bibliographic-references", requireAuth, requirePermission(PERM.CAT
   const body = req.body as {
     titulo?: string; autores?: string; ano?: number; fonte?: string;
     volume?: string; numero?: string; paginas?: string; doi?: string;
-    descricao?: string; tipoReferencia?: string; ativoRelacionado?: string; autoInclude?: boolean;
+    descricao?: string; tipoReferencia?: string; ativoRelacionado?: string; autoInclude?: boolean; color?: string;
   };
   if (!body.titulo?.trim()) { res.status(400).json({ error: "titulo obrigatório" }); return; }
 
@@ -50,7 +50,14 @@ router.post("/bibliographic-references", requireAuth, requirePermission(PERM.CAT
     tipoReferencia: body.tipoReferencia ?? "geral",
     ativoRelacionado: body.ativoRelacionado?.trim() ?? null,
     autoInclude: body.autoInclude ?? false,
+    color: body.color?.trim() || null,
   }).returning();
+
+  // Se autoInclude=true, propagar para todos os protocolos existentes automaticamente
+  if (row && (body.autoInclude ?? false)) {
+    await syncOneRefToAllProtocols(row.id);
+  }
+
   res.status(201).json(row);
 });
 
@@ -59,7 +66,7 @@ router.put("/bibliographic-references/:id", requireAuth, requirePermission(PERM.
   const body = req.body as {
     titulo?: string; autores?: string; ano?: number; fonte?: string;
     volume?: string; numero?: string; paginas?: string; doi?: string;
-    descricao?: string; tipoReferencia?: string; ativoRelacionado?: string; autoInclude?: boolean;
+    descricao?: string; tipoReferencia?: string; ativoRelacionado?: string; autoInclude?: boolean; color?: string;
   };
   if (!body.titulo?.trim()) { res.status(400).json({ error: "titulo obrigatório" }); return; }
 
@@ -92,9 +99,16 @@ router.put("/bibliographic-references/:id", requireAuth, requirePermission(PERM.
     tipoReferencia: body.tipoReferencia ?? "geral",
     ativoRelacionado: body.ativoRelacionado?.trim() ?? null,
     autoInclude: body.autoInclude ?? false,
+    color: body.color?.trim() || null,
     updatedAt: new Date(),
   }).where(eq(bibliographicReferencesTable.id, id)).returning();
   if (!row) { res.status(404).json({ error: "Não encontrado" }); return; }
+
+  // Se autoInclude passou a ser true, propagar para todos os protocolos existentes
+  if (body.autoInclude === true) {
+    await syncOneRefToAllProtocols(id);
+  }
+
   res.json(row);
 });
 
@@ -103,6 +117,23 @@ router.delete("/bibliographic-references/:id", requireAuth, requirePermission(PE
   await db.delete(bibliographicReferencesTable).where(eq(bibliographicReferencesTable.id, id));
   res.json({ ok: true });
 });
+
+// ── Helper: adiciona uma ref a todos os protocolos que ainda não a têm ───────
+async function syncOneRefToAllProtocols(referenceId: number) {
+  const protocols = await db.select({ id: protocolsTable.id }).from(protocolsTable);
+  if (!protocols.length) return;
+  const existing = await db
+    .select({ protocolId: protocolReferencesTable.protocolId })
+    .from(protocolReferencesTable)
+    .where(eq(protocolReferencesTable.referenceId, referenceId));
+  const alreadyIn = new Set(existing.map(r => r.protocolId));
+  const toInsert = protocols
+    .filter(p => !alreadyIn.has(p.id))
+    .map(p => ({ protocolId: p.id, referenceId, sortOrder: 10000 }));
+  if (toInsert.length > 0) {
+    await db.insert(protocolReferencesTable).values(toInsert).onConflictDoNothing();
+  }
+}
 
 // ── Referências por Protocolo ─────────────────────────────────────────────────
 

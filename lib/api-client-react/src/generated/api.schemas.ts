@@ -673,6 +673,7 @@ export interface BibliographicReference {
   tipoReferencia: string;
   ativoRelacionado?: string | null;
   autoInclude?: boolean;
+  color?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -691,6 +692,7 @@ export interface BibliographicReferenceInput {
   tipoReferencia?: string;
   ativoRelacionado?: string;
   autoInclude?: boolean;
+  color?: string;
 }
 
 export interface BulkAddProtocolReferencesBody {
