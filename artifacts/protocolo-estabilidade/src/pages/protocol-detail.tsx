@@ -17,6 +17,7 @@ import {
   useUpdateLot,
   useDeleteLot,
   useUpsertResult,
+  upsertResult as upsertResultDirect,
   useDeleteResult,
   useFinalizeProtocol,
   useDeleteProtocol,
@@ -940,6 +941,7 @@ function InlineCell({
     (result?.status as "conforme" | "nao_conforme" | "na" | "aprovado_com_ressalva" | "nd" | "lq") ?? "conforme"
   );
   const [observation, setObservation] = useState(result?.observation ?? "");
+  const [isBulking, setIsBulking] = useState(false);
   const queryClient = useQueryClient();
   const [delConfirm, setDelConfirm] = useState(false);
   const deleteResult = useDeleteResult({
@@ -1205,17 +1207,20 @@ function InlineCell({
           <button
             type="button"
             onClick={async () => {
-              // Replica para TODOS os lotes em TODOS os períodos (T0, T3, T6)
-              const allPeriods = [
-                { period, date: periodDate },
-                ...(otherPeriods ?? []).map(op => ({ period: op.period, date: op.date })),
-              ];
-              for (const { period: p, date: d } of allPeriods) {
-                for (const lot of lots) {
-                  try {
-                    await bulkUpsert.mutateAsync({
-                      id: protocolId,
-                      data: {
+              setIsBulking(true);
+              try {
+                // Replica para TODOS os lotes em TODOS os períodos (T0, T3, T6)
+                // Usa a função direta (não o hook de mutation) para evitar
+                // cancelamento de chamadas sequenciais pelo React Query.
+                const allPeriods = [
+                  { period, date: periodDate },
+                  ...(otherPeriods ?? []).map(op => ({ period: op.period, date: op.date })),
+                ];
+                const numericResult = (() => { const n = parseFloat(value.replace(",", ".")); return isNaN(n) ? undefined : n; })();
+                for (const { period: p, date: d } of allPeriods) {
+                  for (const lot of lots) {
+                    try {
+                      await upsertResultDirect(protocolId, {
                         lotId: lot.id,
                         period: p,
                         analysisDate: d ?? new Date().toISOString().split("T")[0],
@@ -1223,26 +1228,28 @@ function InlineCell({
                         parameter: param.parameter,
                         criterion: param.criterion,
                         result: value,
-                        numericResult: (() => { const n = parseFloat(value.replace(",", ".")); return isNaN(n) ? undefined : n; })(),
+                        numericResult,
                         status,
-                      },
-                    });
-                  } catch {
-                    // continue to next — individual failures logged server-side
+                      });
+                    } catch {
+                      // continua para o próximo — falhas individuais logadas no servidor
+                    }
                   }
                 }
+                queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
+                queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
+                queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
+                setEditing(false);
+                onSaved();
+              } finally {
+                setIsBulking(false);
               }
-              queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
-              queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
-              queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
-              setEditing(false);
-              onSaved();
             }}
-            disabled={bulkUpsert.isPending}
+            disabled={isBulking}
             className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 w-full mt-0.5 disabled:opacity-50"
             title="Replica este valor para todos os lotes em todos os períodos (T0, T3 e T6)"
           >
-            {bulkUpsert.isPending ? "Salvando..." : "↕ replicar todos (T0 + T3 + T6)"}
+            {isBulking ? "Salvando..." : "↕ replicar todos (T0 + T3 + T6)"}
           </button>
         )}
         {/* ── Auto-preencher outros períodos ──────────────────────── */}
