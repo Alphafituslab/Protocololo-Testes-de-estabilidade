@@ -6779,7 +6779,7 @@ function MethodologiaTab({
       {/* ═══════════════════════════════════════════════════════════════
           SEÇÃO 2 — BIBLIOTECA DE REFERÊNCIAS METODOLÓGICAS
       ═══════════════════════════════════════════════════════════════ */}
-      <div className="border-t pt-5">
+      <div id="biblioteca-referencias-metodologicas" className="border-t pt-5">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="font-semibold">Biblioteca de Referências Metodológicas</h3>
@@ -7341,6 +7341,11 @@ function MethodologiaTab({
                     });
                   }
                   closeEditParamMethod();
+                  // Rolar até a Biblioteca de Referências Metodológicas para conferência
+                  setTimeout(() => {
+                    document.getElementById("biblioteca-referencias-metodologicas")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 300);
                 }}
                 className="text-sm px-4 py-1.5 rounded bg-primary text-white hover:bg-primary/80 transition-colors"
               >
