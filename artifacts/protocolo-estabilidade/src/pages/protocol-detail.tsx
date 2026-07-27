@@ -6467,6 +6467,22 @@ function MethodologiaTab({
     : [...methodologies]
   ).sort((a, b) => _normLib(a.shortName).localeCompare(_normLib(b.shortName)));
 
+  // Agrupa por categoria para exibição na biblioteca; sem categoria vai ao final
+  const _catKey = (m: { category?: string | null }) => m.category?.trim() || "";
+  const _libGroupMap = new Map<string, typeof filteredMethodologies>();
+  for (const m of filteredMethodologies) {
+    const k = _catKey(m);
+    if (!_libGroupMap.has(k)) _libGroupMap.set(k, []);
+    _libGroupMap.get(k)!.push(m);
+  }
+  const _libGroups = [..._libGroupMap.keys()]
+    .sort((a, b) => {
+      if (!a && b) return 1;   // sem categoria vai ao final
+      if (a && !b) return -1;
+      return a.localeCompare(b, "pt-BR", { sensitivity: "base" });
+    })
+    .map(cat => ({ category: cat, items: _libGroupMap.get(cat)! }));
+
   return (
     <>
       <div className="space-y-6">
@@ -6933,8 +6949,19 @@ function MethodologiaTab({
             Nenhuma referência encontrada para "<span className="font-medium">{libSearch}</span>".
           </div>
         ) : (
-          <div className="space-y-2">
-            {filteredMethodologies.map((m) => {
+          <div className="space-y-6">
+            {_libGroups.map(({ category, items }) => (
+              <div key={category || "__sem_categoria__"}>
+                {/* Cabeçalho de grupo */}
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground whitespace-nowrap">
+                    {category || "Sem categoria"}
+                  </span>
+                  <div className="flex-1 h-px bg-border/60" />
+                  <span className="text-[10px] text-muted-foreground/50">{items.length}</span>
+                </div>
+                <div className="space-y-2">
+                {items.map((m) => {
               const docUrl = docUrls[String(m.id)];
               const isEditingDoc = editingDocId === m.id;
               return (
@@ -7073,6 +7100,9 @@ function MethodologiaTab({
                 </div>
               );
             })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
