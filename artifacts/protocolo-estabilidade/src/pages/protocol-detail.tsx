@@ -6836,11 +6836,16 @@ function MethodologiaTab({
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Categoria (opcional)</label>
-                <Input
-                  placeholder='ex: Fisico-Quimica, Microbiologica, Teor do Ativo'
+                <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                />
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+                >
+                  <option value="">— Selecione —</option>
+                  <option value="Teor do Ativo">Teor do Ativo</option>
+                  <option value="Microbiologica">Microbiologica</option>
+                  <option value="Fisico-Quimica">Fisico-Quimica</option>
+                </select>
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Critério / Especificação (opcional)</label>
