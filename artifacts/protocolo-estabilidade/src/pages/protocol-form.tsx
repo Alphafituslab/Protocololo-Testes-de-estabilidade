@@ -13,7 +13,7 @@ import {
   getGetProtocolStatsQueryKey,
   ApiError,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -95,7 +95,7 @@ export default function ProtocolForm() {
   const { data: productTypes = [] } = useListProductTypes();
 
   const { data: existing } = useGetProtocol(Number(id), {
-    query: { enabled: isEdit, queryKey: getGetProtocolQueryKey(Number(id)) },
+    query: { enabled: isEdit, queryKey: getGetProtocolQueryKey(Number(id)), placeholderData: keepPreviousData },
   });
 
   const form = useForm<FormValues>({
