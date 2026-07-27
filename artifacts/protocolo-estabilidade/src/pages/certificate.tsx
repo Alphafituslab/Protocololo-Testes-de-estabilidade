@@ -2562,32 +2562,53 @@ export default function CertificatePage() {
                     </div>
                   </div>
 
-                  {/* Extra signers (not matching either column) */}
-                  {(otherSigs.length > 0 || (userInOther && !currentUserAlreadySigned)) && (
-                    <div className="mt-4 pt-3 border-t border-dashed border-gray-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 flex items-center gap-1">
-                          <ShieldCheck className="h-3 w-3" /> Outras Assinaturas
-                        </span>
-                        {userInOther && !currentUserAlreadySigned && (
+                  {/* Extra signers — "up" cards for anyone not in the required pair */}
+                  {(otherSigs.length > 0 || (userInOther && !currentUserAlreadySigned && canSign)) && (
+                    <div className="mt-4 pt-3 border-t border-dashed border-amber-200">
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <svg className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 17a.75.75 0 0 1-.75-.75V5.56L5.03 9.78a.75.75 0 0 1-1.06-1.06l5.5-5.5a.75.75 0 0 1 1.06 0l5.5 5.5a.75.75 0 1 1-1.06 1.06L10.75 5.56v10.69A.75.75 0 0 1 10 17Z" clipRule="evenodd"/></svg>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600">Assinaturas adicionais</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        {otherSigs.map(s => (
+                          <div key={s.id} className="relative rounded-lg border border-amber-300 bg-amber-50/60 px-3 py-2.5">
+                            {/* delete btn */}
+                            {auth?.user && (auth.isAdmin || auth.hasPermission?.("signatures:delete") || s.userId === auth.user.id) && (
+                              <button
+                                type="button"
+                                title="Remover assinatura"
+                                onClick={() => deleteSig.mutate({ id: Number(id), sigId: s.id })}
+                                className="print:hidden absolute top-1.5 right-1.5 text-amber-300 hover:text-red-500 transition-colors"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            )}
+                            <div className="flex items-center gap-1 mb-1.5">
+                              <svg className="h-3 w-3 text-amber-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 17a.75.75 0 0 1-.75-.75V5.56L5.03 9.78a.75.75 0 0 1-1.06-1.06l5.5-5.5a.75.75 0 0 1 1.06 0l5.5 5.5a.75.75 0 1 1-1.06 1.06L10.75 5.56v10.69A.75.75 0 0 1 10 17Z" clipRule="evenodd"/></svg>
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600">Assinatura adicional</span>
+                            </div>
+                            <p style={{ fontFamily: "'Dancing Script', cursive", fontSize: "1rem", lineHeight: 1.3, color: "#111827", fontWeight: 600 }}>
+                              {s.userDisplay}
+                            </p>
+                            <p className="text-[10px] text-green-500 flex items-center gap-1 mt-0.5">
+                              <ShieldCheck className="h-3 w-3 flex-shrink-0" />
+                              {s.displayDate ?? new Date(s.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                            {s.roleLabel && <p className="text-[10px] text-amber-700 mt-0.5 font-medium">{s.roleLabel}</p>}
+                          </div>
+                        ))}
+                        {/* Sign button for users outside required pair */}
+                        {userInOther && !currentUserAlreadySigned && canSign && (
                           <button
                             type="button"
                             onClick={() => setSigDialogOpen(true)}
-                            className="print:hidden flex items-center gap-1 text-[10px] px-2.5 py-1 rounded border border-primary/40 bg-primary/8 text-primary hover:bg-primary/15 font-medium"
+                            className="print:hidden rounded-lg border-2 border-dashed border-amber-300 bg-amber-50 px-3 py-2.5 flex flex-col items-center justify-center gap-1.5 text-center hover:bg-amber-100 transition-colors"
                           >
-                            <PenLine className="h-2.5 w-2.5" /> Assinar
+                            <svg className="h-4 w-4 text-amber-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 17a.75.75 0 0 1-.75-.75V5.56L5.03 9.78a.75.75 0 0 1-1.06-1.06l5.5-5.5a.75.75 0 0 1 1.06 0l5.5 5.5a.75.75 0 1 1-1.06 1.06L10.75 5.56v10.69A.75.75 0 0 1 10 17Z" clipRule="evenodd"/></svg>
+                            <span className="text-[10px] font-bold text-amber-700">Adicionar assinatura</span>
+                            <span className="text-[9px] text-amber-500 flex items-center gap-0.5"><PenLine className="h-2.5 w-2.5" /> Assinar como extra</span>
                           </button>
                         )}
-                      </div>
-                      <div className="grid grid-cols-2 gap-6">
-                        {otherSigs.map(s => (
-                          <SigCard
-                            key={s.id}
-                            sig={s}
-                            displayName={s.userDisplay}
-                            roleLine={s.roleLabel}
-                          />
-                        ))}
                       </div>
                     </div>
                   )}
