@@ -7369,14 +7369,18 @@ function MethodologiaTab({
               <button
                 type="button"
                 onClick={() => {
-                  const paramCriteria = editParamMethod.criterion?.trim() || null;
+                  // Preserve existing category/subject/parameter/criteria from the library entry.
+                  // The inline dialog only edits Nome curto + Citação — never overwrite the rest.
+                  const existingLib = editParamMethod.libraryId
+                    ? methodologies.find(m => m.id === editParamMethod.libraryId)
+                    : undefined;
                   const newData = {
                     shortName: editParamShort.trim(),
                     citation: editParamCitation.trim(),
-                    category: null as string | null,
-                    subject: null as string | null,
-                    parameter: null as string | null,
-                    criteria: paramCriteria,
+                    category: existingLib?.category ?? null,
+                    subject: existingLib?.subject ?? null,
+                    parameter: existingLib?.parameter ?? null,
+                    criteria: existingLib?.criteria ?? editParamMethod.criterion?.trim() ?? null,
                   };
                   if (editParamMethod.libraryId) {
                     // Atualiza entrada existente — fecha imediatamente

@@ -376,7 +376,10 @@ export async function runAllSeeds(): Promise<void> {
     seedCapsuleTypes(),
     seedProductTypes(),
   ]);
-  // Roda após os seeds: primeiro remove duplicatas, depois preenche faltantes
+  // Remove duplicatas (idempotente, seguro sempre)
   await deduplicateProtocolReferences();
-  await backfillAutoIncludeRefs();
+  // NOTA: backfillAutoIncludeRefs() foi removido daqui.
+  // Novos protocolos recebem refs autoInclude na criação (protocols.ts).
+  // Novas referências autoInclude são propagadas via syncOneRefToAllProtocols.
+  // Rodar o backfill em todo restart sobrescreve remoções manuais do usuário.
 }

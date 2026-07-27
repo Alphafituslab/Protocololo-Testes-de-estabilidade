@@ -78,15 +78,18 @@ router.put("/methodologies/:id", requireAuth, async (req, res): Promise<void> =>
     return;
   }
 
+  // Only overwrite category / subject / parameter / criteria when they are
+  // explicitly provided (non-undefined). A missing field means "keep existing".
+  // This ensures the inline "Nome curto + Citação" dialog never clears these fields.
   const [updated] = await db
     .update(methodologiesTable)
     .set({
       shortName: body.data.shortName,
       citation: body.data.citation,
-      category: body.data.category ?? null,
-      subject: body.data.subject ?? null,
-      parameter: body.data.parameter ?? null,
-      criteria: body.data.criteria ?? null,
+      category:  body.data.category  !== undefined ? body.data.category  : old.category,
+      subject:   body.data.subject   !== undefined ? body.data.subject   : old.subject,
+      parameter: body.data.parameter !== undefined ? body.data.parameter : old.parameter,
+      criteria:  body.data.criteria  !== undefined ? body.data.criteria  : old.criteria,
     })
     .where(eq(methodologiesTable.id, params.data.id))
     .returning();
