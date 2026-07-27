@@ -6330,16 +6330,16 @@ function MethodologiaTab({
 
   // ── Dialog edição inline de metodologia do parâmetro ─────────────
   const [editParamMethod, setEditParamMethod] = useState<{
-    uid: string; paramName: string; shortName: string; citation: string; libraryId?: number;
+    uid: string; paramName: string; shortName: string; citation: string; criterion?: string; libraryId?: number;
   } | null>(null);
   const [editParamShort, setEditParamShort] = useState("");
   const [editParamCitation, setEditParamCitation] = useState("");
   const [editParamAskLibrary, setEditParamAskLibrary] = useState(false);
   const [editParamCopied, setEditParamCopied] = useState(false);
 
-  const openEditParamMethod = (uid: string, paramName: string, shortName: string, citation: string) => {
+  const openEditParamMethod = (uid: string, paramName: string, shortName: string, citation: string, criterion?: string) => {
     const libEntry = methodologies.find(m => m.shortName === shortName);
-    setEditParamMethod({ uid, paramName, shortName, citation, libraryId: libEntry?.id });
+    setEditParamMethod({ uid, paramName, shortName, citation, criterion, libraryId: libEntry?.id });
     setEditParamShort(shortName);
     setEditParamCitation(citation);
     setEditParamAskLibrary(false);
@@ -6657,7 +6657,7 @@ function MethodologiaTab({
                                     type="button"
                                     title="Editar texto da metodologia"
                                     className="flex items-center justify-center h-5 w-5 rounded text-muted-foreground/40 hover:text-primary hover:bg-primary/10 transition-colors"
-                                    onClick={() => openEditParamMethod(p.uid, p.parameter, p.methodologyShort!, p.methodologyCitation ?? "")}
+                                    onClick={() => openEditParamMethod(p.uid, p.parameter, p.methodologyShort!, p.methodologyCitation ?? "", p.criterion ?? "")}
                                   >
                                     <PenLine className="h-3 w-3" />
                                   </button>
@@ -7389,6 +7389,7 @@ function MethodologiaTab({
               <button
                 type="button"
                 onClick={() => {
+                  const paramCriteria = editParamMethod.criterion?.trim() || null;
                   if (editParamMethod.libraryId) {
                     updateMutation.mutate({
                       id: editParamMethod.libraryId,
@@ -7398,7 +7399,7 @@ function MethodologiaTab({
                         category: null,
                         subject: null,
                         parameter: null,
-                        criteria: null,
+                        criteria: paramCriteria,
                       },
                     });
                   } else {
@@ -7409,7 +7410,7 @@ function MethodologiaTab({
                         category: null,
                         subject: null,
                         parameter: null,
-                        criteria: null,
+                        criteria: paramCriteria,
                       },
                     });
                   }
