@@ -1,0 +1,89 @@
+{
+  "versao": "1.0",
+  "geradoEm": "2026-07-27",
+  "descricao": "Backup dos catálogos de referência do sistema Protocolo de Estabilidade — Alphafitus. Inclui tipos de produto, pote/embalagem, cápsula, ativos farmacêuticos e referências bibliográficas. Para restaurar: informar ao agente qual tabela restaurar e ele usará este arquivo como fonte.",
+
+  "tipos_produto": [
+    { "id": 1, "name": "Suplemento Alimentar em Cápsula",    "description": "Suplemento alimentar na forma farmacêutica de cápsula dura ou softgel, conforme RDC 243/2018.", "is_powder": false },
+    { "id": 2, "name": "Suplemento Alimentar em Comprimido", "description": "Suplemento alimentar na forma de comprimido simples ou revestido, conforme RDC 243/2018.",          "is_powder": false },
+    { "id": 3, "name": "Suplemento Alimentar em Pó",         "description": "Suplemento alimentar em pó acondicionado em sachê laminado, conforme RDC 243/2018.",                   "is_powder": true  }
+  ],
+
+  "tipos_pote_embalagem": [
+    { "id": 1,  "name": "Frasco PEAD 380 ml c/ tampa inviolável",  "description": "Polietileno de alta densidade, 380 ml, com tampa de rosca e anel de inviolabilidade" },
+    { "id": 2,  "name": "Frasco PEAD 900 ml c/ tampa inviolável",  "description": "Polietileno de alta densidade, 900 ml, com tampa de rosca e anel de inviolabilidade" },
+    { "id": 3,  "name": "Frasco PEAD 220 ml c/ tampa inviolável",  "description": "Polietileno de alta densidade, 220 ml, com tampa de rosca e anel de inviolabilidade" },
+    { "id": 4,  "name": "Frasco PEAD 450 ml c/ tampa inviolável",  "description": "Polietileno de alta densidade, 450 ml, com tampa de rosca e anel de inviolabilidade" },
+    { "id": 5,  "name": "Frasco PEAD 600 ml c/ tampa inviolável",  "description": "Polietileno de alta densidade, 600 ml, com tampa de rosca e anel de inviolabilidade" },
+    { "id": 6,  "name": "Frasco PEAD 250 ml c/ tampa inviolável",  "description": "Polietileno de alta densidade, 250 ml, com tampa de rosca e anel de inviolabilidade" },
+    { "id": 10, "name": "Frasco PET transparente 170 ml",          "description": "Politereftalato de etileno, 170 ml, com tampa de rosca" },
+    { "id": 11, "name": "Frasco PET transparente 220 ml",          "description": "Politereftalato de etileno, 220 ml, com tampa de rosca" },
+    { "id": 12, "name": "Sachê laminado alumínio/polietileno",     "description": "Sachê com filme laminado alumínio + polietileno, selagem por calor, barreira a umidade e luz" },
+    { "id": 13, "name": "Blister alumínio/PVC 10 cápsulas",       "description": "Blister termoformado PVC com selagem alumínio, 10 unidades por cartela" },
+    { "id": 14, "name": "Blister alumínio/PVC 15 cápsulas",       "description": "Blister termoformado PVC com selagem alumínio, 15 unidades por cartela" }
+  ],
+
+  "tipos_capsula": [
+    { "id": 6,  "name": "Cápsula: Polissacarídeo de tapioca solúvel em água.",                                          "description": "Cápsula: Polissacarídeo de tapioca solúvel em água." },
+    { "id": 7,  "name": "Cápsula: Água purificada, gelificante gelatina e opacificante dióxido de titânio.",            "description": "Cápsula: Água purificada, gelificante gelatina e opacificante dióxido de titânio." },
+    { "id": 15, "name": "Cápsula: Água purificada, Gelificante Hidroximetilcelulose e Corante natural Clorofila.",      "description": "Cápsula: Água purificada, Gelificante Hidroximetilcelulose e Corante natural Clorofila." }
+  ],
+
+  "ativos_farmaceuticos": [
+    { "id": 1,  "parameter": "Ácido Hialurônico",             "unit": "mg" },
+    { "id": 2,  "parameter": "Beta-Glucana",                  "unit": "mg" },
+    { "id": 3,  "parameter": "Biotina (Vitamina H)",           "unit": "mg" },
+    { "id": 4,  "parameter": "Cálcio",                        "unit": "mg" },
+    { "id": 5,  "parameter": "Coenzima Q10",                  "unit": "mg" },
+    { "id": 6,  "parameter": "Colágeno Hidrolisado",          "unit": "mg" },
+    { "id": 7,  "parameter": "Cobre",                         "unit": "mg" },
+    { "id": 8,  "parameter": "Creatina",                      "unit": "mg" },
+    { "id": 9,  "parameter": "Cromo",                         "unit": "mg" },
+    { "id": 10, "parameter": "Extrato de Açaí",               "unit": "mg" },
+    { "id": 11, "parameter": "Extrato de Cúrcuma",            "unit": "mg" },
+    { "id": 12, "parameter": "Extrato de Própolis",           "unit": "mg" },
+    { "id": 13, "parameter": "Ferro",                         "unit": "mg" },
+    { "id": 14, "parameter": "Iodo",                          "unit": "mg" },
+    { "id": 15, "parameter": "Inulina",                       "unit": "mg" },
+    { "id": 16, "parameter": "L-Carnitina",                   "unit": "mg" },
+    { "id": 17, "parameter": "L-Glutamina",                   "unit": "mg" },
+    { "id": 18, "parameter": "Licopeno",                      "unit": "mg" },
+    { "id": 19, "parameter": "Luteína",                       "unit": "mg" },
+    { "id": 20, "parameter": "Magnésio",                      "unit": "mg" },
+    { "id": 21, "parameter": "Manganês",                      "unit": "mg" },
+    { "id": 22, "parameter": "Ômega-3 (EPA+DHA)",             "unit": "mg" },
+    { "id": 23, "parameter": "Potássio",                      "unit": "mg" },
+    { "id": 24, "parameter": "Probióticos (UFC/g)",           "unit": "mg" },
+    { "id": 25, "parameter": "Resveratrol",                   "unit": "mg" },
+    { "id": 26, "parameter": "Selênio",                       "unit": "mg" },
+    { "id": 27, "parameter": "Vitamina A (Retinol)",          "unit": "mg" },
+    { "id": 28, "parameter": "Vitamina B1 (Tiamina)",         "unit": "mg" },
+    { "id": 29, "parameter": "Vitamina B2 (Riboflavina)",     "unit": "mg" },
+    { "id": 30, "parameter": "Vitamina B3 (Niacina)",         "unit": "mg" },
+    { "id": 31, "parameter": "Vitamina B5 (Ác. Pantotênico)", "unit": "mg" },
+    { "id": 32, "parameter": "Vitamina B6 (Piridoxina)",      "unit": "mg" },
+    { "id": 33, "parameter": "Vitamina B9 (Ác. Fólico)",      "unit": "mg" },
+    { "id": 34, "parameter": "Vitamina B12 (Cobalamina)",     "unit": "mg" },
+    { "id": 35, "parameter": "Vitamina C (Ácido Ascórbico)",  "unit": "mg" },
+    { "id": 36, "parameter": "Vitamina D",                    "unit": "mg" },
+    { "id": 37, "parameter": "Vitamina E (Tocoferol)",        "unit": "mg" },
+    { "id": 38, "parameter": "Vitamina K",                    "unit": "mg" },
+    { "id": 39, "parameter": "Zeaxantina",                    "unit": "mg" },
+    { "id": 40, "parameter": "Zinco",                         "unit": "mg" },
+    { "id": 41, "parameter": "Menaquinona-7 (Vitamina K2)",   "unit": "mg" }
+  ],
+
+  "referencias_bibliograficas": [
+    { "id": 1,  "titulo": "Farmacopeia Brasileira, 7ª edição",                                          "autores": "ANVISA — Agência Nacional de Vigilância Sanitária", "ano": 2019, "tipo_referencia": "regulamentacao", "doi": "https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia", "auto_include": true },
+    { "id": 13, "titulo": "Farmacopeia Brasileira, 6ª edição",                                          "autores": "ANVISA — Agência Nacional de Vigilância Sanitária", "ano": 2019, "tipo_referencia": "regulamentacao", "doi": "https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia", "auto_include": false },
+    { "id": 14, "titulo": "CompactDry™ — Métodos microbiológicos em placa seca (Nissui)",               "autores": "Nissui Pharmaceutical Co., Ltd.",                    "ano": 2023, "tipo_referencia": "norma",          "doi": "https://www.nissui.co.jp/english/compactdry/",          "auto_include": false },
+    { "id": 16, "titulo": "TACO — Tabela Brasileira de Composição de Alimentos, 4ª edição",              "autores": "NEPA — Núcleo de Estudos e Pesquisas em Alimentação", "ano": 2011, "tipo_referencia": "livro",          "doi": "https://www.cfn.org.br/wp-content/uploads/2017/03/taco_4_edicao_ampliada_e_revisada.pdf", "auto_include": false },
+    { "id": 17, "titulo": "Waters AccQ•Tag Ultra Derivatization Kit — Determinação de aminoácidos por HPLC", "autores": "Waters Corporation",                            "ano": 2014, "tipo_referencia": "norma",          "doi": "https://www.waters.com/webassets/cms/library/docs/715001331.pdf", "auto_include": false },
+    { "id": 44, "titulo": "RDC nº 243, de 26 de julho de 2018",                                         "autores": "BRASIL. Agência Nacional de Vigilância Sanitária",  "ano": 2018, "tipo_referencia": "regulatoria",    "doi": null, "auto_include": true },
+    { "id": 68, "titulo": "Handbook de Excipientes Farmacêuticos",                                       "autores": "ROWE, Raymond C.; SHESKEY, Paul J.; QUINN, Marian E.", "ano": 2009, "tipo_referencia": "geral",      "doi": null, "auto_include": false },
+    { "id": 69, "titulo": "Estabilidade de drogas: Princípios e Práticas",                               "autores": "CARSTENSEN, Jens T.; RHODES, Christopher T.",        "ano": 2000, "tipo_referencia": "geral",        "doi": null, "auto_include": false },
+    { "id": 71, "titulo": "Cinética de Primeira Ordem: Fortificação e Suplementação em Alimentos",       "autores": "The stability of vitamins in fortified foods and supplements. Berry Ottaway P.", "ano": 2008, "tipo_referencia": "geral", "doi": null, "auto_include": false }
+  ],
+
+  "nota_restauracao": "Para restaurar: diga ao agente 'restaurar catálogos do backup' e informe qual tabela. O agente lerá este arquivo no GitHub e inserirá apenas os registros faltantes, sem duplicar."
+}
