@@ -6312,6 +6312,32 @@ function MethodologiaTab({
     setDocUrlInput("");
   };
 
+  // ── Dialog edição inline de metodologia do parâmetro ─────────────
+  const [editParamMethod, setEditParamMethod] = useState<{
+    uid: string; paramName: string; shortName: string; citation: string; libraryId?: number;
+  } | null>(null);
+  const [editParamShort, setEditParamShort] = useState("");
+  const [editParamCitation, setEditParamCitation] = useState("");
+  const [editParamAskLibrary, setEditParamAskLibrary] = useState(false);
+  const [editParamCopied, setEditParamCopied] = useState(false);
+
+  const openEditParamMethod = (uid: string, paramName: string, shortName: string, citation: string) => {
+    const libEntry = methodologies.find(m => m.shortName === shortName);
+    setEditParamMethod({ uid, paramName, shortName, citation, libraryId: libEntry?.id });
+    setEditParamShort(shortName);
+    setEditParamCitation(citation);
+    setEditParamAskLibrary(false);
+    setEditParamCopied(false);
+  };
+
+  const closeEditParamMethod = () => { setEditParamMethod(null); setEditParamAskLibrary(false); };
+
+  const saveEditParamMethod = () => {
+    if (!editParamMethod || !editParamShort.trim()) return;
+    setParamMethodInTab(editParamMethod.uid, editParamMethod.paramName, editParamShort.trim(), editParamCitation.trim(), false);
+    setEditParamAskLibrary(true);
+  };
+
   // ── Dialog de referência bibliográfica ────────────────────────────
   const [dialog, setDialog] = useState<MethodologyDialogState>({ mode: "closed" });
   const isOpen = dialog.mode !== "closed";
@@ -6597,6 +6623,15 @@ function MethodologiaTab({
                                   )}
                                 </div>
                                 <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
+                                  {/* Editar texto da metodologia diretamente */}
+                                  <button
+                                    type="button"
+                                    title="Editar texto da metodologia"
+                                    className="flex items-center justify-center h-5 w-5 rounded text-muted-foreground/40 hover:text-primary hover:bg-primary/10 transition-colors"
+                                    onClick={() => openEditParamMethod(p.uid, p.parameter, p.methodologyShort!, p.methodologyCitation ?? "")}
+                                  >
+                                    <PenLine className="h-3 w-3" />
+                                  </button>
                                   <ParamMethodSelector
                                     paramName={p.parameter}
                                     selected={p.methodologyShort ?? null}
@@ -7159,6 +7194,148 @@ function MethodologiaTab({
             <div className="flex justify-end gap-2 pt-1">
               <button type="button" onClick={() => { criterionConfirmPending.applyFn(false); setCriterionConfirmPending(null); }} className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted">Manter atual</button>
               <button type="button" onClick={() => { criterionConfirmPending.applyFn(true); setCriterionConfirmPending(null); }} className="text-xs px-3 py-1.5 rounded bg-amber-600 text-white hover:bg-amber-700">Substituir critério</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Dialog: editar texto da metodologia inline ─────────────── */}
+      {editParamMethod && !editParamAskLibrary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={closeEditParamMethod}>
+          <div className="bg-white rounded-xl shadow-2xl w-[520px] mx-4 p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            {/* Cabeçalho */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <PenLine className="h-4 w-4 text-primary" />
+                <p className="font-semibold text-sm">Editar metodologia</p>
+              </div>
+              <button type="button" onClick={closeEditParamMethod} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground -mt-1">
+              Parâmetro: <span className="font-medium text-foreground">{editParamMethod.paramName}</span>
+            </p>
+
+            {/* Nome curto */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Nome curto</label>
+              <input
+                autoFocus
+                type="text"
+                value={editParamShort}
+                onChange={e => setEditParamShort(e.target.value)}
+                className="w-full rounded-md border border-border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                placeholder="ex: FB 7ª ed., AOAC 934.01, IAL 4ª ed."
+              />
+            </div>
+
+            {/* Citação completa */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Citação completa</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(editParamCitation).then(() => {
+                      setEditParamCopied(true);
+                      setTimeout(() => setEditParamCopied(false), 2000);
+                    });
+                  }}
+                  className={`text-xs flex items-center gap-1 px-2 py-0.5 rounded transition-colors ${editParamCopied ? "text-emerald-600 bg-emerald-50" : "text-primary hover:bg-primary/10"}`}
+                >
+                  {editParamCopied ? "✓ Copiado!" : "Copiar texto"}
+                </button>
+              </div>
+              <textarea
+                value={editParamCitation}
+                onChange={e => setEditParamCitation(e.target.value)}
+                rows={4}
+                className="w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-y"
+                placeholder="Citação completa da referência metodológica…"
+              />
+            </div>
+
+            {/* Rodapé */}
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" onClick={closeEditParamMethod} className="text-sm px-4 py-1.5 rounded border border-border hover:bg-muted transition-colors">
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={saveEditParamMethod}
+                disabled={!editParamShort.trim()}
+                className="text-sm px-4 py-1.5 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50 transition-colors"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Dialog: perguntar se atualiza a biblioteca ──────────────── */}
+      {editParamMethod && editParamAskLibrary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => closeEditParamMethod()}>
+          <div className="bg-white rounded-xl shadow-2xl w-[420px] mx-4 p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-primary" />
+              <p className="font-semibold text-sm">Deseja atualizar a Biblioteca de Referências Metodológicas?</p>
+            </div>
+            <div className="rounded-lg bg-muted/50 border px-3 py-2 space-y-1">
+              <p className="text-xs font-medium text-foreground">{editParamShort}</p>
+              <p className="text-[11px] text-muted-foreground break-words leading-snug">{editParamCitation || "(sem citação)"}</p>
+            </div>
+            {editParamMethod.libraryId ? (
+              <p className="text-xs text-muted-foreground">
+                Esta metodologia existe na biblioteca. Ao confirmar, o registro será atualizado para <strong>todos os protocolos</strong> que a utilizam.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Esta metodologia <strong>não está na biblioteca</strong>. Ao confirmar, será criada uma nova entrada.
+              </p>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => closeEditParamMethod()}
+                className="text-sm px-4 py-1.5 rounded border border-border hover:bg-muted transition-colors"
+              >
+                Não, somente aqui
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (editParamMethod.libraryId) {
+                    updateMutation.mutate({
+                      id: editParamMethod.libraryId,
+                      data: {
+                        shortName: editParamShort.trim(),
+                        citation: editParamCitation.trim(),
+                        category: null,
+                        subject: null,
+                        parameter: null,
+                        criteria: null,
+                      },
+                    });
+                  } else {
+                    createMutation.mutate({
+                      data: {
+                        shortName: editParamShort.trim(),
+                        citation: editParamCitation.trim(),
+                        category: null,
+                        subject: null,
+                        parameter: null,
+                        criteria: null,
+                      },
+                    });
+                  }
+                  closeEditParamMethod();
+                }}
+                className="text-sm px-4 py-1.5 rounded bg-primary text-white hover:bg-primary/80 transition-colors"
+              >
+                Sim, atualizar biblioteca
+              </button>
             </div>
           </div>
         </div>
