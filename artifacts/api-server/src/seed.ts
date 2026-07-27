@@ -1,5 +1,6 @@
 import {
   db,
+  pool,
   ativoReferencesTable,
   methodologiesTable,
   bibliographicReferencesTable,
@@ -320,7 +321,32 @@ export async function emergencyRestoreIfNeeded(): Promise<void> {
   }
 }
 
+/**
+ * Garante que a sequence de analysis_results está sincronizada com MAX(id).
+ * Roda em todo boot (dev e produção) para evitar "duplicate key on pkey" após
+ * backup/restore com IDs explícitos que avançam além do last_value da sequence.
+ */
+async function fixSequences(): Promise<void> {
+  try {
+    await pool.query(`
+      SELECT setval(
+        'analysis_results_id_seq',
+        GREATEST(
+          COALESCE((SELECT MAX(id) FROM analysis_results), 0) + 1,
+          (SELECT last_value + 1 FROM analysis_results_id_seq)
+        ),
+        false
+      )
+    `);
+    logger.info("analysis_results sequence verified/fixed");
+  } catch (err) {
+    logger.error({ err }, "fixSequences: failed to reset sequence");
+  }
+}
+
 export async function runAllSeeds(): Promise<void> {
+  // Corrige sequence antes de tudo para evitar pkey conflict em produção
+  await fixSequences();
   await Promise.all([
     seedAtivoReferences(),
     seedMethodologies(),

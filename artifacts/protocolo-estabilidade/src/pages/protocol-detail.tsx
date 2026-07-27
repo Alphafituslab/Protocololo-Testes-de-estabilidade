@@ -918,7 +918,7 @@ function CellImages({ storageKey }: { storageKey: string }) {
 
 function InlineCell({
   lotId, period, param, result, protocolId, lots, periodDate,
-  editUnlocked, onUnlock, onSaved,
+  editUnlocked, onUnlock, onSaved, otherPeriods,
 }: {
   lotId: number;
   period: number;
@@ -930,6 +930,8 @@ function InlineCell({
   editUnlocked: boolean;
   onUnlock: () => void;
   onSaved: () => void;
+  /** Outros períodos do mesmo lote+parâmetro — usado para auto-preencher */
+  otherPeriods?: Array<{ period: number; result: { result: string; status: string } | undefined; date?: string }>;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(result?.result ?? "");
@@ -1018,6 +1020,7 @@ function InlineCell({
   });
 
   const bulkUpsert = useUpsertResult();
+  const fillPeriodsUpsert = useUpsertResult();
 
   const save = () => {
     if (!value.trim()) { setEditing(false); return; }
@@ -1237,6 +1240,47 @@ function InlineCell({
             title={`Replica este valor para todos os lotes no mesmo período (T${period}m). Para preencher T0, T3 ou T6, abra uma célula daquele período.`}
           >
             {bulkUpsert.isPending ? "Salvando..." : `↕ replicar lotes (T${period}m)`}
+          </button>
+        )}
+        {/* ── Auto-preencher outros períodos ──────────────────────── */}
+        {value.trim() && otherPeriods && otherPeriods.some(op => !op.result) && (
+          <button
+            type="button"
+            onClick={async () => {
+              const emptyOtherPeriods = otherPeriods.filter(op => !op.result);
+              for (const op of emptyOtherPeriods) {
+                try {
+                  await fillPeriodsUpsert.mutateAsync({
+                    id: protocolId,
+                    data: {
+                      lotId,
+                      period: op.period,
+                      analysisDate: op.date ?? new Date().toISOString().split("T")[0],
+                      category: param.category as "fisico_quimica" | "microbiologica" | "teor_ativo" | "embalagem",
+                      parameter: param.parameter,
+                      criterion: param.criterion,
+                      result: value,
+                      numericResult: (() => { const n = parseFloat(value.replace(",", ".")); return isNaN(n) ? undefined : n; })(),
+                      status,
+                    },
+                  });
+                } catch {
+                  // continua — falhas individuais logadas no servidor
+                }
+              }
+              queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
+              queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
+              queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });
+              setEditing(false);
+              onSaved();
+            }}
+            disabled={fillPeriodsUpsert.isPending}
+            className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 w-full mt-0.5 disabled:opacity-50"
+            title={`Auto-preenche os períodos vazios (${otherPeriods.filter(op => !op.result).map(op => `T${op.period}m`).join(', ')}) com o mesmo valor e status.`}
+          >
+            {fillPeriodsUpsert.isPending
+              ? "Preenchendo..."
+              : `↔ auto-preencher ${otherPeriods.filter(op => !op.result).map(op => `T${op.period}m`).join(" + ")}`}
           </button>
         )}
       </div>
@@ -3890,6 +3934,11 @@ function ResultsTab({ protocolId, isPowder, initialCustomParamsJson, initialPeri
                                 editUnlocked={editUnlocked}
                                 onUnlock={() => setEditUnlocked(true)}
                                 onSaved={() => {}}
+                                otherPeriods={PERIODS.filter(p => p !== period).map(p => ({
+                                  period: p,
+                                  result: getResult(lot.id, p, param.parameter),
+                                  date: periodDates[p] || undefined,
+                                }))}
                               />
                             </TableCell>
                           );
