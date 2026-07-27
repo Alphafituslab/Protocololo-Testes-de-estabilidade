@@ -7475,6 +7475,14 @@ export default function ProtocolDetail() {
   const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
   const [deletePasswordOpen, setDeletePasswordOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("info");
+  // Lazy tab mounting: each tab only mounts when first visited, then stays mounted.
+  // Prevents all heavy tab components from loading simultaneously on page open.
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["info"]));
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setVisitedTabs(prev => { const next = new Set(prev); next.add(tab); return next; });
+  };
+  const mounted = (tab: string) => activeTab === tab || visitedTabs.has(tab);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   const { data: protocol, isLoading } = useGetProtocol(numId, {
@@ -7889,7 +7897,7 @@ export default function ProtocolDetail() {
         );
       })()}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="info" data-testid="tab-info">Informações</TabsTrigger>
           <TabsTrigger value="lots" data-testid="tab-lots">Lotes</TabsTrigger>
@@ -7912,14 +7920,14 @@ export default function ProtocolDetail() {
         <TabsContent value="lots">
           <Card>
             <CardContent className="pt-6">
-              <LotsTab protocolId={numId} />
+              {mounted("lots") && <LotsTab protocolId={numId} />}
             </CardContent>
           </Card>
         </TabsContent>
         <TabsContent value="results">
           <Card>
             <CardContent className="pt-6">
-              <ResultsTab
+              {mounted("results") && <ResultsTab
                 protocolId={numId}
                 isPowder={/\b(p[oó]|sachê|sachet|powder|granulado)\b/i.test(protocol.productType ?? "")}
                 initialCustomParamsJson={protocol.customParamsJson}
@@ -7932,14 +7940,14 @@ export default function ProtocolDetail() {
                 initialKineticsOverridesJson={protocol.kineticsOverridesJson}
                 recommendedKineticsOverages={recommendedKineticsOverages}
                 onAtivoLimitsSync={setLocalAtivoLimitsJson}
-              />
+              />}
             </CardContent>
           </Card>
         </TabsContent>
         <TabsContent value="kinetics">
           <Card>
             <CardContent className="pt-6">
-              <KineticsTab
+              {mounted("kinetics") && <KineticsTab
                 protocolId={numId}
                 productName={protocol.productName}
                 initialKineticsNotes={protocol.kineticsNotes}
@@ -7951,14 +7959,14 @@ export default function ProtocolDetail() {
                 onRecommendedOverages={handleRecommendedOverages}
                 onSyncCertificate={handleSyncCertificate}
                 isSyncingCertificate={isSyncingCertificate}
-              />
+              />}
             </CardContent>
           </Card>
         </TabsContent>
         <TabsContent value="metodologia">
           <Card>
             <CardContent className="pt-6">
-              <MethodologiaTab protocolId={numId} initialCustomParamsJson={protocol.customParamsJson} protocolStatus={protocol.status} />
+              {mounted("metodologia") && <MethodologiaTab protocolId={numId} initialCustomParamsJson={protocol.customParamsJson} protocolStatus={protocol.status} />}
             </CardContent>
           </Card>
         </TabsContent>
@@ -7970,15 +7978,15 @@ export default function ProtocolDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <AuditTrail protocolId={numId} />
+              {mounted("historico") && <AuditTrail protocolId={numId} />}
             </CardContent>
           </Card>
         </TabsContent>
         <TabsContent value="documentos">
-          <DocumentosTab protocolId={numId} />
+          {mounted("documentos") && <DocumentosTab protocolId={numId} />}
         </TabsContent>
         <TabsContent value="referencias">
-          <ReferencesTab protocolId={numId} />
+          {mounted("referencias") && <ReferencesTab protocolId={numId} />}
         </TabsContent>
         <TabsContent value="versoes">
           <Card>
@@ -7988,12 +7996,12 @@ export default function ProtocolDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <VersionsTab protocolId={numId} />
+              {mounted("versoes") && <VersionsTab protocolId={numId} />}
             </CardContent>
           </Card>
         </TabsContent>
         <TabsContent value="anvisa">
-          <AnvisaTab protocolId={numId} protocolInfo={{
+          {mounted("anvisa") && <AnvisaTab protocolId={numId} protocolInfo={{
             companyName: protocol.companyName,
             cnpj: protocol.cnpj,
             productName: protocol.productName,
@@ -8001,7 +8009,7 @@ export default function ProtocolDetail() {
             activeIngredients: protocol.activeIngredients ?? null,
             approvedBy: protocol.approvedBy ?? null,
             certNumber: protocol.certNumber ?? "",
-          }} />
+          }} />}
         </TabsContent>
       </Tabs>
     </div>
