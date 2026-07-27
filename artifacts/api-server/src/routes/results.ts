@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, and, count, isNull, sql } from "drizzle-orm";
-import { db, analysisResultsTable, lotsTable, protocolsTable } from "@workspace/db";
+import { eq, and, count, isNull } from "drizzle-orm";
+import { db, pool, analysisResultsTable, lotsTable, protocolsTable } from "@workspace/db";
 import { UpsertResultBody, UpsertResultParams, ListResultsParams, DeleteResultParams } from "@workspace/api-zod";
 import { logAudit } from "../lib/audit";
 import { requireAuth } from "../lib/session";
@@ -90,37 +90,38 @@ router.post("/protocols/:id/results", requireAuth, requirePermission(PERM.RESULT
     : null;
   const obsVal = parsed.data.observation ?? null;
 
-  let result;
+  let savedId: number;
   const isUpdate = existing.length > 0;
   try {
     if (isUpdate) {
-      const rows = await db.execute(sql`
-        UPDATE analysis_results SET
-          analysis_date = ${parsed.data.analysisDate},
-          category      = ${parsed.data.category},
-          criterion     = ${parsed.data.criterion},
-          result        = ${parsed.data.result},
-          numeric_result = ${numericVal}::double precision,
-          status        = ${parsed.data.status},
-          observation   = ${obsVal},
-          updated_at    = now()
-        WHERE id = ${existing[0]!.id}
-        RETURNING *
-      `);
-      result = rows.rows[0] as typeof analysisResultsTable.$inferSelect;
+      const { rows } = await pool.query<{ id: number }>(
+        `UPDATE analysis_results SET
+           analysis_date  = $1,
+           category       = $2,
+           criterion      = $3,
+           result         = $4,
+           numeric_result = $5,
+           status         = $6,
+           observation    = $7,
+           updated_at     = now()
+         WHERE id = $8
+         RETURNING id`,
+        [parsed.data.analysisDate, parsed.data.category, parsed.data.criterion,
+         parsed.data.result, numericVal, parsed.data.status, obsVal, existing[0]!.id]
+      );
+      savedId = rows[0]!.id;
     } else {
-      const rows = await db.execute(sql`
-        INSERT INTO analysis_results
-          (protocol_id, lot_id, period, analysis_date, category, parameter, criterion, result, numeric_result, status, observation)
-        VALUES
-          (${params.data.id}, ${parsed.data.lotId}, ${parsed.data.period},
-           ${parsed.data.analysisDate}, ${parsed.data.category}, ${parsed.data.parameter},
-           ${parsed.data.criterion}, ${parsed.data.result},
-           ${numericVal}::double precision,
-           ${parsed.data.status}, ${obsVal})
-        RETURNING *
-      `);
-      result = rows.rows[0] as typeof analysisResultsTable.$inferSelect;
+      const { rows } = await pool.query<{ id: number }>(
+        `INSERT INTO analysis_results
+           (protocol_id, lot_id, period, analysis_date, category, parameter, criterion, result, numeric_result, status, observation)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         RETURNING id`,
+        [params.data.id, parsed.data.lotId, parsed.data.period,
+         parsed.data.analysisDate, parsed.data.category, parsed.data.parameter,
+         parsed.data.criterion, parsed.data.result, numericVal,
+         parsed.data.status, obsVal]
+      );
+      savedId = rows[0]!.id;
     }
   } catch (dbErr: unknown) {
     const pgErr = dbErr as { message?: string; code?: string; detail?: string; constraint?: string };
@@ -136,6 +137,8 @@ router.post("/protocols/:id/results", requireAuth, requirePermission(PERM.RESULT
     return;
   }
 
+  // Fetch via drizzle so we get camelCase-mapped columns
+  const [result] = await db.select().from(analysisResultsTable).where(eq(analysisResultsTable.id, savedId));
   const [lot] = await db.select().from(lotsTable).where(eq(lotsTable.id, result!.lotId));
   const action = isUpdate ? "ATUALIZAR_RESULTADO" : "REGISTRAR_RESULTADO";
   const statusLabel: Record<string, string> = {
