@@ -114,6 +114,11 @@ export default function Dashboard() {
   }, [allProtocols, q, statusFilter, stats?.recentProtocols, sortOrder]);
 
   function handleCardClick(status: string) {
+    // "Todos" navega direto para a lista completa de protocolos
+    if (status === "all") {
+      navigate("/protocols");
+      return;
+    }
     const next = statusFilter === status ? null : status;
     setStatusFilter(next);
     setSearch("");

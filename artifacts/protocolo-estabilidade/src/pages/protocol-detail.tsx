@@ -1201,17 +1201,18 @@ function InlineCell({
           <button
             type="button"
             onClick={async () => {
-              const tasks = lots.flatMap((lot) =>
-                ([0, 3, 6] as const).map((p) => ({ lotId: lot.id, period: p }))
-              );
+              // Replica apenas para todos os lotes do MESMO período — nunca preenche
+              // outros períodos automaticamente. Para preencher T3 ou T6, o usuário
+              // deve abrir uma célula daquele período e clicar "replicar lotes".
+              const tasks = lots.map((lot) => ({ lotId: lot.id }));
               // Sequential to avoid DB connection pool pressure and race conditions
-              for (const { lotId: taskLotId, period: p } of tasks) {
+              for (const { lotId: taskLotId } of tasks) {
                 try {
                   await bulkUpsert.mutateAsync({
                     id: protocolId,
                     data: {
                       lotId: taskLotId,
-                      period: p,
+                      period,
                       analysisDate: periodDate ?? new Date().toISOString().split("T")[0],
                       category: param.category as "fisico_quimica" | "microbiologica" | "teor_ativo" | "embalagem",
                       parameter: param.parameter,
@@ -1233,9 +1234,9 @@ function InlineCell({
             }}
             disabled={bulkUpsert.isPending}
             className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 w-full mt-0.5 disabled:opacity-50"
-            title="Preenche todos os lotes e períodos com este valor"
+            title={`Replica este valor para todos os lotes no mesmo período (T${period}m). Para preencher T0, T3 ou T6, abra uma célula daquele período.`}
           >
-            {bulkUpsert.isPending ? "Salvando..." : "↕ replicar todos"}
+            {bulkUpsert.isPending ? "Salvando..." : `↕ replicar lotes (T${period}m)`}
           </button>
         )}
       </div>
