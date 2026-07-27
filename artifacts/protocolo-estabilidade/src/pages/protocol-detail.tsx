@@ -1204,12 +1204,13 @@ function InlineCell({
               const tasks = lots.flatMap((lot) =>
                 ([0, 3, 6] as const).map((p) => ({ lotId: lot.id, period: p }))
               );
-              await Promise.all(
-                tasks.map(({ lotId, period: p }) =>
-                  bulkUpsert.mutateAsync({
+              // Sequential to avoid DB connection pool pressure and race conditions
+              for (const { lotId: taskLotId, period: p } of tasks) {
+                try {
+                  await bulkUpsert.mutateAsync({
                     id: protocolId,
                     data: {
-                      lotId,
+                      lotId: taskLotId,
                       period: p,
                       analysisDate: periodDate ?? new Date().toISOString().split("T")[0],
                       category: param.category as "fisico_quimica" | "microbiologica" | "teor_ativo" | "embalagem",
@@ -1219,9 +1220,11 @@ function InlineCell({
                       numericResult: (() => { const n = parseFloat(value.replace(",", ".")); return isNaN(n) ? undefined : n; })(),
                       status,
                     },
-                  })
-                )
-              );
+                  });
+                } catch {
+                  // continue to next — individual failures logged server-side
+                }
+              }
               queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
               queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
               queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(protocolId) });

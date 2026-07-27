@@ -87,14 +87,41 @@ router.post("/protocols/:id/results", requireAuth, requirePermission(PERM.RESULT
 
   let result;
   const isUpdate = existing.length > 0;
-  if (isUpdate) {
-    const [updated] = await db.update(analysisResultsTable)
-      .set({ analysisDate: parsed.data.analysisDate, category: parsed.data.category, criterion: parsed.data.criterion, result: parsed.data.result, numericResult: parsed.data.numericResult ?? null, status: parsed.data.status, observation: parsed.data.observation ?? null })
-      .where(eq(analysisResultsTable.id, existing[0]!.id)).returning();
-    result = updated;
-  } else {
-    const [created] = await db.insert(analysisResultsTable).values({ ...parsed.data, protocolId: params.data.id }).returning();
-    result = created;
+  try {
+    if (isUpdate) {
+      const [updated] = await db.update(analysisResultsTable)
+        .set({ analysisDate: parsed.data.analysisDate, category: parsed.data.category, criterion: parsed.data.criterion, result: parsed.data.result, numericResult: parsed.data.numericResult ?? null, status: parsed.data.status, observation: parsed.data.observation ?? null })
+        .where(eq(analysisResultsTable.id, existing[0]!.id)).returning();
+      result = updated;
+    } else {
+      const values = {
+        protocolId: params.data.id,
+        lotId: parsed.data.lotId,
+        period: parsed.data.period,
+        analysisDate: parsed.data.analysisDate,
+        category: parsed.data.category,
+        parameter: parsed.data.parameter,
+        criterion: parsed.data.criterion,
+        result: parsed.data.result,
+        numericResult: parsed.data.numericResult ?? null,
+        status: parsed.data.status,
+        observation: parsed.data.observation ?? null,
+      };
+      const [created] = await db.insert(analysisResultsTable).values(values).returning();
+      result = created;
+    }
+  } catch (dbErr: unknown) {
+    const pgErr = dbErr as { message?: string; code?: string; detail?: string; constraint?: string };
+    console.error("DB error in upsert result:", {
+      code: pgErr.code,
+      message: pgErr.message,
+      detail: pgErr.detail,
+      constraint: pgErr.constraint,
+      isUpdate,
+      params: { protocolId: params.data.id, lotId: parsed.data.lotId, period: parsed.data.period, parameter: parsed.data.parameter },
+    });
+    res.status(500).json({ error: pgErr.message ?? "Erro ao salvar resultado no banco." });
+    return;
   }
 
   const [lot] = await db.select().from(lotsTable).where(eq(lotsTable.id, result!.lotId));
@@ -105,8 +132,9 @@ router.post("/protocols/:id/results", requireAuth, requirePermission(PERM.RESULT
   };
   const statusText = statusLabel[result!.status] ?? result!.status;
   const desc = `${result!.parameter} — T${result!.period}m — Lote ${lot?.lotNumber ?? result!.lotId}: valor="${result!.result}" [${statusText}]${result!.observation ? ` · Justificativa: ${result!.observation}` : ""}`;
-  await logAudit(req, action, "resultado", desc, { entityId: result!.id, protocolId: params.data.id });
-  await recalcProgress(params.data.id);
+  // Non-critical — do not let audit/progress errors fail the response
+  try { await logAudit(req, action, "resultado", desc, { entityId: result!.id, protocolId: params.data.id }); } catch (e) { console.error("logAudit error:", e); }
+  try { await recalcProgress(params.data.id); } catch (e) { console.error("recalcProgress error:", e); }
   res.json({ ...result, lotNumber: lot?.lotNumber ?? "" });
 });
 
