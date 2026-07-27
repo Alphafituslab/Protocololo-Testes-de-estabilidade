@@ -10,7 +10,7 @@ import {
   capsuleTypesTable,
   productTypesTable,
 } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, like, or } from "drizzle-orm";
 import { logger } from "./lib/logger";
 import { downloadCloudBackup } from "./lib/backup-scheduler";
 import { runRestore } from "./lib/backup-restore";
@@ -341,7 +341,30 @@ async function fixSequences(): Promise<void> {
   }
 }
 
+/** Remove entradas legadas (ASTM, FB 6ª ed., FB 7ª ed.) que não devem mais existir na biblioteca. */
+export async function purgeDeprecatedMethodologies(): Promise<void> {
+  try {
+    const deleted = await db
+      .delete(methodologiesTable)
+      .where(
+        or(
+          like(methodologiesTable.shortName, "ASTM%"),
+          like(methodologiesTable.shortName, "FB 6%"),
+          like(methodologiesTable.shortName, "FB 7%"),
+        ),
+      )
+      .returning({ id: methodologiesTable.id, shortName: methodologiesTable.shortName });
+    if (deleted.length > 0) {
+      logger.info({ removed: deleted.map((r) => r.shortName) }, "purgeDeprecatedMethodologies: entradas removidas");
+    }
+  } catch (err) {
+    logger.error({ err }, "purgeDeprecatedMethodologies: erro");
+  }
+}
+
 export async function runAllSeeds(): Promise<void> {
+  // Remove entradas legadas antes de semear para não re-inserir nada indesejado
+  await purgeDeprecatedMethodologies();
   // Corrige sequence antes de tudo para evitar pkey conflict em produção
   await fixSequences();
   await Promise.all([
