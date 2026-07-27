@@ -9276,6 +9276,38 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
 
   const linkedIds = new Set(protocolRefs.map(r => r.id));
 
+  // ── Ordenação automática das referências do protocolo ─────────────
+  // 1º RDC  2º IN  3º com ativo (por nome do ativo)  4º demais (por tipo)
+  const tipoOrderAll = [...TIPO_ORDER_REF, ...TIPO_LEGACY] as string[];
+  const refRank = (r: BibliographicReference): number => {
+    const t = r.titulo.trim();
+    if (/^rdc\b/i.test(t)) return 0;
+    if (/^in\b/i.test(t))  return 1;
+    if (r.ativoRelacionado?.trim()) return 2;
+    return 3;
+  };
+  const sortedProtocolRefs = [...protocolRefs].sort((a, b) => {
+    const ra = refRank(a), rb = refRank(b);
+    if (ra !== rb) return ra - rb;
+    if (ra === 2) {
+      // mesmo grupo "ativo": ordena pelo nome do ativo, depois pelo título
+      const ca = (a.ativoRelacionado ?? "").trim().toLowerCase();
+      const cb = (b.ativoRelacionado ?? "").trim().toLowerCase();
+      if (ca !== cb) return ca.localeCompare(cb, "pt-BR");
+    }
+    if (ra === 3) {
+      // mesmo grupo "demais": ordena pelo tipo, depois pelo título
+      const firstTipo = (r: BibliographicReference) =>
+        r.tipoReferencia.split(",").filter(Boolean)[0] ?? "";
+      const ta = tipoOrderAll.indexOf(firstTipo(a));
+      const tb = tipoOrderAll.indexOf(firstTipo(b));
+      const oa = ta === -1 ? 99 : ta;
+      const ob = tb === -1 ? 99 : tb;
+      if (oa !== ob) return oa - ob;
+    }
+    return a.titulo.localeCompare(b.titulo, "pt-BR", { sensitivity: "base" });
+  });
+
   // Normaliza: minúsculas + remove acentos + remove pontuação/símbolos
   const normSearch = (s: string) =>
     s.toLowerCase()
@@ -9344,28 +9376,13 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
           </div>
         ) : (
           <div className="space-y-4">
-            {protocolRefs.map((ref, idx) => {
+            {sortedProtocolRefs.map((ref, idx) => {
               const colorBlock = ref.color ? COLOR_BLOCK_PD[ref.color] : null;
               return (
                 <div
                   key={ref.id}
                   className={`flex items-start gap-3 py-4 group border-b border-border last:border-b-0 ${colorBlock ? `border-l-4 ${colorBlock.border} pl-3 -ml-3` : ""}`}
                 >
-                  {/* Reorder buttons */}
-                  <div className="flex flex-col gap-0.5 flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30"
-                      onClick={() => moveRef(idx, -1)}
-                      disabled={idx === 0}
-                      title="Mover para cima"
-                    >▲</button>
-                    <button
-                      className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30"
-                      onClick={() => moveRef(idx, 1)}
-                      disabled={idx === protocolRefs.length - 1}
-                      title="Mover para baixo"
-                    >▼</button>
-                  </div>
                   <span className="text-sm font-bold text-muted-foreground w-6 mt-0.5 flex-shrink-0">{idx + 1}.</span>
                   <div className="flex-1 min-w-0">
                     {/* Tipo badge + cor + ano */}
