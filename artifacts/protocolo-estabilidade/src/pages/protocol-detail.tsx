@@ -29,6 +29,7 @@ import {
   getGetCertificateQueryKey,
   getListProtocolsQueryKey,
   getGetProtocolStatsQueryKey,
+  useListProtocols,
   useListMethodologies,
   useCreateMethodology,
   useUpdateMethodology,
@@ -5961,7 +5962,12 @@ function MethodologiaTab({
   const { toast } = useToast();
   const { data: methodologies = [], isLoading } = useListMethodologies();
   const { data: ativoRefsLib = [] } = useListAtivoReferences({ query: { queryKey: getListAtivoReferencesQueryKey(), staleTime: 0 } });
+  const { data: allProtocols = [] } = useListProtocols();
   const updateProtocol = useUpdateProtocol();
+  // pendingDelete: metodologia a remover + lista de protocolos que a usam
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: number; shortName: string; usedBy: string[];
+  } | null>(null);
   const isMountedRef = useRef(false);
 
   // Undo refs for parameter removal
@@ -7032,23 +7038,26 @@ function MethodologiaTab({
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Remover referência?</AlertDialogTitle>
-                          <AlertDialogDescription>"{m.shortName}" será removida permanentemente.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteMutation.mutate({ id: m.id })}>Remover</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      title="Remover referência"
+                      onClick={() => {
+                        // Verifica em quais protocolos esta metodologia está em uso
+                        const usedBy = allProtocols
+                          .filter(p => {
+                            try {
+                              const pm = JSON.parse((p as { paramMethodsJson?: string | null }).paramMethodsJson ?? "{}") as Record<string, string>;
+                              return Object.values(pm).some(v => v === m.shortName);
+                            } catch { return false; }
+                          })
+                          .map(p => (p as { productName?: string; product_name?: string }).productName ?? (p as { product_name?: string }).product_name ?? `Protocolo #${p.id}`);
+                        setPendingDelete({ id: m.id, shortName: m.shortName, usedBy });
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
               );
@@ -7117,6 +7126,59 @@ function MethodologiaTab({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Modal — confirmar remoção de referência da biblioteca ── */}
+      {pendingDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setPendingDelete(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-[440px] mx-4 p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-destructive shrink-0" />
+              <p className="font-semibold text-sm">Remover referência da biblioteca?</p>
+            </div>
+            <div className="rounded-lg bg-muted/50 border px-3 py-2">
+              <p className="text-sm font-medium">{pendingDelete.shortName}</p>
+            </div>
+            {pendingDelete.usedBy.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-xs text-amber-700 font-medium flex items-center gap-1">
+                  <span className="inline-block w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                  Esta referência está em uso {pendingDelete.usedBy.length === 1 ? "no protocolo:" : `em ${pendingDelete.usedBy.length} protocolos:`}
+                </p>
+                <ul className="max-h-40 overflow-y-auto space-y-0.5 pl-3 border-l-2 border-amber-300">
+                  {pendingDelete.usedBy.map((name, i) => (
+                    <li key={i} className="text-xs text-foreground leading-snug">{name}</li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground">
+                  A referência será removida da biblioteca. Os parâmetros nos protocolos acima manterão o nome da metodologia, mas perderão o vínculo com a entrada centralizada.
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">Esta referência não está em uso em nenhum protocolo.</p>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setPendingDelete(null)}
+                className="text-sm px-4 py-1.5 rounded border border-border hover:bg-muted transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  deleteMutation.mutate({ id: pendingDelete.id });
+                  setPendingDelete(null);
+                }}
+                disabled={deleteMutation.isPending}
+                className="text-sm px-4 py-1.5 rounded bg-destructive text-white hover:bg-destructive/80 transition-colors disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? "Removendo…" : "Remover"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Dialog — confirmar troca de metodologia já atribuída */}
       {changeMethodConfirm && (
