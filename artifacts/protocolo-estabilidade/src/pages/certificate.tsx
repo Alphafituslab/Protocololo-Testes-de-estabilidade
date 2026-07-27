@@ -802,16 +802,16 @@ export default function CertificatePage() {
   useEffect(() => {
     if (!cert) return;
 
-    // ── Hydrate certEdits from DB if localStorage is empty ─────────────────
+    // ── Hydrate certEdits from DB — DB is authoritative, wins over localStorage ─
     if (cert.certEditsJson) {
       try {
         const dbEdits = JSON.parse(cert.certEditsJson) as Record<string, string>;
         if (Object.keys(dbEdits).length > 0) {
           const localEdits = JSON.parse(localStorage.getItem(CERT_EDITS_KEY) ?? "{}") as Record<string, string>;
-          if (Object.keys(localEdits).length === 0) {
-            setCertEditsState(dbEdits);
-            try { localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(dbEdits)); } catch { /* ignore */ }
-          }
+          // DB wins on key conflicts; local-only keys (not yet saved to DB) are preserved
+          const merged = { ...localEdits, ...dbEdits };
+          setCertEditsState(merged);
+          try { localStorage.setItem(CERT_EDITS_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
         }
       } catch { /* ignore */ }
     }
