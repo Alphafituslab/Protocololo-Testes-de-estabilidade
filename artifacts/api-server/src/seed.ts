@@ -33,7 +33,6 @@ const DEFAULT_ATIVOS = [
 // ── Metodologias analíticas ───────────────────────────────────────────────────
 const DEFAULT_METHODOLOGIES = [
   // Físico-química
-  { shortName: "FB 7ª ed.", citation: "BRASIL. ANVISA. Farmacopeia Brasileira, 7ª edição. Brasília: ANVISA, 2019.", category: "Fisico-Quimica", subject: "Geral", parameter: "", criteria: "" },
   { shortName: "PH", citation: "Métodos físico-químicos para análise de alimentos, 4. ed. São Paulo: Instituto Adolfo Lutz, 2008. Método: 017/IV.", category: "Fisico-Quimica", subject: "pH", parameter: "PH", criteria: "Conforme especificação do produto" },
   { shortName: "Umidade", citation: "Métodos físico-químicos para análise de alimentos, 4. ed. São Paulo: Instituto Adolfo Lutz, 2008. Método: 012/IV.", category: "Fisico-Quimica", subject: "Umidade", parameter: "Umidade", criteria: "≤ 5%" },
   { shortName: "Cor", citation: "Métodos físico-químicos para análise de alimentos, 4. ed. São Paulo: Instituto Adolfo Lutz, 2008. Método: 060/IV.", category: "Fisico-Quimica", subject: "Cor / Aspecto visual", parameter: "Cor", criteria: "Conforme padrão aprovado" },
@@ -46,7 +45,6 @@ const DEFAULT_METHODOLOGIES = [
   { shortName: "Sodio", citation: "Métodos físico-químicos para análise de alimentos, 4. ed. São Paulo: Instituto Adolfo Lutz, 2008. Método: 017/IV.", category: "Fisico-Quimica", subject: "Sódio", parameter: "Sodio", criteria: "≤ 5 mg — declarar 0" },
   { shortName: "Sódio", citation: "Métodos físico-químicos para análise de alimentos, 4. ed. São Paulo: Instituto Adolfo Lutz, 2008. Método: 017/IV.", category: "Fisico-Quimica", subject: "Sódio", parameter: "Sódio", criteria: "≤ 5 mg — declarar 0" },
   // Microbiológica
-  { shortName: "RDC 724/2022", citation: "BRASIL. ANVISA. Resolução RDC nº 724, de 1º de julho de 2022. Dispõe sobre os padrões microbiológicos de alimentos e sua aplicação. Brasília: ANVISA, 2022.", category: "Microbiologica", subject: "Padrões microbiológicos", parameter: "Coliformes totais", criteria: "≤ 10 UFC/g" },
   { shortName: "Coliformes totais", citation: "CompactDry™ CF: Instructions for Use. Tokyo: Nissui Pharmaceutical Co., Ltd., ano vigente.", category: "Microbiologica", subject: "Coliformes totais", parameter: "Coliformes totais", criteria: "≤ 10 UFC/g" },
   { shortName: "Salmonella spp.", citation: "CompactDry™ SL: Instructions for Use. Tokyo: Nissui Pharmaceutical Co., Ltd., ano vigente.", category: "Microbiologica", subject: "Salmonella spp.", parameter: "Salmonella spp.", criteria: "Ausente em 25 g" },
   { shortName: "Estafilococos coagulase+", citation: "CompactDry™ X-SA: Instructions for Use. Tokyo: Nissui Pharmaceutical Co., Ltd., ano vigente.", category: "Microbiologica", subject: "Estafilococos coagulase+", parameter: "Estafilococos coagulase+", criteria: "≤ 10 UFC/g" },
@@ -73,7 +71,6 @@ const DEFAULT_METHODOLOGIES = [
   { shortName: "Headspace", citation: "BRASIL. Agência Nacional de Vigilância Sanitária. Farmacopeia Brasileira. 6. ed. Brasília: ANVISA, 2019. v. 1.", category: "Embalagem", subject: "Headspace", parameter: "Headspace", criteria: "15% - 20%" },
   // Estabilidade
   { shortName: "ICH Q1A(R2)", citation: "INTERNATIONAL COUNCIL FOR HARMONISATION. ICH Q1A(R2) — Stability Testing of New Drug Substances and Products. Geneva: ICH, 2003.", category: "Estabilidade", subject: "Condições de armazenamento", parameter: "", criteria: "" },
-  { shortName: "RDC 318/2019", citation: "BRASIL. ANVISA. Resolução RDC nº 318, de 6 de novembro de 2019. Dispõe sobre os estudos de estabilidade de suplementos alimentares. Brasília: ANVISA, 2019.", category: "Estabilidade", subject: "Estabilidade de suplementos", parameter: "", criteria: "" },
 ];
 
 // ── Referências bibliográficas ────────────────────────────────────────────────
