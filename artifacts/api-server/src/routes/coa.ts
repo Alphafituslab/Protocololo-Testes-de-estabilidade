@@ -93,6 +93,7 @@ router.post("/coa", requireAuth, async (req, res) => {
       linkedProtocolId: parsed.data.linkedProtocolId ?? null,
       linkedLotId: parsed.data.linkedLotId ?? null,
     }).returning();
+    if (!doc) { res.status(500).json({ error: "Falha ao criar CoA." }); return; }
     // Auto-semeia Físico-Química + Microbiológica em todo CoA novo
     await db.insert(coaResultsTable).values(
       DEFAULT_COA_PARAMS.map((p, i) => ({ coaId: doc.id, ...p, sortOrder: i }))
@@ -335,6 +336,7 @@ router.post("/coa/:id/share-client", requireAuth, async (req, res) => {
         passwordHash, active: true,
         ...(expiresAt ? { accessExpiresAt: expiresAt } : {}),
       }).returning();
+      if (!newUser) { res.status(500).json({ error: "Falha ao criar usuário cliente." }); return; }
       clientUserId = newUser.id;
     }
 

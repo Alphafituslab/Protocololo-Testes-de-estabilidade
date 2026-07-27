@@ -92,8 +92,9 @@ router.post("/protocols/:id/results", requireAuth, requirePermission(PERM.RESULT
 
   let savedId: number;
   const isUpdate = existing.length > 0;
+  const existingId = existing[0]?.id;
   try {
-    if (isUpdate) {
+    if (isUpdate && existingId !== undefined) {
       const { rows } = await pool.query<{ id: number }>(
         `UPDATE analysis_results SET
            analysis_date  = $1,
@@ -107,9 +108,10 @@ router.post("/protocols/:id/results", requireAuth, requirePermission(PERM.RESULT
          WHERE id = $8
          RETURNING id`,
         [parsed.data.analysisDate, parsed.data.category, parsed.data.criterion,
-         parsed.data.result, numericVal, parsed.data.status, obsVal, existing[0]!.id]
+         parsed.data.result, numericVal, parsed.data.status, obsVal, existingId]
       );
-      savedId = rows[0]!.id;
+      if (!rows[0]) { res.status(500).json({ error: "Update não retornou registro." }); return; }
+      savedId = rows[0].id;
     } else {
       const { rows } = await pool.query<{ id: number }>(
         `INSERT INTO analysis_results
@@ -121,7 +123,8 @@ router.post("/protocols/:id/results", requireAuth, requirePermission(PERM.RESULT
          parsed.data.criterion, parsed.data.result, numericVal,
          parsed.data.status, obsVal]
       );
-      savedId = rows[0]!.id;
+      if (!rows[0]) { res.status(500).json({ error: "Insert não retornou registro." }); return; }
+      savedId = rows[0].id;
     }
   } catch (dbErr: unknown) {
     const pgErr = dbErr as { message?: string; code?: string; detail?: string; constraint?: string };
@@ -139,16 +142,17 @@ router.post("/protocols/:id/results", requireAuth, requirePermission(PERM.RESULT
 
   // Fetch via drizzle so we get camelCase-mapped columns
   const [result] = await db.select().from(analysisResultsTable).where(eq(analysisResultsTable.id, savedId));
-  const [lot] = await db.select().from(lotsTable).where(eq(lotsTable.id, result!.lotId));
+  if (!result) { res.status(500).json({ error: "Erro ao recuperar resultado salvo." }); return; }
+  const [lot] = await db.select().from(lotsTable).where(eq(lotsTable.id, result.lotId));
   const action = isUpdate ? "ATUALIZAR_RESULTADO" : "REGISTRAR_RESULTADO";
   const statusLabel: Record<string, string> = {
     conforme: "Conforme", nao_conforme: "Não Conforme", na: "Não se Aplica",
     aprovado_com_ressalva: "Aprovado c/ Ressalva", nd: "Não Detectado", lq: "Limite de Quantificação",
   };
-  const statusText = statusLabel[result!.status] ?? result!.status;
-  const desc = `${result!.parameter} — T${result!.period}m — Lote ${lot?.lotNumber ?? result!.lotId}: valor="${result!.result}" [${statusText}]${result!.observation ? ` · Justificativa: ${result!.observation}` : ""}`;
+  const statusText = statusLabel[result.status] ?? result.status;
+  const desc = `${result.parameter} — T${result.period}m — Lote ${lot?.lotNumber ?? result.lotId}: valor="${result.result}" [${statusText}]${result.observation ? ` · Justificativa: ${result.observation}` : ""}`;
   // Non-critical — do not let audit/progress errors fail the response
-  try { await logAudit(req, action, "resultado", desc, { entityId: result!.id, protocolId: params.data.id }); } catch (e) { console.error("logAudit error:", e); }
+  try { await logAudit(req, action, "resultado", desc, { entityId: result.id, protocolId: params.data.id }); } catch (e) { console.error("logAudit error:", e); }
   try { await recalcProgress(params.data.id); } catch (e) { console.error("recalcProgress error:", e); }
   res.json({ ...result, lotNumber: lot?.lotNumber ?? "" });
 });
