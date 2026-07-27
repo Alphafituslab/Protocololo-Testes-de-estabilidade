@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, doublePrecision, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { protocolsTable } from "./protocols";
@@ -20,7 +20,9 @@ export const analysisResultsTable = pgTable("analysis_results", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
-});
+}, (t) => [
+  unique("analysis_results_unique_entry").on(t.protocolId, t.lotId, t.period, t.parameter),
+]);
 
 export const insertAnalysisResultSchema = createInsertSchema(analysisResultsTable).omit({ id: true, createdAt: true, updatedAt: true, deletedAt: true });
 export type InsertAnalysisResult = z.infer<typeof insertAnalysisResultSchema>;

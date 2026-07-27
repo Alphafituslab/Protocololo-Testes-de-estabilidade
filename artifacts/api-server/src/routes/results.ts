@@ -76,56 +76,38 @@ router.post("/protocols/:id/results", requireAuth, requirePermission(PERM.RESULT
   const parsed = UpsertResultBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  const existing = await db.select().from(analysisResultsTable).where(
-    and(
-      eq(analysisResultsTable.protocolId, params.data.id),
-      eq(analysisResultsTable.lotId, parsed.data.lotId),
-      eq(analysisResultsTable.period, parsed.data.period),
-      eq(analysisResultsTable.parameter, parsed.data.parameter)
-    )
-  );
-
   const numericVal = (parsed.data.numericResult !== undefined && parsed.data.numericResult !== null)
     ? parsed.data.numericResult
     : null;
   const obsVal = parsed.data.observation ?? null;
 
   let savedId: number;
-  const isUpdate = existing.length > 0;
-  const existingId = existing[0]?.id;
+  let isUpdate = false;
   try {
-    if (isUpdate && existingId !== undefined) {
-      const { rows } = await pool.query<{ id: number }>(
-        `UPDATE analysis_results SET
-           analysis_date  = $1,
-           category       = $2,
-           criterion      = $3,
-           result         = $4,
-           numeric_result = $5,
-           status         = $6,
-           observation    = $7,
-           updated_at     = now()
-         WHERE id = $8
-         RETURNING id`,
-        [parsed.data.analysisDate, parsed.data.category, parsed.data.criterion,
-         parsed.data.result, numericVal, parsed.data.status, obsVal, existingId]
-      );
-      if (!rows[0]) { res.status(500).json({ error: "Update não retornou registro." }); return; }
-      savedId = rows[0].id;
-    } else {
-      const { rows } = await pool.query<{ id: number }>(
-        `INSERT INTO analysis_results
-           (protocol_id, lot_id, period, analysis_date, category, parameter, criterion, result, numeric_result, status, observation)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-         RETURNING id`,
-        [params.data.id, parsed.data.lotId, parsed.data.period,
-         parsed.data.analysisDate, parsed.data.category, parsed.data.parameter,
-         parsed.data.criterion, parsed.data.result, numericVal,
-         parsed.data.status, obsVal]
-      );
-      if (!rows[0]) { res.status(500).json({ error: "Insert não retornou registro." }); return; }
-      savedId = rows[0].id;
-    }
+    // Atomic upsert — avoids race conditions and sequence-desync errors
+    const { rows } = await pool.query<{ id: number; is_update: boolean }>(
+      `INSERT INTO analysis_results
+         (protocol_id, lot_id, period, analysis_date, category, parameter, criterion, result, numeric_result, status, observation)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       ON CONFLICT ON CONSTRAINT analysis_results_unique_entry
+       DO UPDATE SET
+         analysis_date  = EXCLUDED.analysis_date,
+         category       = EXCLUDED.category,
+         criterion      = EXCLUDED.criterion,
+         result         = EXCLUDED.result,
+         numeric_result = EXCLUDED.numeric_result,
+         status         = EXCLUDED.status,
+         observation    = EXCLUDED.observation,
+         updated_at     = now()
+       RETURNING id, (xmax <> 0) AS is_update`,
+      [params.data.id, parsed.data.lotId, parsed.data.period,
+       parsed.data.analysisDate, parsed.data.category, parsed.data.parameter,
+       parsed.data.criterion, parsed.data.result, numericVal,
+       parsed.data.status, obsVal]
+    );
+    if (!rows[0]) { res.status(500).json({ error: "Upsert não retornou registro." }); return; }
+    savedId = rows[0].id;
+    isUpdate = rows[0].is_update;
   } catch (dbErr: unknown) {
     const pgErr = dbErr as { message?: string; code?: string; detail?: string; constraint?: string };
     console.error("DB error in upsert result:", {
@@ -133,7 +115,6 @@ router.post("/protocols/:id/results", requireAuth, requirePermission(PERM.RESULT
       message: pgErr.message,
       detail: pgErr.detail,
       constraint: pgErr.constraint,
-      isUpdate,
       params: { protocolId: params.data.id, lotId: parsed.data.lotId, period: parsed.data.period, parameter: parsed.data.parameter },
     });
     res.status(500).json({ error: pgErr.message ?? "Erro ao salvar resultado no banco." });
