@@ -9627,14 +9627,6 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                 </div>
               </div>
 
-              {/* Ativo relacionado */}
-              {(editRefData.tipoReferencia ?? "").split(",").includes("ativo") && (
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">Ativo relacionado</label>
-                  <Input placeholder="Ex: Taurina, Cafeína..." value={editRefData.ativoRelacionado ?? ""} onChange={e => setEditRefData(r => ({ ...r, ativoRelacionado: e.target.value }))} className="h-8 text-sm" />
-                </div>
-              )}
-
               {/* Título */}
               <div>
                 <label className="text-xs font-medium text-muted-foreground block mb-1">Título *</label>
@@ -10026,19 +10018,6 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                     })}
                   </div>
                 </div>
-
-                {/* Ativo relacionado (apenas para tipo = ativo) */}
-                {(newRef.tipoReferencia ?? "geral").split(",").includes("ativo") && (
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">Ativo relacionado</label>
-                    <Input
-                      placeholder="Ex: Taurina, Cafeína, Vitamina D..."
-                      value={newRef.ativoRelacionado ?? ""}
-                      onChange={e => setNewRef(r => ({ ...r, ativoRelacionado: e.target.value }))}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                )}
 
                 {/* Título */}
                 <div>
