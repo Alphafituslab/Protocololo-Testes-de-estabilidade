@@ -7420,31 +7420,41 @@ function MethodologiaTab({
                 type="button"
                 onClick={() => {
                   const paramCriteria = editParamMethod.criterion?.trim() || null;
+                  const newData = {
+                    shortName: editParamShort.trim(),
+                    citation: editParamCitation.trim(),
+                    category: null as string | null,
+                    subject: null as string | null,
+                    parameter: null as string | null,
+                    criteria: paramCriteria,
+                  };
                   if (editParamMethod.libraryId) {
-                    updateMutation.mutate({
-                      id: editParamMethod.libraryId,
-                      data: {
-                        shortName: editParamShort.trim(),
-                        citation: editParamCitation.trim(),
-                        category: null,
-                        subject: null,
-                        parameter: null,
-                        criteria: paramCriteria,
-                      },
-                    });
+                    // Atualiza entrada existente — fecha imediatamente
+                    updateMutation.mutate({ id: editParamMethod.libraryId, data: newData });
+                    closeEditParamMethod();
                   } else {
-                    createMutation.mutate({
-                      data: {
-                        shortName: editParamShort.trim(),
-                        citation: editParamCitation.trim(),
-                        category: null,
-                        subject: null,
-                        parameter: null,
-                        criteria: paramCriteria,
-                      },
-                    });
+                    // Nova entrada — verifica duplicata antes de criar
+                    const newShort = _normCit(newData.shortName);
+                    const newAuthor = _authorPart(newData.citation);
+                    const match = methodologies.find((m) =>
+                      _normCit(m.shortName) === newShort ||
+                      (newAuthor.length > 4 && _authorPart(m.citation) === newAuthor)
+                    );
+                    if (match) {
+                      // Mostra aviso mantendo o dialog de biblioteca aberto (closeEditParamMethod só no proceed)
+                      setDupWarning({
+                        match,
+                        proceed: () => {
+                          setDupWarning(null);
+                          createMutation.mutate({ data: newData });
+                          closeEditParamMethod();
+                        },
+                      });
+                    } else {
+                      createMutation.mutate({ data: newData });
+                      closeEditParamMethod();
+                    }
                   }
-                  closeEditParamMethod();
                 }}
                 className="text-sm px-4 py-1.5 rounded bg-primary text-white hover:bg-primary/80 transition-colors"
               >
