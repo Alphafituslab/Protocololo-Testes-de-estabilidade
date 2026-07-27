@@ -856,7 +856,7 @@ export default function CertificatePage() {
         ...a,
         // Priority: manual cert edit > full citation from Results tab > shortName fallback > default method map > API value
         method: saved[a.parameter]?.method ?? paramCitations[a.parameter] ?? paramMethods[a.parameter] ?? (a.method || DEFAULT_METHODS[a.parameter]) ?? a.method,
-        specification: saved[a.parameter]?.specification ?? a.specification,
+        specification: saved[a.parameter]?.specification || a.specification || null,
         // result and status always come from the DB (API) so changes in the
         // Results tab propagate to the certificate automatically, even after
         // the certificate has been created.

@@ -388,7 +388,7 @@ export default function ProtocolReportPage() {
 
   type ResultRow = {
     lotNumber: string; period: number; parameter: string;
-    category: string; result?: string | null; status?: string | null;
+    category: string; result?: string | null; status?: string | null; criterion?: string | null;
   };
   const results: ResultRow[] = (protocol as any).results ?? [];
   const periods = [...new Set(results.map(r => r.period))].sort((a, b) => a - b);
@@ -398,6 +398,10 @@ export default function ProtocolReportPage() {
     if (!pivot[r.parameter][r.period]) pivot[r.parameter][r.period] = {};
     pivot[r.parameter][r.period][r.lotNumber] = { result: r.result, status: r.status };
   }
+
+  // Mapa param → specification para a seção 5b
+  const specByParam: Record<string, string | null> = {};
+  for (const a of cert.analyses) specByParam[a.parameter] = a.specification ?? null;
 
   const byCategory: Record<string, typeof cert.analyses> = {};
   for (const a of cert.analyses) {
@@ -734,6 +738,7 @@ export default function ProtocolReportPage() {
                   <thead>
                     <tr>
                       <Th>Parâmetro</Th>
+                      <Th>Critério de Aceitação</Th>
                       {lots.map(lot =>
                         periods.map(p => (
                           <Th key={`${lot.id}-${p}`} center>
@@ -748,6 +753,7 @@ export default function ProtocolReportPage() {
                     {sortParams([...new Set(results.map(r => r.parameter))]).map((param, i) => (
                       <tr key={param} className={i % 2 === 0 ? "" : "bg-gray-50/70"}>
                         <Td bold>{param}</Td>
+                        <Td mono className="text-[8px] text-gray-600 whitespace-nowrap">{specByParam[param] || "—"}</Td>
                         {lots.map(lot =>
                           periods.map(p => {
                             const cell = pivot[param]?.[p]?.[lot.lotNumber];

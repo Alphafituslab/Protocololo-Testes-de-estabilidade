@@ -66,6 +66,17 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
     } catch { /* ignore — keep all results */ }
   }
 
+  // ── customParamsJson: param → criterion (fallback when result row has no criterion) ──
+  const customParamCriterion: Record<string, string> = {};
+  if (protocol.customParamsJson) {
+    try {
+      const cp = JSON.parse(protocol.customParamsJson) as Array<{ parameter?: string; criterion?: string }>;
+      for (const p of cp) {
+        if (p.parameter && p.criterion) customParamCriterion[p.parameter.trim()] = p.criterion;
+      }
+    } catch { /* ignore */ }
+  }
+
   // ── Methodology library lookups ──────────────────────────────────────────
   // shortName → criteria text (for specification column)
   const shortNameToCriteria: Record<string, string> = {};
@@ -377,7 +388,9 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       } else if (!libCriteria && (paramLower === "sódio" || paramLower === "sodio" || paramLower === "sódio (mg)" || paramLower === "sodio (mg)")) {
         specification = "< 5 mg/porção: declarar como 0; ≥ 5 mg/porção: declarar";
       } else {
-        specification = libCriteria ?? data.criterion;
+        // Priority: library criteria > result criterion > customParamsJson criterion
+        const baseCriterion = data.criterion || customParamCriterion[param] || null;
+        specification = libCriteria ?? baseCriterion;
       }
 
       // ── ANVISA mg/mcg calculation for teor_ativo params ─────────────────
