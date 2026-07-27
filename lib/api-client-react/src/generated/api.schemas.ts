@@ -693,6 +693,8 @@ export interface BibliographicReferenceInput {
   ativoRelacionado?: string;
   autoInclude?: boolean;
   color?: string;
+  /** Quando true, ignora a verificação de duplicata e cadastra mesmo assim */
+  force?: boolean;
 }
 
 export interface BulkAddProtocolReferencesBody {

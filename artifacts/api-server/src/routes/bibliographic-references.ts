@@ -18,6 +18,7 @@ router.post("/bibliographic-references", requireAuth, requirePermission(PERM.CAT
     titulo?: string; autores?: string; ano?: number; fonte?: string;
     volume?: string; numero?: string; paginas?: string; doi?: string;
     descricao?: string; tipoReferencia?: string; ativoRelacionado?: string; autoInclude?: boolean; color?: string;
+    force?: boolean;
   };
   if (!body.titulo?.trim()) { res.status(400).json({ error: "titulo obrigatório" }); return; }
 
@@ -25,16 +26,19 @@ router.post("/bibliographic-references", requireAuth, requirePermission(PERM.CAT
   const doi = body.doi?.trim() || null;
 
   // Verificar duplicata por título (case-insensitive) ou DOI (quando preenchido)
-  const conditions = [sql`lower(${bibliographicReferencesTable.titulo}) = lower(${titulo})`];
-  if (doi) conditions.push(sql`lower(${bibliographicReferencesTable.doi}) = lower(${doi})`);
-  const [dup] = await db.select({ id: bibliographicReferencesTable.id, titulo: bibliographicReferencesTable.titulo, doi: bibliographicReferencesTable.doi })
-    .from(bibliographicReferencesTable)
-    .where(or(...conditions))
-    .limit(1);
-  if (dup) {
-    const motivo = doi && dup.doi && dup.doi.toLowerCase() === doi.toLowerCase() ? "DOI/URL" : "título";
-    res.status(409).json({ error: `Já existe uma referência com o mesmo ${motivo}: "${dup.titulo}"` });
-    return;
+  // Se force=true o usuário confirmou explicitamente que quer cadastrar mesmo assim
+  if (!body.force) {
+    const conditions = [sql`lower(${bibliographicReferencesTable.titulo}) = lower(${titulo})`];
+    if (doi) conditions.push(sql`lower(${bibliographicReferencesTable.doi}) = lower(${doi})`);
+    const [dup] = await db.select({ id: bibliographicReferencesTable.id, titulo: bibliographicReferencesTable.titulo, doi: bibliographicReferencesTable.doi })
+      .from(bibliographicReferencesTable)
+      .where(or(...conditions))
+      .limit(1);
+    if (dup) {
+      const motivo = doi && dup.doi && dup.doi.toLowerCase() === doi.toLowerCase() ? "DOI/URL" : "título";
+      res.status(409).json({ error: `Já existe uma referência com o mesmo ${motivo}: "${dup.titulo}"` });
+      return;
+    }
   }
 
   const [row] = await db.insert(bibliographicReferencesTable).values({

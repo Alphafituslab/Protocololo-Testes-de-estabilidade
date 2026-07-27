@@ -10203,7 +10203,7 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                         size="sm"
                         className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
                         disabled={createRef.isPending}
-                        onClick={() => createRef.mutate({ data: { ...newRef, titulo: newRef.titulo.trim() } })}
+                        onClick={() => createRef.mutate({ data: { ...newRef, titulo: newRef.titulo.trim(), force: true } })}
                       >
                         {createRef.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
                         Cadastrar mesmo assim
