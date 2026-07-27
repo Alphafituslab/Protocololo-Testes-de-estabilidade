@@ -8942,6 +8942,8 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
   const [mode, setMode] = useState<"select" | "create">("select");
   const [newRef, setNewRef] = useState<BibliographicReferenceInput>(EMPTY_NEW_REF);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [filterTipos, setFilterTipos] = useState<Set<string>>(new Set());
+  const [filterDropOpen, setFilterDropOpen] = useState(false);
   // Aviso de possível duplicata: guarda a referência encontrada e como foi detectada
   const [dupWarn, setDupWarn] = useState<{
     existing: BibliographicReference;
@@ -9056,6 +9058,8 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
     setSearch("");
     setNewRef(EMPTY_NEW_REF);
     setSelectedIds(new Set());
+    setFilterTipos(new Set());
+    setFilterDropOpen(false);
   }
 
   function toggleSelect(id: number) {
@@ -9077,10 +9081,20 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
   const linkedIds = new Set(protocolRefs.map(r => r.id));
   const available = allRefs.filter(r =>
     !linkedIds.has(r.id) &&
-    (search === "" || r.titulo.toLowerCase().includes(search.toLowerCase()) || (r.autores ?? "").toLowerCase().includes(search.toLowerCase()))
+    (search === "" || r.titulo.toLowerCase().includes(search.toLowerCase()) || (r.autores ?? "").toLowerCase().includes(search.toLowerCase())) &&
+    (filterTipos.size === 0 || filterTipos.has(r.tipoReferencia))
   );
 
   const noResults = available.length === 0;
+
+  // All tipos that exist in the bank (excluding already-linked refs)
+  const allAvailableTipos = Array.from(new Set(
+    allRefs.filter(r => !linkedIds.has(r.id)).map(r => r.tipoReferencia)
+  )).sort((a, b) => {
+    const oa = [...TIPO_ORDER_REF, ...TIPO_LEGACY].indexOf(a);
+    const ob = [...TIPO_ORDER_REF, ...TIPO_LEGACY].indexOf(b);
+    return (oa === -1 ? 99 : oa) - (ob === -1 ? 99 : ob);
+  });
 
   return (
     <Card>
@@ -9261,7 +9275,7 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
             {/* ── SELECT MODE ── */}
             {mode === "select" && (
               <>
-                <div className="p-3 border-b">
+                <div className="p-3 border-b space-y-2">
                   <Input
                     autoFocus
                     placeholder="Buscar por título ou autor..."
@@ -9269,6 +9283,88 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                     onChange={e => setSearch(e.target.value)}
                     className="h-8 text-sm"
                   />
+                  {/* ── Filtro multi-tipo ── */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setFilterDropOpen(o => !o)}
+                      className={`w-full flex items-center justify-between gap-2 text-xs px-3 py-1.5 rounded-md border transition-colors ${filterTipos.size > 0 ? "border-primary bg-primary/5 text-primary font-medium" : "border-input bg-background text-muted-foreground hover:border-primary/50"}`}
+                    >
+                      <span>
+                        {filterTipos.size === 0
+                          ? "Filtrar por tipo/categoria…"
+                          : `Tipos selecionados: ${Array.from(filterTipos).map(t => TIPO_LABELS_REF[t] ?? t).join(", ")}`}
+                      </span>
+                      <span className="shrink-0 text-muted-foreground">▾</span>
+                    </button>
+                    {filterDropOpen && (
+                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-xl overflow-hidden">
+                        {/* Cabeçalho do dropdown */}
+                        <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/40">
+                          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tipo de referência</span>
+                          {filterTipos.size > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setFilterTipos(new Set())}
+                              className="text-[10px] text-primary hover:underline"
+                            >Limpar filtro</button>
+                          )}
+                        </div>
+                        {/* Opções */}
+                        <div className="max-h-56 overflow-y-auto py-1">
+                          {allAvailableTipos.map(tipo => {
+                            const c = TIPO_COLORS_REF[tipo];
+                            const label = TIPO_LABELS_REF[tipo] ?? tipo;
+                            const active = filterTipos.has(tipo);
+                            return (
+                              <button
+                                key={tipo}
+                                type="button"
+                                onClick={() => {
+                                  setFilterTipos(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(tipo)) next.delete(tipo); else next.add(tipo);
+                                    return next;
+                                  });
+                                }}
+                                className={`w-full flex items-center justify-between gap-2 px-4 py-2 text-sm text-left transition-colors hover:bg-muted/50 ${active ? "font-medium" : ""}`}
+                              >
+                                <span className="flex items-center gap-2">
+                                  <span>{c?.dot ?? "•"}</span>
+                                  <span>{label}</span>
+                                </span>
+                                {active && <span className="text-primary font-bold text-base leading-none">✓</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {/* Fechar dropdown ao clicar fora */}
+                        <div
+                          className="fixed inset-0 z-[-1]"
+                          onClick={() => setFilterDropOpen(false)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  {/* Chips dos tipos ativos */}
+                  {filterTipos.size > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {Array.from(filterTipos).map(tipo => {
+                        const c = TIPO_COLORS_REF[tipo];
+                        const label = TIPO_LABELS_REF[tipo] ?? tipo;
+                        return (
+                          <span
+                            key={tipo}
+                            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium cursor-pointer ${c?.bg ?? "bg-muted"} ${c?.text ?? "text-foreground"}`}
+                            onClick={() => setFilterTipos(prev => { const n = new Set(prev); n.delete(tipo); return n; })}
+                            title="Clique para remover filtro"
+                          >
+                            {c?.dot} {label} <span className="ml-0.5 opacity-60">×</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
                   {(() => {
