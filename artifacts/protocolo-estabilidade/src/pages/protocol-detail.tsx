@@ -1205,29 +1205,31 @@ function InlineCell({
           <button
             type="button"
             onClick={async () => {
-              // Replica apenas para todos os lotes do MESMO período — nunca preenche
-              // outros períodos automaticamente. Para preencher T3 ou T6, o usuário
-              // deve abrir uma célula daquele período e clicar "replicar lotes".
-              const tasks = lots.map((lot) => ({ lotId: lot.id }));
-              // Sequential to avoid DB connection pool pressure and race conditions
-              for (const { lotId: taskLotId } of tasks) {
-                try {
-                  await bulkUpsert.mutateAsync({
-                    id: protocolId,
-                    data: {
-                      lotId: taskLotId,
-                      period,
-                      analysisDate: periodDate ?? new Date().toISOString().split("T")[0],
-                      category: param.category as "fisico_quimica" | "microbiologica" | "teor_ativo" | "embalagem",
-                      parameter: param.parameter,
-                      criterion: param.criterion,
-                      result: value,
-                      numericResult: (() => { const n = parseFloat(value.replace(",", ".")); return isNaN(n) ? undefined : n; })(),
-                      status,
-                    },
-                  });
-                } catch {
-                  // continue to next — individual failures logged server-side
+              // Replica para TODOS os lotes em TODOS os períodos (T0, T3, T6)
+              const allPeriods = [
+                { period, date: periodDate },
+                ...(otherPeriods ?? []).map(op => ({ period: op.period, date: op.date })),
+              ];
+              for (const { period: p, date: d } of allPeriods) {
+                for (const lot of lots) {
+                  try {
+                    await bulkUpsert.mutateAsync({
+                      id: protocolId,
+                      data: {
+                        lotId: lot.id,
+                        period: p,
+                        analysisDate: d ?? new Date().toISOString().split("T")[0],
+                        category: param.category as "fisico_quimica" | "microbiologica" | "teor_ativo" | "embalagem",
+                        parameter: param.parameter,
+                        criterion: param.criterion,
+                        result: value,
+                        numericResult: (() => { const n = parseFloat(value.replace(",", ".")); return isNaN(n) ? undefined : n; })(),
+                        status,
+                      },
+                    });
+                  } catch {
+                    // continue to next — individual failures logged server-side
+                  }
                 }
               }
               queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
@@ -1238,9 +1240,9 @@ function InlineCell({
             }}
             disabled={bulkUpsert.isPending}
             className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 w-full mt-0.5 disabled:opacity-50"
-            title={`Replica este valor para todos os lotes no mesmo período (T${period}m). Para preencher T0, T3 ou T6, abra uma célula daquele período.`}
+            title="Replica este valor para todos os lotes em todos os períodos (T0, T3 e T6)"
           >
-            {bulkUpsert.isPending ? "Salvando..." : `↕ replicar lotes (T${period}m)`}
+            {bulkUpsert.isPending ? "Salvando..." : "↕ replicar todos (T0 + T3 + T6)"}
           </button>
         )}
         {/* ── Auto-preencher outros períodos ──────────────────────── */}
