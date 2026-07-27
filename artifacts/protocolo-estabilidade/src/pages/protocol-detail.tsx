@@ -6384,16 +6384,29 @@ function MethodologiaTab({
   const closeDialog = () => setDialog({ mode: "closed" });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListMethodologiesQueryKey() });
 
+  // ── Highlight da entrada salva/atualizada ─────────────────────────
+  const [highlightedMethodId, setHighlightedMethodId] = useState<number | null>(null);
+  const scrollAndHighlight = (id: number) => {
+    setHighlightedMethodId(id);
+    // Aguarda a lista re-renderizar após invalidação, depois rola até o card
+    setTimeout(() => {
+      document.getElementById(`method-card-${id}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 450);
+    // Apaga o destaque após 3,5s
+    setTimeout(() => setHighlightedMethodId(null), 3500);
+  };
+
   const createMutation = useCreateMethodology({
     mutation: {
-      onSuccess: () => { invalidate(); closeDialog(); toast({ title: "Metodologia criada" }); },
+      onSuccess: (data: any) => { invalidate(); closeDialog(); toast({ title: "Metodologia criada" }); scrollAndHighlight(data.id); },
       onError: () => toast({ title: "Erro ao criar", variant: "destructive" }),
     },
   });
 
   const updateMutation = useUpdateMethodology({
     mutation: {
-      onSuccess: () => { invalidate(); closeDialog(); toast({ title: "Metodologia atualizada" }); },
+      onSuccess: (data: any) => { invalidate(); closeDialog(); toast({ title: "Metodologia atualizada" }); scrollAndHighlight(data.id); },
       onError: () => toast({ title: "Erro ao atualizar", variant: "destructive" }),
     },
   });
@@ -6935,7 +6948,15 @@ function MethodologiaTab({
               const docUrl = docUrls[String(m.id)];
               const isEditingDoc = editingDocId === m.id;
               return (
-                <div key={m.id} className="flex items-start gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+                <div
+                  key={m.id}
+                  id={`method-card-${m.id}`}
+                  className={`flex items-start gap-3 rounded-lg border px-4 py-3 transition-all duration-700 ${
+                    highlightedMethodId === m.id
+                      ? "bg-primary/10 border-primary ring-2 ring-primary/40 shadow-md"
+                      : "bg-muted/30"
+                  }`}
+                >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm">{m.shortName}</span>
@@ -7403,11 +7424,6 @@ function MethodologiaTab({
                     });
                   }
                   closeEditParamMethod();
-                  // Rolar até a Biblioteca de Referências Metodológicas para conferência
-                  setTimeout(() => {
-                    document.getElementById("biblioteca-referencias-metodologicas")
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }, 300);
                 }}
                 className="text-sm px-4 py-1.5 rounded bg-primary text-white hover:bg-primary/80 transition-colors"
               >
