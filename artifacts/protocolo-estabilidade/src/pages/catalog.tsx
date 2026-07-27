@@ -144,25 +144,41 @@ function BibliographicReferenceForm({
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">Tipo de Referência</label>
-          <Select value={form.tipoReferencia} onValueChange={v => setForm(p => ({ ...p, tipoReferencia: v, ativoRelacionado: v !== "ativo" ? "" : p.ativoRelacionado }))}>
-            <SelectTrigger className="h-8 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TIPO_ORDER.map(v => {
-                const c = TIPO_COLORS[v];
-                return (
-                  <SelectItem key={v} value={v}>
-                    <span className="flex items-center gap-1.5">
-                      <span>{c.dot}</span>
-                      <span>{TIPO_LABELS[v]}</span>
-                    </span>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">
+            Tipo(s) * <span className="font-normal text-muted-foreground">(selecione um ou mais)</span>
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {TIPO_ORDER.map(v => {
+              const c = TIPO_COLORS[v];
+              const activeTipos = (form.tipoReferencia ?? "geral").split(",").filter(Boolean);
+              const active = activeTipos.includes(v);
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => {
+                    const current = (form.tipoReferencia ?? "geral").split(",").filter(Boolean);
+                    const next = active ? current.filter(t => t !== v) : [...current, v];
+                    if (next.length === 0) return;
+                    setForm(p => ({
+                      ...p,
+                      tipoReferencia: next.join(","),
+                      ativoRelacionado: next.includes("ativo") ? p.ativoRelacionado : "",
+                    }));
+                  }}
+                  className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all select-none ${
+                    active
+                      ? `${c.bg} ${c.text} border-current font-semibold shadow-sm`
+                      : "bg-background border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/50"
+                  }`}
+                >
+                  <span>{c.dot}</span>
+                  <span>{TIPO_LABELS[v]}</span>
+                  {active && <span className="font-bold ml-0.5">✓</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div className="col-span-2">
           <label className="text-xs font-medium text-muted-foreground mb-1 block">Título *</label>
@@ -196,7 +212,7 @@ function BibliographicReferenceForm({
           <label className="text-xs font-medium text-muted-foreground mb-1 block">DOI / URL</label>
           <Input placeholder="Ex: https://doi.org/..." value={form.doi} onChange={f("doi")} className="h-8 text-sm" />
         </div>
-        {form.tipoReferencia === "ativo" && (
+        {(form.tipoReferencia ?? "geral").split(",").includes("ativo") && (
           <div className="col-span-2">
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Ativo relacionado</label>
             <Input placeholder="Ex: Cálcio, Vitamina D, Taurina..." value={form.ativoRelacionado} onChange={f("ativoRelacionado")} className="h-8 text-sm" />
@@ -313,15 +329,15 @@ function BibliographicReferencesTable({
     });
   }
 
-  // Group items by tipoReferencia preserving TIPO_ORDER
+  // Group items by first tipoReferencia (suporta comma-separated multi-tipo)
   const byTipo: Record<string, BibliographicReference[]> = {};
   for (const item of items) {
-    const k = item.tipoReferencia ?? "outro";
-    if (!byTipo[k]) byTipo[k] = [];
-    byTipo[k].push(item);
+    const firstTipo = (item.tipoReferencia ?? "outro").split(",").filter(Boolean)[0] ?? "outro";
+    if (!byTipo[firstTipo]) byTipo[firstTipo] = [];
+    byTipo[firstTipo].push(item);
   }
   const presentedTypes = TIPO_ORDER.filter(t => (byTipo[t]?.length ?? 0) > 0);
-  // also handle unknown types
+  // also handle unknown types (e.g. comma-separated values not matching TIPO_ORDER)
   const unknownTypes = Object.keys(byTipo).filter(t => !TIPO_ORDER.includes(t));
 
   function renderGroup(tipo: string) {
@@ -386,17 +402,17 @@ function BibliographicReferencesTable({
                   {/* Ref expanded content */}
                   {isRefOpen && (
                     <div className="px-10 pb-4 pt-1 bg-background space-y-2">
-                      {/* Badges */}
+                      {/* Badges — suporta múltiplos tipos (comma-separated) */}
                       <div className="flex items-center gap-2 flex-wrap">
-                        {(() => {
-                          const c = TIPO_COLORS[item.tipoReferencia];
+                        {item.tipoReferencia.split(",").filter(Boolean).map((tipo, ti) => {
+                          const c = TIPO_COLORS[tipo];
                           return c ? (
-                            <span className={`text-xs px-2 py-0.5 rounded font-medium ${c.bg} ${c.text}`}>
-                              {c.dot} {TIPO_LABELS[item.tipoReferencia]}
-                              {item.tipoReferencia === "ativo" && item.ativoRelacionado ? ` — ${item.ativoRelacionado}` : ""}
+                            <span key={ti} className={`text-xs px-2 py-0.5 rounded font-medium ${c.bg} ${c.text}`}>
+                              {c.dot} {TIPO_LABELS[tipo] ?? tipo}
+                              {tipo === "ativo" && item.ativoRelacionado ? ` — ${item.ativoRelacionado}` : ""}
                             </span>
                           ) : null;
-                        })()}
+                        })}
                         {item.autoInclude && (
                           <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-semibold">★ auto-incluída</span>
                         )}
