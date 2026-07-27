@@ -14,7 +14,7 @@ router.get("/protocols/:id/lots", requireAuth, async (req, res): Promise<void> =
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const lots = await db.select().from(lotsTable)
     .where(and(eq(lotsTable.protocolId, params.data.id), isNull(lotsTable.deletedAt)))
-    .orderBy(lotsTable.createdAt);
+    .orderBy(lotsTable.manufacturingDate, lotsTable.lotNumber);
   res.json(lots);
 });
 
