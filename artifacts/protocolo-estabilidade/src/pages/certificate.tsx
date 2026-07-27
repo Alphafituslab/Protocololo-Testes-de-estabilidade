@@ -2485,6 +2485,19 @@ export default function CertificatePage() {
                             emailLine={ef("issuedByEmail", cert.issuedByEmail)}
                           />
                         ))
+                      ) : rightSigs.length > 0 ? (
+                        /* ── UP: outro lado já assinou, destacar pendente ── */
+                        <div className="print:hidden rounded-lg border-2 border-dashed border-amber-400 bg-amber-50 px-4 py-3 flex flex-col items-center gap-2 text-center">
+                          <div className="flex items-center gap-1.5 text-amber-600">
+                            <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 17a.75.75 0 0 1-.75-.75V5.56L5.03 9.78a.75.75 0 0 1-1.06-1.06l5.5-5.5a.75.75 0 0 1 1.06 0l5.5 5.5a.75.75 0 1 1-1.06 1.06L10.75 5.56v10.69A.75.75 0 0 1 10 17Z" clipRule="evenodd"/></svg>
+                            <p className="text-xs font-bold text-amber-700">Assinatura pendente</p>
+                          </div>
+                          <p className="text-[11px] text-amber-600 leading-snug">{ef("issuedBy", cert.issuedBy)}</p>
+                          {userInLeft && !currentUserAlreadySigned
+                            ? <SignBtn preRole="Responsável Técnico" />
+                            : <p className="text-[10px] text-amber-500 italic">Aguardando assinatura...</p>
+                          }
+                        </div>
                       ) : (
                         <>
                           <div className="min-h-[68px] flex flex-col justify-end pb-2">
@@ -2516,6 +2529,19 @@ export default function CertificatePage() {
                             emailLine={ef("seniorAnalystEmail", cert.seniorAnalystEmail)}
                           />
                         ))
+                      ) : leftSigs.length > 0 ? (
+                        /* ── UP: outro lado já assinou, destacar pendente ── */
+                        <div className="print:hidden rounded-lg border-2 border-dashed border-amber-400 bg-amber-50 px-4 py-3 flex flex-col items-center gap-2 text-center">
+                          <div className="flex items-center gap-1.5 text-amber-600">
+                            <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 17a.75.75 0 0 1-.75-.75V5.56L5.03 9.78a.75.75 0 0 1-1.06-1.06l5.5-5.5a.75.75 0 0 1 1.06 0l5.5 5.5a.75.75 0 1 1-1.06 1.06L10.75 5.56v10.69A.75.75 0 0 1 10 17Z" clipRule="evenodd"/></svg>
+                            <p className="text-xs font-bold text-amber-700">Assinatura pendente</p>
+                          </div>
+                          <p className="text-[11px] text-amber-600 leading-snug">{ef("seniorAnalyst", cert.seniorAnalyst)}</p>
+                          {userInRight && !currentUserAlreadySigned
+                            ? <SignBtn preRole="Analista Sênior" />
+                            : <p className="text-[10px] text-amber-500 italic">Aguardando assinatura...</p>
+                          }
+                        </div>
                       ) : (
                         <>
                           <div className="min-h-[68px] flex flex-col justify-end pb-2">
