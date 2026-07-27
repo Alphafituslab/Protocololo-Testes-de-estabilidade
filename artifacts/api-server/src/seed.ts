@@ -351,6 +351,7 @@ export async function purgeDeprecatedMethodologies(): Promise<void> {
           like(methodologiesTable.shortName, "ASTM%"),
           like(methodologiesTable.shortName, "FB 6%"),
           like(methodologiesTable.shortName, "FB 7%"),
+          like(methodologiesTable.shortName, "HPLC%"),
         ),
       )
       .returning({ id: methodologiesTable.id, shortName: methodologiesTable.shortName });
