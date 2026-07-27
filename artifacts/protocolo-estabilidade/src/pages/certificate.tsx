@@ -2031,11 +2031,11 @@ export default function CertificatePage() {
           const userInRight  = !!auth?.user && sigNameMatches(auth.user.displayName, rightName);
           const userInOther  = !!auth?.user && !userInLeft && !userInRight;
 
-          const SigCard = ({ sig, displayName, roleLine, emailLine }: {
+          const SigCard = ({ sig, displayName, roleLine, registrationLine }: {
             sig: typeof signatures[0];
             displayName: React.ReactNode;
             roleLine: React.ReactNode;
-            emailLine?: React.ReactNode;
+            registrationLine?: React.ReactNode;
           }) => (
             <div className="relative mb-1">
               {auth?.user && (auth.isAdmin || auth.hasPermission?.("signatures:delete") || sig.userId === auth.user.id) && (
@@ -2059,7 +2059,8 @@ export default function CertificatePage() {
               </p>
               <div className="border-t border-gray-300 mb-2" />
               <p className="font-semibold text-sm text-gray-800">{displayName}</p>
-              {emailLine && <p className="text-xs text-gray-400">{emailLine}</p>}
+              {roleLine && <p className="text-xs text-gray-600 mt-0.5">{roleLine}</p>}
+              {registrationLine && <p className="text-xs text-gray-400 mt-0.5">{registrationLine}</p>}
             </div>
           );
 
@@ -2249,7 +2250,7 @@ export default function CertificatePage() {
                             sig={s}
                             displayName={ef("issuedBy", cert.issuedBy)}
                             roleLine={ef("lbl_cargoEsquerdo", "Responsável Técnico")}
-                            emailLine={ef("issuedByEmail", cert.issuedByEmail)}
+                            registrationLine={ef("issuedByEmail", cert.issuedByEmail)}
                           />
                         ))
                       ) : rightSigs.length > 0 ? (
@@ -2279,7 +2280,8 @@ export default function CertificatePage() {
                           </div>
                           <div className="border-t border-gray-400 mb-2" />
                           <p className="font-semibold text-sm text-gray-800">{ef("issuedBy", cert.issuedBy)}</p>
-                          <p className="text-xs text-gray-400">{ef("issuedByEmail", cert.issuedByEmail)}</p>
+                          <p className="text-xs text-gray-600 mt-0.5">{ef("lbl_cargoEsquerdo", "Responsável Técnico")}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{ef("issuedByEmail", cert.issuedByEmail)}</p>
                         </>
                       )}
                     </div>
@@ -2293,7 +2295,7 @@ export default function CertificatePage() {
                             sig={s}
                             displayName={ef("seniorAnalyst", cert.seniorAnalyst)}
                             roleLine={ef("lbl_cargoDireito", "Analista Sênior / Representante Legal")}
-                            emailLine={ef("seniorAnalystEmail", cert.seniorAnalystEmail)}
+                            registrationLine={ef("seniorAnalystEmail", cert.seniorAnalystEmail)}
                           />
                         ))
                       ) : leftSigs.length > 0 ? (
@@ -2323,7 +2325,8 @@ export default function CertificatePage() {
                           </div>
                           <div className="border-t border-gray-400 mb-2" />
                           <p className="font-semibold text-sm text-gray-800">{ef("seniorAnalyst", cert.seniorAnalyst)}</p>
-                          <p className="text-xs text-gray-400">{ef("seniorAnalystEmail", cert.seniorAnalystEmail)}</p>
+                          <p className="text-xs text-gray-600 mt-0.5">{ef("lbl_cargoDireito", "Analista Sênior / Representante Legal")}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{ef("seniorAnalystEmail", cert.seniorAnalystEmail)}</p>
                         </>
                       )}
                     </div>

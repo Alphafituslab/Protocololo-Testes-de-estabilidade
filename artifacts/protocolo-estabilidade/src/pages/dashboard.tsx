@@ -8,10 +8,28 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   FileText, Plus, CheckCircle2, Clock, XCircle, ShieldCheck,
   TrendingUp, ArrowRight, Activity, Beaker, Search, X, Trash2, PenLine,
-  ArrowDown, ArrowUp, ArrowUpDown,
+  ArrowDown, ArrowUp, ArrowUpDown, Pencil,
 } from "lucide-react";
 import { useUnlock } from "@/hooks/use-unlock";
 import { UnlockDialog } from "@/components/unlock-dialog";
+
+function isToday(iso: string | null | undefined): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+}
+
+function fmtUpdatedAt(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isToday(iso)) {
+    return `hoje às ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+  }
+  return d.toLocaleDateString("pt-BR");
+}
 
 function normalize(str: string) {
   return str
@@ -390,13 +408,16 @@ export default function Dashboard() {
                             {protocol.productName}
                           </p>
                           <p className="text-xs text-muted-foreground truncate mt-0.5">
-                            {protocol.certNumber ? `${protocol.certNumber} · ` : ""}{protocol.companyName}
-                            {(protocol as any).createdAt && (
-                              <span className="ml-1.5 text-muted-foreground/60">
-                                · {new Date((protocol as any).createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                              </span>
-                            )}
-                          </p>
+                             {protocol.certNumber ? `${protocol.certNumber} · ` : ""}{protocol.companyName}
+                           </p>
+                           {(protocol as any).updatedAt && (
+                             <p className={`text-xs mt-0.5 font-medium flex items-center gap-1 ${
+                               isToday((protocol as any).updatedAt) ? "text-orange-600" : "text-blue-500"
+                             }`}>
+                               <Pencil className="h-2.5 w-2.5 shrink-0" />
+                               Alterado: {fmtUpdatedAt((protocol as any).updatedAt)}
+                             </p>
+                           )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-4 flex-wrap justify-end">
@@ -412,6 +433,12 @@ export default function Dashboard() {
                               {(protocol as { progressPercent?: number | null }).progressPercent}%
                             </span>
                           </div>
+                        )}
+                        {isToday((protocol as any).updatedAt) && (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-400 rounded-full px-2.5 py-0.5 shadow-sm">
+                            <Pencil className="h-3 w-3" />
+                            Alterado hoje
+                          </span>
                         )}
                         {(protocol as { pendingSignatures?: boolean }).pendingSignatures && (
                           <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-300 rounded-full px-2.5 py-0.5">

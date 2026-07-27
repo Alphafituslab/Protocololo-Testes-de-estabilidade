@@ -529,6 +529,8 @@ export interface ProtocolSignature {
   signedAt: string;
   /** Data exibida sob a assinatura. Se presente, substitui a exibição de signedAt. */
   displayDate?: string | null;
+  /** Número de registro profissional (CRF, CRQ, etc.) do assinante. */
+  registrationNumber?: string | null;
 }
 
 export interface AddSignatureBody {

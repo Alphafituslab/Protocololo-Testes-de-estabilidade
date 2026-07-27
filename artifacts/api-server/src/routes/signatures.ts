@@ -37,6 +37,7 @@ router.post("/protocols/:id/signatures", requireAuth, requirePermission(PERM.SIG
       userDisplay: user.displayName,
       userRole: user.role,
       roleLabel: roleLabel.trim(),
+      registrationNumber: user.registrationNumber ?? null,
       ...(displayDate ? { displayDate } : {}),
     })
     .returning();

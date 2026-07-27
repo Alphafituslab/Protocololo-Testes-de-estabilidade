@@ -1,5 +1,5 @@
 import { useParams, useLocation } from "wouter";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Save, Loader2, AlertTriangle } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
 import { useListContainerTypes, useListCapsuleTypes, useListProductTypes } from "@workspace/api-client-react";
 
@@ -152,8 +153,8 @@ export default function ProtocolForm() {
           approvedBy: "Clayton Borges da Silva — Representante Legal CRF: 18580",
           issuedBy: "Edson Zaldguer — Responsável Técnica CRQ: 13303282",
           seniorAnalyst: "Clayton Borges da Silva — Representante Legal CRF: 18580",
-          seniorAnalystEmail: "claytonborges@alphafitus.com",
-          issuedByEmail: "edsonzaldguer@alphafitus.com.br",
+          seniorAnalystEmail: "CRF: 18580",
+          issuedByEmail: "CRQ: 13303282",
         },
   });
 
@@ -162,7 +163,37 @@ export default function ProtocolForm() {
   const isPowderProduct = selectedProductType?.isPowder ?? false;
 
   const savedValuesRef = useRef<FormValues | null>(null);
+  // previousValuesRef: snapshot of form values BEFORE the last save (enables undo)
+  const previousValuesRef = useRef<FormValues | null>(null);
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const canUndoRef = useRef(false);
+
   const guard = useUnsavedChangesGuard(form.formState.isDirty);
+
+  /** Reverts to the state before the last save and re-saves immediately */
+  const undoLastSave = useCallback(() => {
+    if (!canUndoRef.current || !previousValuesRef.current || !isEdit) return;
+    canUndoRef.current = false;
+    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+    const prev = previousValuesRef.current;
+    form.reset(prev);
+    updateProtocol.mutate({ id: Number(id), data: prev });
+  }, [isEdit, id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Ctrl+Z listener (only active for 10 s after a save) */
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey && canUndoRef.current) {
+        // Only intercept if no text input is focused (allow normal undo inside fields)
+        const tag = (document.activeElement as HTMLElement)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        e.preventDefault();
+        undoLastSave();
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [undoLastSave]);
 
   const handleApiError = (err: unknown, action: string) => {
     if (err instanceof ApiError && err.status === 409) {
@@ -197,13 +228,27 @@ export default function ProtocolForm() {
         queryClient.invalidateQueries({ queryKey: getGetProtocolQueryKey(Number(id)) });
         queryClient.invalidateQueries({ queryKey: getListProtocolsQueryKey() });
         if (savedValuesRef.current) form.reset(savedValuesRef.current);
-        toast({ title: "Protocolo salvo com sucesso ✓" });
+        // Enable undo for 10 seconds
+        canUndoRef.current = true;
+        if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+        undoTimeoutRef.current = setTimeout(() => { canUndoRef.current = false; }, 10_000);
+        toast({
+          title: "Protocolo salvo com sucesso ✓",
+          description: "Ctrl+Z para desfazer",
+          action: (
+            <ToastAction altText="Desfazer" onClick={undoLastSave}>
+              Desfazer
+            </ToastAction>
+          ),
+        });
       },
       onError: (err) => handleApiError(err, "atualizar"),
     },
   });
 
   const onSubmit = (values: FormValues) => {
+    // Capture the state BEFORE this save so undo can restore it
+    previousValuesRef.current = savedValuesRef.current ?? null;
     savedValuesRef.current = values;
     if (isEdit) {
       updateProtocol.mutate({ id: Number(id), data: values });
@@ -523,15 +568,15 @@ export default function ProtocolForm() {
               )} />
               <FormField control={form.control} name="issuedByEmail" render={({ field }) => (
                 <FormItem>
-                  <AlwaysEL labelKey="issuedByEmail" def="Email — Responsável Técnico" lbl={lbl} setLabel={setLabel} />
-                  <FormControl><Input type="email" data-testid="input-issuedByEmail" {...field} /></FormControl>
+                  <AlwaysEL labelKey="issuedByEmail" def="CRF / Nº Conselho — Responsável Técnico" lbl={lbl} setLabel={setLabel} />
+                  <FormControl><Input data-testid="input-issuedByEmail" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="seniorAnalystEmail" render={({ field }) => (
                 <FormItem>
-                  <AlwaysEL labelKey="seniorAnalystEmail" def="Email — Analista Sênior" lbl={lbl} setLabel={setLabel} />
-                  <FormControl><Input type="email" data-testid="input-seniorAnalystEmail" {...field} /></FormControl>
+                  <AlwaysEL labelKey="seniorAnalystEmail" def="CRF / Nº Conselho — Analista Sênior" lbl={lbl} setLabel={setLabel} />
+                  <FormControl><Input data-testid="input-seniorAnalystEmail" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />

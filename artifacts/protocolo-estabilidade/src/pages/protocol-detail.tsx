@@ -11371,14 +11371,21 @@ function AnvisaTab({ protocolId, protocolInfo }: { protocolId: number; protocolI
                       <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded px-2.5 py-1.5">
                         <ShieldCheck className="h-3.5 w-3.5 text-green-600 shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <span style={{ fontFamily: "'Dancing Script', cursive", fontSize: "0.95rem", fontWeight: 600, color: "#111827" }}>
-                            {n.signedByName}
-                          </span>
-                          <span className="text-xs text-green-700 ml-2 font-medium">({n.signedByRole})</span>
-                          {n.signedAt && (
-                            <span className="text-[10px] text-green-600 ml-2">
-                              — {new Date(n.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <span style={{ fontFamily: "'Dancing Script', cursive", fontSize: "0.95rem", fontWeight: 600, color: "#111827" }}>
+                              {n.signedByName}
                             </span>
+                            {n.signedAt && (
+                              <span className="text-[10px] text-green-600">
+                                — {new Date(n.signedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            )}
+                          </div>
+                          {n.signedByRole && (
+                            <p className="text-xs text-gray-600 font-medium mt-0.5">{n.signedByRole}</p>
+                          )}
+                          {(n as any).signedRegistration && (
+                            <p className="text-xs text-gray-400 mt-0.5">{(n as any).signedRegistration}</p>
                           )}
                         </div>
                         {isAdmin && (
