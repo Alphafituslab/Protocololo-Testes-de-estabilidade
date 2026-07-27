@@ -129,9 +129,10 @@ router.get("/protocols", requireAuth, async (req, res): Promise<void> => {
       .where(and(eq(protocolsTable.status, statusFilter), isNull(protocolsTable.deletedAt)))
       .orderBy(desc(protocolsTable.updatedAt));
   } else {
+    // Sem filtro ("Todos"): ordem de criação estável — não jumpa ao editar
     protocols = await db.select().from(protocolsTable)
       .where(isNull(protocolsTable.deletedAt))
-      .orderBy(desc(protocolsTable.updatedAt));
+      .orderBy(protocolsTable.id);
   }
   const sigMap = await fetchSigMap(protocols.map(p => p.id));
   res.json(withPendingSignatures(protocols, sigMap));

@@ -8027,6 +8027,20 @@ export default function ProtocolDetail() {
               <span className={`text-xs font-semibold px-2 py-1 rounded border ${STATUS_COLORS[protocol.status]}`} data-testid="status-protocol">
                 {STATUS_LABELS[protocol.status] ?? protocol.status}
               </span>
+              {/* Alterado hoje */}
+              {(() => {
+                const upd = (protocol as { updatedAt?: string }).updatedAt;
+                if (!upd) return null;
+                const d = new Date(upd); const now = new Date();
+                const today = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+                if (!today) return null;
+                return (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-400 rounded-full px-2.5 py-0.5 shadow-sm" title={`Última edição: ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`}>
+                    <Pencil className="h-3 w-3" />
+                    Alterado hoje
+                  </span>
+                );
+              })()}
               {/* Lock indicator */}
               {isFinalized && (
                 <button

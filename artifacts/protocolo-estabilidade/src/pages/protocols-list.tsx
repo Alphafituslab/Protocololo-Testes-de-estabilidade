@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link, useLocation } from "wouter";
-import { AlertCircle, Loader2, Search, X, PenLine, Trash2, RotateCcw, RefreshCw } from "lucide-react";
+import { AlertCircle, Loader2, Search, X, PenLine, Trash2, RotateCcw, RefreshCw, Pencil } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +47,15 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 function fmtDate(iso: string | null) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("pt-BR");
+}
+
+function isToday(iso: string | null | undefined): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
 }
 
 function TrashView({ onClose }: { onClose: () => void }) {
@@ -294,6 +303,12 @@ export default function ProtocolsList() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap justify-end">
+                    {isToday((protocol as { updatedAt?: string }).updatedAt) && (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-400 rounded-full px-2.5 py-0.5 shadow-sm">
+                        <Pencil className="h-3 w-3" />
+                        Alterado hoje
+                      </span>
+                    )}
                     {(protocol as { pendingSignatures?: boolean }).pendingSignatures && (
                       <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-300 rounded-full px-2.5 py-0.5">
                         <PenLine className="h-3 w-3" />
