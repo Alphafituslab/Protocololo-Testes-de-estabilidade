@@ -6876,23 +6876,13 @@ function MethodologiaTab({
                   onChange={(e) => setCategory(e.target.value)}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Parâmetro (opcional)</label>
-                  <Input
-                    placeholder='ex: pH, Umidade, Vitamina C'
-                    value={parameterField}
-                    onChange={(e) => setParameterField(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Critério / Especificação (opcional)</label>
-                  <Input
-                    placeholder='ex: 5,0 – 7,0, ≤ 5%, ≥ 80%'
-                    value={criteriaField}
-                    onChange={(e) => setCriteriaField(e.target.value)}
-                  />
-                </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Critério / Especificação (opcional)</label>
+                <Input
+                  placeholder='ex: 5,0 – 7,0, ≤ 5%, ≥ 80%'
+                  value={criteriaField}
+                  onChange={(e) => setCriteriaField(e.target.value)}
+                />
               </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
