@@ -95,6 +95,15 @@ pnpm run typecheck:libs
 
 `rascunho` → `em_andamento` → (finalize) → `aprovado` | `reprovado`
 
+## Preferências do Usuário
+
+### ⚠️ Proteção de Dados — Regra Absoluta
+- **Nunca executar DELETE, DROP ou qualquer operação destrutiva**, mesmo que o usuário diga "sim" ou "pode apagar".
+- Antes de qualquer exclusão, enviar aviso explícito em **português (Brasil)** descrevendo exatamente o que será perdido, quantos registros, e se é reversível.
+- Só prosseguir após o usuário digitar a confirmação: **"CONFIRMO APAGAR"**.
+- **Sempre acionar backup** antes de qualquer operação destrutiva ou migration de banco.
+- Contexto: o usuário teve uma experiência traumática de perda de dados; a proteção é prioridade absoluta.
+
 ## Backup e Restauração
 
 Sistema de backup automático diário (protocolos, lotes e resultados de análise), acessível na página "Backup de Dados":

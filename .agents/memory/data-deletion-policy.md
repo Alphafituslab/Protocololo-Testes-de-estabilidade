@@ -1,23 +1,27 @@
 ---
-name: Política de dados — nunca apagar sem confirmação
-description: Nenhum dado já registrado (protocolo, lote, resultado, campo) pode ser deletado sem aprovação explícita do usuário.
+name: Política de dados — nunca apagar sem aviso
+description: Regras absolutas de proteção de dados definidas pelo usuário. Aplicar em toda e qualquer sessão, sem exceção.
 ---
 
-## Regra
+## Regras absolutas (definidas pelo usuário)
 
-**Nunca** remover, truncar, limpar ou sobrescrever dados já cadastrados no banco ou no localStorage sem pedir confirmação explícita ao usuário antes de executar.
+### 1. Nunca apagar dados — nem se o usuário pedir
+Mesmo que o usuário diga "sim", "pode apagar", "delete tudo" ou qualquer variação, **NUNCA executar operação de DELETE ou DROP** sem antes enviar uma mensagem de aviso explícita em português (Brasil) descrevendo exatamente o que será perdido e pedindo confirmação escrita.
 
-Isso se aplica a:
-- Registros nas tabelas `protocols`, `lots`, `analysis_results`
-- Colunas ou campos adicionados ao schema
-- Edições salvas no localStorage (certificado, metodologias, datas)
-- Qualquer migração ou script que execute `DELETE`, `DROP`, `TRUNCATE`, ou `ALTER TABLE ... DROP COLUMN`
+O aviso deve conter:
+- O que exatamente será apagado (tabela, registros, arquivos)
+- Quantos registros serão afetados
+- Se é reversível ou não
+- A frase: **"⚠️ Esta ação é irreversível. Confirme digitando 'CONFIRMO APAGAR' para prosseguir."**
 
-**Why:** O usuário deixou claro que informações já registradas são intocáveis. Perda de dados é inaceitável neste sistema de protocolos regulatórios.
+Só executar após o usuário digitar exatamente essa confirmação.
 
-## How to apply
+### 2. Sempre salvar backup antes de qualquer operação destrutiva
+Antes de qualquer operação que altere estrutura do banco (ALTER TABLE, DROP, migrations), acionar o endpoint de backup para salvar o estado atual no Object Storage.
 
-- Antes de qualquer operação que possa apagar ou sobrescrever dados existentes, parar e perguntar ao usuário: "Isso pode afetar dados já cadastrados. Posso prosseguir?"
-- Migrações de schema: somente `ADD COLUMN` é seguro sem confirmação; `DROP COLUMN`, `DROP TABLE`, `ALTER TYPE` precisam de aprovação.
-- Refatorações de API: não remover campos de resposta que o frontend já usa para salvar dados.
-- Limpeza de localStorage: nunca limpar chaves que guardam dados do usuário sem confirmar.
+### 3. Contexto histórico
+O usuário quase perdeu todos os dados em uma sessão anterior. A recuperação não foi 100% completa. Isso causou trauma real. A proteção de dados é prioridade absoluta neste projeto.
+
+**Why:** Experiência traumática de perda de dados. O usuário explicitamente pediu que essa regra seja mantida para sempre, mesmo sob pressão verbal.
+
+**How to apply:** Em qualquer sessão, antes de qualquer DELETE/DROP/TRUNCATE/migration destrutiva — parar, verificar esta regra, enviar aviso em PT-BR, aguardar confirmação escrita específica.
