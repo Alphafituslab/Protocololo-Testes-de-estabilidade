@@ -9359,25 +9359,27 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
   const linkedIds = new Set(protocolRefs.map(r => r.id));
 
   // ── Ordenação automática das referências do protocolo ─────────────
-  // 1º RDC  2º IN  3º com ativo (por nome do ativo)  4º demais (por tipo)
+  // 1º RDC  2º IN  3º Guia  4º Portaria  5º com ativo  6º demais (por tipo)
   const tipoOrderAll = [...TIPO_ORDER_REF, ...TIPO_LEGACY] as string[];
   const refRank = (r: BibliographicReference): number => {
     const t = r.titulo.trim();
-    if (/^rdc\b/i.test(t)) return 0;
-    if (/^in\b/i.test(t))  return 1;
-    if (r.ativoRelacionado?.trim()) return 2;
-    return 3;
+    if (/^rdc\b/i.test(t))      return 0;
+    if (/^in\b/i.test(t))       return 1;
+    if (/^guia\b/i.test(t))     return 2;
+    if (/^portaria\b/i.test(t)) return 3;
+    if (r.ativoRelacionado?.trim()) return 4;
+    return 5;
   };
   const sortedProtocolRefs = [...protocolRefs].sort((a, b) => {
     const ra = refRank(a), rb = refRank(b);
     if (ra !== rb) return ra - rb;
-    if (ra === 2) {
+    if (ra === 4) {
       // mesmo grupo "ativo": ordena pelo nome do ativo, depois pelo título
       const ca = (a.ativoRelacionado ?? "").trim().toLowerCase();
       const cb = (b.ativoRelacionado ?? "").trim().toLowerCase();
       if (ca !== cb) return ca.localeCompare(cb, "pt-BR");
     }
-    if (ra === 3) {
+    if (ra === 5) {
       // mesmo grupo "demais": ordena pelo tipo, depois pelo título
       const firstTipo = (r: BibliographicReference) =>
         r.tipoReferencia.split(",").filter(Boolean)[0] ?? "";
