@@ -58,6 +58,20 @@ function isToday(iso: string | null | undefined): boolean {
     d.getDate() === now.getDate();
 }
 
+function fmtUpdatedAt(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const now = new Date();
+  if (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  ) {
+    return `hoje às ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+  }
+  return d.toLocaleDateString("pt-BR");
+}
+
 function TrashView({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -301,6 +315,16 @@ export default function ProtocolsList() {
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {protocol.certNumber ? `${protocol.certNumber} · ` : ""}{protocol.companyName}
                     </div>
+                    {(protocol as { updatedAt?: string }).updatedAt && (
+                      <div className={`text-xs mt-0.5 font-medium flex items-center gap-1 ${
+                        isToday((protocol as { updatedAt?: string }).updatedAt)
+                          ? "text-orange-600"
+                          : "text-blue-500"
+                      }`}>
+                        <Pencil className="h-2.5 w-2.5" />
+                        Alterado: {fmtUpdatedAt((protocol as { updatedAt?: string }).updatedAt)}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap justify-end">
                     {isToday((protocol as { updatedAt?: string }).updatedAt) && (
