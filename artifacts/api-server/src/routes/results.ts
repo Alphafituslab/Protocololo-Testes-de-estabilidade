@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, count, isNull } from "drizzle-orm";
+import { eq, and, count, isNull, sql } from "drizzle-orm";
 import { db, analysisResultsTable, lotsTable, protocolsTable } from "@workspace/db";
 import { UpsertResultBody, UpsertResultParams, ListResultsParams, DeleteResultParams } from "@workspace/api-zod";
 import { logAudit } from "../lib/audit";
@@ -85,30 +85,42 @@ router.post("/protocols/:id/results", requireAuth, requirePermission(PERM.RESULT
     )
   );
 
+  const numericVal = (parsed.data.numericResult !== undefined && parsed.data.numericResult !== null)
+    ? parsed.data.numericResult
+    : null;
+  const obsVal = parsed.data.observation ?? null;
+
   let result;
   const isUpdate = existing.length > 0;
   try {
     if (isUpdate) {
-      const [updated] = await db.update(analysisResultsTable)
-        .set({ analysisDate: parsed.data.analysisDate, category: parsed.data.category, criterion: parsed.data.criterion, result: parsed.data.result, numericResult: parsed.data.numericResult ?? null, status: parsed.data.status, observation: parsed.data.observation ?? null })
-        .where(eq(analysisResultsTable.id, existing[0]!.id)).returning();
-      result = updated;
+      const rows = await db.execute(sql`
+        UPDATE analysis_results SET
+          analysis_date = ${parsed.data.analysisDate},
+          category      = ${parsed.data.category},
+          criterion     = ${parsed.data.criterion},
+          result        = ${parsed.data.result},
+          numeric_result = ${numericVal}::double precision,
+          status        = ${parsed.data.status},
+          observation   = ${obsVal},
+          updated_at    = now()
+        WHERE id = ${existing[0]!.id}
+        RETURNING *
+      `);
+      result = rows.rows[0] as typeof analysisResultsTable.$inferSelect;
     } else {
-      const values = {
-        protocolId: params.data.id,
-        lotId: parsed.data.lotId,
-        period: parsed.data.period,
-        analysisDate: parsed.data.analysisDate,
-        category: parsed.data.category,
-        parameter: parsed.data.parameter,
-        criterion: parsed.data.criterion,
-        result: parsed.data.result,
-        numericResult: parsed.data.numericResult ?? null,
-        status: parsed.data.status,
-        observation: parsed.data.observation ?? null,
-      };
-      const [created] = await db.insert(analysisResultsTable).values(values).returning();
-      result = created;
+      const rows = await db.execute(sql`
+        INSERT INTO analysis_results
+          (protocol_id, lot_id, period, analysis_date, category, parameter, criterion, result, numeric_result, status, observation)
+        VALUES
+          (${params.data.id}, ${parsed.data.lotId}, ${parsed.data.period},
+           ${parsed.data.analysisDate}, ${parsed.data.category}, ${parsed.data.parameter},
+           ${parsed.data.criterion}, ${parsed.data.result},
+           ${numericVal}::double precision,
+           ${parsed.data.status}, ${obsVal})
+        RETURNING *
+      `);
+      result = rows.rows[0] as typeof analysisResultsTable.$inferSelect;
     }
   } catch (dbErr: unknown) {
     const pgErr = dbErr as { message?: string; code?: string; detail?: string; constraint?: string };
