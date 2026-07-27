@@ -42,6 +42,7 @@ import {
   getListSignaturesQueryKey,
   useListBibliographicReferences,
   useCreateBibliographicReference,
+  useUpdateBibliographicReference,
   getListBibliographicReferencesQueryKey,
   useListProtocolBibliographicReferences,
   useAddProtocolBibliographicReference,
@@ -9129,6 +9130,11 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
     inProtocol: boolean;
   } | null>(null);
 
+  // ── Edição inline de referência ──────────────────────────────────
+  const [editingRef, setEditingRef] = useState<BibliographicReference | null>(null);
+  const [editRefData, setEditRefData] = useState<BibliographicReferenceInput>(EMPTY_NEW_REF);
+  const [editConfirmOpen, setEditConfirmOpen] = useState(false);
+
   const { data: protocolRefs = [], isLoading } = useListProtocolBibliographicReferences(protocolId);
   const { data: allRefs = [] } = useListBibliographicReferences();
 
@@ -9162,6 +9168,19 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
         closeDialog();
       },
       onError: (err) => toast({ title: "Erro ao cadastrar referência", description: (err as Error).message, variant: "destructive" }),
+    },
+  });
+
+  const updateRef = useUpdateBibliographicReference({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListBibliographicReferencesQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListProtocolBibliographicReferencesQueryKey(protocolId) });
+        toast({ title: "Referência atualizada no banco" });
+        setEditingRef(null);
+        setEditConfirmOpen(false);
+      },
+      onError: (err) => toast({ title: "Erro ao atualizar referência", description: (err as Error).message, variant: "destructive" }),
     },
   });
 
@@ -9385,6 +9404,35 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                       </a>
                     )}
                   </div>
+                  {/* Edit button */}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
+                    title="Editar esta referência"
+                    onClick={() => {
+                      setEditingRef(ref);
+                      setEditRefData({
+                        titulo: ref.titulo,
+                        autores: ref.autores ?? "",
+                        ano: ref.ano ?? undefined,
+                        fonte: ref.fonte ?? "",
+                        tipoReferencia: ref.tipoReferencia,
+                        ativoRelacionado: ref.ativoRelacionado ?? "",
+                        descricao: ref.descricao ?? "",
+                        doi: ref.doi ?? "",
+                        volume: ref.volume ?? "",
+                        numero: ref.numero ?? "",
+                        paginas: ref.paginas ?? "",
+                        color: ref.color ?? "",
+                        autoInclude: ref.autoInclude ?? false,
+                      });
+                      setEditConfirmOpen(false);
+                    }}
+                  >
+                    <PenLine className="h-3.5 w-3.5" />
+                  </Button>
+
                   {/* Remove button */}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -9421,6 +9469,181 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
           </div>
         )}
       </CardContent>
+
+      {/* ── Dialog: editar referência existente ───────────────────── */}
+      {editingRef && !editConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEditingRef(null)}>
+          <div className="bg-background rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col mx-4" onClick={e => e.stopPropagation()}>
+            {/* Cabeçalho */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-2">
+                <PenLine className="h-4 w-4 text-primary" />
+                <p className="font-semibold text-sm">Editar referência</p>
+              </div>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingRef(null)}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <p className="text-xs text-muted-foreground">
+                As alterações serão salvas no banco de cadastros e refletidas em <strong>todos os protocolos</strong> que utilizam esta referência.
+              </p>
+
+              {/* Tipo — multi-select */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">
+                  Tipo(s) * <span className="font-normal">(selecione um ou mais)</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {([...TIPO_ORDER_REF, ...TIPO_LEGACY] as string[]).map(v => {
+                    const c = TIPO_COLORS_REF[v];
+                    const label = TIPO_LABELS_REF[v] ?? v;
+                    const activeTipos = (editRefData.tipoReferencia ?? "geral").split(",").filter(Boolean);
+                    const active = activeTipos.includes(v);
+                    return (
+                      <button key={v} type="button"
+                        onClick={() => {
+                          const current = (editRefData.tipoReferencia ?? "geral").split(",").filter(Boolean);
+                          const next = active ? current.filter(t => t !== v) : [...current, v];
+                          if (next.length === 0) return;
+                          setEditRefData(r => ({ ...r, tipoReferencia: next.join(","), ativoRelacionado: next.includes("ativo") ? r.ativoRelacionado : "" }));
+                        }}
+                        className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all select-none ${active ? `${c?.bg ?? "bg-primary/10"} ${c?.text ?? "text-primary"} border-current font-semibold shadow-sm` : "bg-background border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/50"}`}
+                      >
+                        <span>{c?.dot ?? "•"}</span><span>{label}</span>{active && <span className="font-bold ml-0.5">✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Ativo relacionado */}
+              {(editRefData.tipoReferencia ?? "").split(",").includes("ativo") && (
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Ativo relacionado</label>
+                  <Input placeholder="Ex: Taurina, Cafeína..." value={editRefData.ativoRelacionado ?? ""} onChange={e => setEditRefData(r => ({ ...r, ativoRelacionado: e.target.value }))} className="h-8 text-sm" />
+                </div>
+              )}
+
+              {/* Título */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">Título *</label>
+                <Input autoFocus placeholder="Título da referência" value={editRefData.titulo} onChange={e => setEditRefData(r => ({ ...r, titulo: e.target.value }))} className="h-8 text-sm" />
+              </div>
+
+              {/* Autores */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">Autores / Órgão emissor</label>
+                <Input placeholder="Ex: ANVISA; Ministério da Saúde" value={editRefData.autores ?? ""} onChange={e => setEditRefData(r => ({ ...r, autores: e.target.value }))} className="h-8 text-sm" />
+              </div>
+
+              {/* Ano + Fonte */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Ano</label>
+                  <Input type="number" placeholder="Ex: 2019" value={editRefData.ano ?? ""} onChange={e => setEditRefData(r => ({ ...r, ano: e.target.value ? Number(e.target.value) : undefined }))} className="h-8 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Fonte / Periódico</label>
+                  <Input placeholder="Ex: Diário Oficial" value={editRefData.fonte ?? ""} onChange={e => setEditRefData(r => ({ ...r, fonte: e.target.value }))} className="h-8 text-sm" />
+                </div>
+              </div>
+
+              {/* Volume + Número + Páginas */}
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Volume</label>
+                  <Input placeholder="v." value={editRefData.volume ?? ""} onChange={e => setEditRefData(r => ({ ...r, volume: e.target.value }))} className="h-8 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Número</label>
+                  <Input placeholder="n." value={editRefData.numero ?? ""} onChange={e => setEditRefData(r => ({ ...r, numero: e.target.value }))} className="h-8 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Páginas</label>
+                  <Input placeholder="p." value={editRefData.paginas ?? ""} onChange={e => setEditRefData(r => ({ ...r, paginas: e.target.value }))} className="h-8 text-sm" />
+                </div>
+              </div>
+
+              {/* DOI / URL */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">DOI / URL</label>
+                <Input placeholder="https://... ou 10.xxxx/..." value={editRefData.doi ?? ""} onChange={e => setEditRefData(r => ({ ...r, doi: e.target.value }))} className="h-8 text-sm" />
+              </div>
+
+              {/* Descrição */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">Descrição / Observação</label>
+                <textarea rows={2} placeholder="Contexto de uso, capítulo relevante, etc." value={editRefData.descricao ?? ""} onChange={e => setEditRefData(r => ({ ...r, descricao: e.target.value }))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none" />
+              </div>
+
+              {/* Cor do bloco */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Cor do bloco</label>
+                <div className="flex flex-wrap gap-2 items-center">
+                  {REF_COLOR_SWATCHES_PD.map(s => (
+                    <button key={s.value} type="button" title={s.label}
+                      onClick={() => setEditRefData(r => ({ ...r, color: s.value }))}
+                      className={`w-6 h-6 rounded-full border-2 transition-all ${s.tw} ${editRefData.color === s.value ? `ring-2 ring-offset-1 ${s.ring} border-white` : "border-white hover:scale-110"}`}
+                    />
+                  ))}
+                  <span className="text-xs text-muted-foreground ml-1">
+                    {editRefData.color ? REF_COLOR_SWATCHES_PD.find(s => s.value === editRefData.color)?.label : "Padrão"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Auto-incluir */}
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" className="h-4 w-4 accent-primary" checked={editRefData.autoInclude ?? false} onChange={e => setEditRefData(r => ({ ...r, autoInclude: e.target.checked }))} />
+                <span className="text-xs font-medium text-foreground">Auto-incluir em protocolos novos</span>
+              </label>
+            </div>
+
+            {/* Rodapé */}
+            <div className="p-3 border-t flex justify-end gap-2">
+              <Button size="sm" variant="outline" onClick={() => setEditingRef(null)}>Cancelar</Button>
+              <Button size="sm" disabled={!editRefData.titulo.trim()} onClick={() => setEditConfirmOpen(true)}>
+                <PenLine className="h-3.5 w-3.5 mr-1" />Salvar alterações
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Dialog: confirmar salvamento ───────────────────────────── */}
+      {editingRef && editConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEditConfirmOpen(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-[420px] mx-4 p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <span className="text-amber-500 text-xl leading-none mt-0.5">⚠</span>
+              <div>
+                <p className="font-semibold text-sm">Tem certeza que deseja salvar as alterações?</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Esta referência será atualizada no <strong>banco de cadastros</strong> e as mudanças refletirão em todos os protocolos que a utilizam.
+                </p>
+              </div>
+            </div>
+            <div className="rounded-lg bg-muted/50 border px-3 py-2">
+              <p className="text-xs font-semibold text-foreground leading-snug">{editRefData.titulo}</p>
+              {editRefData.autores && <p className="text-[11px] text-muted-foreground mt-0.5">{editRefData.autores}</p>}
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button size="sm" variant="outline" onClick={() => setEditConfirmOpen(false)}>Voltar e revisar</Button>
+              <Button
+                size="sm"
+                disabled={updateRef.isPending}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+                onClick={() => updateRef.mutate({ id: editingRef.id, data: editRefData })}
+              >
+                {updateRef.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                Confirmar e salvar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Dialog ── */}
       {selectorOpen && (
