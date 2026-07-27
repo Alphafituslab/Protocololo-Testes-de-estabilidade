@@ -119,14 +119,11 @@ export default function Dashboard() {
       navigate("/protocols");
       return;
     }
-    const next = statusFilter === status ? null : status;
-    setStatusFilter(next);
+    setStatusFilter(status);
     setSearch("");
-    if (next !== null) {
-      setTimeout(() => {
-        listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 60);
-    }
+    setTimeout(() => {
+      listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
   }
 
   if (isLoading) return <SkeletonDash />;
