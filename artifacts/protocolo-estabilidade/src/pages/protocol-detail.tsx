@@ -9299,52 +9299,64 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                       <span className="shrink-0 text-muted-foreground">▾</span>
                     </button>
                     {filterDropOpen && (
-                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-xl overflow-hidden">
-                        {/* Cabeçalho do dropdown */}
-                        <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/40">
-                          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tipo de referência</span>
-                          {filterTipos.size > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setFilterTipos(new Set())}
-                              className="text-[10px] text-primary hover:underline"
-                            >Limpar filtro</button>
-                          )}
-                        </div>
-                        {/* Opções */}
-                        <div className="max-h-56 overflow-y-auto py-1">
-                          {allAvailableTipos.map(tipo => {
-                            const c = TIPO_COLORS_REF[tipo];
-                            const label = TIPO_LABELS_REF[tipo] ?? tipo;
-                            const active = filterTipos.has(tipo);
-                            return (
-                              <button
-                                key={tipo}
-                                type="button"
-                                onClick={() => {
-                                  setFilterTipos(prev => {
-                                    const next = new Set(prev);
-                                    if (next.has(tipo)) next.delete(tipo); else next.add(tipo);
-                                    return next;
-                                  });
-                                }}
-                                className={`w-full flex items-center justify-between gap-2 px-4 py-2 text-sm text-left transition-colors hover:bg-muted/50 ${active ? "font-medium" : ""}`}
-                              >
-                                <span className="flex items-center gap-2">
-                                  <span>{c?.dot ?? "•"}</span>
-                                  <span>{label}</span>
-                                </span>
-                                {active && <span className="text-primary font-bold text-base leading-none">✓</span>}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        {/* Fechar dropdown ao clicar fora */}
+                      <>
+                        {/* Backdrop fora do dropdown — fecha ao clicar fora */}
                         <div
-                          className="fixed inset-0 z-[-1]"
+                          className="fixed inset-0 z-40"
                           onClick={() => setFilterDropOpen(false)}
                         />
-                      </div>
+                        {/* Dropdown acima do backdrop */}
+                        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-xl overflow-hidden">
+                          {/* Cabeçalho */}
+                          <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/40">
+                            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tipo de referência</span>
+                            {filterTipos.size > 0 && (
+                              <button
+                                type="button"
+                                onClick={e => { e.stopPropagation(); setFilterTipos(new Set()); }}
+                                className="text-[10px] text-primary hover:underline"
+                              >Limpar filtro</button>
+                            )}
+                          </div>
+                          {/* Opções — clique mantém dropdown aberto */}
+                          <div className="max-h-56 overflow-y-auto py-1">
+                            {allAvailableTipos.map(tipo => {
+                              const c = TIPO_COLORS_REF[tipo];
+                              const label = TIPO_LABELS_REF[tipo] ?? tipo;
+                              const active = filterTipos.has(tipo);
+                              return (
+                                <button
+                                  key={tipo}
+                                  type="button"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    setFilterTipos(prev => {
+                                      const next = new Set(prev);
+                                      if (next.has(tipo)) next.delete(tipo); else next.add(tipo);
+                                      return next;
+                                    });
+                                  }}
+                                  className={`w-full flex items-center justify-between gap-2 px-4 py-2 text-sm text-left transition-colors hover:bg-muted/50 ${active ? "bg-primary/5 font-medium" : ""}`}
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <span>{c?.dot ?? "•"}</span>
+                                    <span>{label}</span>
+                                  </span>
+                                  {active && <span className="text-primary font-bold text-base leading-none">✓</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {/* Rodapé com botão fechar */}
+                          <div className="border-t px-3 py-2 bg-muted/20 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => setFilterDropOpen(false)}
+                              className="text-xs text-muted-foreground hover:text-foreground font-medium"
+                            >Fechar ✕</button>
+                          </div>
+                        </div>
+                      </>
                     )}
                   </div>
                   {/* Chips dos tipos ativos */}
