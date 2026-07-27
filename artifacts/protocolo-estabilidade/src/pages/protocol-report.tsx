@@ -593,7 +593,7 @@ export default function ProtocolReportPage() {
                     <div key={lot.id} className="grid text-[10px]" style={{ gridTemplateColumns: "1fr auto auto auto", gap: "0 12px" }}>
                       <span className="font-semibold">{i + 1} — {lot.lotNumber}</span>
                       <span className="text-gray-500 text-right">{lot.manufacturingDate ? `Fab. ${fmtDate(lot.manufacturingDate)}` : ""}</span>
-                      <span className="text-gray-800 font-semibold text-right">{cert.validityMonths ? `Val. ${cert.validityMonths} meses` : ""}</span>
+                      <span className="text-gray-800 font-semibold text-right"></span>
                       <span className="text-gray-500 text-right">{lot.quantity ? `${lot.quantity} un.` : ""}</span>
                     </div>
                   ))}

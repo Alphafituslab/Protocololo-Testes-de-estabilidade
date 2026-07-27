@@ -1626,7 +1626,7 @@ export default function CertificatePage() {
                   </tr>
                 )}
                 <tr>
-                  <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_validityMonths", "Validade:", { className: "text-gray-500 font-medium text-xs" })}</td>
+                  <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_validityMonths", "Validade praticada (rótulo):", { className: "text-gray-500 font-medium text-xs" })}</td>
                   <td className="font-semibold align-top pb-1">
                     {ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}
                     {(() => {
@@ -1659,7 +1659,7 @@ export default function CertificatePage() {
                         <div key={(lot as { id: string | number }).id} className="grid" style={{ gridTemplateColumns: "1fr auto auto auto", gap: "0 12px" }}>
                           <span className="font-semibold">{i + 1} — {lot.lotNumber}</span>
                           <span className="text-gray-500 text-right">{mfgDate ? `Fab. ${fmtDate(mfgDate)}` : ""}</span>
-                          <span className="text-gray-800 font-semibold text-right">{cert.validityMonths ? `Val. ${cert.validityMonths} meses` : ""}</span>
+                          <span className="text-gray-800 font-semibold text-right"></span>
                           <span className="text-gray-500 text-right">{qty ? `${qty} un.` : ""}</span>
                         </div>
                         );
