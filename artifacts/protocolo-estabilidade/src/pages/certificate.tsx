@@ -2017,239 +2017,6 @@ export default function CertificatePage() {
           </div>
         )}
 
-        {(() => {
-          const kParams = kineticsData?.parameters ?? [];
-          const validParams = kParams.filter(p => p !== null && p.k != null && p.k > 0) as NonNullable<typeof kParams[number]>[];
-          const limiting = kineticsData?.limitingParameter ?? null;
-          const estimatedMonths = kineticsData?.estimatedShelfLifeMonths ?? null;
-          const recommendedMonths = kineticsData?.recommendedValidityMonths ?? null;
-          const practicedMonths = (cert as any).validityMonths as number | null ?? null;
-          const hasData = validParams.length > 0;
-
-          // ── Shelf-life selecionado (selectedShelfBox) ──────────────────────────
-          const FA_ARR = Math.exp((83140 / 8.314) * (1 / 303.15 - 1 / 313.15)); // ≈ 2.8674
-          const kovJson = (() => { try { return cert.kineticsOverridesJson ? JSON.parse(cert.kineticsOverridesJson) as Record<string, unknown> : null; } catch { return null; } })();
-          // Primary: DB (cert.kineticsOverridesJson) — Fallback: localStorage (unsaved selection)
-          const selectedBox = (() => {
-            if (kovJson?.selectedShelfBox) return kovJson.selectedShelfBox as string;
-            try {
-              const ls = localStorage.getItem(`kinetics_overrides_${id}`);
-              if (ls) { const p = JSON.parse(ls) as Record<string, unknown>; if (p.selectedShelfBox) return p.selectedShelfBox as string; }
-            } catch { /* ignore */ }
-            return null;
-          })();
-          const ativoLimMap: Record<string, { overage?: string }> = (() => { try { return cert.ativoLimitsJson ? JSON.parse(cert.ativoLimitsJson) as Record<string, { overage?: string }> : {}; } catch { return {}; } })();
-
-          const getBoxShelfLife = (p: typeof validParams[number]): number | null => {
-            const k = typeof p.k === "number" ? p.k : null;
-            if (!k || k <= 0) return p.estimatedShelfLifeMonths ?? null;
-            const t0 = typeof p.t0 === "number" && p.t0 > 0 ? p.t0 : 100;
-            const kovParam = (kovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[p.parameter];
-            const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
-            const manualOv = ativoLimMap[p.parameter]?.overage ? parseFloat(String(ativoLimMap[p.parameter].overage).replace(",", ".")) : NaN;
-            const effOv = (!isNaN(manualOv) && manualOv > 0) ? manualOv : Math.max(0, t0 - 100);
-            const baseShelf = -Math.log(ichThr / t0) / k;
-            const ovShelf = effOv > 0 ? -Math.log(ichThr / (100 + effOv)) / k : baseShelf;
-            if (!selectedBox || selectedBox === "standard") return baseShelf;
-            if (selectedBox === "overage") return ovShelf;
-            if (selectedBox === "extrap_std") return baseShelf * FA_ARR;
-            if (selectedBox === "extrap_overage") return ovShelf * FA_ARR;
-            return baseShelf;
-          };
-
-          const boxLabel: string | null = !selectedBox ? null :
-            selectedBox === "extrap_overage" ? "📐 Extrap. Arrhenius 30°C + sobreformulação" :
-            selectedBox === "extrap_std" ? "📐 Extrap. Arrhenius 30°C s/ sobreformulação" :
-            selectedBox === "overage" ? "📦 40°C com sobreformulação" :
-            "40°C sem sobreformulação";
-
-          // Build param → ativoStatus map from the analyses array (already has overage applied)
-          const ativoStatusMap: Record<string, { status: string; mgValue: string | null; faixa: string | null }> = {};
-          if (analyses) {
-            for (const a of analyses) {
-              if (a.ativoStatus) {
-                ativoStatusMap[a.parameter] = {
-                  status: a.ativoStatus,
-                  mgValue: a.ativoMgValue ?? null,
-                  faixa: a.ativoFaixa ?? null,
-                };
-              }
-            }
-          }
-
-          if (!show.cineticaProtocolo) return null;
-          return (
-            <div className="cert-kinetica-block mb-6 rounded border border-blue-200 overflow-hidden text-xs text-gray-700">
-              {/* Accordion header — screen only */}
-              <div
-                className="print:hidden flex items-center justify-between px-4 py-2 bg-blue-50 border-b border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors select-none"
-                onClick={() => setCineticaExpanded(v => !v)}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-gray-800 uppercase tracking-wide text-[11px]">Parâmetros Cinéticos e Estimativa de Validade</span>
-                  {!cineticaExpanded && (
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${show.cineticaProtocolo ? "bg-green-50 border-green-300 text-green-700" : "bg-gray-100 border-gray-300 text-gray-500"}`}>
-                      {show.cineticaProtocolo ? "✓ Na impressão" : "✗ Oculto na impressão"}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={e => { e.stopPropagation(); toggle("cineticaProtocolo"); }}
-                    className={`flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded border transition-colors ${show.cineticaProtocolo ? "border-blue-300 bg-blue-100 text-blue-700 hover:bg-blue-200" : "border-green-300 bg-green-100 text-green-700 hover:bg-green-200"}`}
-                    title="Clique para incluir/ocultar este bloco na impressão"
-                  >
-                    {show.cineticaProtocolo ? "✕ Ocultar na impressão" : "✓ Incluir na impressão"}
-                  </button>
-                  {cineticaExpanded ? <ChevronUp className="h-4 w-4 text-blue-500" /> : <ChevronDown className="h-4 w-4 text-blue-500" />}
-                </div>
-              </div>
-
-              {/* Print-only header bar — blue box visible in PDF */}
-              <div className="cert-kinetica-print-header hidden print:flex items-center px-4 py-1.5">
-                <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white">Parâmetros Cinéticos e Estimativa de Validade</h2>
-              </div>
-
-              {/* Content — hidden on screen when collapsed, but always printed when show=true */}
-              <div className={`bg-blue-50/40 p-4 space-y-3 ${!cineticaExpanded ? "hidden print:block" : ""}`}>
-                {!hasData ? (
-                  <p className="text-gray-400 italic">Dados cinéticos insuficientes (requer resultados de teor nos tempos T3 e T6).</p>
-                ) : (
-                  <>
-                    <table className="w-full text-[10px] border-collapse">
-                      <thead>
-                        <tr className="bg-blue-100/60">
-                          <th className="border border-blue-200 px-2 py-1 text-left font-semibold" rowSpan={2}>Ativo</th>
-                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>T0 (%)</th>
-                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>T3 (%)</th>
-                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>T6 (%)</th>
-                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>k (mês⁻¹)</th>
-                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" colSpan={2}>Validade 40°C (meses)</th>
-                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold text-violet-700" colSpan={2}>Validade Extrap. 30°C — Arrhenius (meses)</th>
-                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>Conf. ANVISA</th>
-                        </tr>
-                        <tr className="bg-blue-100/40">
-                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold ${selectedBox === "standard" ? "bg-green-100 text-green-800" : ""}`}>Sem overage</th>
-                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold ${selectedBox === "overage" ? "bg-green-100 text-green-800" : ""}`}>Com overage</th>
-                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold text-violet-700 ${selectedBox === "extrap_std" ? "bg-green-100 text-green-800" : ""}`}>Sem overage</th>
-                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold text-violet-700 ${selectedBox === "extrap_overage" ? "bg-green-100 text-green-800" : ""}`}>Com overage</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {validParams.map(p => {
-                          const isLimiting = p.parameter === limiting;
-                          const anvInfo = ativoStatusMap[p.parameter];
-                          const anvAprovado = anvInfo?.status === "dentro";
-                          const anvReprovado = anvInfo?.status === "fora";
-                          // Per-parameter shelf life for all 4 scenarios
-                          const k = typeof p.k === "number" ? p.k : null;
-                          const t0v = typeof p.t0 === "number" && p.t0 > 0 ? p.t0 : 100;
-                          const kovParam = (kovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[p.parameter];
-                          const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
-                          const manualOv = ativoLimMap[p.parameter]?.overage ? parseFloat(String(ativoLimMap[p.parameter].overage).replace(",", ".")) : NaN;
-                          const effOv = (!isNaN(manualOv) && manualOv > 0) ? manualOv : Math.max(0, t0v - 100);
-                          const baseShelf = (k && k > 0) ? -Math.log(ichThr / 100) / k : null;            // sem overage: parte de 100%
-                          const ovShelf  = (k && k > 0) ? -Math.log(ichThr / t0v) / k : baseShelf;           // com overage: parte de t0v%
-                          const extrapBase = baseShelf != null ? baseShelf * FA_ARR : null;
-                          const extrapOv = ovShelf != null ? ovShelf * FA_ARR : null;
-                          const selCls = "bg-green-50 font-bold text-green-800";
-                          return (
-                            <tr key={p.parameter} className={isLimiting ? "bg-amber-50" : ""}>
-                              <td className={`border border-blue-200 px-2 py-1 font-medium ${isLimiting ? "text-amber-800" : ""}`}>
-                                {p.parameter}{isLimiting && <span className="ml-1 text-amber-600 font-bold">★</span>}
-                              </td>
-                              <td className="border border-blue-200 px-2 py-1 text-center">{p.t0 != null ? p.t0.toFixed(2) : "—"}</td>
-                              <td className="border border-blue-200 px-2 py-1 text-center">{p.t3 != null ? p.t3.toFixed(2) : "—"}</td>
-                              <td className="border border-blue-200 px-2 py-1 text-center">{p.t6 != null ? p.t6.toFixed(2) : "—"}</td>
-                              <td className="border border-blue-200 px-2 py-1 text-center font-mono">{p.k != null ? p.k.toFixed(5) : "—"}</td>
-                              <td className={`border border-blue-200 px-2 py-1 text-center ${selectedBox === "standard" ? selCls : ""}`}>{baseShelf != null ? baseShelf.toFixed(2) : "—"}</td>
-                              <td className={`border border-blue-200 px-2 py-1 text-center ${selectedBox === "overage" ? selCls : ""}`}>{ovShelf != null ? ovShelf.toFixed(2) : "—"}</td>
-                              <td className={`border border-blue-200 px-2 py-1 text-center text-violet-700 ${selectedBox === "extrap_std" ? selCls : ""}`}>{extrapBase != null ? extrapBase.toFixed(2) : "—"}</td>
-                              <td className={`border border-blue-200 px-2 py-1 text-center text-violet-700 ${selectedBox === "extrap_overage" ? selCls : ""}`}>{extrapOv != null ? extrapOv.toFixed(2) : "—"}</td>
-                              <td className={`border border-blue-200 px-2 py-1 text-center font-semibold ${anvAprovado ? "text-green-700" : anvReprovado ? "text-red-700" : "text-gray-400"}`}>
-                                {anvAprovado ? "✓ Aprovado"
-                                  : anvReprovado ? "✗ Reprovado"
-                                  : "—"}
-                                {anvInfo?.mgValue && (
-                                  <div className="text-[9px] font-normal text-gray-500 leading-snug">{anvInfo.mgValue}</div>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-
-                    {(() => {
-                      const limP = validParams.find(p => p.parameter === limiting);
-                      const selMonths = limP ? getBoxShelfLife(limP) : null;
-                      const displayMonths = selMonths ?? estimatedMonths;
-                      const isExtrap = selectedBox === "extrap_std" || selectedBox === "extrap_overage";
-                      const calcLabel = isExtrap ? "Validade extrapolada a 30°C (ICH Q1A):" : "Validade calculada (ICH Q1A):";
-                      const situThreshold = selMonths ?? estimatedMonths;
-                      const situOk = practicedMonths != null && situThreshold != null && practicedMonths <= situThreshold;
-                      const situRef = isExtrap
-                        ? `validade extrapolada a 30°C (${situThreshold?.toFixed(2)} m)`
-                        : `validade calculada (${situThreshold?.toFixed(2)} m)`;
-                      return (
-                        <div className="grid grid-cols-2 gap-4 pt-1">
-                          <div className="space-y-1">
-                            {limiting && (
-                              <p><span className="text-gray-500">Ativo com maior degradação: </span><span className="font-semibold text-amber-700">★ {limiting}</span></p>
-                            )}
-                          </div>
-                          <div className="space-y-1">
-                            {practicedMonths != null && (
-                              <p><span className="text-gray-500">Validade praticada (rótulo): </span><span className="font-semibold">{practicedMonths} meses</span></p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })()}
-                    {/* Conclusão removida daqui — exibida apenas na seção CONCLUSÃO abaixo */}
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })()}
-
-        {show.fundamentacaoCinetica && <div className="cert-kinetica-block mb-6 rounded border border-gray-200 overflow-hidden text-xs text-gray-700">
-          {/* Accordion header — screen only */}
-          <div
-            className="print:hidden flex items-center justify-between px-4 py-2 bg-gray-100 border-b border-gray-200 cursor-pointer hover:bg-gray-200 transition-colors select-none"
-            onClick={() => setFundamentacaoExpanded(v => !v)}
-          >
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-gray-800 uppercase tracking-wide text-[11px]">Fundamentação do Modelo Cinético</span>
-              {!fundamentacaoExpanded && (
-                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${show.fundamentacaoCinetica ? "bg-green-50 border-green-300 text-green-700" : "bg-gray-100 border-gray-300 text-gray-500"}`}>
-                  {show.fundamentacaoCinetica ? "✓ Na impressão" : "✗ Oculto na impressão"}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={e => { e.stopPropagation(); toggle("fundamentacaoCinetica"); }}
-                className={`flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded border transition-colors ${show.fundamentacaoCinetica ? "border-gray-400 bg-gray-200 text-gray-700 hover:bg-gray-300" : "border-green-300 bg-green-100 text-green-700 hover:bg-green-200"}`}
-                title="Clique para incluir/ocultar este bloco na impressão"
-              >
-                {show.fundamentacaoCinetica ? "✕ Ocultar na impressão" : "✓ Incluir na impressão"}
-              </button>
-              {fundamentacaoExpanded ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
-            </div>
-          </div>
-
-          {/* Content — hidden on screen when collapsed, but always printed when show=true */}
-          <div className={`bg-gray-50 p-4 space-y-3 ${!fundamentacaoExpanded ? "hidden print:block" : ""}`}>
-            <p className="font-semibold text-gray-800 uppercase tracking-wide hidden print:block">Fundamentação do Modelo Cinético</p>
-            <p className="leading-relaxed">{ef("fundamentacaoTexto", "Para a estimativa do tempo de validade do produto, foi empregado o modelo cinético de degradação de primeira ordem, amplamente descrito na literatura para substâncias bioativas submetidas à avaliação de estabilidade sob condições de estresse controlado, como temperatura e umidade.", { multiline: true })}</p>
-            <p className="font-mono bg-white border border-gray-200 rounded px-3 py-1.5 inline-block">C<sub>t</sub> = C<sub>0</sub> · e<sup>−kt</sup></p>
-            <p className="font-mono bg-white border border-gray-200 rounded px-3 py-1.5 inline-block ml-4">k = A · e<sup>−E<sub>a</sub>/RT</sup></p>
-          </div>
-        </div>}
 
         {/* ══ ASSINATURAS ELETRÔNICAS + RODAPÉ INTEGRADO ══════════════════ */}
         {(() => {
@@ -2602,7 +2369,242 @@ export default function CertificatePage() {
               })()}
             </>
           );
+
+        {(() => {
+          const kParams = kineticsData?.parameters ?? [];
+          const validParams = kParams.filter(p => p !== null && p.k != null && p.k > 0) as NonNullable<typeof kParams[number]>[];
+          const limiting = kineticsData?.limitingParameter ?? null;
+          const estimatedMonths = kineticsData?.estimatedShelfLifeMonths ?? null;
+          const recommendedMonths = kineticsData?.recommendedValidityMonths ?? null;
+          const practicedMonths = (cert as any).validityMonths as number | null ?? null;
+          const hasData = validParams.length > 0;
+
+          // ── Shelf-life selecionado (selectedShelfBox) ──────────────────────────
+          const FA_ARR = Math.exp((83140 / 8.314) * (1 / 303.15 - 1 / 313.15)); // ≈ 2.8674
+          const kovJson = (() => { try { return cert.kineticsOverridesJson ? JSON.parse(cert.kineticsOverridesJson) as Record<string, unknown> : null; } catch { return null; } })();
+          // Primary: DB (cert.kineticsOverridesJson) — Fallback: localStorage (unsaved selection)
+          const selectedBox = (() => {
+            if (kovJson?.selectedShelfBox) return kovJson.selectedShelfBox as string;
+            try {
+              const ls = localStorage.getItem(`kinetics_overrides_${id}`);
+              if (ls) { const p = JSON.parse(ls) as Record<string, unknown>; if (p.selectedShelfBox) return p.selectedShelfBox as string; }
+            } catch { /* ignore */ }
+            return null;
+          })();
+          const ativoLimMap: Record<string, { overage?: string }> = (() => { try { return cert.ativoLimitsJson ? JSON.parse(cert.ativoLimitsJson) as Record<string, { overage?: string }> : {}; } catch { return {}; } })();
+
+          const getBoxShelfLife = (p: typeof validParams[number]): number | null => {
+            const k = typeof p.k === "number" ? p.k : null;
+            if (!k || k <= 0) return p.estimatedShelfLifeMonths ?? null;
+            const t0 = typeof p.t0 === "number" && p.t0 > 0 ? p.t0 : 100;
+            const kovParam = (kovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[p.parameter];
+            const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
+            const manualOv = ativoLimMap[p.parameter]?.overage ? parseFloat(String(ativoLimMap[p.parameter].overage).replace(",", ".")) : NaN;
+            const effOv = (!isNaN(manualOv) && manualOv > 0) ? manualOv : Math.max(0, t0 - 100);
+            const baseShelf = -Math.log(ichThr / t0) / k;
+            const ovShelf = effOv > 0 ? -Math.log(ichThr / (100 + effOv)) / k : baseShelf;
+            if (!selectedBox || selectedBox === "standard") return baseShelf;
+            if (selectedBox === "overage") return ovShelf;
+            if (selectedBox === "extrap_std") return baseShelf * FA_ARR;
+            if (selectedBox === "extrap_overage") return ovShelf * FA_ARR;
+            return baseShelf;
+          };
+
+          const boxLabel: string | null = !selectedBox ? null :
+            selectedBox === "extrap_overage" ? "📐 Extrap. Arrhenius 30°C + sobreformulação" :
+            selectedBox === "extrap_std" ? "📐 Extrap. Arrhenius 30°C s/ sobreformulação" :
+            selectedBox === "overage" ? "📦 40°C com sobreformulação" :
+            "40°C sem sobreformulação";
+
+          // Build param → ativoStatus map from the analyses array (already has overage applied)
+          const ativoStatusMap: Record<string, { status: string; mgValue: string | null; faixa: string | null }> = {};
+          if (analyses) {
+            for (const a of analyses) {
+              if (a.ativoStatus) {
+                ativoStatusMap[a.parameter] = {
+                  status: a.ativoStatus,
+                  mgValue: a.ativoMgValue ?? null,
+                  faixa: a.ativoFaixa ?? null,
+                };
+              }
+            }
+          }
+
+          if (!show.cineticaProtocolo) return null;
+          return (
+            <div className="cert-kinetica-block mb-6 rounded border border-blue-200 overflow-hidden text-xs text-gray-700">
+              {/* Accordion header — screen only */}
+              <div
+                className="print:hidden flex items-center justify-between px-4 py-2 bg-blue-50 border-b border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors select-none"
+                onClick={() => setCineticaExpanded(v => !v)}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-800 uppercase tracking-wide text-[11px]">Parâmetros Cinéticos e Estimativa de Validade</span>
+                  {!cineticaExpanded && (
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${show.cineticaProtocolo ? "bg-green-50 border-green-300 text-green-700" : "bg-gray-100 border-gray-300 text-gray-500"}`}>
+                      {show.cineticaProtocolo ? "✓ Na impressão" : "✗ Oculto na impressão"}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); toggle("cineticaProtocolo"); }}
+                    className={`flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded border transition-colors ${show.cineticaProtocolo ? "border-blue-300 bg-blue-100 text-blue-700 hover:bg-blue-200" : "border-green-300 bg-green-100 text-green-700 hover:bg-green-200"}`}
+                    title="Clique para incluir/ocultar este bloco na impressão"
+                  >
+                    {show.cineticaProtocolo ? "✕ Ocultar na impressão" : "✓ Incluir na impressão"}
+                  </button>
+                  {cineticaExpanded ? <ChevronUp className="h-4 w-4 text-blue-500" /> : <ChevronDown className="h-4 w-4 text-blue-500" />}
+                </div>
+              </div>
+
+              {/* Print-only header bar — blue box visible in PDF */}
+              <div className="cert-kinetica-print-header hidden print:flex items-center px-4 py-1.5">
+                <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white">Parâmetros Cinéticos e Estimativa de Validade</h2>
+              </div>
+
+              {/* Content — hidden on screen when collapsed, but always printed when show=true */}
+              <div className={`bg-blue-50/40 p-4 space-y-3 ${!cineticaExpanded ? "hidden print:block" : ""}`}>
+                {!hasData ? (
+                  <p className="text-gray-400 italic">Dados cinéticos insuficientes (requer resultados de teor nos tempos T3 e T6).</p>
+                ) : (
+                  <>
+                    <table className="w-full text-[10px] border-collapse">
+                      <thead>
+                        <tr className="bg-blue-100/60">
+                          <th className="border border-blue-200 px-2 py-1 text-left font-semibold" rowSpan={2}>Ativo</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>T0 (%)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>T3 (%)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>T6 (%)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>k (mês⁻¹)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" colSpan={2}>Validade 40°C (meses)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold text-violet-700" colSpan={2}>Validade Extrap. 30°C — Arrhenius (meses)</th>
+                          <th className="border border-blue-200 px-2 py-1 text-center font-semibold" rowSpan={2}>Conf. ANVISA</th>
+                        </tr>
+                        <tr className="bg-blue-100/40">
+                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold ${selectedBox === "standard" ? "bg-green-100 text-green-800" : ""}`}>Sem overage</th>
+                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold ${selectedBox === "overage" ? "bg-green-100 text-green-800" : ""}`}>Com overage</th>
+                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold text-violet-700 ${selectedBox === "extrap_std" ? "bg-green-100 text-green-800" : ""}`}>Sem overage</th>
+                          <th className={`border border-blue-200 px-2 py-1 text-center text-[9px] font-semibold text-violet-700 ${selectedBox === "extrap_overage" ? "bg-green-100 text-green-800" : ""}`}>Com overage</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {validParams.map(p => {
+                          const isLimiting = p.parameter === limiting;
+                          const anvInfo = ativoStatusMap[p.parameter];
+                          const anvAprovado = anvInfo?.status === "dentro";
+                          const anvReprovado = anvInfo?.status === "fora";
+                          // Per-parameter shelf life for all 4 scenarios
+                          const k = typeof p.k === "number" ? p.k : null;
+                          const t0v = typeof p.t0 === "number" && p.t0 > 0 ? p.t0 : 100;
+                          const kovParam = (kovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[p.parameter];
+                          const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
+                          const manualOv = ativoLimMap[p.parameter]?.overage ? parseFloat(String(ativoLimMap[p.parameter].overage).replace(",", ".")) : NaN;
+                          const effOv = (!isNaN(manualOv) && manualOv > 0) ? manualOv : Math.max(0, t0v - 100);
+                          const baseShelf = (k && k > 0) ? -Math.log(ichThr / 100) / k : null;            // sem overage: parte de 100%
+                          const ovShelf  = (k && k > 0) ? -Math.log(ichThr / t0v) / k : baseShelf;           // com overage: parte de t0v%
+                          const extrapBase = baseShelf != null ? baseShelf * FA_ARR : null;
+                          const extrapOv = ovShelf != null ? ovShelf * FA_ARR : null;
+                          const selCls = "bg-green-50 font-bold text-green-800";
+                          return (
+                            <tr key={p.parameter} className={isLimiting ? "bg-amber-50" : ""}>
+                              <td className={`border border-blue-200 px-2 py-1 font-medium ${isLimiting ? "text-amber-800" : ""}`}>
+                                {p.parameter}{isLimiting && <span className="ml-1 text-amber-600 font-bold">★</span>}
+                              </td>
+                              <td className="border border-blue-200 px-2 py-1 text-center">{p.t0 != null ? p.t0.toFixed(2) : "—"}</td>
+                              <td className="border border-blue-200 px-2 py-1 text-center">{p.t3 != null ? p.t3.toFixed(2) : "—"}</td>
+                              <td className="border border-blue-200 px-2 py-1 text-center">{p.t6 != null ? p.t6.toFixed(2) : "—"}</td>
+                              <td className="border border-blue-200 px-2 py-1 text-center font-mono">{p.k != null ? p.k.toFixed(5) : "—"}</td>
+                              <td className={`border border-blue-200 px-2 py-1 text-center ${selectedBox === "standard" ? selCls : ""}`}>{baseShelf != null ? baseShelf.toFixed(2) : "—"}</td>
+                              <td className={`border border-blue-200 px-2 py-1 text-center ${selectedBox === "overage" ? selCls : ""}`}>{ovShelf != null ? ovShelf.toFixed(2) : "—"}</td>
+                              <td className={`border border-blue-200 px-2 py-1 text-center text-violet-700 ${selectedBox === "extrap_std" ? selCls : ""}`}>{extrapBase != null ? extrapBase.toFixed(2) : "—"}</td>
+                              <td className={`border border-blue-200 px-2 py-1 text-center text-violet-700 ${selectedBox === "extrap_overage" ? selCls : ""}`}>{extrapOv != null ? extrapOv.toFixed(2) : "—"}</td>
+                              <td className={`border border-blue-200 px-2 py-1 text-center font-semibold ${anvAprovado ? "text-green-700" : anvReprovado ? "text-red-700" : "text-gray-400"}`}>
+                                {anvAprovado ? "✓ Aprovado"
+                                  : anvReprovado ? "✗ Reprovado"
+                                  : "—"}
+                                {anvInfo?.mgValue && (
+                                  <div className="text-[9px] font-normal text-gray-500 leading-snug">{anvInfo.mgValue}</div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+
+                    {(() => {
+                      const limP = validParams.find(p => p.parameter === limiting);
+                      const selMonths = limP ? getBoxShelfLife(limP) : null;
+                      const displayMonths = selMonths ?? estimatedMonths;
+                      const isExtrap = selectedBox === "extrap_std" || selectedBox === "extrap_overage";
+                      const calcLabel = isExtrap ? "Validade extrapolada a 30°C (ICH Q1A):" : "Validade calculada (ICH Q1A):";
+                      const situThreshold = selMonths ?? estimatedMonths;
+                      const situOk = practicedMonths != null && situThreshold != null && practicedMonths <= situThreshold;
+                      const situRef = isExtrap
+                        ? `validade extrapolada a 30°C (${situThreshold?.toFixed(2)} m)`
+                        : `validade calculada (${situThreshold?.toFixed(2)} m)`;
+                      return (
+                        <div className="grid grid-cols-2 gap-4 pt-1">
+                          <div className="space-y-1">
+                            {limiting && (
+                              <p><span className="text-gray-500">Ativo com maior degradação: </span><span className="font-semibold text-amber-700">★ {limiting}</span></p>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            {practicedMonths != null && (
+                              <p><span className="text-gray-500">Validade praticada (rótulo): </span><span className="font-semibold">{practicedMonths} meses</span></p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {/* Conclusão removida daqui — exibida apenas na seção CONCLUSÃO abaixo */}
+                  </>
+                )}
+              </div>
+            </div>
+          );
         })()}
+
+        {show.fundamentacaoCinetica && <div className="cert-kinetica-block mb-6 rounded border border-gray-200 overflow-hidden text-xs text-gray-700">
+          {/* Accordion header — screen only */}
+          <div
+            className="print:hidden flex items-center justify-between px-4 py-2 bg-gray-100 border-b border-gray-200 cursor-pointer hover:bg-gray-200 transition-colors select-none"
+            onClick={() => setFundamentacaoExpanded(v => !v)}
+          >
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-800 uppercase tracking-wide text-[11px]">Fundamentação do Modelo Cinético</span>
+              {!fundamentacaoExpanded && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${show.fundamentacaoCinetica ? "bg-green-50 border-green-300 text-green-700" : "bg-gray-100 border-gray-300 text-gray-500"}`}>
+                  {show.fundamentacaoCinetica ? "✓ Na impressão" : "✗ Oculto na impressão"}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); toggle("fundamentacaoCinetica"); }}
+                className={`flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded border transition-colors ${show.fundamentacaoCinetica ? "border-gray-400 bg-gray-200 text-gray-700 hover:bg-gray-300" : "border-green-300 bg-green-100 text-green-700 hover:bg-green-200"}`}
+                title="Clique para incluir/ocultar este bloco na impressão"
+              >
+                {show.fundamentacaoCinetica ? "✕ Ocultar na impressão" : "✓ Incluir na impressão"}
+              </button>
+              {fundamentacaoExpanded ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
+            </div>
+          </div>
+
+          {/* Content — hidden on screen when collapsed, but always printed when show=true */}
+          <div className={`bg-gray-50 p-4 space-y-3 ${!fundamentacaoExpanded ? "hidden print:block" : ""}`}>
+            <p className="font-semibold text-gray-800 uppercase tracking-wide hidden print:block">Fundamentação do Modelo Cinético</p>
+            <p className="leading-relaxed">{ef("fundamentacaoTexto", "Para a estimativa do tempo de validade do produto, foi empregado o modelo cinético de degradação de primeira ordem, amplamente descrito na literatura para substâncias bioativas submetidas à avaliação de estabilidade sob condições de estresse controlado, como temperatura e umidade.", { multiline: true })}</p>
+            <p className="font-mono bg-white border border-gray-200 rounded px-3 py-1.5 inline-block">C<sub>t</sub> = C<sub>0</sub> · e<sup>−kt</sup></p>
+            <p className="font-mono bg-white border border-gray-200 rounded px-3 py-1.5 inline-block ml-4">k = A · e<sup>−E<sub>a</sub>/RT</sup></p>
+          </div>
+        </div>}
+
+                })()}
 
         {/* ═══════════════════════════════════════════════════════
             REFERÊNCIAS BIBLIOGRÁFICAS — anexo opcional
