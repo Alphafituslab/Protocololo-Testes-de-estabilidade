@@ -9275,9 +9275,19 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
   }
 
   const linkedIds = new Set(protocolRefs.map(r => r.id));
+
+  // Normaliza: minúsculas + remove acentos + remove pontuação/símbolos
+  const normSearch = (s: string) =>
+    s.toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")  // acentos
+      .replace(/[^a-z0-9\s]/g, "")                        // pontuação / símbolos
+      .replace(/\s+/g, " ").trim();
+
+  const sq = normSearch(search);
+
   const available = allRefs.filter(r =>
     !linkedIds.has(r.id) &&
-    (search === "" || r.titulo.toLowerCase().includes(search.toLowerCase()) || (r.autores ?? "").toLowerCase().includes(search.toLowerCase())) &&
+    (sq === "" || normSearch(r.titulo).includes(sq) || normSearch(r.autores ?? "").includes(sq)) &&
     (filterTipos.size === 0 || r.tipoReferencia.split(",").some(t => filterTipos.has(t)))
   );
 
