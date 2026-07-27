@@ -9082,7 +9082,7 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
   const available = allRefs.filter(r =>
     !linkedIds.has(r.id) &&
     (search === "" || r.titulo.toLowerCase().includes(search.toLowerCase()) || (r.autores ?? "").toLowerCase().includes(search.toLowerCase())) &&
-    (filterTipos.size === 0 || filterTipos.has(r.tipoReferencia))
+    (filterTipos.size === 0 || r.tipoReferencia.split(",").some(t => filterTipos.has(t)))
   );
 
   const noResults = available.length === 0;
@@ -9164,23 +9164,24 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                   <div className="flex-1 min-w-0">
                     {/* Tipo badge + cor + ano */}
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      {(() => {
-                        const c = TIPO_COLORS_REF[ref.tipoReferencia];
+                      {ref.tipoReferencia.split(",").filter(Boolean).map((tipo, ti) => {
+                        const c = TIPO_COLORS_REF[tipo];
+                        const label = TIPO_LABELS_REF[tipo] ?? tipo;
                         return c ? (
-                          <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium ${c.bg} ${c.text}`}>
-                            {colorBlock
+                          <span key={ti} className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium ${c.bg} ${c.text}`}>
+                            {colorBlock && ti === 0
                               ? <span className={`inline-block w-2 h-2 rounded-full ${colorBlock.dot}`} />
                               : <span>{c.dot}</span>}
-                            {TIPO_LABELS_REF[ref.tipoReferencia]}
-                            {ref.tipoReferencia === "ativo" && ref.ativoRelacionado ? ` — ${ref.ativoRelacionado}` : ""}
+                            {label}
+                            {tipo === "ativo" && ref.ativoRelacionado ? ` — ${ref.ativoRelacionado}` : ""}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                            {colorBlock && <span className={`inline-block w-2 h-2 rounded-full ${colorBlock.dot}`} />}
-                            {TIPO_LABELS_REF[ref.tipoReferencia] ?? ref.tipoReferencia}
+                          <span key={ti} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                            {colorBlock && ti === 0 && <span className={`inline-block w-2 h-2 rounded-full ${colorBlock.dot}`} />}
+                            {label}
                           </span>
                         );
-                      })()}
+                      })}
                       {ref.autoInclude && (
                         <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold">★ auto-incluída</span>
                       )}
@@ -9465,22 +9466,48 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                   A referência será salva no banco de cadastros e automaticamente associada a este protocolo.
                 </p>
 
-                {/* Tipo */}
+                {/* Tipo — multi-select */}
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">Tipo *</label>
-                  <select
-                    value={newRef.tipoReferencia ?? "geral"}
-                    onChange={e => setNewRef(r => ({ ...r, tipoReferencia: e.target.value, ativoRelacionado: "" }))}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    {TIPO_ORDER_REF.map(v => (
-                      <option key={v} value={v}>{TIPO_COLORS_REF[v]?.dot} {TIPO_LABELS_REF[v]}</option>
-                    ))}
-                  </select>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">
+                    Tipo(s) * <span className="font-normal text-muted-foreground">(selecione um ou mais)</span>
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {([...TIPO_ORDER_REF, ...TIPO_LEGACY] as string[]).map(v => {
+                      const c = TIPO_COLORS_REF[v];
+                      const label = TIPO_LABELS_REF[v] ?? v;
+                      const activeTipos = (newRef.tipoReferencia ?? "geral").split(",").filter(Boolean);
+                      const active = activeTipos.includes(v);
+                      return (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => {
+                            const current = (newRef.tipoReferencia ?? "geral").split(",").filter(Boolean);
+                            const next = active ? current.filter(t => t !== v) : [...current, v];
+                            if (next.length === 0) return;
+                            setNewRef(r => ({
+                              ...r,
+                              tipoReferencia: next.join(","),
+                              ativoRelacionado: next.includes("ativo") ? r.ativoRelacionado : "",
+                            }));
+                          }}
+                          className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all select-none ${
+                            active
+                              ? `${c?.bg ?? "bg-primary/10"} ${c?.text ?? "text-primary"} border-current font-semibold shadow-sm`
+                              : "bg-background border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/50"
+                          }`}
+                        >
+                          <span>{c?.dot ?? "•"}</span>
+                          <span>{label}</span>
+                          {active && <span className="font-bold ml-0.5">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Ativo relacionado (apenas para tipo = ativo) */}
-                {newRef.tipoReferencia === "ativo" && (
+                {(newRef.tipoReferencia ?? "geral").split(",").includes("ativo") && (
                   <div>
                     <label className="text-xs font-medium text-muted-foreground block mb-1">Ativo relacionado</label>
                     <Input
