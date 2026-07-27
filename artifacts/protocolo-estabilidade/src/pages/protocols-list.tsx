@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Link, useLocation } from "wouter";
 import { AlertCircle, Loader2, Search, X, PenLine, Trash2, RotateCcw, RefreshCw, Pencil } from "lucide-react";
 import { useState, useMemo } from "react";
+import { AuditBadge } from "@/components/audit-badge";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -328,10 +329,7 @@ export default function ProtocolsList() {
                   </div>
                   <div className="flex items-center gap-2 flex-wrap justify-end">
                     {isToday((protocol as { updatedAt?: string }).updatedAt) && (
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-400 rounded-full px-2.5 py-0.5 shadow-sm">
-                        <Pencil className="h-3 w-3" />
-                        Alterado hoje
-                      </span>
+                      <AuditBadge protocolId={protocol.id} />
                     )}
                     {(protocol as { pendingSignatures?: boolean }).pendingSignatures && (
                       <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-300 rounded-full px-2.5 py-0.5">

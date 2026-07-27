@@ -11,6 +11,7 @@ import {
   ArrowDown, ArrowUp, ArrowUpDown, Pencil,
 } from "lucide-react";
 import { useUnlock } from "@/hooks/use-unlock";
+import { AuditBadge } from "@/components/audit-badge";
 import { UnlockDialog } from "@/components/unlock-dialog";
 
 function isToday(iso: string | null | undefined): boolean {
@@ -435,10 +436,7 @@ export default function Dashboard() {
                           </div>
                         )}
                         {isToday((protocol as any).updatedAt) && (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-400 rounded-full px-2.5 py-0.5 shadow-sm">
-                            <Pencil className="h-3 w-3" />
-                            Alterado hoje
-                          </span>
+                          <AuditBadge protocolId={protocol.id} />
                         )}
                         {(protocol as { pendingSignatures?: boolean }).pendingSignatures && (
                           <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-300 rounded-full px-2.5 py-0.5">

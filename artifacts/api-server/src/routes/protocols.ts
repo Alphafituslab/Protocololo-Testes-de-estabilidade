@@ -230,9 +230,40 @@ router.put("/protocols/:id", requireAuth, requirePermission(PERM.PROTOCOLS_EDIT)
       return;
     }
   }
+  // Capture current state to detect which fields changed
+  const [before] = await db.select().from(protocolsTable).where(eq(protocolsTable.id, params.data.id));
   const [protocol] = await db.update(protocolsTable).set(parsed.data).where(eq(protocolsTable.id, params.data.id)).returning();
   if (!protocol) { res.status(404).json({ error: "Protocol not found" }); return; }
-  await logAudit(req, "ATUALIZAR_PROTOCOLO", "protocolo", `Protocolo "${protocol.productName}" atualizado`, { entityId: protocol.id, protocolId: protocol.id });
+  // Build human-readable diff
+  const FIELD_LABELS: Record<string, string> = {
+    productName: "Produto", companyName: "Empresa", cnpj: "CNPJ",
+    elaboratedBy: "Elaborado por", approvedBy: "Aprovado por",
+    issuedBy: "Emitido por", seniorAnalyst: "Analista sênior",
+    issuedByEmail: "CRF/CRQ (esq.)", seniorAnalystEmail: "CRF/CRQ (dir.)",
+    storageTemp: "Temp. armazenagem", storageHumidity: "Umidade armazenagem",
+    samplingTemp: "Temp. coleta", samplingHumidity: "Umidade coleta",
+    studyPeriodMonths: "Período (meses)", testIntervals: "Intervalos",
+    status: "Status", validityMonths: "Validade (meses)", issueDate: "Data emissão",
+    ressalva: "Ressalva", conclusion: "Conclusão", progressPercent: "Progresso",
+    certEditsJson: "Certificado", certAnalysesOverridesJson: "Análises cert.",
+    kineticsOverridesJson: "Cinética", ativoLimitsJson: "Limites ativo",
+    customParamsJson: "Parâmetros custom", periodDatesJson: "Datas períodos",
+    paramMethodsJson: "Métodos parâm.",
+  };
+  const changedFields: string[] = [];
+  if (before) {
+    for (const [key, label] of Object.entries(FIELD_LABELS)) {
+      const newVal = (parsed.data as Record<string, unknown>)[key];
+      if (newVal === undefined) continue;
+      if (JSON.stringify((before as Record<string, unknown>)[key]) !== JSON.stringify(newVal)) {
+        changedFields.push(label);
+      }
+    }
+  }
+  const auditDesc = changedFields.length > 0
+    ? `Protocolo "${protocol.productName}" atualizado · Campos: ${changedFields.join(", ")}`
+    : `Protocolo "${protocol.productName}" atualizado`;
+  await logAudit(req, "ATUALIZAR_PROTOCOLO", "protocolo", auditDesc, { entityId: protocol.id, protocolId: protocol.id });
   res.json(protocol);
 });
 

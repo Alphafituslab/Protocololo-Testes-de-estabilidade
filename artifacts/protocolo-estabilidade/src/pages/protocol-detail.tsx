@@ -77,6 +77,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink, Upload, Download, X, File, GripVertical, Search, SaveAll, RotateCcw, ShieldAlert, Eye, EyeOff, Bell, ShieldCheck, PenLine, Building2, Database, ChevronDown, ChevronRight, Save } from "lucide-react";
 import { AuditTrail } from "@/components/audit-trail";
+import { AuditBadge } from "@/components/audit-badge";
 import { useToast } from "@/hooks/use-toast";
 import { useLabelOverrides } from "@/hooks/use-label-overrides";
 import { useAuth } from "@/contexts/use-auth";
@@ -147,6 +148,12 @@ const MICRO_PARAMS_PO = [
 ] as const;
 
 /** Retorna a lista de parâmetros padrão combinando params fixos + micro correto pela forma farmacêutica. */
+function isToday(iso: string | null | undefined): boolean {
+  if (!iso) return false;
+  const d = new Date(iso); const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+}
+
 function getDefaultParams(isPowder: boolean): Array<{ parameter: string; category: string; criterion: string; uid: string }> {
   const micro = isPowder ? [...MICRO_PARAMS_PO] : [...MICRO_PARAMS_CAPSULA];
   const all = [
@@ -8028,19 +8035,9 @@ export default function ProtocolDetail() {
                 {STATUS_LABELS[protocol.status] ?? protocol.status}
               </span>
               {/* Alterado hoje */}
-              {(() => {
-                const upd = (protocol as { updatedAt?: string }).updatedAt;
-                if (!upd) return null;
-                const d = new Date(upd); const now = new Date();
-                const today = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
-                if (!today) return null;
-                return (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-400 rounded-full px-2.5 py-0.5 shadow-sm" title={`Última edição: ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`}>
-                    <Pencil className="h-3 w-3" />
-                    Alterado hoje
-                  </span>
-                );
-              })()}
+              {isToday((protocol as { updatedAt?: string }).updatedAt) && (
+                <AuditBadge protocolId={protocol.id} />
+              )}
               {/* Lock indicator */}
               {isFinalized && (
                 <button
