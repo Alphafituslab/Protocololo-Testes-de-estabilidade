@@ -2,7 +2,7 @@ import {
   useGetProtocolStats, useListProtocols, useDeleteProtocol,
   getGetProtocolStatsQueryKey, getListProtocolsQueryKey,
 } from "@workspace/api-client-react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { useState, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -51,7 +51,6 @@ function SkeletonDash() {
 
 export default function Dashboard() {
   const { data: stats, isLoading } = useGetProtocolStats();
-  const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"default" | "newest" | "oldest">("default");
@@ -114,11 +113,6 @@ export default function Dashboard() {
   }, [allProtocols, q, statusFilter, stats?.recentProtocols, sortOrder]);
 
   function handleCardClick(status: string) {
-    // "Todos" navega direto para a lista completa de protocolos
-    if (status === "all") {
-      navigate("/protocols");
-      return;
-    }
     setStatusFilter(status);
     setSearch("");
     setTimeout(() => {
