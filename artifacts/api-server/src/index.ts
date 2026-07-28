@@ -29,6 +29,8 @@ async function restoreProtocol3Identification(): Promise<void> {
     const rows = await db.execute(sql`SELECT company_name FROM protocols WHERE id = 3 LIMIT 1`);
     const existing = (rows as unknown as { rows?: {company_name?: string}[] }).rows?.[0]?.company_name ?? "";
     if (existing.includes("LABORATÓRIO")) { return; } // already restored
+    // Also reset updated_at so "Alterado hoje" badge doesn't appear
+    await db.execute(sql`UPDATE protocols SET updated_at = created_at WHERE id = 3`);
     await db.execute(sql`UPDATE protocols SET
       company_name        = 'ALPHAFITUS LABORATÓRIO NUTRACÊUTICO LTDA',
       cnpj                = '01.481.057/0001-12',
