@@ -8,6 +8,7 @@ import { AlertCircle, Loader2, Search, X, PenLine, Trash2, RotateCcw, RefreshCw,
 import { useState, useMemo } from "react";
 import { AuditBadge } from "@/components/audit-badge";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -206,6 +207,23 @@ export default function ProtocolsList() {
       : {};
 
   const { data: protocols, isLoading } = useListProtocols(queryParams);
+  const { token } = useAuth();
+
+  // Busca quais protocolos têm audit_log de hoje — única chamada, sem depender de updatedAt
+  const { data: todayData } = useQuery<{ protocolIds: number[] }>({
+    queryKey: ["audit-today-changed"],
+    queryFn: async () => {
+      const res = await fetch("/api/audit-logs/today-changed", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+      });
+      if (!res.ok) return { protocolIds: [] };
+      return res.json();
+    },
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+  const todayChangedIds = new Set<number>(todayData?.protocolIds ?? []);
 
   const [search, setSearch] = useState("");
 
@@ -316,19 +334,15 @@ export default function ProtocolsList() {
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {protocol.certNumber ? `${protocol.certNumber} · ` : ""}{protocol.companyName}
                     </div>
-                    {(protocol as { updatedAt?: string }).updatedAt && (
-                      <div className={`text-xs mt-0.5 font-medium flex items-center gap-1 ${
-                        isToday((protocol as { updatedAt?: string }).updatedAt)
-                          ? "text-orange-600"
-                          : "text-blue-500"
-                      }`}>
+                    {todayChangedIds.has(protocol.id) && (
+                      <div className="text-xs mt-0.5 font-medium flex items-center gap-1 text-orange-600">
                         <Pencil className="h-2.5 w-2.5" />
-                        Alterado: {fmtUpdatedAt((protocol as { updatedAt?: string }).updatedAt)}
+                        Alterado hoje
                       </div>
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap justify-end">
-                    {isToday((protocol as { updatedAt?: string }).updatedAt) && (
+                    {todayChangedIds.has(protocol.id) && (
                       <AuditBadge protocolId={protocol.id} />
                     )}
                     {(protocol as { pendingSignatures?: boolean }).pendingSignatures && (

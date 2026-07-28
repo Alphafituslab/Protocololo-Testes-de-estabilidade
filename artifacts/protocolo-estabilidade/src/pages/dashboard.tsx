@@ -4,7 +4,8 @@ import {
 } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { useState, useMemo, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/use-auth";
 import {
   FileText, Plus, CheckCircle2, Clock, XCircle, ShieldCheck,
   TrendingUp, ArrowRight, Activity, Beaker, Search, X, Trash2, PenLine,
@@ -70,6 +71,24 @@ function SkeletonDash() {
 
 export default function Dashboard() {
   const { data: stats, isLoading } = useGetProtocolStats();
+  const { token } = useAuth();
+
+  // Busca quais protocolos têm audit_log de hoje — única chamada, sem depender de updatedAt
+  const { data: todayData } = useQuery<{ protocolIds: number[] }>({
+    queryKey: ["audit-today-changed"],
+    queryFn: async () => {
+      const res = await fetch("/api/audit-logs/today-changed", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+      });
+      if (!res.ok) return { protocolIds: [] };
+      return res.json();
+    },
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+  const todayChangedIds = new Set<number>(todayData?.protocolIds ?? []);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"default" | "newest" | "oldest">("default");
@@ -411,12 +430,10 @@ export default function Dashboard() {
                           <p className="text-xs text-muted-foreground truncate mt-0.5">
                              {protocol.certNumber ? `${protocol.certNumber} · ` : ""}{protocol.companyName}
                            </p>
-                           {(protocol as any).updatedAt && (
-                             <p className={`text-xs mt-0.5 font-medium flex items-center gap-1 ${
-                               isToday((protocol as any).updatedAt) ? "text-orange-600" : "text-blue-500"
-                             }`}>
+                           {todayChangedIds.has(protocol.id) && (
+                             <p className="text-xs mt-0.5 font-medium flex items-center gap-1 text-orange-600">
                                <Pencil className="h-2.5 w-2.5 shrink-0" />
-                               Alterado: {fmtUpdatedAt((protocol as any).updatedAt)}
+                               Alterado hoje
                              </p>
                            )}
                         </div>
@@ -435,7 +452,7 @@ export default function Dashboard() {
                             </span>
                           </div>
                         )}
-                        {isToday((protocol as any).updatedAt) && (
+                        {todayChangedIds.has(protocol.id) && (
                           <AuditBadge protocolId={protocol.id} />
                         )}
                         {(protocol as { pendingSignatures?: boolean }).pendingSignatures && (
