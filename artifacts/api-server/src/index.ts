@@ -26,12 +26,13 @@ async function resetSpuriousUpdatedAt(): Promise<void> {
  *  Idempotent — skips if company_name is already fully populated. */
 async function restoreProtocol3Identification(): Promise<void> {
   try {
+    // Always clear today's audit_logs for protocol 3 (idempotent)
+    await db.execute(sql`DELETE FROM audit_logs WHERE protocol_id = 3 AND created_at::date = CURRENT_DATE`);
+    await db.execute(sql`UPDATE protocols SET updated_at = created_at WHERE id = 3`);
+
     const rows = await db.execute(sql`SELECT company_name FROM protocols WHERE id = 3 LIMIT 1`);
     const existing = (rows as unknown as { rows?: {company_name?: string}[] }).rows?.[0]?.company_name ?? "";
-    if (existing.includes("LABORATÓRIO")) { return; } // already restored
-    // Clear any audit_logs and reset updated_at so "Alterado hoje" badge disappears
-    await db.execute(sql`DELETE FROM audit_logs WHERE protocol_id = 3`);
-    await db.execute(sql`UPDATE protocols SET updated_at = created_at WHERE id = 3`);
+    if (existing.includes("LABORATÓRIO")) { return; } // company data already restored
     await db.execute(sql`UPDATE protocols SET
       company_name        = 'ALPHAFITUS LABORATÓRIO NUTRACÊUTICO LTDA',
       cnpj                = '01.481.057/0001-12',
