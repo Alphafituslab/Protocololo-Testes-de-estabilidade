@@ -6794,30 +6794,6 @@ function MethodologiaTab({
           SEÇÃO 2 — BIBLIOTECA DE REFERÊNCIAS METODOLÓGICAS
       ═══════════════════════════════════════════════════════════════ */}
       <div id="biblioteca-referencias-metodologicas" className="border-t pt-5">
-        {/* Banner de retorno ao parâmetro */}
-        {returnToParam && (
-          <div className="flex items-center justify-between gap-3 mb-4 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-lg text-sm">
-            <span className="text-blue-800 font-medium">
-              Biblioteca atualizada com as alterações de <span className="font-bold">{returnToParam.paramName}</span>.
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                const el = document.getElementById(`param-row-${returnToParam.uid}`);
-                if (el) {
-                  el.scrollIntoView({ behavior: "smooth", block: "center" });
-                  // Flash highlight na linha
-                  el.classList.add("bg-blue-50", "ring-2", "ring-blue-300");
-                  setTimeout(() => el.classList.remove("bg-blue-50", "ring-2", "ring-blue-300"), 2000);
-                }
-                setReturnToParam(null);
-              }}
-              className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-white border border-blue-300 rounded px-3 py-1.5 hover:bg-blue-100 transition-colors"
-            >
-              ↑ Voltar ao parâmetro
-            </button>
-          </div>
-        )}
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="font-semibold">Biblioteca de Referências Metodológicas</h3>
@@ -6973,8 +6949,8 @@ function MethodologiaTab({
               const docUrl = docUrls[String(m.id)];
               const isEditingDoc = editingDocId === m.id;
               return (
+                <React.Fragment key={m.id}>
                 <div
-                  key={m.id}
                   id={`method-card-${m.id}`}
                   className={`flex items-start gap-3 rounded-lg border px-4 py-3 transition-all duration-700 ${
                     highlightedMethodId === m.id
@@ -7002,25 +6978,6 @@ function MethodologiaTab({
                           </span>
                         )}
                       </div>
-                    )}
-
-                    {/* Botão de retorno — aparece no card destacado após editar via inline dialog */}
-                    {returnToParam && highlightedMethodId === m.id && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const el = document.getElementById(`param-row-${returnToParam.uid}`);
-                          if (el) {
-                            el.scrollIntoView({ behavior: "smooth", block: "center" });
-                            el.classList.add("bg-blue-50", "ring-2", "ring-blue-300");
-                            setTimeout(() => el.classList.remove("bg-blue-50", "ring-2", "ring-blue-300"), 2000);
-                          }
-                          setReturnToParam(null);
-                        }}
-                        className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 border border-primary/30 rounded px-3 py-1.5 hover:bg-primary/20 transition-colors"
-                      >
-                        ↑ Voltar ao parâmetro {returnToParam.paramName}
-                      </button>
                     )}
 
                     {/* Documento anexado */}
@@ -7125,6 +7082,25 @@ function MethodologiaTab({
                     </Button>
                   </div>
                 </div>
+                {/* Botão de retorno — abaixo do card destacado */}
+                {returnToParam && highlightedMethodId === m.id && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById(`param-row-${returnToParam.uid}`);
+                      if (el) {
+                        el.scrollIntoView({ behavior: "smooth", block: "center" });
+                        el.classList.add("bg-blue-50", "ring-2", "ring-blue-300");
+                        setTimeout(() => el.classList.remove("bg-blue-50", "ring-2", "ring-blue-300"), 2000);
+                      }
+                      setReturnToParam(null);
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-primary bg-primary/5 border border-primary/20 rounded-b-lg px-3 py-2 hover:bg-primary/15 transition-colors -mt-px"
+                  >
+                    ↑ Voltar ao parâmetro {returnToParam.paramName}
+                  </button>
+                )}
+                </React.Fragment>
               );
             })}
                 </div>
