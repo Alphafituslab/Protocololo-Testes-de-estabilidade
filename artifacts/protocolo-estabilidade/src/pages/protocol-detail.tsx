@@ -4166,6 +4166,12 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     return initialValidityMonths != null ? String(initialValidityMonths) : "";
   });
   // Quando true, nenhum clique nas caixinhas pode mudar o valor — só o input manual.
+  const [pendingValiditySwap, setPendingValiditySwap] = useState<{
+    newValue: string;
+    newBox: "standard" | "overage" | "extrap_std" | "extrap_overage";
+    apply: () => void;
+  } | null>(null);
+
   const [validityLockedByUser, setValidityLockedByUser] = useState<boolean>(() => {
     const ls = readLs();
     return !!ls.validityLockedByUser;
@@ -4912,7 +4918,21 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               return (
                 <div
                   onClick={isSelectable ? () => {
-                    if (validityLockedRef.current || validityLockedByUser) return;
+                    if (validityLockedRef.current || validityLockedByUser) {
+                      setPendingValiditySwap({
+                        newValue: stdVal,
+                        newBox: "standard",
+                        apply: () => {
+                          validityLockedRef.current = false;
+                          setValidityLockedByUser(false);
+                          const changing2 = selectedShelfBox !== "standard";
+                          setSelectedShelfBox("standard");
+                          if (changing2 && stdVal) applyShelfToValidade(stdVal, "standard");
+                          else if (!changing2) applyShelfToValidade(cardValidity, "standard");
+                        },
+                      });
+                      return;
+                    }
                     const changing = selectedShelfBox !== "standard";
                     setSelectedShelfBox("standard");
                     if (changing && stdVal) applyShelfToValidade(stdVal, "standard");
@@ -4980,7 +5000,21 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               return (
                 <div
                   onClick={() => {
-                    if (validityLockedRef.current || validityLockedByUser) return;
+                    if (validityLockedRef.current || validityLockedByUser) {
+                      setPendingValiditySwap({
+                        newValue: overageVal,
+                        newBox: "overage",
+                        apply: () => {
+                          validityLockedRef.current = false;
+                          setValidityLockedByUser(false);
+                          const changing2 = selectedShelfBox !== "overage";
+                          setSelectedShelfBox("overage");
+                          if (changing2) applyShelfToValidade(overageVal, "overage");
+                          else applyShelfToValidade(cardValidity, "overage");
+                        },
+                      });
+                      return;
+                    }
                     const changing = selectedShelfBox !== "overage";
                     setSelectedShelfBox("overage");
                     if (changing) applyShelfToValidade(overageVal, "overage");
@@ -5113,7 +5147,21 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                 return (
                   <div
                     onClick={() => {
-                      if (validityLockedRef.current || validityLockedByUser) return;
+                      if (validityLockedRef.current || validityLockedByUser) {
+                        setPendingValiditySwap({
+                          newValue: extrapVal,
+                          newBox: "extrap_std",
+                          apply: () => {
+                            validityLockedRef.current = false;
+                            setValidityLockedByUser(false);
+                            const changing2 = selectedShelfBox !== "extrap_std";
+                            setSelectedShelfBox("extrap_std");
+                            if (changing2) applyShelfToValidade(extrapVal, "extrap_std");
+                            else applyShelfToValidade(cardValidity, "extrap_std");
+                          },
+                        });
+                        return;
+                      }
                       const changing = selectedShelfBox !== "extrap_std";
                       setSelectedShelfBox("extrap_std");
                       if (changing) applyShelfToValidade(extrapVal, "extrap_std");
@@ -5157,7 +5205,21 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                 return (
                   <div
                     onClick={() => {
-                      if (validityLockedRef.current || validityLockedByUser) return;
+                      if (validityLockedRef.current || validityLockedByUser) {
+                        setPendingValiditySwap({
+                          newValue: extrapOvVal,
+                          newBox: "extrap_overage",
+                          apply: () => {
+                            validityLockedRef.current = false;
+                            setValidityLockedByUser(false);
+                            const changing2 = selectedShelfBox !== "extrap_overage";
+                            setSelectedShelfBox("extrap_overage");
+                            if (changing2) applyShelfToValidade(extrapOvVal, "extrap_overage");
+                            else applyShelfToValidade(cardValidity, "extrap_overage");
+                          },
+                        });
+                        return;
+                      }
                       const changing = selectedShelfBox !== "extrap_overage";
                       setSelectedShelfBox("extrap_overage");
                       if (changing) applyShelfToValidade(extrapOvVal, "extrap_overage");
@@ -7006,6 +7068,46 @@ function MethodologiaTab({
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={() => dupWarning?.proceed()}>
                 Sim, cadastrar mesmo assim
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Dialog — confirmar troca da Validade Praticada digitada manualmente */}
+        <AlertDialog open={!!pendingValiditySwap} onOpenChange={(o) => { if (!o) setPendingValiditySwap(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                🔒 Validade Praticada foi digitada manualmente
+              </AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3 text-sm">
+                  <p>
+                    O campo <span className="font-semibold text-foreground">Validade Praticada</span> tem um valor digitado manualmente:{" "}
+                    <span className="font-bold text-foreground">{cardValidity} meses</span>.
+                  </p>
+                  <p>
+                    Deseja mesmo substituir pelo valor calculado{" "}
+                    <span className="font-bold text-foreground">{pendingValiditySwap?.newValue} meses</span>?
+                  </p>
+                  <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    ⚠️ Ao confirmar, o valor digitado será descartado e o campo voltará a aceitar atualizações automáticas pelos cálculos.
+                  </div>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setPendingValiditySwap(null)}>
+                Não, manter {cardValidity} meses
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (!pendingValiditySwap) return;
+                  pendingValiditySwap.apply();
+                  setPendingValiditySwap(null);
+                }}
+              >
+                Sim, trocar para {pendingValiditySwap?.newValue} meses
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
