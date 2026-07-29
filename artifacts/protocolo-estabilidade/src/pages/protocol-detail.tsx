@@ -6283,6 +6283,12 @@ function MethodologiaTab({
     uid: string; paramName: string; shortName: string; citation: string; criterion?: string; libraryId?: number;
   } | null>(null);
   const [returnToParam, setReturnToParam] = useState<{ uid: string; paramName: string; methodId: number } | null>(null);
+  const [propagateSignedDialog, setPropagateSignedDialog] = useState<{
+    methodologyId: number;
+    shortName: string;
+    criteria: string | null;
+    skippedSigned: Array<{ id: number; productName: string }>;
+  } | null>(null);
   const [editParamShort, setEditParamShort] = useState("");
   const [editParamCitation, setEditParamCitation] = useState("");
   const [editParamCategory, setEditParamCategory] = useState("");
@@ -6309,20 +6315,43 @@ function MethodologiaTab({
     if (!editParamMethod || !editParamShort.trim()) return;
     // Guarda contexto de retorno antes de fechar
     const returnCtxBase = { uid: editParamMethod.uid, paramName: editParamMethod.paramName };
-    // 1. Atualiza o protocolo atual
+    const _newCriterion = editParamCriteria.trim();
+    const _methodOldShort = editParamMethod.shortName; // shortName ANTES da edição
+
+    // 1. Atualiza o protocolo atual (methodology ref; criterion preservado pelo false)
     setParamMethodInTab(editParamMethod.uid, editParamMethod.paramName, editParamShort.trim(), editParamCitation.trim(), false);
-    // 2. Replica automaticamente para a Biblioteca (sem perguntar)
+
+    // 2. Atualiza o critério localmente — param específico + outros do mesmo ativo no protocolo
+    if (_newCriterion) {
+      setEditableParams(prev => prev.map(p => {
+        if (p.uid === editParamMethod.uid) return { ...p, criterion: _newCriterion };
+        if (paramMethods[p.parameter] === _methodOldShort) return { ...p, criterion: _newCriterion };
+        return p;
+      }));
+    }
+
+    // 3. Replica para a Biblioteca — não propaga assinados (pede confirmação se houver)
     const libData = {
       shortName: editParamShort.trim(),
       citation: editParamCitation.trim(),
       category: editParamCategory || null,
       subject: editParamSubject.trim() || null,
       parameter: editParamMethod.paramName || null,
-      criteria: editParamCriteria.trim() || null,
+      criteria: _newCriterion || null,
     };
     if (editParamMethod.libraryId) {
-      updateMutation.mutate({ id: editParamMethod.libraryId, data: libData }, {
-        onSuccess: () => setReturnToParam({ ...returnCtxBase, methodId: editParamMethod.libraryId! }),
+      updateMutation.mutate({ id: editParamMethod.libraryId, data: { ...libData, propagateSignedProtocols: false } as any }, {
+        onSuccess: (data: any) => {
+          setReturnToParam({ ...returnCtxBase, methodId: editParamMethod.libraryId! });
+          if (data.skippedSigned?.length > 0) {
+            setPropagateSignedDialog({
+              methodologyId: data.id,
+              shortName: data.shortName,
+              criteria: data.criteria ?? null,
+              skippedSigned: data.skippedSigned,
+            });
+          }
+        },
       });
     } else {
       createMutation.mutate({ data: libData }, {
@@ -6360,7 +6389,10 @@ function MethodologiaTab({
   };
 
   const closeDialog = () => setDialog({ mode: "closed" });
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: getListMethodologiesQueryKey() });
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: getListMethodologiesQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getListProtocolsQueryKey() });
+  };
 
   // ── Highlight da entrada salva/atualizada ─────────────────────────
   const [highlightedMethodId, setHighlightedMethodId] = useState<number | null>(null);
@@ -6415,7 +6447,26 @@ function MethodologiaTab({
       criteria: criteriaField.trim() || null,
     };
     if (isEditing && dialog.mode === "edit") {
-      updateMutation.mutate({ id: dialog.id, data });
+      const _oldShort = dialog.shortName;
+      updateMutation.mutate({ id: dialog.id, data: { ...data, propagateSignedProtocols: false } as any }, {
+        onSuccess: (resData: any) => {
+          // Atualiza critério localmente para todos os params deste protocolo que usam esta metodologia
+          if (resData.criteria) {
+            setEditableParams(prev => prev.map(p =>
+              paramMethods[p.parameter] === _oldShort ? { ...p, criterion: resData.criteria } : p
+            ));
+          }
+          // Abre dialog para protocolos assinados que foram pulados
+          if (resData.skippedSigned?.length > 0) {
+            setPropagateSignedDialog({
+              methodologyId: resData.id,
+              shortName: resData.shortName,
+              criteria: resData.criteria ?? null,
+              skippedSigned: resData.skippedSigned,
+            });
+          }
+        },
+      });
       return;
     }
     // Duplicate check: same shortName (normalized) or same ABNT author part
@@ -6915,6 +6966,67 @@ function MethodologiaTab({
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={() => dupWarning?.proceed()}>
                 Sim, cadastrar mesmo assim
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Dialog — propagar critério para protocolos assinados */}
+        <AlertDialog open={!!propagateSignedDialog} onOpenChange={(o) => { if (!o) setPropagateSignedDialog(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                ⚠️ Protocolos assinados não atualizados
+              </AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3 text-sm">
+                  <p>
+                    <span className="font-semibold">{propagateSignedDialog?.skippedSigned.length}</span> protocolo(s) já assinado(s) não foram atualizados automaticamente:
+                  </p>
+                  <ul className="rounded-md border bg-muted/40 px-3 py-2 space-y-1 max-h-40 overflow-y-auto">
+                    {propagateSignedDialog?.skippedSigned.map(p => (
+                      <li key={p.id} className="text-xs font-medium text-foreground">• {p.productName}</li>
+                    ))}
+                  </ul>
+                  {propagateSignedDialog?.criteria && (
+                    <p className="text-xs text-muted-foreground">
+                      Novo critério: <span className="font-medium text-foreground">{propagateSignedDialog.criteria}</span>
+                    </p>
+                  )}
+                  <p>Deseja aplicar o novo critério nesses protocolos também?</p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setPropagateSignedDialog(null)}>Não, ignorar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  if (!propagateSignedDialog) return;
+                  try {
+                    const res = await fetch(`/api/methodologies/${propagateSignedDialog.methodologyId}/propagate-to-signed`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ protocolIds: propagateSignedDialog.skippedSigned.map(p => p.id) }),
+                    });
+                    if (!res.ok) throw new Error("Falha na propagação");
+                    queryClient.invalidateQueries({ queryKey: getListProtocolsQueryKey() });
+                    // Se o protocolo atual está na lista, atualiza editableParams
+                    const isCurrentProtocol = propagateSignedDialog.skippedSigned.some(p => p.id === numId);
+                    if (isCurrentProtocol && propagateSignedDialog.criteria) {
+                      const _c = propagateSignedDialog.criteria;
+                      const _s = propagateSignedDialog.shortName;
+                      setEditableParams(prev => prev.map(p =>
+                        paramMethods[p.parameter] === _s ? { ...p, criterion: _c } : p
+                      ));
+                    }
+                    toast({ title: `${propagateSignedDialog.skippedSigned.length} protocolo(s) assinado(s) atualizado(s)` });
+                  } catch {
+                    toast({ title: "Erro ao atualizar protocolos assinados", variant: "destructive" });
+                  }
+                  setPropagateSignedDialog(null);
+                }}
+              >
+                Sim, atualizar assinados
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
