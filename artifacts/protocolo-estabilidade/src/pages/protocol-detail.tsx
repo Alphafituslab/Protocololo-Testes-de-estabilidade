@@ -6325,7 +6325,7 @@ function MethodologiaTab({
     if (_newCriterion) {
       setEditableParams(prev => prev.map(p => {
         if (p.uid === editParamMethod.uid) return { ...p, criterion: _newCriterion };
-        if (paramMethods[p.parameter] === _methodOldShort) return { ...p, criterion: _newCriterion };
+        if (p.methodologyShort === _methodOldShort) return { ...p, criterion: _newCriterion };
         return p;
       }));
     }
@@ -6453,7 +6453,7 @@ function MethodologiaTab({
           // Atualiza critério localmente para todos os params deste protocolo que usam esta metodologia
           if (resData.criteria) {
             setEditableParams(prev => prev.map(p =>
-              paramMethods[p.parameter] === _oldShort ? { ...p, criterion: resData.criteria } : p
+              p.methodologyShort === _oldShort ? { ...p, criterion: resData.criteria } : p
             ));
           }
           // Abre dialog para protocolos assinados que foram pulados
@@ -7016,7 +7016,7 @@ function MethodologiaTab({
                       const _c = propagateSignedDialog.criteria;
                       const _s = propagateSignedDialog.shortName;
                       setEditableParams(prev => prev.map(p =>
-                        paramMethods[p.parameter] === _s ? { ...p, criterion: _c } : p
+                        p.methodologyShort === _s ? { ...p, criterion: _c } : p
                       ));
                     }
                     toast({ title: `${propagateSignedDialog.skippedSigned.length} protocolo(s) assinado(s) atualizado(s)` });
