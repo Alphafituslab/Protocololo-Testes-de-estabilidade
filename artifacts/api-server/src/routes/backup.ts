@@ -116,11 +116,29 @@ router.get("/backup/history", requireAuth, requirePermission(PERM.SETTINGS_MANAG
   }
 });
 
-router.get("/backup/download/:filename", requireAuth, requirePermission(PERM.SETTINGS_MANAGE), (req, res): void => {
+router.get("/backup/download/:filename", requireAuth, requirePermission(PERM.SETTINGS_MANAGE), async (req, res): Promise<void> => {
   const filename = path.basename(String(req.params["filename"]));
   const filepath = path.join(BACKUP_DIR, filename);
-  if (!fs.existsSync(filepath)) { res.status(404).json({ error: "Arquivo não encontrado" }); return; }
-  res.download(filepath, filename);
+
+  // 1️⃣ Arquivo no disco local → serve diretamente
+  if (fs.existsSync(filepath)) {
+    res.download(filepath, filename);
+    return;
+  }
+
+  // 2️⃣ Não encontrado localmente → tenta baixar da nuvem
+  try {
+    const data = await downloadCloudBackup(filename);
+    const json = JSON.stringify(data, null, 2);
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", Buffer.byteLength(json, "utf8"));
+    res.send(json);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.warn({ filename, err }, "backup download: arquivo ausente no disco e na nuvem");
+    res.status(404).json({ error: `Arquivo não encontrado localmente nem na nuvem: ${msg}` });
+  }
 });
 
 router.post("/backup/restore", requireAuth, requirePermission(PERM.SETTINGS_MANAGE), async (req, res): Promise<void> => {
