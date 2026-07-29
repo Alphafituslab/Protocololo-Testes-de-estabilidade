@@ -4170,6 +4170,9 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     const ls = readLs();
     return !!ls.validityLockedByUser;
   });
+  // Ref síncrono — evita stale-closure quando o usuário digita e clica imediatamente.
+  // O estado React pode não ter commitado ainda, mas o ref é sempre atual.
+  const validityLockedRef = useRef<boolean>(!!readLs().validityLockedByUser);
   const [kineticsObs, setKineticsObs] = useState<string>(() => {
     const ls = readLs();
     if (typeof ls.kineticsObs === "string") return ls.kineticsObs;
@@ -4432,7 +4435,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
 
   const applyShelfToValidade = (valStr: string, box?: "standard" | "overage" | "extrap_std" | "extrap_overage") => {
     // Se o usuário fixou a validade manualmente, apenas atualiza o indicador "Origem" — nunca muda o valor.
-    if (validityLockedByUser) {
+    if (validityLockedRef.current || validityLockedByUser) {
       if (box !== undefined) {
         try {
           const stored = readLs();
@@ -4507,6 +4510,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     setOverrides(reset);
     setCustomShelfLife("");
     setCardValidity(initialValidityMonths != null ? String(initialValidityMonths) : "");
+    validityLockedRef.current = false;
     setValidityLockedByUser(false);
     setKineticsObs(initialKineticsNotes ?? "");
     setManualFields({});
@@ -4908,6 +4912,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               return (
                 <div
                   onClick={isSelectable ? () => {
+                    if (validityLockedRef.current || validityLockedByUser) return;
                     const changing = selectedShelfBox !== "standard";
                     setSelectedShelfBox("standard");
                     if (changing && stdVal) applyShelfToValidade(stdVal, "standard");
@@ -4975,6 +4980,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
               return (
                 <div
                   onClick={() => {
+                    if (validityLockedRef.current || validityLockedByUser) return;
                     const changing = selectedShelfBox !== "overage";
                     setSelectedShelfBox("overage");
                     if (changing) applyShelfToValidade(overageVal, "overage");
@@ -5028,6 +5034,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   onChange={(e) => {
                     const val = e.target.value;
                     // Digitar manualmente fixa o valor — caixinhas não podem mais sobrescrever.
+                    validityLockedRef.current = true; // síncrono — sem race condition
                     setValidityLockedByUser(true);
                     setCardValidity(val);
                     setOverrides(prev => {
@@ -5106,6 +5113,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                 return (
                   <div
                     onClick={() => {
+                      if (validityLockedRef.current || validityLockedByUser) return;
                       const changing = selectedShelfBox !== "extrap_std";
                       setSelectedShelfBox("extrap_std");
                       if (changing) applyShelfToValidade(extrapVal, "extrap_std");
@@ -5149,6 +5157,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                 return (
                   <div
                     onClick={() => {
+                      if (validityLockedRef.current || validityLockedByUser) return;
                       const changing = selectedShelfBox !== "extrap_overage";
                       setSelectedShelfBox("extrap_overage");
                       if (changing) applyShelfToValidade(extrapOvVal, "extrap_overage");
