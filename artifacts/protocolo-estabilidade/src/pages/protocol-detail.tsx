@@ -6282,6 +6282,7 @@ function MethodologiaTab({
   const [editParamMethod, setEditParamMethod] = useState<{
     uid: string; paramName: string; shortName: string; citation: string; criterion?: string; libraryId?: number;
   } | null>(null);
+  const [returnToParam, setReturnToParam] = useState<{ uid: string; paramName: string } | null>(null);
   const [editParamShort, setEditParamShort] = useState("");
   const [editParamCitation, setEditParamCitation] = useState("");
   const [editParamCategory, setEditParamCategory] = useState("");
@@ -6306,6 +6307,8 @@ function MethodologiaTab({
 
   const saveEditParamMethod = () => {
     if (!editParamMethod || !editParamShort.trim()) return;
+    // Guarda contexto de retorno antes de fechar
+    const returnCtx = { uid: editParamMethod.uid, paramName: editParamMethod.paramName };
     // 1. Atualiza o protocolo atual
     setParamMethodInTab(editParamMethod.uid, editParamMethod.paramName, editParamShort.trim(), editParamCitation.trim(), false);
     // 2. Replica automaticamente para a Biblioteca (sem perguntar)
@@ -6318,9 +6321,13 @@ function MethodologiaTab({
       criteria: editParamCriteria.trim() || null,
     };
     if (editParamMethod.libraryId) {
-      updateMutation.mutate({ id: editParamMethod.libraryId, data: libData });
+      updateMutation.mutate({ id: editParamMethod.libraryId, data: libData }, {
+        onSuccess: () => setReturnToParam(returnCtx),
+      });
     } else {
-      createMutation.mutate({ data: libData });
+      createMutation.mutate({ data: libData }, {
+        onSuccess: () => setReturnToParam(returnCtx),
+      });
     }
     closeEditParamMethod();
   };
@@ -6578,6 +6585,7 @@ function MethodologiaTab({
                       {catParams.map((p) => (
                         <tr
                           key={p.uid}
+                          id={`param-row-${p.uid}`}
                           className={`border-b last:border-0 hover:bg-muted/20 transition-colors group${draggingParamUid2 === p.uid ? ' opacity-40' : ''}${dragOverParamUid2 === p.uid && draggingParamUid2 !== p.uid ? ' border-t-2 border-t-primary' : ''}`}
                           onPointerEnter={() => { if (draggingParamUid2 && draggingParamUid2 !== p.uid) setDragOverParam2(p.uid); }}
                         >
@@ -6786,6 +6794,30 @@ function MethodologiaTab({
           SEÇÃO 2 — BIBLIOTECA DE REFERÊNCIAS METODOLÓGICAS
       ═══════════════════════════════════════════════════════════════ */}
       <div id="biblioteca-referencias-metodologicas" className="border-t pt-5">
+        {/* Banner de retorno ao parâmetro */}
+        {returnToParam && (
+          <div className="flex items-center justify-between gap-3 mb-4 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+            <span className="text-blue-800 font-medium">
+              Biblioteca atualizada com as alterações de <span className="font-bold">{returnToParam.paramName}</span>.
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById(`param-row-${returnToParam.uid}`);
+                if (el) {
+                  el.scrollIntoView({ behavior: "smooth", block: "center" });
+                  // Flash highlight na linha
+                  el.classList.add("bg-blue-50", "ring-2", "ring-blue-300");
+                  setTimeout(() => el.classList.remove("bg-blue-50", "ring-2", "ring-blue-300"), 2000);
+                }
+                setReturnToParam(null);
+              }}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-white border border-blue-300 rounded px-3 py-1.5 hover:bg-blue-100 transition-colors"
+            >
+              ↑ Voltar ao parâmetro
+            </button>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="font-semibold">Biblioteca de Referências Metodológicas</h3>
