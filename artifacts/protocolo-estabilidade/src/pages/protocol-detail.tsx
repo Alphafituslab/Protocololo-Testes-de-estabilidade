@@ -7043,9 +7043,13 @@ function MethodologiaTab({
                 onClick={async () => {
                   if (!propagateSignedDialog) return;
                   try {
+                    const _tok = localStorage.getItem("alphafitus_token");
                     const res = await fetch(`/api/methodologies/${propagateSignedDialog.methodologyId}/propagate-to-signed`, {
                       method: "POST",
-                      headers: { "Content-Type": "application/json" },
+                      headers: {
+                        "Content-Type": "application/json",
+                        ...(_tok ? { Authorization: `Bearer ${_tok}` } : {}),
+                      },
                       body: JSON.stringify({ protocolIds: propagateSignedDialog.skippedSigned.map(p => p.id) }),
                     });
                     if (!res.ok) throw new Error("Falha na propagação");
