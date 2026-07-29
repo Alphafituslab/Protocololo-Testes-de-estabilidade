@@ -31,7 +31,7 @@ router.get("/audit-logs", requireAuth, async (req, res): Promise<void> => {
  * Used by the list/dashboard to show the "Alterado hoje" badge.
  */
 router.get("/audit-logs/today-changed", requireAuth, async (req, res): Promise<void> => {
-  const rows = await db.execute(sql`
+  const result = await db.execute(sql`
     SELECT DISTINCT al.protocol_id
     FROM audit_logs al
     JOIN protocols p ON p.id = al.protocol_id
@@ -41,7 +41,9 @@ router.get("/audit-logs/today-changed", requireAuth, async (req, res): Promise<v
       AND (p.badge_dismissed_at IS NULL OR al.created_at > p.badge_dismissed_at)
   `);
 
-  const ids = (rows as any[]).map((r: any) => Number(r.protocol_id)).filter(Boolean);
+  // db.execute returns a QueryResult with a .rows array in node-postgres
+  const rows: any[] = Array.isArray(result) ? result : (result as any).rows ?? [];
+  const ids = rows.map((r: any) => Number(r.protocol_id)).filter(Boolean);
   res.json({ protocolIds: ids });
 });
 

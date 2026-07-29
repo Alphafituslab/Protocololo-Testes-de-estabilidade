@@ -7004,6 +7004,25 @@ function MethodologiaTab({
                       </div>
                     )}
 
+                    {/* Botão de retorno — aparece no card destacado após editar via inline dialog */}
+                    {returnToParam && highlightedMethodId === m.id && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const el = document.getElementById(`param-row-${returnToParam.uid}`);
+                          if (el) {
+                            el.scrollIntoView({ behavior: "smooth", block: "center" });
+                            el.classList.add("bg-blue-50", "ring-2", "ring-blue-300");
+                            setTimeout(() => el.classList.remove("bg-blue-50", "ring-2", "ring-blue-300"), 2000);
+                          }
+                          setReturnToParam(null);
+                        }}
+                        className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 border border-primary/30 rounded px-3 py-1.5 hover:bg-primary/20 transition-colors"
+                      >
+                        ↑ Voltar ao parâmetro {returnToParam.paramName}
+                      </button>
+                    )}
+
                     {/* Documento anexado */}
                     {isEditingDoc ? (
                       <div className="flex gap-1.5 mt-2 items-center">
