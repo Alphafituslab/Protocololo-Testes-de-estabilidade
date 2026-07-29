@@ -6282,7 +6282,7 @@ function MethodologiaTab({
   const [editParamMethod, setEditParamMethod] = useState<{
     uid: string; paramName: string; shortName: string; citation: string; criterion?: string; libraryId?: number;
   } | null>(null);
-  const [returnToParam, setReturnToParam] = useState<{ uid: string; paramName: string } | null>(null);
+  const [returnToParam, setReturnToParam] = useState<{ uid: string; paramName: string; methodId: number } | null>(null);
   const [editParamShort, setEditParamShort] = useState("");
   const [editParamCitation, setEditParamCitation] = useState("");
   const [editParamCategory, setEditParamCategory] = useState("");
@@ -6308,7 +6308,7 @@ function MethodologiaTab({
   const saveEditParamMethod = () => {
     if (!editParamMethod || !editParamShort.trim()) return;
     // Guarda contexto de retorno antes de fechar
-    const returnCtx = { uid: editParamMethod.uid, paramName: editParamMethod.paramName };
+    const returnCtxBase = { uid: editParamMethod.uid, paramName: editParamMethod.paramName };
     // 1. Atualiza o protocolo atual
     setParamMethodInTab(editParamMethod.uid, editParamMethod.paramName, editParamShort.trim(), editParamCitation.trim(), false);
     // 2. Replica automaticamente para a Biblioteca (sem perguntar)
@@ -6322,11 +6322,11 @@ function MethodologiaTab({
     };
     if (editParamMethod.libraryId) {
       updateMutation.mutate({ id: editParamMethod.libraryId, data: libData }, {
-        onSuccess: () => setReturnToParam(returnCtx),
+        onSuccess: () => setReturnToParam({ ...returnCtxBase, methodId: editParamMethod.libraryId! }),
       });
     } else {
       createMutation.mutate({ data: libData }, {
-        onSuccess: () => setReturnToParam(returnCtx),
+        onSuccess: (data: any) => setReturnToParam({ ...returnCtxBase, methodId: data.id }),
       });
     }
     closeEditParamMethod();
@@ -7083,7 +7083,7 @@ function MethodologiaTab({
                   </div>
                 </div>
                 {/* Botão de retorno — abaixo do card destacado */}
-                {returnToParam && highlightedMethodId === m.id && (
+                {returnToParam && returnToParam.methodId === m.id && (
                   <button
                     type="button"
                     onClick={() => {
