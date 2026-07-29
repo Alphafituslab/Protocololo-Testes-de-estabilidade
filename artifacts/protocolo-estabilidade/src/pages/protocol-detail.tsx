@@ -6296,6 +6296,9 @@ function MethodologiaTab({
   const [editParamCriteria, setEditParamCriteria] = useState("");
   const [editParamAskLibrary, setEditParamAskLibrary] = useState(false);
   const [editParamCopied, setEditParamCopied] = useState(false);
+  // Flags para quando a metodologia ainda NÃO está na Biblioteca
+  const [editParamAddToLib, setEditParamAddToLib] = useState(true);
+  const [editParamUpdateProtocols, setEditParamUpdateProtocols] = useState(true);
 
   const openEditParamMethod = (uid: string, paramName: string, shortName: string, citation: string, criterion?: string) => {
     const libEntry = methodologies.find(m => m.shortName === shortName);
@@ -6307,9 +6310,11 @@ function MethodologiaTab({
     setEditParamCriteria(criterion ?? libEntry?.criteria ?? "");
     setEditParamAskLibrary(false);
     setEditParamCopied(false);
+    setEditParamAddToLib(true);
+    setEditParamUpdateProtocols(true);
   };
 
-  const closeEditParamMethod = () => { setEditParamMethod(null); setEditParamAskLibrary(false); };
+  const closeEditParamMethod = () => { setEditParamMethod(null); setEditParamAskLibrary(false); setEditParamAddToLib(true); setEditParamUpdateProtocols(true); };
 
   const saveEditParamMethod = () => {
     if (!editParamMethod || !editParamShort.trim()) return;
@@ -6353,11 +6358,37 @@ function MethodologiaTab({
           }
         },
       });
-    } else {
+    } else if (editParamAddToLib) {
+      // Cria na Biblioteca e, se solicitado, propaga para outros protocolos
       createMutation.mutate({ data: libData }, {
-        onSuccess: (data: any) => setReturnToParam({ ...returnCtxBase, methodId: data.id }),
+        onSuccess: async (data: any) => {
+          setReturnToParam({ ...returnCtxBase, methodId: data.id });
+          if (editParamUpdateProtocols) {
+            try {
+              const res = await fetch(`/api/methodologies/${data.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...libData, propagateSignedProtocols: false }),
+                credentials: "include",
+              });
+              if (res.ok) {
+                const updateData = await res.json();
+                invalidate();
+                if (updateData.skippedSigned?.length > 0) {
+                  setPropagateSignedDialog({
+                    methodologyId: updateData.id,
+                    shortName: updateData.shortName,
+                    criteria: updateData.criteria ?? null,
+                    skippedSigned: updateData.skippedSigned,
+                  });
+                }
+              }
+            } catch { /* propagação é best-effort */ }
+          }
+        },
       });
     }
+    // Se editParamAddToLib=false: mudança local já salva pelo setParamMethodInTab acima
     closeEditParamMethod();
   };
 
@@ -7518,11 +7549,40 @@ function MethodologiaTab({
               />
             </div>
 
-            {/* Nota de sincronização */}
-            <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-              <BookOpen className="h-3 w-3 flex-shrink-0" />
-              As alterações serão salvas automaticamente na Biblioteca de Referências Metodológicas.
-            </p>
+            {/* Banner / nota de sincronização */}
+            {editParamMethod && !editParamMethod.libraryId ? (
+              <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2.5 space-y-2.5">
+                <p className="text-xs font-medium text-amber-800 flex items-center gap-1.5">
+                  <span>⚠️</span>
+                  Esta metodologia ainda não está na Biblioteca de Referências Metodológicas.
+                </p>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editParamAddToLib}
+                    onChange={e => setEditParamAddToLib(e.target.checked)}
+                    className="h-4 w-4 rounded border-amber-400 accent-amber-600"
+                  />
+                  <span className="text-xs text-amber-900">Adicionar à Biblioteca de Referências</span>
+                </label>
+                {editParamAddToLib && (
+                  <label className="flex items-center gap-2 cursor-pointer pl-6">
+                    <input
+                      type="checkbox"
+                      checked={editParamUpdateProtocols}
+                      onChange={e => setEditParamUpdateProtocols(e.target.checked)}
+                      className="h-4 w-4 rounded border-amber-400 accent-amber-600"
+                    />
+                    <span className="text-xs text-amber-900">Atualizar outros protocolos que já usam esta metodologia</span>
+                  </label>
+                )}
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <BookOpen className="h-3 w-3 flex-shrink-0" />
+                As alterações serão salvas automaticamente na Biblioteca de Referências Metodológicas.
+              </p>
+            )}
 
             {/* Rodapé */}
             <div className="flex justify-end gap-2 pt-1">
