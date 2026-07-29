@@ -6297,7 +6297,7 @@ function MethodologiaTab({
     setEditParamCitation(citation);
     setEditParamCategory(libEntry?.category ?? "");
     setEditParamSubject(libEntry?.subject ?? shortName);
-    setEditParamCriteria(libEntry?.criteria ?? criterion ?? "");
+    setEditParamCriteria(criterion ?? libEntry?.criteria ?? "");
     setEditParamAskLibrary(false);
     setEditParamCopied(false);
   };
