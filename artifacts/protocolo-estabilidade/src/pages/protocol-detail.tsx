@@ -1,6 +1,6 @@
 import { useParams, Link, useLocation } from "wouter";
 import { fmtDate } from "@/lib/utils";
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, Fragment } from "react";
 import { useUnlock } from "@/hooks/use-unlock";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { UnlockDialog } from "@/components/unlock-dialog";
@@ -6949,7 +6949,7 @@ function MethodologiaTab({
               const docUrl = docUrls[String(m.id)];
               const isEditingDoc = editingDocId === m.id;
               return (
-                <React.Fragment key={m.id}>
+                <Fragment key={m.id}>
                 <div
                   id={`method-card-${m.id}`}
                   className={`flex items-start gap-3 rounded-lg border px-4 py-3 transition-all duration-700 ${
@@ -7100,7 +7100,7 @@ function MethodologiaTab({
                     ↑ Voltar ao parâmetro {returnToParam.paramName}
                   </button>
                 )}
-                </React.Fragment>
+                </Fragment>
               );
             })}
                 </div>
