@@ -6284,6 +6284,9 @@ function MethodologiaTab({
   } | null>(null);
   const [editParamShort, setEditParamShort] = useState("");
   const [editParamCitation, setEditParamCitation] = useState("");
+  const [editParamCategory, setEditParamCategory] = useState("");
+  const [editParamSubject, setEditParamSubject] = useState("");
+  const [editParamCriteria, setEditParamCriteria] = useState("");
   const [editParamAskLibrary, setEditParamAskLibrary] = useState(false);
   const [editParamCopied, setEditParamCopied] = useState(false);
 
@@ -6292,6 +6295,9 @@ function MethodologiaTab({
     setEditParamMethod({ uid, paramName, shortName, citation, criterion, libraryId: libEntry?.id });
     setEditParamShort(shortName);
     setEditParamCitation(citation);
+    setEditParamCategory(libEntry?.category ?? "");
+    setEditParamSubject(libEntry?.subject ?? shortName);
+    setEditParamCriteria(libEntry?.criteria ?? criterion ?? "");
     setEditParamAskLibrary(false);
     setEditParamCopied(false);
   };
@@ -6300,8 +6306,23 @@ function MethodologiaTab({
 
   const saveEditParamMethod = () => {
     if (!editParamMethod || !editParamShort.trim()) return;
+    // 1. Atualiza o protocolo atual
     setParamMethodInTab(editParamMethod.uid, editParamMethod.paramName, editParamShort.trim(), editParamCitation.trim(), false);
-    setEditParamAskLibrary(true);
+    // 2. Replica automaticamente para a Biblioteca (sem perguntar)
+    const libData = {
+      shortName: editParamShort.trim(),
+      citation: editParamCitation.trim(),
+      category: editParamCategory || null,
+      subject: editParamSubject.trim() || null,
+      parameter: editParamMethod.paramName || null,
+      criteria: editParamCriteria.trim() || null,
+    };
+    if (editParamMethod.libraryId) {
+      updateMutation.mutate({ id: editParamMethod.libraryId, data: libData });
+    } else {
+      createMutation.mutate({ data: libData });
+    }
+    closeEditParamMethod();
   };
 
   // ── Dialog de referência bibliográfica ────────────────────────────
@@ -7267,33 +7288,32 @@ function MethodologiaTab({
         </div>
       )}
 
-      {/* ── Dialog: editar texto da metodologia inline ─────────────── */}
-      {editParamMethod && !editParamAskLibrary && (
+      {/* ── Dialog: editar metodologia inline (completo) ─────────────── */}
+      {editParamMethod && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={closeEditParamMethod}>
-          <div className="bg-white rounded-xl shadow-2xl w-[520px] mx-4 p-5 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-2xl w-[520px] mx-4 p-6 space-y-4" onClick={e => e.stopPropagation()}>
             {/* Cabeçalho */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <PenLine className="h-4 w-4 text-primary" />
-                <p className="font-semibold text-sm">Editar metodologia</p>
-              </div>
+              <p className="font-semibold text-base">Editar Referência</p>
               <button type="button" onClick={closeEditParamMethod} className="text-muted-foreground hover:text-foreground">
                 <X className="h-4 w-4" />
               </button>
             </div>
+
+            {/* Parâmetro */}
             <p className="text-xs text-muted-foreground -mt-1">
               Parâmetro: <span className="font-medium text-foreground">{editParamMethod.paramName}</span>
             </p>
 
             {/* Nome curto */}
             <div className="space-y-1">
-              <label className="text-sm font-medium">Nome curto</label>
+              <label className="text-sm font-medium">Nome curto *</label>
               <input
                 autoFocus
                 type="text"
                 value={editParamShort}
                 onChange={e => setEditParamShort(e.target.value)}
-                className="w-full rounded-md border border-border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
                 placeholder="ex: FB 7ª ed., AOAC 934.01, IAL 4ª ed."
               />
             </div>
@@ -7301,15 +7321,10 @@ function MethodologiaTab({
             {/* Citação completa */}
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Citação completa</label>
+                <label className="text-sm font-medium">Citação completa *</label>
                 <button
                   type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(editParamCitation).then(() => {
-                      setEditParamCopied(true);
-                      setTimeout(() => setEditParamCopied(false), 2000);
-                    });
-                  }}
+                  onClick={() => { navigator.clipboard.writeText(editParamCitation).then(() => { setEditParamCopied(true); setTimeout(() => setEditParamCopied(false), 2000); }); }}
                   className={`text-xs flex items-center gap-1 px-2 py-0.5 rounded transition-colors ${editParamCopied ? "text-emerald-600 bg-emerald-50" : "text-primary hover:bg-primary/10"}`}
                 >
                   {editParamCopied ? "✓ Copiado!" : "Copiar texto"}
@@ -7318,106 +7333,70 @@ function MethodologiaTab({
               <textarea
                 value={editParamCitation}
                 onChange={e => setEditParamCitation(e.target.value)}
-                rows={4}
-                className="w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-y"
+                rows={3}
+                className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50 resize-y"
                 placeholder="Citação completa da referência metodológica…"
               />
             </div>
 
+            {/* Substância / Tema */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Substância / Tema</label>
+              <input
+                type="text"
+                value={editParamSubject}
+                onChange={e => setEditParamSubject(e.target.value)}
+                className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+                placeholder="ex: Vitamina D, Cálcio, pH, Microbiológico"
+              />
+              <p className="text-[11px] text-muted-foreground">Facilita a busca — identifica o ativo ou tema principal da referência.</p>
+            </div>
+
+            {/* Categoria */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Categoria (opcional)</label>
+              <select
+                value={editParamCategory}
+                onChange={e => setEditParamCategory(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+              >
+                <option value="">— Selecione —</option>
+                <option value="Teor do Ativo">Teor do Ativo</option>
+                <option value="Microbiologica">Microbiologica</option>
+                <option value="Fisico-Quimica">Fisico-Quimica</option>
+              </select>
+            </div>
+
+            {/* Critério */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Critério / Especificação (opcional)</label>
+              <input
+                type="text"
+                value={editParamCriteria}
+                onChange={e => setEditParamCriteria(e.target.value)}
+                className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+                placeholder="ex: 5,0 – 7,0, ≤ 5%, ≥ 80%"
+              />
+            </div>
+
+            {/* Nota de sincronização */}
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <BookOpen className="h-3 w-3 flex-shrink-0" />
+              As alterações serão salvas automaticamente na Biblioteca de Referências Metodológicas.
+            </p>
+
             {/* Rodapé */}
             <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={closeEditParamMethod} className="text-sm px-4 py-1.5 rounded border border-border hover:bg-muted transition-colors">
+              <button type="button" onClick={closeEditParamMethod} className="text-sm px-4 py-2 rounded border border-border hover:bg-muted transition-colors">
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={saveEditParamMethod}
                 disabled={!editParamShort.trim()}
-                className="text-sm px-4 py-1.5 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50 transition-colors"
+                className="text-sm px-4 py-2 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50 transition-colors"
               >
-                Salvar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Dialog: perguntar se atualiza a biblioteca ──────────────── */}
-      {editParamMethod && editParamAskLibrary && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => closeEditParamMethod()}>
-          <div className="bg-white rounded-xl shadow-2xl w-[420px] mx-4 p-5 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-primary" />
-              <p className="font-semibold text-sm">Deseja atualizar a Biblioteca de Referências Metodológicas?</p>
-            </div>
-            <div className="rounded-lg bg-muted/50 border px-3 py-2 space-y-1">
-              <p className="text-xs font-medium text-foreground">{editParamShort}</p>
-              <p className="text-[11px] text-muted-foreground break-words leading-snug">{editParamCitation || "(sem citação)"}</p>
-            </div>
-            {editParamMethod.libraryId ? (
-              <p className="text-xs text-muted-foreground">
-                Esta metodologia existe na biblioteca. Ao confirmar, o registro será atualizado para <strong>todos os protocolos</strong> que a utilizam.
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Esta metodologia <strong>não está na biblioteca</strong>. Ao confirmar, será criada uma nova entrada.
-              </p>
-            )}
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => closeEditParamMethod()}
-                className="text-sm px-4 py-1.5 rounded border border-border hover:bg-muted transition-colors"
-              >
-                Não, somente aqui
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  // Preserve existing category/subject/parameter/criteria from the library entry.
-                  // The inline dialog only edits Nome curto + Citação — never overwrite the rest.
-                  const existingLib = editParamMethod.libraryId
-                    ? methodologies.find(m => m.id === editParamMethod.libraryId)
-                    : undefined;
-                  const newData = {
-                    shortName: editParamShort.trim(),
-                    citation: editParamCitation.trim(),
-                    category: existingLib?.category ?? null,
-                    subject: existingLib?.subject ?? null,
-                    parameter: existingLib?.parameter ?? null,
-                    criteria: existingLib?.criteria ?? editParamMethod.criterion?.trim() ?? null,
-                  };
-                  if (editParamMethod.libraryId) {
-                    // Atualiza entrada existente — fecha imediatamente
-                    updateMutation.mutate({ id: editParamMethod.libraryId, data: newData });
-                    closeEditParamMethod();
-                  } else {
-                    // Nova entrada — verifica duplicata antes de criar
-                    const newShort = _normCit(newData.shortName);
-                    const newAuthor = _authorPart(newData.citation);
-                    const match = methodologies.find((m) =>
-                      _normCit(m.shortName) === newShort ||
-                      (newAuthor.length > 4 && _authorPart(m.citation) === newAuthor)
-                    );
-                    if (match) {
-                      // Mostra aviso mantendo o dialog de biblioteca aberto (closeEditParamMethod só no proceed)
-                      setDupWarning({
-                        match,
-                        proceed: () => {
-                          setDupWarning(null);
-                          createMutation.mutate({ data: newData });
-                          closeEditParamMethod();
-                        },
-                      });
-                    } else {
-                      createMutation.mutate({ data: newData });
-                      closeEditParamMethod();
-                    }
-                  }
-                }}
-                className="text-sm px-4 py-1.5 rounded bg-primary text-white hover:bg-primary/80 transition-colors"
-              >
-                Sim, atualizar biblioteca
+                Salvar alterações
               </button>
             </div>
           </div>
