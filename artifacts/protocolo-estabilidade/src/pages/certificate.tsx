@@ -1634,20 +1634,6 @@ export default function CertificatePage() {
                   <td className="text-gray-500 align-top pr-4 pb-1 font-medium">{ef("lbl_validityMonths", "Validade praticada (rótulo):", { className: "text-gray-500 font-medium text-xs" })}</td>
                   <td className="font-semibold align-top pb-1">
                     {ef("validityMonths", cert.validityMonths ? String(cert.validityMonths) + " meses" : "")}
-                    {(() => {
-                      try {
-                        const kov = cert.kineticsOverridesJson ? JSON.parse(cert.kineticsOverridesJson) as { selectedShelfBox?: string } : null;
-                        const box = kov?.selectedShelfBox;
-                        if (!box) return null;
-                        const label =
-                          box === "extrap_std" ? "📐 Extrapolado Arrhenius (30°C) — sem sobreformulação" :
-                          box === "extrap_overage" ? "📐 Extrapolado Arrhenius (30°C) — com sobreformulação" :
-                          box === "overage" ? "📦 Com sobreformulação (40°C)" :
-                          box === "standard" ? "Sem sobreformulação (40°C)" : null;
-                        if (!label) return null;
-                        return <span className="print:hidden ml-2 text-[10px] font-normal text-violet-600 bg-violet-50 border border-violet-200 rounded px-1.5 py-0.5">{label}</span>;
-                      } catch { return null; }
-                    })()}
                   </td>
                 </tr>
                 <tr>
@@ -2607,73 +2593,86 @@ export default function CertificatePage() {
                   <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white">Passo a Passo do Cálculo — ICH Q1A(R2)</h2>
                 </div>
 
-                {/* Content */}
-                <div className={`bg-slate-50 p-4 space-y-3 ${!passoCalculoExpanded ? "hidden print:block" : ""}`}>
-                  <p className="text-[9px] text-gray-500 leading-relaxed">
-                    Valores calculados por ativo a partir das médias dos lotes em T0, T3 e T6. Modelo de 1ª ordem (ICH Q1A(R2)):&nbsp;
-                    <span className="font-mono bg-white border border-gray-200 rounded px-1">C<sub>t</sub> = C<sub>0</sub>·e<sup>−k·t</sup></span>&nbsp;·&nbsp;
-                    <span className="font-mono bg-white border border-gray-200 rounded px-1">k = −ln(T6/T0) / 6</span>&nbsp;·&nbsp;
-                    <span className="font-mono bg-white border border-gray-200 rounded px-1">t<sub>val</sub> = −ln(limiar/c<sub>0</sub>) / k</span>&nbsp;·&nbsp;
-                    FA&nbsp;=&nbsp;{FA_ARR.toFixed(4)}
-                  </p>
-                  {validParams.map(p => {
-                    const t0v = typeof p.t0 === "number" && p.t0 > 0 ? p.t0 : 100;
-                    const t6v = typeof p.t6 === "number" ? p.t6 : null;
-                    const kv  = typeof p.k  === "number" ? p.k  : null;
-                    const kovParamP = (kovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[p.parameter];
-                    const ichThrP   = parseFloat(kovParamP?.ichThreshold ?? "") || 90;
-                    const baseShelfP  = kv ? -Math.log(ichThrP / 100) / kv : null;
-                    const ovShelfP    = (kv && t0v > 100.001) ? -Math.log(ichThrP / t0v) / kv : null;
-                    const extrapBaseP = baseShelfP != null ? baseShelfP * FA_ARR : null;
-                    const extrapOvP   = ovShelfP   != null ? ovShelfP   * FA_ARR : null;
-                    const isLim = p.parameter === limiting;
-                    if (!kv || !t6v) return null;
-                    return (
-                      <div key={p.parameter} className={`border rounded overflow-hidden text-[9px] ${isLim ? "border-amber-300" : "border-slate-200"}`}>
-                        <div className={`px-3 py-1.5 font-bold text-[9.5px] flex items-center gap-1.5 ${isLim ? "bg-amber-50 text-amber-800" : "bg-slate-100 text-gray-700"}`}>
-                          {isLim && <span className="text-amber-500">★</span>}
-                          {p.parameter}
-                        </div>
-                        <table className="w-full border-collapse">
-                          <tbody>
-                            <tr className="border-t border-slate-100">
-                              <td className="px-3 py-1 text-gray-500 whitespace-nowrap w-44">① k&nbsp;(mês⁻¹)</td>
-                              <td className="px-3 py-1 font-mono text-gray-600">−ln({t6v.toFixed(4)}&nbsp;/&nbsp;{t0v.toFixed(4)})&nbsp;/&nbsp;6</td>
-                              <td className="px-3 py-1 font-mono font-bold text-gray-800 text-right whitespace-nowrap">= {kv.toFixed(6)}</td>
-                            </tr>
-                            {baseShelfP != null && (
-                              <tr className="border-t border-slate-100">
-                                <td className="px-3 py-1 text-gray-500 whitespace-nowrap">② t&nbsp;sem&nbsp;overage&nbsp;(c₀=100%)</td>
-                                <td className="px-3 py-1 font-mono text-gray-600">−ln({ichThrP}/{(100).toFixed(2)})&nbsp;/&nbsp;{kv.toFixed(6)}</td>
-                                <td className="px-3 py-1 font-mono font-bold text-gray-800 text-right">{baseShelfP.toFixed(2)}&nbsp;meses</td>
-                              </tr>
-                            )}
-                            {ovShelfP != null && (
-                              <tr className="border-t border-slate-100">
-                                <td className="px-3 py-1 text-gray-500 whitespace-nowrap">③ t&nbsp;com&nbsp;overage&nbsp;(c₀={t0v.toFixed(1)}%)</td>
-                                <td className="px-3 py-1 font-mono text-gray-600">−ln({ichThrP}/{t0v.toFixed(2)})&nbsp;/&nbsp;{kv.toFixed(6)}</td>
-                                <td className="px-3 py-1 font-mono font-bold text-gray-800 text-right">{ovShelfP.toFixed(2)}&nbsp;meses</td>
-                              </tr>
-                            )}
-                            {extrapBaseP != null && (
-                              <tr className="border-t border-slate-100 bg-violet-50/60">
-                                <td className="px-3 py-1 text-violet-600 whitespace-nowrap">④ 30°C&nbsp;sem&nbsp;overage</td>
-                                <td className="px-3 py-1 font-mono text-violet-700">{baseShelfP!.toFixed(4)}&nbsp;×&nbsp;FA&nbsp;({FA_ARR.toFixed(4)})</td>
-                                <td className="px-3 py-1 font-mono font-bold text-violet-800 text-right">{extrapBaseP.toFixed(2)}&nbsp;meses</td>
-                              </tr>
-                            )}
-                            {extrapOvP != null && (
-                              <tr className="border-t border-slate-100 bg-violet-50/60">
-                                <td className="px-3 py-1 text-violet-600 whitespace-nowrap">⑤ 30°C&nbsp;com&nbsp;overage</td>
-                                <td className="px-3 py-1 font-mono text-violet-700">{ovShelfP!.toFixed(4)}&nbsp;×&nbsp;FA&nbsp;({FA_ARR.toFixed(4)})</td>
-                                <td className="px-3 py-1 font-mono font-bold text-violet-800 text-right">{extrapOvP.toFixed(2)}&nbsp;meses</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
+                {/* Content — 5 passos genéricos conforme planilha Excel */}
+                <div className={`bg-slate-50 p-4 ${!passoCalculoExpanded ? "hidden print:block" : ""}`}>
+
+                  {/* Passos 1–4: grade 2 colunas */}
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+
+                    {/* 1. Modelo Cinético de 1ª Ordem */}
+                    <div className="border border-slate-200 rounded overflow-hidden bg-white">
+                      <div className="bg-slate-100 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-700 print:bg-slate-100">
+                        1. Modelo Cinético de 1ª Ordem
                       </div>
-                    );
-                  })}
+                      <div className="px-3 py-2.5">
+                        <div className="font-mono bg-slate-50 border border-slate-200 rounded px-3 py-2 text-center text-[11px] text-slate-800 mb-1.5">
+                          C<sub>t</sub> = C<sub>0</sub> · e<sup>−k·t</sup>
+                        </div>
+                        <p className="text-[8.5px] text-slate-500">Modelo ICH Q1A(R2) — degradação de primeira ordem</p>
+                      </div>
+                    </div>
+
+                    {/* 2. Constante de Degradação K */}
+                    <div className="border border-slate-200 rounded overflow-hidden bg-white">
+                      <div className="bg-slate-100 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-700 print:bg-slate-100">
+                        2. Constante de Degradação K
+                      </div>
+                      <div className="px-3 py-2.5">
+                        <div className="font-mono bg-slate-50 border border-slate-200 rounded px-3 py-2 text-center text-[11px] text-slate-800 mb-1.5">
+                          k = −ln(Média<sub>T6</sub> / Média<sub>T0</sub>) / 6
+                        </div>
+                        <p className="text-[8.5px] text-slate-500">Calculado a partir do intervalo T0→T6 (6 meses)</p>
+                      </div>
+                    </div>
+
+                    {/* 3. Tempo de Validade — Método ICH (90%) */}
+                    <div className="border border-slate-200 rounded overflow-hidden bg-white">
+                      <div className="bg-slate-100 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-700 print:bg-slate-100">
+                        3. Tempo de Validade — Método ICH (90%)
+                      </div>
+                      <div className="px-3 py-2.5">
+                        <div className="font-mono bg-slate-50 border border-slate-200 rounded px-3 py-2 text-center text-[11px] text-slate-800 mb-1.5">
+                          t<sub>validade</sub> = −ln(90 / Média<sub>T0</sub>) / k
+                        </div>
+                        <p className="text-[8.5px] text-slate-500">Estimativa até atingir 90% do valor declarado</p>
+                      </div>
+                    </div>
+
+                    {/* 4. Tempo Observado — Extrapolação T6 */}
+                    <div className="border border-slate-200 rounded overflow-hidden bg-white">
+                      <div className="bg-slate-100 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-700 print:bg-slate-100">
+                        4. Tempo Observado — Extrapolação T6
+                      </div>
+                      <div className="px-3 py-2.5">
+                        <div className="font-mono bg-slate-50 border border-slate-200 rounded px-3 py-2 text-center text-[11px] text-slate-800 mb-1.5">
+                          t<sub>obs</sub> = −ln(Média<sub>T6</sub> / Média<sub>T0</sub>) / k
+                        </div>
+                        <p className="text-[8.5px] text-slate-500">Extrapolação da taxa T3→T6 a partir de T0</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 5. Energia de Ativação EA — largura total */}
+                  <div className="border border-violet-200 rounded overflow-hidden bg-white">
+                    <div className="bg-violet-50 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide text-violet-700 print:bg-violet-50">
+                      5. Energia de Ativação EA — Equação de Arrhenius
+                    </div>
+                    <div className="px-3 py-2.5 grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="font-mono bg-slate-50 border border-violet-200 rounded px-3 py-2 text-center text-[10.5px] text-violet-800 mb-1.5">
+                          E<sub>a</sub> = R · ln(k<sub>acc</sub> / k<sub>it</sub>) / (1/T<sub>1t</sub> − 1/T<sub>acc</sub>)
+                        </div>
+                        <p className="text-[8.5px] text-violet-600">R = 8,314 J/(mol·K) · T em Kelvin (°C + 273,15)</p>
+                      </div>
+                      <div>
+                        <div className="font-mono bg-slate-50 border border-violet-200 rounded px-3 py-2 text-center text-[10.5px] text-violet-800 mb-1.5">
+                          A = k<sub>1t</sub> · e<sup>E<sub>a</sub>/(R·T<sub>1t</sub>)</sup>
+                        </div>
+                        <p className="text-[8.5px] text-violet-600">Fator pré-exponencial; k₀ e Tₐ da condição longa duração</p>
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               </div>
             )}
