@@ -94,7 +94,7 @@ export default function BackupPage() {
   });
 
   const [localEnabled, setLocalEnabled] = useState(false);
-  const [localTime,    setLocalTime]    = useState("08:00");
+  const [localTime,    setLocalTime]    = useState("08:45");
   const [localTime2,   setLocalTime2]   = useState("14:00");
   const [localTime3,   setLocalTime3]   = useState("16:30");
 
@@ -126,6 +126,10 @@ export default function BackupPage() {
       qc.invalidateQueries({ queryKey: ["backup-config"] });
       qc.invalidateQueries({ queryKey: ["backup-history"] });
       toast({ title: "Backup concluído!", description: `Arquivo: ${data.filename} (${fmtSize(data.size)})` });
+      // Notifica o BackupDownloadWatcher global para abrir o diálogo de download
+      window.dispatchEvent(new CustomEvent("backup-completed", {
+        detail: { filename: data.filename, size: data.size, exportedAt: new Date().toISOString() }
+      }));
     },
     onError: (e: Error) => toast({ title: "Erro no backup", description: e.message, variant: "destructive" }),
   });
@@ -222,6 +226,7 @@ export default function BackupPage() {
             O backup automático está <strong>ativo por padrão</strong>, roda sozinho todo dia (nos dois horários abaixo)
             e cada cópia é enviada também para um armazenamento em nuvem separado do banco de dados — assim, mesmo em
             caso de invasão ou perda de dados, você tem como restaurar tudo rapidamente pela aba "Restaurar da Nuvem".
+            Sempre que um backup é gerado, uma tela surgirá automaticamente perguntando se deseja salvar uma cópia no seu computador.
           </p>
         </div>
 

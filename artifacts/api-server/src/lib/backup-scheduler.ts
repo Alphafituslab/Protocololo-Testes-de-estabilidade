@@ -178,8 +178,17 @@ async function ensureBackupDefaults(): Promise<void> {
     const rows = await db.select().from(settingsTable);
     const has = (k: string) => rows.some(r => r.key === k);
     if (!has("backup.enabled")) await upsertSetting("backup.enabled", "true");
-    if (!has("backup.time")) await upsertSetting("backup.time", "08:00");
-    if (!has("backup.time2")) await upsertSetting("backup.time2", "20:00");
+    if (!has("backup.time")) await upsertSetting("backup.time", "08:45");
+    if (!has("backup.time2")) await upsertSetting("backup.time2", "14:00");
+    if (!has("backup.time3")) await upsertSetting("backup.time3", "16:30");
+    // Migrate old defaults: 08:00→08:45, 20:00→14:00 (only if they still match the old factory defaults)
+    const rows2 = await db.select().from(settingsTable);
+    const cur1 = rows2.find(r => r.key === "backup.time")?.value;
+    const cur2 = rows2.find(r => r.key === "backup.time2")?.value;
+    const cur3 = rows2.find(r => r.key === "backup.time3")?.value;
+    if (cur1 === "08:00") await upsertSetting("backup.time", "08:45");
+    if (cur2 === "20:00") await upsertSetting("backup.time2", "14:00");
+    if (!cur3 || cur3 === "") await upsertSetting("backup.time3", "16:30");
     if (!has("backup.last_run")) {
       logger.info("backup: nenhum backup anterior encontrado, executando o primeiro backup agora");
       try {

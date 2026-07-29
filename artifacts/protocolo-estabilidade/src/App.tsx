@@ -14,6 +14,7 @@ import LoginPage from "./pages/login";
 import UsersPage, { ROLE_LABELS } from "./pages/users";
 import CatalogPage from "./pages/catalog";
 import BackupPage from "./pages/backup";
+import BackupDownloadWatcher from "./components/backup-download-watcher";
 import SnapshotsGlobalPage from "./pages/snapshots-global";
 import AtivoReferencesPage from "./pages/ativo-references";
 import CoaPage, { CoaListPage, CoaDetailPage } from "./pages/coa";
@@ -473,6 +474,7 @@ function App() {
           <WouterRouter base={import.meta.env.BASE_URL?.replace(/\/$/, "") || ""}>
             <Router />
           </WouterRouter>
+          <BackupDownloadWatcher />
         </AuthProvider>
         <div className="print:hidden"><Toaster /></div>
       </TooltipProvider>

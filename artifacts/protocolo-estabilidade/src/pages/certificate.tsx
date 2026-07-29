@@ -216,6 +216,7 @@ type ShowSections = {
   conclusao: boolean;
   cineticaProtocolo: boolean;
   fundamentacaoCinetica: boolean;
+  passoCalculo: boolean;
   ressalvaNote: boolean;
   referencias: boolean;
 };
@@ -228,6 +229,7 @@ const SECTION_LABELS: { key: keyof ShowSections; label: string; onlyWhenAR?: boo
   { key: "conclusao", label: "Conclusão" },
   { key: "cineticaProtocolo", label: "Parâmetros Cinéticos e Validade" },
   { key: "fundamentacaoCinetica", label: "Fundamentação Cinética" },
+  { key: "passoCalculo", label: "Passo a Passo do Cálculo" },
   { key: "ressalvaNote", label: "Nota de Ressalva", onlyWhenAR: true },
   { key: "referencias", label: "Referências Bibliográficas" },
 ];
@@ -366,6 +368,7 @@ export default function CertificatePage() {
     conclusao: true,
     cineticaProtocolo: true,
     fundamentacaoCinetica: true,
+    passoCalculo: true,
     ressalvaNote: true,
     referencias: true,
     ...(_savedPrintPrefs?.show ?? {}),
@@ -389,6 +392,7 @@ export default function CertificatePage() {
   const [includeAttachments, setIncludeAttachments] = useState(() => _savedPrintPrefs?.includeAttachments ?? true);
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
   const [cineticaExpanded, setCineticaExpanded] = useState(true);
+  const [passoCalculoExpanded, setPassoCalculoExpanded] = useState(true);
   const [fundamentacaoExpanded, setFundamentacaoExpanded] = useState(true);
 
   const [analyses, setAnalyses] = useState<Array<{
@@ -427,6 +431,7 @@ export default function CertificatePage() {
     conclusao: true,
     cineticaProtocolo: true,
     fundamentacaoCinetica: true,
+    passoCalculo: true,
     ressalvaNote: true,
     referencias: true,
   };
@@ -2433,9 +2438,9 @@ export default function CertificatePage() {
             }
           }
 
-          if (!show.cineticaProtocolo) return null;
-          return (
-            <div className="cert-kinetica-block mb-6 rounded border border-blue-200 overflow-hidden text-xs text-gray-700">
+          if (!show.cineticaProtocolo && !(show.passoCalculo && hasData)) return null;
+          return (<>
+            {show.cineticaProtocolo && <div className="cert-kinetica-block mb-6 rounded border border-blue-200 overflow-hidden text-xs text-gray-700">
               {/* Accordion header — screen only */}
               <div
                 className="print:hidden flex items-center justify-between px-4 py-2 bg-blue-50 border-b border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors select-none"
@@ -2567,8 +2572,112 @@ export default function CertificatePage() {
                   </>
                 )}
               </div>
-            </div>
-          );
+            </div>}
+
+            {/* ── Passo a Passo do Cálculo ─────────────────────────────── */}
+            {show.passoCalculo && hasData && (
+              <div className="cert-kinetica-block mb-6 rounded border border-slate-300 overflow-hidden text-xs text-gray-700">
+                {/* Accordion header — screen only */}
+                <div
+                  className="print:hidden flex items-center justify-between px-4 py-2 bg-slate-100 border-b border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors select-none"
+                  onClick={() => setPassoCalculoExpanded(v => !v)}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-gray-800 uppercase tracking-wide text-[11px]">Passo a Passo do Cálculo — Planilha Excel</span>
+                    {!passoCalculoExpanded && (
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${show.passoCalculo ? "bg-green-50 border-green-300 text-green-700" : "bg-gray-100 border-gray-300 text-gray-500"}`}>
+                        {show.passoCalculo ? "✓ Na impressão" : "✗ Oculto na impressão"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); toggle("passoCalculo"); }}
+                      className={`flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded border transition-colors ${show.passoCalculo ? "border-slate-400 bg-slate-200 text-slate-700 hover:bg-slate-300" : "border-green-300 bg-green-100 text-green-700 hover:bg-green-200"}`}
+                    >
+                      {show.passoCalculo ? "✕ Ocultar na impressão" : "✓ Incluir na impressão"}
+                    </button>
+                    {passoCalculoExpanded ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+                  </div>
+                </div>
+
+                {/* Print-only header */}
+                <div className="cert-kinetica-print-header hidden print:flex items-center px-4 py-1.5">
+                  <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white">Passo a Passo do Cálculo — ICH Q1A(R2)</h2>
+                </div>
+
+                {/* Content */}
+                <div className={`bg-slate-50 p-4 space-y-3 ${!passoCalculoExpanded ? "hidden print:block" : ""}`}>
+                  <p className="text-[9px] text-gray-500 leading-relaxed">
+                    Valores calculados por ativo a partir das médias dos lotes em T0, T3 e T6. Modelo de 1ª ordem (ICH Q1A(R2)):&nbsp;
+                    <span className="font-mono bg-white border border-gray-200 rounded px-1">C<sub>t</sub> = C<sub>0</sub>·e<sup>−k·t</sup></span>&nbsp;·&nbsp;
+                    <span className="font-mono bg-white border border-gray-200 rounded px-1">k = −ln(T6/T0) / 6</span>&nbsp;·&nbsp;
+                    <span className="font-mono bg-white border border-gray-200 rounded px-1">t<sub>val</sub> = −ln(limiar/c<sub>0</sub>) / k</span>&nbsp;·&nbsp;
+                    FA&nbsp;=&nbsp;{FA_ARR.toFixed(4)}
+                  </p>
+                  {validParams.map(p => {
+                    const t0v = typeof p.t0 === "number" && p.t0 > 0 ? p.t0 : 100;
+                    const t6v = typeof p.t6 === "number" ? p.t6 : null;
+                    const kv  = typeof p.k  === "number" ? p.k  : null;
+                    const kovParamP = (kovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[p.parameter];
+                    const ichThrP   = parseFloat(kovParamP?.ichThreshold ?? "") || 90;
+                    const baseShelfP  = kv ? -Math.log(ichThrP / 100) / kv : null;
+                    const ovShelfP    = (kv && t0v > 100.001) ? -Math.log(ichThrP / t0v) / kv : null;
+                    const extrapBaseP = baseShelfP != null ? baseShelfP * FA_ARR : null;
+                    const extrapOvP   = ovShelfP   != null ? ovShelfP   * FA_ARR : null;
+                    const isLim = p.parameter === limiting;
+                    if (!kv || !t6v) return null;
+                    return (
+                      <div key={p.parameter} className={`border rounded overflow-hidden text-[9px] ${isLim ? "border-amber-300" : "border-slate-200"}`}>
+                        <div className={`px-3 py-1.5 font-bold text-[9.5px] flex items-center gap-1.5 ${isLim ? "bg-amber-50 text-amber-800" : "bg-slate-100 text-gray-700"}`}>
+                          {isLim && <span className="text-amber-500">★</span>}
+                          {p.parameter}
+                        </div>
+                        <table className="w-full border-collapse">
+                          <tbody>
+                            <tr className="border-t border-slate-100">
+                              <td className="px-3 py-1 text-gray-500 whitespace-nowrap w-44">① k&nbsp;(mês⁻¹)</td>
+                              <td className="px-3 py-1 font-mono text-gray-600">−ln({t6v.toFixed(4)}&nbsp;/&nbsp;{t0v.toFixed(4)})&nbsp;/&nbsp;6</td>
+                              <td className="px-3 py-1 font-mono font-bold text-gray-800 text-right whitespace-nowrap">= {kv.toFixed(6)}</td>
+                            </tr>
+                            {baseShelfP != null && (
+                              <tr className="border-t border-slate-100">
+                                <td className="px-3 py-1 text-gray-500 whitespace-nowrap">② t&nbsp;sem&nbsp;overage&nbsp;(c₀=100%)</td>
+                                <td className="px-3 py-1 font-mono text-gray-600">−ln({ichThrP}/{(100).toFixed(2)})&nbsp;/&nbsp;{kv.toFixed(6)}</td>
+                                <td className="px-3 py-1 font-mono font-bold text-gray-800 text-right">{baseShelfP.toFixed(2)}&nbsp;meses</td>
+                              </tr>
+                            )}
+                            {ovShelfP != null && (
+                              <tr className="border-t border-slate-100">
+                                <td className="px-3 py-1 text-gray-500 whitespace-nowrap">③ t&nbsp;com&nbsp;overage&nbsp;(c₀={t0v.toFixed(1)}%)</td>
+                                <td className="px-3 py-1 font-mono text-gray-600">−ln({ichThrP}/{t0v.toFixed(2)})&nbsp;/&nbsp;{kv.toFixed(6)}</td>
+                                <td className="px-3 py-1 font-mono font-bold text-gray-800 text-right">{ovShelfP.toFixed(2)}&nbsp;meses</td>
+                              </tr>
+                            )}
+                            {extrapBaseP != null && (
+                              <tr className="border-t border-slate-100 bg-violet-50/60">
+                                <td className="px-3 py-1 text-violet-600 whitespace-nowrap">④ 30°C&nbsp;sem&nbsp;overage</td>
+                                <td className="px-3 py-1 font-mono text-violet-700">{baseShelfP!.toFixed(4)}&nbsp;×&nbsp;FA&nbsp;({FA_ARR.toFixed(4)})</td>
+                                <td className="px-3 py-1 font-mono font-bold text-violet-800 text-right">{extrapBaseP.toFixed(2)}&nbsp;meses</td>
+                              </tr>
+                            )}
+                            {extrapOvP != null && (
+                              <tr className="border-t border-slate-100 bg-violet-50/60">
+                                <td className="px-3 py-1 text-violet-600 whitespace-nowrap">⑤ 30°C&nbsp;com&nbsp;overage</td>
+                                <td className="px-3 py-1 font-mono text-violet-700">{ovShelfP!.toFixed(4)}&nbsp;×&nbsp;FA&nbsp;({FA_ARR.toFixed(4)})</td>
+                                <td className="px-3 py-1 font-mono font-bold text-violet-800 text-right">{extrapOvP.toFixed(2)}&nbsp;meses</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>);
         })()}
 
         {show.fundamentacaoCinetica && <div className="cert-kinetica-block mb-6 rounded border border-gray-200 overflow-hidden text-xs text-gray-700">

@@ -57,6 +57,7 @@ const PRINT_SECTIONS = [
   { key: "s5",  label: "5. Resultados — Síntese" },
   { key: "s5b", label: "5b. Resultados Detalhados" },
   { key: "s6",  label: "6. Cinética de Estabilidade" },
+  { key: "s6b", label: "6b. Passo a Passo do Cálculo" },
   { key: "s7",  label: "7. Metodologias Analíticas" },
   { key: "s8",  label: "8. Conclusão" },
   { key: "s9",  label: "9. Assinaturas Eletrônicas" },
@@ -962,6 +963,78 @@ export default function ProtocolReportPage() {
               {cert.kineticsNotes && (
                 <p className="text-[9px] text-gray-600 mt-2 border-l-2 border-gray-200 pl-2">{cert.kineticsNotes}</p>
               )}
+            </Section>
+          ))}
+
+          {/* 6b. Passo a Passo do Cálculo */}
+          {validKParams.length > 0 && ps("s6b", (
+            <Section num="6b" title="Passo a Passo do Cálculo — Planilha Excel (ICH Q1A)">
+              <p className="text-[8px] text-gray-500 mb-2 leading-relaxed">
+                Valores calculados por ativo a partir das médias dos lotes em T0, T3 e T6.
+                Modelo cinético de 1ª ordem (ICH Q1A(R2)):&nbsp;
+                <span className="font-mono bg-gray-100 px-1 rounded">C<sub>t</sub> = C<sub>0</sub>·e<sup>−k·t</sup></span>&nbsp;·&nbsp;
+                <span className="font-mono bg-gray-100 px-1 rounded">k = −ln(T6/T0) / 6</span>&nbsp;·&nbsp;
+                <span className="font-mono bg-gray-100 px-1 rounded">t<sub>val</sub> = −ln(limiar/c<sub>0</sub>) / k</span>&nbsp;·&nbsp;
+                FA = {REPORT_FA.toFixed(4)}
+              </p>
+              {validKParams.map((p: any) => {
+                const t0v = typeof p.t0 === "number" && p.t0 > 0 ? p.t0 : 100;
+                const t6v = typeof p.t6 === "number" ? p.t6 : null;
+                const kv  = typeof p.k  === "number" ? p.k  : null;
+                const kovParam2 = (rKovJson?.params as Record<string, { ichThreshold?: string }> | undefined)?.[p.parameter];
+                const ichThr2 = parseFloat(kovParam2?.ichThreshold ?? "") || 90;
+                const baseShelf2  = kv ? -Math.log(ichThr2 / 100)  / kv : null;
+                const ovShelf2    = (kv && t0v > 100.001) ? -Math.log(ichThr2 / t0v) / kv : null;
+                const extrapBase2 = baseShelf2 != null ? baseShelf2 * REPORT_FA : null;
+                const extrapOv2   = ovShelf2   != null ? ovShelf2   * REPORT_FA : null;
+                const isLimiting2 = (kineticsData as any)?.limitingParameter === p.parameter;
+                if (!kv || !t6v) return null;
+                return (
+                  <div key={p.parameter} className={`mb-2 border rounded overflow-hidden text-[8px] ${isLimiting2 ? "border-amber-300" : "border-gray-200"}`}>
+                    <div className={`px-2 py-1 font-bold text-[8.5px] flex items-center gap-1 ${isLimiting2 ? "bg-amber-50 text-amber-800 print:bg-amber-50" : "bg-gray-100 text-gray-700 print:bg-gray-100"}`}>
+                      {isLimiting2 && <span className="text-amber-500 mr-0.5">★</span>}
+                      {p.parameter}
+                    </div>
+                    <table className="w-full border-collapse">
+                      <tbody>
+                        <tr className="border-t border-gray-100">
+                          <td className="px-2 py-0.5 text-gray-500 whitespace-nowrap w-36">① k&nbsp;(mês⁻¹)</td>
+                          <td className="px-2 py-0.5 font-mono text-gray-600">−ln({t6v.toFixed(4)} / {t0v.toFixed(4)}) / 6</td>
+                          <td className="px-2 py-0.5 font-mono font-bold text-gray-800 text-right whitespace-nowrap">= {kv.toFixed(6)}</td>
+                        </tr>
+                        {baseShelf2 != null && (
+                          <tr className="border-t border-gray-100">
+                            <td className="px-2 py-0.5 text-gray-500 whitespace-nowrap">② t&nbsp;sem&nbsp;overage&nbsp;(c₀=100%)</td>
+                            <td className="px-2 py-0.5 font-mono text-gray-600">−ln({ichThr2}/{(100).toFixed(2)}) / {kv.toFixed(6)}</td>
+                            <td className="px-2 py-0.5 font-mono font-bold text-gray-800 text-right">{baseShelf2.toFixed(2)}&nbsp;m</td>
+                          </tr>
+                        )}
+                        {ovShelf2 != null && (
+                          <tr className="border-t border-gray-100">
+                            <td className="px-2 py-0.5 text-gray-500 whitespace-nowrap">③ t&nbsp;com&nbsp;overage&nbsp;(c₀={t0v.toFixed(1)}%)</td>
+                            <td className="px-2 py-0.5 font-mono text-gray-600">−ln({ichThr2}/{t0v.toFixed(2)}) / {kv.toFixed(6)}</td>
+                            <td className="px-2 py-0.5 font-mono font-bold text-gray-800 text-right">{ovShelf2.toFixed(2)}&nbsp;m</td>
+                          </tr>
+                        )}
+                        {extrapBase2 != null && (
+                          <tr className="border-t border-gray-100 bg-violet-50/50 print:bg-violet-50">
+                            <td className="px-2 py-0.5 text-violet-600 whitespace-nowrap">④ 30°C sem overage</td>
+                            <td className="px-2 py-0.5 font-mono text-violet-700">{baseShelf2!.toFixed(4)} × FA ({REPORT_FA.toFixed(4)})</td>
+                            <td className="px-2 py-0.5 font-mono font-bold text-violet-800 text-right">{extrapBase2.toFixed(2)}&nbsp;m</td>
+                          </tr>
+                        )}
+                        {extrapOv2 != null && (
+                          <tr className="border-t border-gray-100 bg-violet-50/50 print:bg-violet-50">
+                            <td className="px-2 py-0.5 text-violet-600 whitespace-nowrap">⑤ 30°C com overage</td>
+                            <td className="px-2 py-0.5 font-mono text-violet-700">{ovShelf2!.toFixed(4)} × FA ({REPORT_FA.toFixed(4)})</td>
+                            <td className="px-2 py-0.5 font-mono font-bold text-violet-800 text-right">{extrapOv2.toFixed(2)}&nbsp;m</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
             </Section>
           ))}
 
