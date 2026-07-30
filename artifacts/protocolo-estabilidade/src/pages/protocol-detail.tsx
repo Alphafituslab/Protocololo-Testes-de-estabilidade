@@ -6075,6 +6075,36 @@ function MethodologiaTab({
   const [pendingDelete, setPendingDelete] = useState<{
     id: number; shortName: string; usedBy: string[];
   } | null>(null);
+  const [deleteMethPwd, setDeleteMethPwd] = useState("");
+  const [deleteMethPwdError, setDeleteMethPwdError] = useState("");
+  const [deleteMethPwdLoading, setDeleteMethPwdLoading] = useState(false);
+  const [deleteMethPwdShow, setDeleteMethPwdShow] = useState(false);
+
+  const confirmDeleteMethodology = async () => {
+    if (!pendingDelete || !deleteMethPwd.trim()) return;
+    setDeleteMethPwdLoading(true);
+    setDeleteMethPwdError("");
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: deleteMethPwd }),
+      });
+      if (res.ok) {
+        deleteMutation.mutate({ id: pendingDelete.id });
+        setPendingDelete(null);
+        setDeleteMethPwd("");
+        setDeleteMethPwdError("");
+        setDeleteMethPwdShow(false);
+      } else {
+        setDeleteMethPwdError("Senha incorreta.");
+        setDeleteMethPwd("");
+      }
+    } catch {
+      setDeleteMethPwdError("Erro de conexão.");
+    }
+    setDeleteMethPwdLoading(false);
+  };
   const isMountedRef = useRef(false);
 
   // Undo refs for parameter removal
@@ -7477,11 +7507,14 @@ function MethodologiaTab({
 
       {/* ── Modal — confirmar remoção de referência da biblioteca ── */}
       {pendingDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setPendingDelete(null)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => { setPendingDelete(null); setDeleteMethPwd(""); setDeleteMethPwdError(""); }}
+        >
           <div className="bg-white rounded-xl shadow-2xl w-[440px] mx-4 p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-2">
               <Trash2 className="h-4 w-4 text-destructive shrink-0" />
-              <p className="font-semibold text-sm">Remover referência da biblioteca?</p>
+              <p className="font-semibold text-sm">Excluir metodologia da biblioteca</p>
             </div>
             <div className="rounded-lg bg-muted/50 border px-3 py-2">
               <p className="text-sm font-medium">{pendingDelete.shortName}</p>
@@ -7492,7 +7525,7 @@ function MethodologiaTab({
                   <span className="inline-block w-2 h-2 rounded-full bg-amber-500 shrink-0" />
                   Esta referência está em uso {pendingDelete.usedBy.length === 1 ? "no protocolo:" : `em ${pendingDelete.usedBy.length} protocolos:`}
                 </p>
-                <ul className="max-h-40 overflow-y-auto space-y-0.5 pl-3 border-l-2 border-amber-300">
+                <ul className="max-h-32 overflow-y-auto space-y-0.5 pl-3 border-l-2 border-amber-300">
                   {pendingDelete.usedBy.map((name, i) => (
                     <li key={i} className="text-xs text-foreground leading-snug">{name}</li>
                   ))}
@@ -7504,24 +7537,51 @@ function MethodologiaTab({
             ) : (
               <p className="text-xs text-muted-foreground">Esta referência não está em uso em nenhum protocolo.</p>
             )}
+
+            {/* Campo de senha mestra — obrigatório para confirmar exclusão */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Senha mestra para confirmar exclusão</label>
+              <div className="relative">
+                <input
+                  type={deleteMethPwdShow ? "text" : "password"}
+                  autoFocus
+                  value={deleteMethPwd}
+                  onChange={e => { setDeleteMethPwd(e.target.value); setDeleteMethPwdError(""); }}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") confirmDeleteMethodology();
+                    if (e.key === "Escape") { setPendingDelete(null); setDeleteMethPwd(""); setDeleteMethPwdError(""); }
+                  }}
+                  placeholder="Digite a senha mestra"
+                  className="w-full border border-border rounded px-3 py-1.5 text-sm pr-9 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setDeleteMethPwdShow(s => !s)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                >
+                  {deleteMethPwdShow ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {deleteMethPwdError && (
+                <p className="text-xs text-destructive font-medium">{deleteMethPwdError}</p>
+              )}
+            </div>
+
             <div className="flex justify-end gap-2 pt-1">
               <button
                 type="button"
-                onClick={() => setPendingDelete(null)}
+                onClick={() => { setPendingDelete(null); setDeleteMethPwd(""); setDeleteMethPwdError(""); }}
                 className="text-sm px-4 py-1.5 rounded border border-border hover:bg-muted transition-colors"
               >
                 Cancelar
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  deleteMutation.mutate({ id: pendingDelete.id });
-                  setPendingDelete(null);
-                }}
-                disabled={deleteMutation.isPending}
+                onClick={confirmDeleteMethodology}
+                disabled={deleteMethPwdLoading || !deleteMethPwd.trim()}
                 className="text-sm px-4 py-1.5 rounded bg-destructive text-white hover:bg-destructive/80 transition-colors disabled:opacity-50"
               >
-                {deleteMutation.isPending ? "Removendo…" : "Remover"}
+                {deleteMethPwdLoading ? "Verificando…" : "Excluir metodologia"}
               </button>
             </div>
           </div>
@@ -9577,6 +9637,38 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
   const [editRefData, setEditRefData] = useState<BibliographicReferenceInput>(EMPTY_NEW_REF);
   const [editConfirmOpen, setEditConfirmOpen] = useState(false);
 
+  // Senha para remover referência do protocolo
+  const [pendingRemoveRef, setPendingRemoveRef] = useState<{ id: number; title: string } | null>(null);
+  const [removeRefPwd, setRemoveRefPwd] = useState("");
+  const [removeRefPwdError, setRemoveRefPwdError] = useState("");
+  const [removeRefPwdLoading, setRemoveRefPwdLoading] = useState(false);
+  const [removeRefPwdShow, setRemoveRefPwdShow] = useState(false);
+
+  const confirmRemoveRef = async () => {
+    if (!pendingRemoveRef || !removeRefPwd.trim()) return;
+    setRemoveRefPwdLoading(true);
+    setRemoveRefPwdError("");
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: removeRefPwd }),
+      });
+      if (res.ok) {
+        removeRef.mutate({ id: protocolId, refId: pendingRemoveRef.id });
+        setPendingRemoveRef(null);
+        setRemoveRefPwd("");
+        setRemoveRefPwdShow(false);
+      } else {
+        setRemoveRefPwdError("Senha incorreta.");
+        setRemoveRefPwd("");
+      }
+    } catch {
+      setRemoveRefPwdError("Erro de conexão.");
+    }
+    setRemoveRefPwdLoading(false);
+  };
+
   const { data: protocolRefs = [], isLoading } = useListProtocolBibliographicReferences(protocolId);
   const { data: allRefs = [] } = useListBibliographicReferences();
 
@@ -9904,36 +9996,23 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                     <PenLine className="h-3.5 w-3.5" />
                   </Button>
 
-                  {/* Remove button */}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
-                        title="Remover do protocolo"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remover referência?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta referência será removida deste protocolo (continuará no banco de cadastros).
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          className="bg-destructive text-white hover:bg-destructive/90"
-                          onClick={() => removeRef.mutate({ id: protocolId, refId: ref.id })}
-                        >
-                          Remover
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  {/* Remove button — exige senha mestra */}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
+                    title="Remover do protocolo"
+                    onClick={() => {
+                      const title = ref.autores
+                        ? `${ref.autores.split(",")[0].trim()} (${ref.ano ?? "s.d."})`
+                        : ref.titulo ?? `Referência #${ref.id}`;
+                      setPendingRemoveRef({ id: ref.id, title });
+                      setRemoveRefPwd("");
+                      setRemoveRefPwdError("");
+                    }}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               );
             })}
@@ -10553,6 +10632,69 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
         </div>
       )}
     </Card>
+
+      {/* Modal de senha — remover referência do protocolo */}
+      {pendingRemoveRef && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => { setPendingRemoveRef(null); setRemoveRefPwd(""); setRemoveRefPwdError(""); }}
+        >
+          <div className="bg-white rounded-xl shadow-2xl w-96 mx-4 p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-destructive shrink-0" />
+              <p className="font-semibold text-sm">Remover referência do protocolo</p>
+            </div>
+            <div className="rounded-lg bg-muted/50 border px-3 py-2">
+              <p className="text-sm text-foreground">{pendingRemoveRef.title}</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              A referência será desvinculada deste protocolo. O cadastro continuará na biblioteca geral.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Senha mestra para confirmar</label>
+              <div className="relative">
+                <input
+                  type={removeRefPwdShow ? "text" : "password"}
+                  autoFocus
+                  value={removeRefPwd}
+                  onChange={e => { setRemoveRefPwd(e.target.value); setRemoveRefPwdError(""); }}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") confirmRemoveRef();
+                    if (e.key === "Escape") { setPendingRemoveRef(null); setRemoveRefPwd(""); setRemoveRefPwdError(""); }
+                  }}
+                  placeholder="Digite a senha mestra"
+                  className="w-full border border-border rounded px-3 py-1.5 text-sm pr-9 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setRemoveRefPwdShow(s => !s)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                >
+                  {removeRefPwdShow ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {removeRefPwdError && <p className="text-xs text-destructive font-medium">{removeRefPwdError}</p>}
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => { setPendingRemoveRef(null); setRemoveRefPwd(""); setRemoveRefPwdError(""); }}
+                className="text-sm px-4 py-1.5 rounded border border-border hover:bg-muted transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmRemoveRef}
+                disabled={removeRefPwdLoading || !removeRefPwd.trim()}
+                className="text-sm px-4 py-1.5 rounded bg-destructive text-white hover:bg-destructive/80 transition-colors disabled:opacity-50"
+              >
+                {removeRefPwdLoading ? "Verificando…" : "Remover referência"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
   );
 }
 
