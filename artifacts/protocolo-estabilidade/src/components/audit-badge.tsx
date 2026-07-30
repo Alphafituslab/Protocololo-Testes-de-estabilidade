@@ -1,6 +1,6 @@
 /**
- * AuditBadge — badge "Alterado hoje" clicável com botão de dispensa manual.
- * Abre um popover com os eventos de auditoria do protocolo.
+ * AuditBadge — badge "Alterado: DD/MM" (ou "Alterado hoje") clicável.
+ * Persiste até o usuário clicar no X — nunca some com a virada do dia.
  * Invisível em impressão/PDF (print:hidden).
  */
 import { useState } from "react";
@@ -42,12 +42,22 @@ function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
 function isToday(iso: string) {
   const d = new Date(iso);
   const now = new Date();
   return d.getFullYear() === now.getFullYear() &&
     d.getMonth() === now.getMonth() &&
     d.getDate() === now.getDate();
+}
+
+/** Rótulo do badge: "Alterado hoje" se for hoje, senão "Alterado: DD/MM" */
+function badgeLabel(changedAt?: string): string {
+  if (!changedAt) return "Alterado";
+  return isToday(changedAt) ? "Alterado hoje" : `Alterado: ${fmtDate(changedAt)}`;
 }
 
 async function fetchLogs(protocolId: number, token: string | null): Promise<AuditLog[]> {
@@ -59,11 +69,11 @@ async function fetchLogs(protocolId: number, token: string | null): Promise<Audi
 
 interface Props {
   protocolId: number;
-  /** texto exibido no badge — padrão "Alterado hoje" */
-  label?: string;
+  /** ISO datetime da última alteração não dispensada */
+  changedAt?: string;
 }
 
-export function AuditBadge({ protocolId, label = "Alterado hoje" }: Props) {
+export function AuditBadge({ protocolId, changedAt }: Props) {
   const { token } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -77,8 +87,8 @@ export function AuditBadge({ protocolId, label = "Alterado hoje" }: Props) {
     enabled: open,   // só busca ao abrir
   });
 
-  // Filtra só os eventos de hoje
-  const todayLogs = (logs ?? []).filter((l) => isToday(l.createdAt));
+  // Mostra todos os logs (não só de hoje) — o usuário vê o histórico completo
+  const allLogs = logs ?? [];
 
   const handleDismiss = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -93,7 +103,6 @@ export function AuditBadge({ protocolId, label = "Alterado hoje" }: Props) {
       });
       setDismissed(true);
       setOpen(false);
-      // Invalida a lista para remover o badge imediatamente
       await queryClient.invalidateQueries({ queryKey: ["audit-today-changed"] });
     } finally {
       setDismissing(false);
@@ -102,15 +111,21 @@ export function AuditBadge({ protocolId, label = "Alterado hoje" }: Props) {
 
   if (dismissed) return null;
 
+  const label = badgeLabel(changedAt);
+  const isOld = changedAt && !isToday(changedAt);
+
   return (
     <div className="print:hidden inline-flex items-center gap-0.5">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          {/* print:hidden garante que o badge não aparece em PDF/impressão */}
           <button
             type="button"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-400 rounded-l-full px-2.5 py-0.5 shadow-sm hover:bg-orange-100 hover:border-orange-500 transition-colors cursor-pointer"
-            title="Ver histórico de alterações de hoje"
+            className={`inline-flex items-center gap-1 text-xs font-semibold rounded-l-full px-2.5 py-0.5 shadow-sm transition-colors cursor-pointer border ${
+              isOld
+                ? "text-orange-700 bg-orange-50 border-orange-300 hover:bg-orange-100 hover:border-orange-400"
+                : "text-orange-700 bg-orange-50 border-orange-400 hover:bg-orange-100 hover:border-orange-500"
+            }`}
+            title="Ver histórico de alterações"
             onClick={(e) => e.stopPropagation()}
           >
             <Pencil className="h-3 w-3" />
@@ -127,7 +142,7 @@ export function AuditBadge({ protocolId, label = "Alterado hoje" }: Props) {
           {/* Cabeçalho */}
           <div className="flex items-center gap-2 px-4 py-3 bg-orange-50 border-b border-orange-100">
             <History className="h-4 w-4 text-orange-600 shrink-0" />
-            <span className="text-sm font-semibold text-orange-800 flex-1">Alterações de hoje</span>
+            <span className="text-sm font-semibold text-orange-800 flex-1">Histórico de alterações</span>
           </div>
 
           {/* Corpo */}
@@ -146,19 +161,19 @@ export function AuditBadge({ protocolId, label = "Alterado hoje" }: Props) {
               </div>
             )}
 
-            {!isLoading && !isError && todayLogs.length === 0 && (
+            {!isLoading && !isError && allLogs.length === 0 && (
               <div className="flex flex-col items-center gap-2 py-6 text-muted-foreground text-center">
                 <History className="h-6 w-6 opacity-30" />
-                <p className="text-xs">Nenhum evento registrado hoje.</p>
+                <p className="text-xs">Nenhum evento registrado.</p>
                 <p className="text-[11px] opacity-60">
                   Alterações feitas antes desta versão<br />não possuem histórico detalhado.
                 </p>
               </div>
             )}
 
-            {!isLoading && !isError && todayLogs.length > 0 && (
+            {!isLoading && !isError && allLogs.length > 0 && (
               <div className="space-y-3">
-                {todayLogs.map((log) => (
+                {allLogs.map((log) => (
                   <div key={log.id} className="flex gap-3">
                     {/* Dot */}
                     <div className="mt-0.5 shrink-0">
@@ -166,14 +181,16 @@ export function AuditBadge({ protocolId, label = "Alterado hoje" }: Props) {
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      {/* Tipo + horário */}
+                      {/* Tipo + data/horário */}
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-xs font-semibold text-foreground">
                           {ACTION_LABEL[log.action] ?? log.action}
                         </span>
                         <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
                           <Clock className="h-2.5 w-2.5" />
-                          {fmtTime(log.createdAt)}
+                          {isToday(log.createdAt)
+                            ? fmtTime(log.createdAt)
+                            : `${fmtDate(log.createdAt)} ${fmtTime(log.createdAt)}`}
                         </span>
                       </div>
 
@@ -196,10 +213,9 @@ export function AuditBadge({ protocolId, label = "Alterado hoje" }: Props) {
 
           {/* Rodapé com total + botão dispensar */}
           <div className="border-t border-border px-4 py-2 bg-muted/30 flex items-center justify-between gap-2">
-            {!isLoading && !isError && (logs ?? []).length > 0 ? (
+            {!isLoading && !isError && allLogs.length > 0 ? (
               <p className="text-[11px] text-muted-foreground">
-                {todayLogs.length} evento{todayLogs.length !== 1 ? "s" : ""} hoje ·{" "}
-                {(logs ?? []).length} total no protocolo
+                {allLogs.length} evento{allLogs.length !== 1 ? "s" : ""} no protocolo
               </p>
             ) : (
               <span />

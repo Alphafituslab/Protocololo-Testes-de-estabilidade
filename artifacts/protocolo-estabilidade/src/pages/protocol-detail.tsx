@@ -8074,8 +8074,25 @@ export default function ProtocolDetail() {
   const numId = Number(id);
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { hasPermission } = useAuth();
+  const { hasPermission, token } = useAuth();
   const { unlocked, unlock, lock } = useUnlock();
+
+  // Protocolos com alterações não dispensadas — mesma query key do dashboard/lista (cache compartilhado)
+  const { data: pendingChangesData } = useQuery<{ protocolIds: number[]; changedAt: Record<string, string> }>({
+    queryKey: ["audit-today-changed"],
+    queryFn: async () => {
+      const res = await fetch("/api/audit-logs/today-changed", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+      });
+      if (!res.ok) return { protocolIds: [], changedAt: {} };
+      return res.json();
+    },
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+  const pendingChangedIds = new Set<number>(pendingChangesData?.protocolIds ?? []);
+  const pendingChangedAt: Record<string, string> = pendingChangesData?.changedAt ?? {};
   const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
@@ -8336,9 +8353,9 @@ export default function ProtocolDetail() {
               <span className={`text-xs font-semibold px-2 py-1 rounded border ${STATUS_COLORS[protocol.status]}`} data-testid="status-protocol">
                 {STATUS_LABELS[protocol.status] ?? protocol.status}
               </span>
-              {/* Alterado hoje */}
-              {isToday((protocol as { updatedAt?: string }).updatedAt) && (
-                <AuditBadge protocolId={protocol.id} />
+              {/* Badge de alteração — persiste até ser dispensado manualmente */}
+              {pendingChangedIds.has(protocol.id) && (
+                <AuditBadge protocolId={protocol.id} changedAt={pendingChangedAt[String(protocol.id)]} />
               )}
               {/* Lock indicator */}
               {isFinalized && (

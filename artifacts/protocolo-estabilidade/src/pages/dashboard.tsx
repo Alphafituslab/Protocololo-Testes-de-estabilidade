@@ -73,21 +73,22 @@ export default function Dashboard() {
   const { data: stats, isLoading } = useGetProtocolStats();
   const { token } = useAuth();
 
-  // Busca quais protocolos têm audit_log de hoje — única chamada, sem depender de updatedAt
-  const { data: todayData } = useQuery<{ protocolIds: number[] }>({
+  // Busca protocolos com alterações não dispensadas (persiste além da virada do dia)
+  const { data: todayData } = useQuery<{ protocolIds: number[]; changedAt: Record<string, string> }>({
     queryKey: ["audit-today-changed"],
     queryFn: async () => {
       const res = await fetch("/api/audit-logs/today-changed", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: "include",
       });
-      if (!res.ok) return { protocolIds: [] };
+      if (!res.ok) return { protocolIds: [], changedAt: {} };
       return res.json();
     },
     staleTime: 60_000,
     refetchInterval: 60_000,
   });
   const todayChangedIds = new Set<number>(todayData?.protocolIds ?? []);
+  const changedAtMap: Record<string, string> = todayData?.changedAt ?? {};
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
@@ -430,12 +431,19 @@ export default function Dashboard() {
                           <p className="text-xs text-muted-foreground truncate mt-0.5">
                              {protocol.certNumber ? `${protocol.certNumber} · ` : ""}{protocol.companyName}
                            </p>
-                           {todayChangedIds.has(protocol.id) && (
-                             <p className="text-xs mt-0.5 font-medium flex items-center gap-1 text-orange-600">
-                               <Pencil className="h-2.5 w-2.5 shrink-0" />
-                               Alterado hoje
-                             </p>
-                           )}
+                           {todayChangedIds.has(protocol.id) && (() => {
+                             const ca = changedAtMap[String(protocol.id)];
+                             const d = ca ? new Date(ca) : null;
+                             const now = new Date();
+                             const isHoje = d && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+                             const label = isHoje ? "Alterado hoje" : ca ? `Alterado: ${d!.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}` : "Alterado";
+                             return (
+                               <p className="text-xs mt-0.5 font-medium flex items-center gap-1 text-orange-600">
+                                 <Pencil className="h-2.5 w-2.5 shrink-0" />
+                                 {label}
+                               </p>
+                             );
+                           })()}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-4 flex-wrap justify-end">

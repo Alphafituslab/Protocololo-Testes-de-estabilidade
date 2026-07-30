@@ -209,21 +209,22 @@ export default function ProtocolsList() {
   const { data: protocols, isLoading } = useListProtocols(queryParams);
   const { token } = useAuth();
 
-  // Busca quais protocolos têm audit_log de hoje — única chamada, sem depender de updatedAt
-  const { data: todayData } = useQuery<{ protocolIds: number[] }>({
+  // Busca protocolos com alterações não dispensadas (persiste além da virada do dia)
+  const { data: todayData } = useQuery<{ protocolIds: number[]; changedAt: Record<string, string> }>({
     queryKey: ["audit-today-changed"],
     queryFn: async () => {
       const res = await fetch("/api/audit-logs/today-changed", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: "include",
       });
-      if (!res.ok) return { protocolIds: [] };
+      if (!res.ok) return { protocolIds: [], changedAt: {} };
       return res.json();
     },
     staleTime: 60_000,
     refetchInterval: 60_000,
   });
   const todayChangedIds = new Set<number>(todayData?.protocolIds ?? []);
+  const changedAtMap: Record<string, string> = todayData?.changedAt ?? {};
 
   const [search, setSearch] = useState("");
 
@@ -334,16 +335,23 @@ export default function ProtocolsList() {
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {protocol.certNumber ? `${protocol.certNumber} · ` : ""}{protocol.companyName}
                     </div>
-                    {todayChangedIds.has(protocol.id) && (
-                      <div className="text-xs mt-0.5 font-medium flex items-center gap-1 text-orange-600">
-                        <Pencil className="h-2.5 w-2.5" />
-                        Alterado hoje
-                      </div>
-                    )}
+                    {todayChangedIds.has(protocol.id) && (() => {
+                      const ca = changedAtMap[String(protocol.id)];
+                      const d = ca ? new Date(ca) : null;
+                      const now = new Date();
+                      const isHoje = d && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+                      const label = isHoje ? "Alterado hoje" : ca ? `Alterado: ${d!.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}` : "Alterado";
+                      return (
+                        <div className="text-xs mt-0.5 font-medium flex items-center gap-1 text-orange-600">
+                          <Pencil className="h-2.5 w-2.5" />
+                          {label}
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap justify-end">
                     {todayChangedIds.has(protocol.id) && (
-                      <AuditBadge protocolId={protocol.id} />
+                      <AuditBadge protocolId={protocol.id} changedAt={changedAtMap[String(protocol.id)]} />
                     )}
                     {(protocol as { pendingSignatures?: boolean }).pendingSignatures && (
                       <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-300 rounded-full px-2.5 py-0.5">
