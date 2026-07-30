@@ -32,6 +32,8 @@ const UpdateMethodologyBody = z.object({
 
 const PropagateToSignedBody = z.object({
   protocolIds: z.array(z.number().int().positive()),
+  /** The shortName the signed protocols currently hold (before the rename, if any) */
+  oldShortName: z.string().optional(),
 });
 
 router.get("/methodologies", async (_req, res): Promise<void> => {
@@ -204,73 +206,95 @@ router.post("/methodologies/:id/propagate-to-signed", requireAuth, async (req, r
   const body = PropagateToSignedBody.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.message }); return; }
 
-  const [methodology] = await db
-    .select()
-    .from(methodologiesTable)
-    .where(eq(methodologiesTable.id, params.data.id));
-  if (!methodology) { res.status(404).json({ error: "Methodology not found" }); return; }
-
-  const { shortName, citation, criteria } = methodology;
-
-  const protocols = await db
-    .select({
-      id: protocolsTable.id,
-      paramMethodsJson: protocolsTable.paramMethodsJson,
-      paramMethodsCitationsJson: protocolsTable.paramMethodsCitationsJson,
-      customParamsJson: protocolsTable.customParamsJson,
-    })
-    .from(protocolsTable)
-    .where(inArray(protocolsTable.id, body.data.protocolIds));
-
-  let updatedCount = 0;
-
-  for (const protocol of protocols) {
-    let paramMethods: Record<string, string> = {};
-    try {
-      if (protocol.paramMethodsJson) paramMethods = JSON.parse(protocol.paramMethodsJson) as Record<string, string>;
-    } catch { continue; }
-
-    const affectedParams = Object.entries(paramMethods)
-      .filter(([, method]) => method === shortName)
-      .map(([paramName]) => paramName);
-
-    if (affectedParams.length === 0) continue;
-
-    let paramCitations: Record<string, string> = {};
-    try {
-      if (protocol.paramMethodsCitationsJson) paramCitations = JSON.parse(protocol.paramMethodsCitationsJson) as Record<string, string>;
-    } catch {}
-    for (const paramName of affectedParams) {
-      paramCitations[paramName] = citation;
-    }
-
-    let customParams: Array<{ parameter: string; criterion?: string; [key: string]: unknown }> = [];
-    let customParamsChanged = false;
-    try {
-      if (protocol.customParamsJson) customParams = JSON.parse(protocol.customParamsJson) as typeof customParams;
-    } catch {}
-    if (criteria) {
-      customParams = customParams.map((p) => {
-        if (affectedParams.includes(p.parameter)) {
-          customParamsChanged = true;
-          return { ...p, criterion: criteria };
-        }
-        return p;
-      });
-    }
-
-    await db
-      .update(protocolsTable)
-      .set({
-        paramMethodsCitationsJson: JSON.stringify(paramCitations),
-        ...(customParamsChanged ? { customParamsJson: JSON.stringify(customParams) } : {}),
-      })
-      .where(eq(protocolsTable.id, protocol.id));
-
-    updatedCount++;
+  // Guard against empty protocolIds — inArray([]) throws in Drizzle
+  if (body.data.protocolIds.length === 0) {
+    res.json({ updated: 0 });
+    return;
   }
 
-  res.json({ updated: updatedCount });
+  try {
+    const [methodology] = await db
+      .select()
+      .from(methodologiesTable)
+      .where(eq(methodologiesTable.id, params.data.id));
+    if (!methodology) { res.status(404).json({ error: "Methodology not found" }); return; }
+
+    const { citation, criteria } = methodology;
+    // Use oldShortName from body when provided (signed protocols may still hold the pre-rename value)
+    const matchShortName = body.data.oldShortName ?? methodology.shortName;
+    const newShortName = methodology.shortName;
+
+    const protocols = await db
+      .select({
+        id: protocolsTable.id,
+        paramMethodsJson: protocolsTable.paramMethodsJson,
+        paramMethodsCitationsJson: protocolsTable.paramMethodsCitationsJson,
+        customParamsJson: protocolsTable.customParamsJson,
+      })
+      .from(protocolsTable)
+      .where(inArray(protocolsTable.id, body.data.protocolIds));
+
+    let updatedCount = 0;
+
+    for (const protocol of protocols) {
+      let paramMethods: Record<string, string> = {};
+      try {
+        if (protocol.paramMethodsJson) paramMethods = JSON.parse(protocol.paramMethodsJson) as Record<string, string>;
+      } catch { continue; }
+
+      const affectedParams = Object.entries(paramMethods)
+        .filter(([, method]) => method === matchShortName)
+        .map(([paramName]) => paramName);
+
+      if (affectedParams.length === 0) continue;
+
+      // Update paramMethodsJson if shortName was renamed
+      if (newShortName !== matchShortName) {
+        for (const paramName of affectedParams) {
+          paramMethods[paramName] = newShortName;
+        }
+      }
+
+      let paramCitations: Record<string, string> = {};
+      try {
+        if (protocol.paramMethodsCitationsJson) paramCitations = JSON.parse(protocol.paramMethodsCitationsJson) as Record<string, string>;
+      } catch {}
+      for (const paramName of affectedParams) {
+        paramCitations[paramName] = citation;
+      }
+
+      let customParams: Array<{ parameter: string; criterion?: string; [key: string]: unknown }> = [];
+      let customParamsChanged = false;
+      try {
+        if (protocol.customParamsJson) customParams = JSON.parse(protocol.customParamsJson) as typeof customParams;
+      } catch {}
+      if (criteria) {
+        customParams = customParams.map((p) => {
+          if (affectedParams.includes(p.parameter)) {
+            customParamsChanged = true;
+            return { ...p, criterion: criteria };
+          }
+          return p;
+        });
+      }
+
+      await db
+        .update(protocolsTable)
+        .set({
+          paramMethodsJson: JSON.stringify(paramMethods),
+          paramMethodsCitationsJson: JSON.stringify(paramCitations),
+          ...(customParamsChanged ? { customParamsJson: JSON.stringify(customParams) } : {}),
+        })
+        .where(eq(protocolsTable.id, protocol.id));
+
+      updatedCount++;
+    }
+
+    res.json({ updated: updatedCount });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: `Erro ao propagar para protocolos assinados: ${message}` });
+  }
 });
 
 router.delete("/methodologies/:id", requireAuth, async (req, res): Promise<void> => {

@@ -6473,6 +6473,7 @@ function MethodologiaTab({
   const [propagateSignedDialog, setPropagateSignedDialog] = useState<{
     methodologyId: number;
     shortName: string;
+    oldShortName: string;   // shortName antes do rename — signed protocols ainda têm este valor
     criteria: string | null;
     skippedSigned: Array<{ id: number; productName: string }>;
   } | null>(null);
@@ -6532,6 +6533,7 @@ function MethodologiaTab({
       criteria: _newCriterion || null,
     };
     if (editParamMethod.libraryId) {
+      const _oldShortForParam = editParamMethod.shortName;
       updateMutation.mutate({ id: editParamMethod.libraryId, data: { ...libData, propagateSignedProtocols: false } as any }, {
         onSuccess: (data: any) => {
           setReturnToParam({ ...returnCtxBase, methodId: editParamMethod.libraryId! });
@@ -6539,6 +6541,7 @@ function MethodologiaTab({
             setPropagateSignedDialog({
               methodologyId: data.id,
               shortName: data.shortName,
+              oldShortName: _oldShortForParam,
               criteria: data.criteria ?? null,
               skippedSigned: data.skippedSigned,
             });
@@ -6552,9 +6555,13 @@ function MethodologiaTab({
           setReturnToParam({ ...returnCtxBase, methodId: data.id });
           if (editParamUpdateProtocols) {
             try {
+              const _tokLib = localStorage.getItem("alphafitus_token");
               const res = await fetch(`/api/methodologies/${data.id}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                  "Content-Type": "application/json",
+                  ...(_tokLib ? { Authorization: `Bearer ${_tokLib}` } : {}),
+                },
                 body: JSON.stringify({ ...libData, propagateSignedProtocols: false }),
                 credentials: "include",
               });
@@ -6565,6 +6572,7 @@ function MethodologiaTab({
                   setPropagateSignedDialog({
                     methodologyId: updateData.id,
                     shortName: updateData.shortName,
+                    oldShortName: libData.shortName,
                     criteria: updateData.criteria ?? null,
                     skippedSigned: updateData.skippedSigned,
                   });
@@ -6679,6 +6687,7 @@ function MethodologiaTab({
             setPropagateSignedDialog({
               methodologyId: resData.id,
               shortName: resData.shortName,
+              oldShortName: _oldShort,
               criteria: resData.criteria ?? null,
               skippedSigned: resData.skippedSigned,
             });
@@ -7228,22 +7237,30 @@ function MethodologiaTab({
                         "Content-Type": "application/json",
                         ...(_tok ? { Authorization: `Bearer ${_tok}` } : {}),
                       },
-                      body: JSON.stringify({ protocolIds: propagateSignedDialog.skippedSigned.map(p => p.id) }),
+                      body: JSON.stringify({
+                        protocolIds: propagateSignedDialog.skippedSigned.map(p => p.id),
+                        oldShortName: propagateSignedDialog.oldShortName,
+                      }),
                     });
-                    if (!res.ok) throw new Error("Falha na propagação");
+                    if (!res.ok) {
+                      let errMsg = "Falha na propagação";
+                      try { const j = await res.json(); errMsg = j.error ?? errMsg; } catch { /* ignore */ }
+                      throw new Error(errMsg);
+                    }
                     queryClient.invalidateQueries({ queryKey: getListProtocolsQueryKey() });
                     // Se o protocolo atual está na lista, atualiza editableParams
-                    const isCurrentProtocol = propagateSignedDialog.skippedSigned.some(p => p.id === numId);
+                    const isCurrentProtocol = propagateSignedDialog.skippedSigned.some(p => p.id === protocolId);
                     if (isCurrentProtocol && propagateSignedDialog.criteria) {
                       const _c = propagateSignedDialog.criteria;
-                      const _s = propagateSignedDialog.shortName;
+                      const _s = propagateSignedDialog.oldShortName;
                       setEditableParams(prev => prev.map(p =>
                         p.methodologyShort === _s ? { ...p, criterion: _c } : p
                       ));
                     }
                     toast({ title: `${propagateSignedDialog.skippedSigned.length} protocolo(s) assinado(s) atualizado(s)` });
-                  } catch {
-                    toast({ title: "Erro ao atualizar protocolos assinados", variant: "destructive" });
+                  } catch (err) {
+                    const _errMsg = err instanceof Error ? err.message : "Erro desconhecido";
+                    toast({ title: "Erro ao atualizar protocolos assinados", description: _errMsg, variant: "destructive" });
                   }
                   setPropagateSignedDialog(null);
                 }}
