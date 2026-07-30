@@ -4171,6 +4171,35 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     newBox: "standard" | "overage" | "extrap_std" | "extrap_overage";
     apply: () => void;
   } | null>(null);
+  const [validitySwapPwdValue, setValiditySwapPwdValue] = useState("");
+  const [validitySwapPwdError, setValiditySwapPwdError] = useState("");
+  const [validitySwapPwdLoading, setValiditySwapPwdLoading] = useState(false);
+  const [validitySwapPwdShow, setValiditySwapPwdShow] = useState(false);
+
+  const confirmValiditySwapPwd = async () => {
+    if (!validitySwapPwdValue.trim()) return;
+    setValiditySwapPwdLoading(true);
+    setValiditySwapPwdError("");
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: validitySwapPwdValue }),
+      });
+      if (res.ok) {
+        pendingValiditySwap?.apply();
+        setPendingValiditySwap(null);
+        setValiditySwapPwdValue("");
+        setValiditySwapPwdShow(false);
+      } else {
+        setValiditySwapPwdError("Senha incorreta.");
+        setValiditySwapPwdValue("");
+      }
+    } catch {
+      setValiditySwapPwdError("Erro de conexão.");
+    }
+    setValiditySwapPwdLoading(false);
+  };
 
   const [validityLockedByUser, setValidityLockedByUser] = useState<boolean>(() => {
     const ls = readLs();
@@ -5957,45 +5986,62 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       </div>
     </div>
 
-    {/* Dialog — confirmar troca da Validade Praticada digitada manualmente */}
-    <AlertDialog open={!!pendingValiditySwap} onOpenChange={(o) => { if (!o) setPendingValiditySwap(null); }}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle className="flex items-center gap-2">
-            🔒 Validade Praticada foi digitada manualmente
-          </AlertDialogTitle>
-          <AlertDialogDescription asChild>
-            <div className="space-y-3 text-sm">
-              <p>
-                O campo <span className="font-semibold text-foreground">Validade Praticada</span> tem um valor digitado manualmente:{" "}
-                <span className="font-bold text-foreground">{cardValidity} meses</span>.
-              </p>
-              <p>
-                Deseja mesmo substituir pelo valor calculado{" "}
-                <span className="font-bold text-foreground">{pendingValiditySwap?.newValue} meses</span>?
-              </p>
-              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                ⚠️ Ao confirmar, o valor digitado será descartado e o campo voltará a aceitar atualizações automáticas pelos cálculos.
-              </div>
-            </div>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setPendingValiditySwap(null)}>
-            Não, manter {cardValidity} meses
-          </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={() => {
-              if (!pendingValiditySwap) return;
-              pendingValiditySwap.apply();
-              setPendingValiditySwap(null);
-            }}
-          >
-            Sim, trocar para {pendingValiditySwap?.newValue} meses
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    {/* Modal de senha — Validade Praticada digitada manualmente está protegida */}
+    {!!pendingValiditySwap && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        onClick={() => { setPendingValiditySwap(null); setValiditySwapPwdValue(""); setValiditySwapPwdError(""); }}
+      >
+        <div className="bg-white rounded-lg shadow-xl w-96 p-5 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-2">
+            <Lock className="h-5 w-5 text-amber-600 shrink-0" />
+            <p className="font-semibold text-sm">Alterar Validade Praticada</p>
+          </div>
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 space-y-1">
+            <p>Valor atual (digitado manualmente): <span className="font-bold">{cardValidity} meses</span></p>
+            <p>Novo valor (calculado): <span className="font-bold">{pendingValiditySwap.newValue} meses</span></p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            A Validade Praticada foi definida manualmente e está protegida. Digite a senha mestra para substituí-la pelo valor calculado.
+          </p>
+          <div className="relative">
+            <input
+              type={validitySwapPwdShow ? "text" : "password"}
+              value={validitySwapPwdValue}
+              onChange={e => { setValiditySwapPwdValue(e.target.value); setValiditySwapPwdError(""); }}
+              onKeyDown={e => {
+                if (e.key === "Enter") confirmValiditySwapPwd();
+                if (e.key === "Escape") { setPendingValiditySwap(null); setValiditySwapPwdValue(""); setValiditySwapPwdError(""); }
+              }}
+              placeholder="Senha mestra"
+              autoFocus
+              className="w-full border border-border rounded px-3 py-1.5 text-sm pr-9 focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <button type="button" onClick={() => setValiditySwapPwdShow(s => !s)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">
+              {validitySwapPwdShow ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          {validitySwapPwdError && <p className="text-xs text-destructive font-medium -mt-2">{validitySwapPwdError}</p>}
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => { setPendingValiditySwap(null); setValiditySwapPwdValue(""); setValiditySwapPwdError(""); }}
+              className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted"
+            >
+              Cancelar — manter {cardValidity} meses
+            </button>
+            <button
+              type="button"
+              onClick={confirmValiditySwapPwd}
+              disabled={validitySwapPwdLoading || !validitySwapPwdValue.trim()}
+              className="text-xs px-3 py-1.5 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-50"
+            >
+              {validitySwapPwdLoading ? "Verificando…" : `Confirmar → ${pendingValiditySwap.newValue} meses`}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   </>);
 }
 
