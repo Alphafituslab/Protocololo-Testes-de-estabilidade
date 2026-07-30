@@ -56,6 +56,7 @@ export default function BackupDownloadWatcher() {
 
   const [offer, setOffer] = useState<BackupOffer | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const prevUsernameRef = useRef<string | null>(null);
 
   // ── Checa o servidor e oferece download se houver backup novo ────────────
@@ -123,12 +124,16 @@ export default function BackupDownloadWatcher() {
   const doDownload = async () => {
     if (!offer || !token) return;
     setDownloading(true);
+    setDownloadError(null);
     try {
       const res = await fetch(
         `/api/backup/download/${encodeURIComponent(offer.filename)}`,
         { credentials: "include", headers: { "Authorization": `Bearer ${token}` } }
       );
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? `Erro ${res.status}`);
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -141,7 +146,7 @@ export default function BackupDownloadWatcher() {
       localStorage.setItem(OFFERED_KEY, offer.filename);
       setOffer(null);
     } catch (err) {
-      console.error("Falha no download do backup:", err);
+      setDownloadError((err as Error).message ?? "Erro desconhecido ao baixar o backup.");
     } finally {
       setDownloading(false);
     }
@@ -206,6 +211,12 @@ export default function BackupDownloadWatcher() {
             </span>
           </div>
         </div>
+
+        {downloadError && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            <strong>Erro ao baixar:</strong> {downloadError}
+          </div>
+        )}
 
         <DialogFooter className="flex-row justify-end gap-2 pt-1">
           <Button variant="outline" onClick={dismiss} className="gap-1.5">

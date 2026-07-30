@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useAuth } from "@/contexts/use-auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,37 +59,74 @@ function fmtSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
-async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...(options?.headers ?? {}) },
-    ...options,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(body.error ?? `Erro ${res.status}`);
-  }
-  return res.json() as Promise<T>;
+function makeApiFetch(token: string | null) {
+  return async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
+    const res = await fetch(url, {
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options?.headers ?? {}),
+      },
+      ...options,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      throw new Error(body.error ?? `Erro ${res.status}`);
+    }
+    return res.json() as Promise<T>;
+  };
 }
 
 export default function BackupPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const { token } = useAuth();
+  const apiFetch = useCallback(makeApiFetch(token), [token]);
+
+  const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
+
+  const downloadFile = useCallback(async (filename: string) => {
+    setDownloadingFile(filename);
+    try {
+      const res = await fetch(`/api/backup/download/${encodeURIComponent(filename)}`, {
+        credentials: "include",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? `Erro ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast({ title: "Erro ao baixar backup", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setDownloadingFile(null);
+    }
+  }, [token, toast]);
 
   const { data: config, isLoading } = useQuery<BackupConfig>({
-    queryKey: ["backup-config"],
+    queryKey: ["backup-config", token],
     queryFn: () => apiFetch("/api/backup/config"),
   });
 
   const { data: history = [] } = useQuery<BackupFile[]>({
-    queryKey: ["backup-history"],
+    queryKey: ["backup-history", token],
     queryFn: () => apiFetch("/api/backup/history"),
     refetchInterval: 30_000,
   });
 
   const { data: cloudHistory = [] } = useQuery<CloudBackupFile[]>({
-    queryKey: ["backup-cloud-history"],
+    queryKey: ["backup-cloud-history", token],
     queryFn: () => apiFetch("/api/backup/cloud-history"),
     refetchInterval: 30_000,
   });
@@ -436,11 +474,16 @@ export default function BackupPage() {
                         {fmt(f.createdAt)} · {fmtSize(f.size)}
                       </p>
                     </div>
-                    <a href={`/api/backup/download/${encodeURIComponent(f.filename)}`} download={f.filename}>
-                      <Button variant="ghost" size="sm" className="gap-1.5 h-7 text-xs">
-                        <Download className="h-3.5 w-3.5" /> Baixar
-                      </Button>
-                    </a>
+                    <Button
+                      variant="ghost" size="sm"
+                      className="gap-1.5 h-7 text-xs"
+                      disabled={downloadingFile === f.filename}
+                      onClick={() => downloadFile(f.filename)}
+                    >
+                      {downloadingFile === f.filename
+                        ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Baixando…</>
+                        : <><Download className="h-3.5 w-3.5" /> Baixar</>}
+                    </Button>
                   </div>
                 ))}
               </div>
