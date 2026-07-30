@@ -57,7 +57,7 @@ const PRINT_SECTIONS = [
   { key: "s5",  label: "5. Resultados — Síntese" },
   { key: "s5b", label: "5b. Resultados Detalhados" },
   { key: "s6",  label: "6. Cinética de Estabilidade" },
-  { key: "s6b", label: "6b. Passo a Passo do Cálculo" },
+  { key: "s6b", label: "6b. Cálculo Cinético" },
   { key: "s7",  label: "7. Metodologias Analíticas" },
   { key: "s8",  label: "8. Conclusão" },
   { key: "s9",  label: "9. Assinaturas Eletrônicas" },
@@ -968,7 +968,7 @@ export default function ProtocolReportPage() {
 
           {/* 6b. Passo a Passo do Cálculo */}
           {validKParams.length > 0 && ps("s6b", (
-            <Section num="6b" title="Passo a Passo do Cálculo — Planilha Excel (ICH Q1A)">
+            <Section num="6b" title="CÁLCULO CINÉTICO">
               <p className="text-[8px] text-gray-500 mb-2 leading-relaxed">
                 Valores calculados por ativo a partir das médias dos lotes em T0, T3 e T6.
                 Modelo cinético de 1ª ordem (ICH Q1A(R2)):&nbsp;
