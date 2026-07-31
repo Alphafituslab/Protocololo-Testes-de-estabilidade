@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/use-auth";
+import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,6 +84,7 @@ export default function BackupPage() {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const { token } = useAuth();
+  const [, navigate] = useLocation();
   const apiFetch = useCallback(makeApiFetch(token), [token]);
 
   const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
@@ -168,6 +170,8 @@ export default function BackupPage() {
       window.dispatchEvent(new CustomEvent("backup-completed", {
         detail: { filename: data.filename, size: data.size, exportedAt: new Date().toISOString() }
       }));
+      // Fecha a tela de backup automaticamente após 1.5 s
+      setTimeout(() => navigate("/"), 1500);
     },
     onError: (e: Error) => toast({ title: "Erro no backup", description: e.message, variant: "destructive" }),
   });
@@ -261,7 +265,7 @@ export default function BackupPage() {
         <div className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2.5">
           <ShieldCheck className="h-4 w-4 text-emerald-700 mt-0.5 shrink-0" />
           <p className="text-xs text-emerald-800">
-            O backup automático está <strong>ativo por padrão</strong>, roda sozinho todo dia (nos dois horários abaixo)
+            O backup automático está <strong>ativo por padrão</strong>, roda sozinho todo dia (nos três horários abaixo)
             e cada cópia é enviada também para um armazenamento em nuvem separado do banco de dados — assim, mesmo em
             caso de invasão ou perda de dados, você tem como restaurar tudo rapidamente pela aba "Restaurar da Nuvem".
             Sempre que um backup é gerado, uma tela surgirá automaticamente perguntando se deseja salvar uma cópia no seu computador.
