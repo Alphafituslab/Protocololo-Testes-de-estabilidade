@@ -19,9 +19,10 @@ import SnapshotsGlobalPage from "./pages/snapshots-global";
 import AtivoReferencesPage from "./pages/ativo-references";
 import CoaPage, { CoaListPage, CoaDetailPage } from "./pages/coa";
 import ClientPortalPage from "./pages/client-portal";
+import ActiveSessionsPage from "./pages/active-sessions";
 import { AuthProvider } from "@/contexts/auth-context";
 import { useAuth } from "@/contexts/use-auth";
-import { FileText, Home, Users, LogOut, Loader2, AlertTriangle, RefreshCcw, BookOpen, DatabaseBackup, History, FlaskConical, ClipboardList } from "lucide-react";
+import { FileText, Home, Users, LogOut, Loader2, AlertTriangle, RefreshCcw, BookOpen, DatabaseBackup, History, FlaskConical, ClipboardList, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -226,6 +227,13 @@ function Layout({ children }: { children: React.ReactNode }) {
           <Link href="/coa" className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${location.startsWith("/coa") ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
             <ClipboardList className="h-4 w-4" /> CoA
           </Link>
+          {isAdmin && (
+            <Link href="/active-sessions" className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${location === "/active-sessions" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
+              <Activity className="h-4 w-4" />
+              <span>Usuários Online</span>
+              <span className="ml-auto flex h-2 w-2 rounded-full bg-green-500" />
+            </Link>
+          )}
         </nav>
         <SidebarFooter />
       </aside>
@@ -359,6 +367,7 @@ const CoaListRoute         = () => <ProtectedRoute component={CoaListPage} />;
 const CoaDetailRoute       = () => <ProtectedRoute component={CoaDetailPage} />;
   const BackupRoute           = () => <ProtectedRoute component={BackupPage} />;
 const SnapshotsGlobalRoute  = () => <ProtectedRoute component={SnapshotsGlobalPage} />;
+const ActiveSessionsRoute   = () => <ProtectedRoute component={ActiveSessionsPage} />;
 const ClientPortalRoute     = () => <ProtectedClientRoute component={ClientPortalPage} />;
 
 // ── /c?n=<certNumber> — short certificate URL (redirects to /protocols/:id/certificate) ──
@@ -416,6 +425,7 @@ function Router() {
       <Route path="/coa/:id" component={CoaDetailRoute} />
       <Route path="/snapshots" component={SnapshotsGlobalRoute} />
       <Route path="/backup"    component={BackupRoute} />
+      <Route path="/active-sessions" component={ActiveSessionsRoute} />
       <Route path="/client-portal" component={ClientPortalRoute} />
       <Route component={NotFound} />
     </Switch>

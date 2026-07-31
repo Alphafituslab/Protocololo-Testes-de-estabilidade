@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, usersTable, sessionsTable } from "@workspace/db";
+import { eq, gt } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { requireAuth, requireAdmin } from "../lib/session";
 import { defaultPermissionsForRole } from "../lib/permissions";
@@ -21,6 +21,50 @@ const PUBLIC_FIELDS = {
 function sanitizeRole(role: string | undefined): string {
   return VALID_ROLES.includes(role as ValidRole) ? (role as string) : "analyst";
 }
+
+// Active sessions — who is currently logged in (admin only)
+router.get("/users/active-sessions", requireAuth, requireAdmin, async (_req, res): Promise<void> => {
+  try {
+    const now = new Date();
+    const rows = await db
+      .select({
+        userId: usersTable.id,
+        username: usersTable.username,
+        displayName: usersTable.displayName,
+        role: usersTable.role,
+        loginAt: sessionsTable.createdAt,
+        expiresAt: sessionsTable.expiresAt,
+      })
+      .from(sessionsTable)
+      .innerJoin(usersTable, eq(sessionsTable.userId, usersTable.id))
+      .where(gt(sessionsTable.expiresAt, now));
+
+    // Agrupa por usuário: mantém a sessão mais recente e conta quantas tem
+    const byUser = new Map<number, {
+      userId: number; username: string; displayName: string; role: string;
+      loginAt: Date; expiresAt: Date; sessionCount: number;
+    }>();
+    for (const r of rows) {
+      const existing = byUser.get(r.userId);
+      if (!existing) {
+        byUser.set(r.userId, { ...r, sessionCount: 1 });
+      } else {
+        existing.sessionCount++;
+        if (r.loginAt > existing.loginAt) {
+          existing.loginAt = r.loginAt;
+          existing.expiresAt = r.expiresAt;
+        }
+      }
+    }
+
+    // Ordena por loginAt mais recente primeiro
+    const result = [...byUser.values()].sort((a, b) => b.loginAt.getTime() - a.loginAt.getTime());
+    res.json(result);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: msg });
+  }
+});
 
 // List users (admin only)
 router.get("/users", requireAuth, requireAdmin, async (_req, res): Promise<void> => {
