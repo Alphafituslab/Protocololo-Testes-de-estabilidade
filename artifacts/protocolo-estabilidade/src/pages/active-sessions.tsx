@@ -4,7 +4,17 @@ import { useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Wifi } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { RefreshCw, Wifi, LogOut, Loader2 } from "lucide-react";
 import { ROLE_LABELS } from "./users";
 
 interface ActiveSession {
@@ -12,7 +22,7 @@ interface ActiveSession {
   username: string;
   displayName: string;
   role: string;
-  loginAt: string;   // mais recente sessão criada
+  loginAt: string;
   expiresAt: string;
   sessionCount: number;
 }
@@ -37,6 +47,11 @@ export default function ActiveSessionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
+  // Confirmação de encerramento
+  const [confirmKick, setConfirmKick] = useState<ActiveSession | null>(null);
+  const [kicking, setKicking] = useState(false);
+  const [kickError, setKickError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!isAdmin) { navigate("/"); return; }
   }, [isAdmin, navigate]);
@@ -56,6 +71,29 @@ export default function ActiveSessionsPage() {
       setError(e instanceof Error ? e.message : "Erro ao carregar sessões");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const kickUser = async (s: ActiveSession) => {
+    setKicking(true);
+    setKickError(null);
+    try {
+      const tok = localStorage.getItem("alphafitus_token");
+      const res = await fetch(`/api/users/${s.userId}/sessions`, {
+        method: "DELETE",
+        headers: tok ? { Authorization: `Bearer ${tok}` } : {},
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(j.error ?? `HTTP ${res.status}`);
+      }
+      setConfirmKick(null);
+      // Remove da lista localmente antes do próximo auto-refresh
+      setSessions((prev) => prev.filter((x) => x.userId !== s.userId));
+    } catch (e) {
+      setKickError(e instanceof Error ? e.message : "Erro ao encerrar sessão");
+    } finally {
+      setKicking(false);
     }
   };
 
@@ -93,7 +131,7 @@ export default function ActiveSessionsPage() {
         </Button>
       </div>
 
-      {/* Erro */}
+      {/* Erro de carregamento */}
       {error && (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
@@ -144,10 +182,23 @@ export default function ActiveSessionsPage() {
                   <p className="text-xs text-muted-foreground mt-0.5">@{s.username}</p>
                 </div>
 
-                {/* Tempo de login */}
-                <div className="text-right shrink-0">
-                  <p className="text-xs font-medium text-muted-foreground">logado</p>
-                  <p className="text-xs text-foreground">{formatRelative(s.loginAt)}</p>
+                {/* Tempo + botão encerrar */}
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-right">
+                    <p className="text-xs font-medium text-muted-foreground">logado</p>
+                    <p className="text-xs text-foreground">{formatRelative(s.loginAt)}</p>
+                  </div>
+                  {!isSelf && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => { setKickError(null); setConfirmKick(s); }}
+                      title="Encerrar sessão"
+                    >
+                      <LogOut className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             );
@@ -155,11 +206,48 @@ export default function ActiveSessionsPage() {
         </div>
       )}
 
-      {/* Nota de expiração */}
+      {/* Nota */}
       <p className="text-xs text-muted-foreground text-center">
-        Sessões com validade expirada são automaticamente excluídas ao fazer login.
-        A lista atualiza a cada 30 segundos.
+        Encerrar a sessão de um usuário desconecta-o imediatamente. A lista atualiza a cada 30 segundos.
       </p>
+
+      {/* Dialog de confirmação */}
+      <AlertDialog open={!!confirmKick} onOpenChange={(o) => { if (!o) setConfirmKick(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Encerrar sessão</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Deseja encerrar {confirmKick && confirmKick.sessionCount > 1
+                    ? `todas as ${confirmKick.sessionCount} sessões`
+                    : "a sessão"} de{" "}
+                  <span className="font-semibold text-foreground">{confirmKick?.displayName}</span>?
+                </p>
+                <p className="text-xs">
+                  O usuário será desconectado imediatamente e precisará fazer login novamente.
+                </p>
+                {kickError && (
+                  <p className="text-xs text-destructive font-medium">{kickError}</p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={kicking}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={kicking}
+              onClick={(e) => {
+                e.preventDefault();
+                if (confirmKick) kickUser(confirmKick);
+              }}
+            >
+              {kicking ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Encerrando…</> : "Sim, encerrar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

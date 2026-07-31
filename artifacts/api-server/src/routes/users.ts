@@ -66,6 +66,20 @@ router.get("/users/active-sessions", requireAuth, requireAdmin, async (_req, res
   }
 });
 
+// Terminate all sessions of a user (admin only — cannot terminate own sessions)
+router.delete("/users/:userId/sessions", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const userId = parseInt(String(req.params["userId"] ?? ""));
+  if (isNaN(userId)) { res.status(400).json({ error: "ID inválido." }); return; }
+  if (req.authUser?.id === userId) { res.status(400).json({ error: "Não é possível encerrar a própria sessão por aqui. Use o botão Sair." }); return; }
+  try {
+    await db.delete(sessionsTable).where(eq(sessionsTable.userId, userId));
+    res.json({ ok: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: msg });
+  }
+});
+
 // List users (admin only)
 router.get("/users", requireAuth, requireAdmin, async (_req, res): Promise<void> => {
   const users = await db.select(PUBLIC_FIELDS).from(usersTable).orderBy(usersTable.createdAt);
