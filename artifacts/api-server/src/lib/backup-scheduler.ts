@@ -129,7 +129,7 @@ export async function runBackup(): Promise<{ filename: string; size: number; exp
   const pad = (n: number) => String(n).padStart(2, "0");
   const dateStr = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
   const timeStr = `${pad(now.getHours())}h${pad(now.getMinutes())}`;
-  const filename = `backup - protocolo de testes de estabilidade - ${dateStr} ${timeStr}.json`;
+  const filename = `Protocolo de Testes de Estabilidade - backup - ${dateStr} ${timeStr}.json`;
   const filepath = path.join(BACKUP_DIR, filename);
 
   const [protocols, lots, results, anvisaEntries, bibliographicRefs, protocolRefs] = await Promise.all([
