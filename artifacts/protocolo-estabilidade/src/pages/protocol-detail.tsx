@@ -5762,6 +5762,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                   <Input
                     type="password"
                     placeholder="Senha mestra"
+                    autoComplete="off"
                     value={deletePassword}
                     onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(""); }}
                     onKeyDown={(e) => { if (e.key === "Enter") handleDeleteParam(); }}
@@ -7494,6 +7495,7 @@ function MethodologiaTab({
                   <input
                     type="password"
                     autoFocus
+                    autoComplete="off"
                     value={removeMethodPwd}
                     onChange={(e) => setRemoveMethodPwd(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") handleRemoveMethodology(); }}
@@ -7562,6 +7564,7 @@ function MethodologiaTab({
                 <input
                   type={deleteMethPwdShow ? "text" : "password"}
                   autoFocus
+                  autoComplete="off"
                   value={deleteMethPwd}
                   onChange={e => { setDeleteMethPwd(e.target.value); setDeleteMethPwdError(""); }}
                   onKeyDown={e => {
@@ -8987,6 +8990,7 @@ function VersionsTab({ protocolId }: { protocolId: number }) {
                   <Input
                     type="password"
                     placeholder="Senha mestra"
+                    autoComplete="off"
                     value={restorePassword}
                     onChange={(e) => { setRestorePassword(e.target.value); setRestoreError(""); }}
                     onKeyDown={(e) => { if (e.key === "Enter") handleRestore(); }}
@@ -10674,6 +10678,7 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
                 <input
                   type={removeRefPwdShow ? "text" : "password"}
                   autoFocus
+                  autoComplete="off"
                   value={removeRefPwd}
                   onChange={e => { setRemoveRefPwd(e.target.value); setRemoveRefPwdError(""); }}
                   onKeyDown={e => {
