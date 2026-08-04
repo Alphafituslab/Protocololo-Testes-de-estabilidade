@@ -30,13 +30,36 @@ async function logLogin(opts: {
   } catch { /* non-critical — never fail login because of log error */ }
 }
 
-// Legacy master password verify (UnlockDialog compatibility)
-router.post("/auth/verify", (req, res): void => {
+// Password verify — used throughout the app to confirm identity before sensitive actions.
+// Priority: 1) bcrypt compare against the logged-in user's passwordHash (DB),
+//           2) fallback to MASTER_PASSWORD env var (legacy / emergency access).
+router.post("/auth/verify", async (req, res): Promise<void> => {
   const { password } = req.body as { password?: string };
+  if (!password) { res.status(401).json({ error: "Senha obrigatória." }); return; }
+
+  // 1. Try the logged-in user's own password (same credential used to log in)
+  if (req.authUser) {
+    try {
+      const [user] = await db
+        .select({ passwordHash: usersTable.passwordHash })
+        .from(usersTable)
+        .where(eq(usersTable.id, req.authUser.id))
+        .limit(1);
+      if (user && await bcrypt.compare(password, user.passwordHash)) {
+        res.json({ ok: true });
+        return;
+      }
+    } catch { /* fall through to MASTER_PASSWORD */ }
+  }
+
+  // 2. Fallback: MASTER_PASSWORD env var (works even when not logged in, e.g. setup flows)
   const masterPassword = process.env["MASTER_PASSWORD"];
-  if (!masterPassword) { res.status(503).json({ error: "Senha mestra não configurada." }); return; }
-  if (!password || password !== masterPassword) { res.status(401).json({ error: "Senha incorreta." }); return; }
-  res.json({ ok: true });
+  if (masterPassword && password === masterPassword) {
+    res.json({ ok: true });
+    return;
+  }
+
+  res.status(401).json({ error: "Senha incorreta." });
 });
 
 // Check if first-time setup is needed
