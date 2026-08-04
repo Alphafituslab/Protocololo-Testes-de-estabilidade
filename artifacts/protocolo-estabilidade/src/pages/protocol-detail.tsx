@@ -4669,11 +4669,15 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
 
   const saveOverridesToDb = () => {
     setIsSaving(true);
+    const isLocked = validityLockedRef.current || validityLockedByUser;
     const payload: KineticsOverridesDB = {
       savedAt: new Date().toISOString(),
       params: {},
       customShelfLife: customShelfLife || undefined,
       selectedShelfBox: selectedShelfBox ?? undefined,
+      // Always preserve the validity lock so it survives Save
+      validityLocked: isLocked || undefined,
+      cardValidity: isLocked ? cardValidity : undefined,
     };
     for (const [param, ov] of Object.entries(overrides)) {
       payload.params![param] = {
@@ -5234,6 +5238,15 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                     autoFocus={validityDirectEditing}
                     value={cardValidity}
                     onChange={(e) => {
+                      // Safety net: se já existe um valor e o usuário não desbloqueou via senha,
+                      // bloqueia a edição e abre o diálogo de senha.
+                      if ((validityLockedByUser || validityLockedRef.current) && !validityDirectEditing) {
+                        setValidityDirectEditOpen(true);
+                        setValidityDirectEditPwd("");
+                        setValidityDirectEditPwdError("");
+                        setValidityDirectEditPwdShow(false);
+                        return;
+                      }
                       const val = e.target.value;
                       validityLockedRef.current = true;
                       setValidityLockedByUser(true);
@@ -8590,19 +8603,21 @@ export default function ProtocolDetail() {
     // Convert from localStorage format → DB format so the certificate server
     // can read them via getKineticsT6(param).
     type KineticOvEntry = { t0?: string; t3?: string; t6?: string; specMin?: string; specMax?: string; validadePraticada?: string; ichThreshold?: string };
-    type KineticsOvDB = { savedAt?: string; params?: Record<string, KineticOvEntry>; customShelfLife?: string; selectedShelfBox?: string };
+    type KineticsOvDB = { savedAt?: string; params?: Record<string, KineticOvEntry>; customShelfLife?: string; selectedShelfBox?: string; validityLocked?: boolean; cardValidity?: string };
     let kineticsOverridesPayload: string | null = null;
     try {
       const kinLsKey = `kinetics_overrides_${numId}`;
       const kinRaw = localStorage.getItem(kinLsKey);
       if (kinRaw) {
-        const stored = JSON.parse(kinRaw) as { overrides?: Record<string, KineticOvEntry>; customShelfLife?: string };
+        const stored = JSON.parse(kinRaw) as { overrides?: Record<string, KineticOvEntry>; customShelfLife?: string; validityLockedByUser?: boolean; cardValidity?: string };
         if (stored.overrides && Object.keys(stored.overrides).length > 0) {
           const payload: KineticsOvDB = {
             savedAt: new Date().toISOString(),
             params: {},
             customShelfLife: stored.customShelfLife || undefined,
             selectedShelfBox: (stored as Record<string, unknown>).selectedShelfBox as string | undefined,
+            validityLocked: stored.validityLockedByUser || undefined,
+            cardValidity: stored.validityLockedByUser ? stored.cardValidity : undefined,
           };
           for (const [param, ov] of Object.entries(stored.overrides)) {
             payload.params![param] = {
