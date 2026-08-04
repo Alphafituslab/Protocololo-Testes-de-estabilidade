@@ -58,6 +58,51 @@ function pruneLocalBySlot(slot: string, keepFile: string): void {
   }
 }
 
+/** Mantém apenas os `maxCount` backups locais mais recentes (por mtime). Sempre preserva `keepFile`. */
+function pruneLocalToMax(maxCount: number, keepFile: string): void {
+  try {
+    ensureDir();
+    const files = fs
+      .readdirSync(BACKUP_DIR)
+      .filter(f => f.endsWith(".json") && f.startsWith("backup") || f.startsWith("Protocolo"))
+      .map(f => ({ name: f, mtime: fs.statSync(path.join(BACKUP_DIR, f)).mtimeMs }))
+      .sort((a, b) => b.mtime - a.mtime); // mais recente primeiro
+
+    // Arquivos além do limite que não sejam o recém-criado
+    const toDelete = files.slice(maxCount).filter(f => f.name !== keepFile);
+    for (const f of toDelete) {
+      try { fs.unlinkSync(path.join(BACKUP_DIR, f.name)); } catch { /* ignore */ }
+    }
+    if (toDelete.length > 0) {
+      logger.info({ deleted: toDelete.map(f => f.name) }, "backup: poda local — mantidos apenas os 3 mais recentes");
+    }
+  } catch (e) {
+    logger.warn({ err: e }, "backup: pruneLocalToMax falhou");
+  }
+}
+
+/** Mantém apenas os `maxCount` backups na nuvem mais recentes. Sempre preserva `keepFilename`. */
+async function pruneCloudToMax(maxCount: number, keepFilename: string): Promise<void> {
+  const target = cloudBucketAndPrefix();
+  if (!target) return;
+  try {
+    const bucket = objectStorageClient.bucket(target.bucketName);
+    const [files] = await bucket.getFiles({ prefix: target.prefix });
+    const sorted = files
+      .map(f => ({ file: f, base: f.name.slice(target.prefix.length), updated: f.metadata?.updated ?? "" }))
+      .filter(f => f.base.endsWith(".json"))
+      .sort((a, b) => b.updated.localeCompare(a.updated)); // mais recente primeiro
+
+    const toDelete = sorted.slice(maxCount).filter(f => f.base !== keepFilename);
+    await Promise.all(toDelete.map(f => f.file.delete().catch(() => {})));
+    if (toDelete.length > 0) {
+      logger.info({ deleted: toDelete.map(f => f.base) }, "backup: poda nuvem — mantidos apenas os 3 mais recentes");
+    }
+  } catch (e) {
+    logger.warn({ err: e }, "backup: pruneCloudToMax falhou");
+  }
+}
+
 /** Remove backups na nuvem do mesmo slot de horário, mantendo só `keepFilename`. */
 async function pruneCloudBySlot(slot: string, keepFilename: string): Promise<void> {
   const target = cloudBucketAndPrefix();
@@ -168,6 +213,10 @@ export async function runBackup(): Promise<{ filename: string; size: number; exp
   const slot = timeStr; // ex: "08h00"
   pruneLocalBySlot(slot, filename);
   pruneCloudBySlot(slot, filename).catch(() => {});
+
+  // Limite global: mantém no máximo 3 backups no disco e na nuvem
+  pruneLocalToMax(3, filename);
+  pruneCloudToMax(3, filename).catch(() => {});
 
   const { size } = fs.statSync(filepath);
   return { filename, size, exportedAt: now.toISOString() };
