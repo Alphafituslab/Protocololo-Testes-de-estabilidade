@@ -336,7 +336,7 @@ function UserForm({ initial, onSave, isEdit }: {
           <Input type={showPassword ? "text" : "password"} placeholder={isEdit ? "••••••" : "Mínimo 6 caracteres"} value={form.password}
             onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
             minLength={isEdit ? 0 : 6} required={!isEdit} className="pr-10"
-            autoComplete={isEdit ? "new-password" : "current-password"} />
+            autoComplete="new-password" />
           <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowPassword((s) => !s)}>
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
