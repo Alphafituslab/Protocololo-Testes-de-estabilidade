@@ -47,3 +47,7 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Large local files that do not belong in git
+artifacts/api-server/backups/
+attached_assets/
