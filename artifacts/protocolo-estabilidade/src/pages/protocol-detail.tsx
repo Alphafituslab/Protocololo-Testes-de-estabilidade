@@ -5238,7 +5238,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                     autoFocus={validityDirectEditing}
                     value={cardValidity}
                     onChange={(e) => {
-                      // Safety net: se já existe um valor e o usuário não desbloqueou via senha,
+                      // Safety net: se o campo está travado e o usuário não desbloqueou via senha,
                       // bloqueia a edição e abre o diálogo de senha.
                       if ((validityLockedByUser || validityLockedRef.current) && !validityDirectEditing) {
                         setValidityDirectEditOpen(true);
@@ -5247,11 +5247,20 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                         setValidityDirectEditPwdShow(false);
                         return;
                       }
+                      // Enquanto digita: só atualiza o valor. O ref impede cliques nas caixinhas.
+                      // O estado de trava (validityLockedByUser) só é aplicado no onBlur.
                       const val = e.target.value;
+                      validityLockedRef.current = true; // bloqueia caixinhas durante digitação
+                      setCardValidity(val);
+                      setIsDirty(true);
+                    }}
+                    onBlur={(e) => {
+                      const val = e.target.value;
+                      if (!val.trim()) { setValidityDirectEditing(false); return; }
+                      // Ao sair do campo: trava o estado e persiste
                       validityLockedRef.current = true;
                       setValidityLockedByUser(true);
                       setValidityDirectEditing(false);
-                      setCardValidity(val);
                       const nextOvs: Record<string, KineticOverride> = {};
                       setOverrides(prev => {
                         for (const [key, ov] of Object.entries(prev)) {
@@ -5259,7 +5268,6 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                         }
                         return nextOvs;
                       });
-                      setIsDirty(true);
                       try {
                         const stored = readLs();
                         const updatedOvs: Record<string, KineticOverride> = {};
@@ -5270,10 +5278,8 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
                       } catch { /* ignore */ }
                       const num = parseInt(val, 10);
                       debouncedSave({ validityMonths: isNaN(num) ? null : num });
-                      // Salva também no kineticsOverridesJson para persistência cross-device
                       debouncedSaveKineticsValidity(val, nextOvs);
                     }}
-                    onBlur={() => setValidityDirectEditing(false)}
                     className="w-20 text-2xl font-bold text-green-800 bg-green-100 border border-green-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
                     placeholder="—"
                   />
