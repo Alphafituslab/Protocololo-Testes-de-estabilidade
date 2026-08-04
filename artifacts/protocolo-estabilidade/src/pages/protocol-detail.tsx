@@ -4199,6 +4199,13 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const [cardValidity, setCardValidity] = useState<string>(() => {
     const ls = readLs();
     if (typeof ls.cardValidity === "string" && ls.cardValidity !== "") return ls.cardValidity;
+    // Restore from DB synchronously (cross-device, survives localStorage clear)
+    try {
+      if (initialKineticsOverridesJson) {
+        const db = JSON.parse(initialKineticsOverridesJson) as KineticsOverridesDB;
+        if (typeof db?.cardValidity === "string" && db.cardValidity !== "") return db.cardValidity;
+      }
+    } catch { /* ignore */ }
     return initialValidityMonths != null ? String(initialValidityMonths) : "";
   });
   // Quando true, nenhum clique nas caixinhas pode mudar o valor — só o input manual.
@@ -4230,7 +4237,16 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
         body: JSON.stringify({ password: validitySwapPwdValue }),
       });
       if (res.ok) {
-        pendingValiditySwap?.apply();
+        // Apply the swap without calling apply() which would unlock.
+        // Instead: set the new value, keep it locked, and persist to DB.
+        const swapNewValue = pendingValiditySwap!.newValue;
+        const swapNewBox = pendingValiditySwap!.newBox;
+        setSelectedShelfBox(swapNewBox);
+        setCardValidity(swapNewValue);
+        validityLockedRef.current = true;
+        setValidityLockedByUser(true);
+        // Persist new locked value to DB immediately
+        debouncedSaveKineticsValidity(swapNewValue, overrides);
         setPendingValiditySwap(null);
         setValiditySwapPwdValue("");
         setValiditySwapPwdShow(false);
@@ -4273,12 +4289,29 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   };
 
   const [validityLockedByUser, setValidityLockedByUser] = useState<boolean>(() => {
-    const ls = readLs();
-    return !!ls.validityLockedByUser;
+    if (readLs().validityLockedByUser) return true;
+    // Also check DB synchronously so the lock survives a page refresh on any device
+    try {
+      if (initialKineticsOverridesJson) {
+        const db = JSON.parse(initialKineticsOverridesJson) as KineticsOverridesDB;
+        if (db?.validityLocked) return true;
+      }
+    } catch { /* ignore */ }
+    return false;
   });
   // Ref síncrono — evita stale-closure quando o usuário digita e clica imediatamente.
   // O estado React pode não ter commitado ainda, mas o ref é sempre atual.
-  const validityLockedRef = useRef<boolean>(!!readLs().validityLockedByUser);
+  const validityLockedRef = useRef<boolean>(
+    readLs().validityLockedByUser ? true : (() => {
+      try {
+        if (initialKineticsOverridesJson) {
+          const db = JSON.parse(initialKineticsOverridesJson) as KineticsOverridesDB;
+          return !!db?.validityLocked;
+        }
+      } catch { /* ignore */ }
+      return false;
+    })(),
+  );
   const [kineticsObs, setKineticsObs] = useState<string>(() => {
     const ls = readLs();
     if (typeof ls.kineticsObs === "string") return ls.kineticsObs;
