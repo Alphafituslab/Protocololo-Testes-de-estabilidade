@@ -204,14 +204,14 @@ export default function LoginPage() {
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="username">Usuário</Label>
-                <Input id="username" placeholder="nome.usuario" value={username}
+                <Input id="username" name="username" placeholder="nome.usuario" value={username}
                   onChange={(e) => { setUsername(e.target.value); setLoginError(null); }}
                   required autoCapitalize="none" autoComplete="username" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Senha</Label>
                 <div className="relative">
-                  <Input id="password" type={showPassword ? "text" : "password"} value={password}
+                  <Input id="password" name="password" type={showPassword ? "text" : "password"} value={password}
                     onChange={(e) => { setPassword(e.target.value); setLoginError(null); }}
                     required className="pr-10" autoComplete="current-password" />
                   <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
