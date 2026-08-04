@@ -4121,6 +4121,10 @@ type KineticsOverridesDB = {
   }>;
   customShelfLife?: string;
   selectedShelfBox?: "standard" | "overage" | "extrap_std" | "extrap_overage" | null;
+  /** true quando o usuário travou a Validade Praticada manualmente */
+  validityLocked?: boolean;
+  /** valor digitado pelo usuário para Validade Praticada */
+  cardValidity?: string;
 };
 
 function KineticsTab({ protocolId, productName, initialKineticsNotes, initialValidityMonths, customParamsJson, initialKineticsOverridesJson, ativoLimitsJson, onApplyOverage, onRecommendedOverages, onSyncCertificate, isSyncingCertificate }: {
@@ -4150,6 +4154,38 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     }, 800);
   }, [protocolId, updateProtocol]);
 
+  // Timer para salvar kineticsOverridesJson quando a validade praticada muda via input direto
+  const validityDbSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestOverridesRef = useRef<Record<string, KineticOverride>>({});
+  const latestCardValidityRef = useRef<string>("");
+
+  const debouncedSaveKineticsValidity = useCallback((
+    val: string,
+    currentOverrides: Record<string, KineticOverride>,
+    extraProps?: Partial<KineticsOverridesDB>,
+  ) => {
+    latestCardValidityRef.current = val;
+    latestOverridesRef.current = currentOverrides;
+    if (validityDbSaveTimer.current) clearTimeout(validityDbSaveTimer.current);
+    validityDbSaveTimer.current = setTimeout(() => {
+      const payload: KineticsOverridesDB = {
+        savedAt: new Date().toISOString(),
+        validityLocked: true,
+        cardValidity: latestCardValidityRef.current,
+        params: Object.fromEntries(
+          Object.entries(latestOverridesRef.current).map(([param, ov]) => [param, {
+            t0: ov.t0, t3: ov.t3, t6: ov.t6,
+            specMin: ov.specMin, specMax: ov.specMax,
+            validadePraticada: latestCardValidityRef.current,
+            ichThreshold: ov.ichThreshold,
+          }]),
+        ),
+        ...extraProps,
+      };
+      updateProtocol.mutate({ id: protocolId, data: { kineticsOverridesJson: JSON.stringify(payload) } });
+    }, 1200);
+  }, [protocolId, updateProtocol]);
+
   const LS_KEY = `kinetics_overrides_${protocolId}`;
 
   const readLs = () => {
@@ -4175,6 +4211,13 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   const [validitySwapPwdError, setValiditySwapPwdError] = useState("");
   const [validitySwapPwdLoading, setValiditySwapPwdLoading] = useState(false);
   const [validitySwapPwdShow, setValiditySwapPwdShow] = useState(false);
+  // Unlock direto do campo Validade Praticada via senha
+  const [validityDirectEditOpen, setValidityDirectEditOpen] = useState(false);
+  const [validityDirectEditPwd, setValidityDirectEditPwd] = useState("");
+  const [validityDirectEditPwdError, setValidityDirectEditPwdError] = useState("");
+  const [validityDirectEditPwdLoading, setValidityDirectEditPwdLoading] = useState(false);
+  const [validityDirectEditPwdShow, setValidityDirectEditPwdShow] = useState(false);
+  const [validityDirectEditing, setValidityDirectEditing] = useState(false); // true após senha correta
 
   const confirmValiditySwapPwd = async () => {
     if (!validitySwapPwdValue.trim()) return;
@@ -4199,6 +4242,34 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       setValiditySwapPwdError("Erro de conexão.");
     }
     setValiditySwapPwdLoading(false);
+  };
+
+  const confirmValidityDirectEditPwd = async () => {
+    if (!validityDirectEditPwd.trim()) return;
+    setValidityDirectEditPwdLoading(true);
+    setValidityDirectEditPwdError("");
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: validityDirectEditPwd }),
+      });
+      if (res.ok) {
+        setValidityDirectEditOpen(false);
+        setValidityDirectEditPwd("");
+        setValidityDirectEditPwdShow(false);
+        setValidityDirectEditing(true);
+        // Destrava apenas temporariamente para o usuário digitar o novo valor
+        validityLockedRef.current = false;
+        setValidityLockedByUser(false);
+      } else {
+        setValidityDirectEditPwdError("Senha incorreta.");
+        setValidityDirectEditPwd("");
+      }
+    } catch {
+      setValidityDirectEditPwdError("Erro de conexão.");
+    }
+    setValidityDirectEditPwdLoading(false);
   };
 
   const [validityLockedByUser, setValidityLockedByUser] = useState<boolean>(() => {
@@ -4407,6 +4478,14 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       if (initialKineticsOverridesJson) {
         dbOverrides = JSON.parse(initialKineticsOverridesJson) as KineticsOverridesDB;
         if (dbOverrides?.customShelfLife) savedCustomShelfLife = dbOverrides.customShelfLife;
+        // Restaura trava de validade e cardValidity do banco (cross-device)
+        if (dbOverrides?.validityLocked) {
+          validityLockedRef.current = true;
+          setValidityLockedByUser(true);
+        }
+        if (dbOverrides?.cardValidity && !savedCardValidity) {
+          savedCardValidity = dbOverrides.cardValidity;
+        }
       }
     } catch { /* ignore */ }
 
@@ -5090,38 +5169,69 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
 
             {/* BOX 3 — Validade Praticada */}
             <div className="flex-1 min-w-[160px] text-right">
-              <p className="text-xs text-green-700 font-medium uppercase tracking-wide mb-1">Validade Praticada</p>
+              <p className="text-xs text-green-700 font-medium uppercase tracking-wide mb-1 flex items-center gap-1 justify-end">
+                Validade Praticada
+                {validityLockedByUser && !validityDirectEditing && (
+                  <Lock className="h-3 w-3 text-green-700 shrink-0" />
+                )}
+              </p>
               <div className="flex items-center gap-2 justify-end">
-                <input
-                  value={cardValidity}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    // Digitar manualmente fixa o valor — caixinhas não podem mais sobrescrever.
-                    validityLockedRef.current = true; // síncrono — sem race condition
-                    setValidityLockedByUser(true);
-                    setCardValidity(val);
-                    setOverrides(prev => {
-                      const next: Record<string, KineticOverride> = {};
-                      for (const [key, ov] of Object.entries(prev)) {
-                        next[key] = { ...ov, validadePraticada: val };
-                      }
-                      return next;
-                    });
-                    setIsDirty(true);
-                    try {
-                      const stored = readLs();
-                      const updatedOvs: Record<string, KineticOverride> = {};
-                      for (const [key, ov] of Object.entries(stored.overrides ?? {})) {
-                        updatedOvs[key] = { ...(ov as KineticOverride), validadePraticada: val };
-                      }
-                      localStorage.setItem(LS_KEY, JSON.stringify({ ...stored, cardValidity: val, validityLockedByUser: true, overrides: updatedOvs }));
-                    } catch { /* ignore */ }
-                    const num = parseInt(val, 10);
-                    debouncedSave({ validityMonths: isNaN(num) ? null : num });
-                  }}
-                  className="w-20 text-2xl font-bold text-green-800 bg-green-100 border border-green-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
-                  placeholder="—"
-                />
+                {/* Campo travado: exibe o valor + botão cadeado para editar com senha */}
+                {validityLockedByUser && !validityDirectEditing ? (
+                  <div className="flex items-center gap-1">
+                    <span className="w-20 text-2xl font-bold text-green-800 bg-green-100 border border-green-300 rounded px-2 py-0.5 text-right tabular-nums inline-block">
+                      {cardValidity || "—"}
+                    </span>
+                    <button
+                      type="button"
+                      title="Alterar validade (requer senha)"
+                      onClick={() => {
+                        setValidityDirectEditOpen(true);
+                        setValidityDirectEditPwd("");
+                        setValidityDirectEditPwdError("");
+                        setValidityDirectEditPwdShow(false);
+                      }}
+                      className="p-1 rounded hover:bg-green-200 text-green-700 transition-colors"
+                    >
+                      <Lock className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    autoFocus={validityDirectEditing}
+                    value={cardValidity}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      validityLockedRef.current = true;
+                      setValidityLockedByUser(true);
+                      setValidityDirectEditing(false);
+                      setCardValidity(val);
+                      const nextOvs: Record<string, KineticOverride> = {};
+                      setOverrides(prev => {
+                        for (const [key, ov] of Object.entries(prev)) {
+                          nextOvs[key] = { ...ov, validadePraticada: val };
+                        }
+                        return nextOvs;
+                      });
+                      setIsDirty(true);
+                      try {
+                        const stored = readLs();
+                        const updatedOvs: Record<string, KineticOverride> = {};
+                        for (const [key, ov] of Object.entries(stored.overrides ?? {})) {
+                          updatedOvs[key] = { ...(ov as KineticOverride), validadePraticada: val };
+                        }
+                        localStorage.setItem(LS_KEY, JSON.stringify({ ...stored, cardValidity: val, validityLockedByUser: true, overrides: updatedOvs }));
+                      } catch { /* ignore */ }
+                      const num = parseInt(val, 10);
+                      debouncedSave({ validityMonths: isNaN(num) ? null : num });
+                      // Salva também no kineticsOverridesJson para persistência cross-device
+                      debouncedSaveKineticsValidity(val, nextOvs);
+                    }}
+                    onBlur={() => setValidityDirectEditing(false)}
+                    className="w-20 text-2xl font-bold text-green-800 bg-green-100 border border-green-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
+                    placeholder="—"
+                  />
+                )}
                 <span className="text-lg font-semibold text-green-700">meses</span>
               </div>
               <p className="text-xs text-green-700 mt-1">valor adotado no produto</p>
@@ -5986,6 +6096,63 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
         />
       </div>
     </div>
+
+    {/* Modal de senha — Edição direta da Validade Praticada */}
+    {validityDirectEditOpen && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        onClick={() => { setValidityDirectEditOpen(false); setValidityDirectEditPwd(""); setValidityDirectEditPwdError(""); }}
+      >
+        <div className="bg-white rounded-lg shadow-xl w-96 p-5 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-2">
+            <Lock className="h-5 w-5 text-green-700 shrink-0" />
+            <p className="font-semibold text-sm">Alterar Validade Praticada</p>
+          </div>
+          <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800">
+            <p>Valor atual: <span className="font-bold">{cardValidity || "—"} meses</span></p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            A Validade Praticada está protegida. Digite a senha mestra para liberar a edição direta.
+          </p>
+          <div className="relative">
+            <input
+              type={validityDirectEditPwdShow ? "text" : "password"}
+              value={validityDirectEditPwd}
+              onChange={e => { setValidityDirectEditPwd(e.target.value); setValidityDirectEditPwdError(""); }}
+              onKeyDown={e => {
+                if (e.key === "Enter") confirmValidityDirectEditPwd();
+                if (e.key === "Escape") { setValidityDirectEditOpen(false); setValidityDirectEditPwd(""); setValidityDirectEditPwdError(""); }
+              }}
+              placeholder="Senha mestra"
+              autoFocus
+              autoComplete="off"
+              className="w-full border border-border rounded px-3 py-1.5 text-sm pr-9 focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <button type="button" onClick={() => setValidityDirectEditPwdShow(s => !s)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">
+              {validityDirectEditPwdShow ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          {validityDirectEditPwdError && <p className="text-xs text-destructive font-medium -mt-2">{validityDirectEditPwdError}</p>}
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => { setValidityDirectEditOpen(false); setValidityDirectEditPwd(""); setValidityDirectEditPwdError(""); }}
+              className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={confirmValidityDirectEditPwd}
+              disabled={validityDirectEditPwdLoading || !validityDirectEditPwd.trim()}
+              className="text-xs px-3 py-1.5 rounded bg-green-700 text-white hover:bg-green-800 disabled:opacity-50"
+            >
+              {validityDirectEditPwdLoading ? "Verificando…" : "Liberar edição"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* Modal de senha — Validade Praticada digitada manualmente está protegida */}
     {!!pendingValiditySwap && (
