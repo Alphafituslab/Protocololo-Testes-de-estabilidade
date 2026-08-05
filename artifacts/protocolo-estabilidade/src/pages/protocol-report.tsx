@@ -436,14 +436,13 @@ export default function ProtocolReportPage() {
     const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
     const baseShelf = -Math.log(ichThr / 100) / k;   // sem overage: parte de 100%
     const ovShelf   = -Math.log(ichThr / t0)  / k;   // com overage: parte de t0%
-    if (rSelectedBox === "standard") return baseShelf;
-    if (rSelectedBox === "overage") return ovShelf;
-    if (rSelectedBox === "extrap_overage") return ovShelf * REPORT_FA;
-    // Padrão (extrap_std ou nenhuma seleção): validade extrapolada 30°C sem overage.
-    // A validade praticada no rótulo refere-se a condições normais (~30°C), não à
-    // condição acelerada de teste (40°C). Usar 40°C como referência padrão gerava
-    // avaliações incorretas de "⚠ EXCEDE" para produtos com prazo > shelf 40°C.
-    return baseShelf * REPORT_FA;
+    // Usa estritamente o cenário selecionado/travado na aba Cinética.
+    // Sem seleção explícita → null (não assume padrão; relatório exibe aviso).
+    if (rSelectedBox === "standard")       return baseShelf;
+    if (rSelectedBox === "overage")        return ovShelf;
+    if (rSelectedBox === "extrap_std")     return baseShelf * REPORT_FA;
+    if (rSelectedBox === "extrap_overage") return ovShelf   * REPORT_FA;
+    return null;
   };
 
   const rBoxLabel: string | null = !rSelectedBox ? null :
@@ -935,17 +934,31 @@ export default function ProtocolReportPage() {
                       <div className="flex items-center text-gray-300 text-[10px] font-bold px-1">≥</div>
 
                       {/* Caixinha Validade Praticada */}
-                      <div className={`flex flex-col items-center rounded border px-3 py-2 min-w-[100px] ${ok ? "border-emerald-400 bg-emerald-50 print:bg-emerald-50" : "border-red-400 bg-red-50 print:bg-red-50"}`}
-                        style={{ width: "110px" }}>
-                        <span className={`text-[7px] font-bold uppercase tracking-wide mb-0.5 ${ok ? "text-emerald-600" : "text-red-500"}`}>Validade Praticada</span>
-                        <span className={`text-[13px] font-bold font-mono leading-tight ${ok ? "text-emerald-800" : "text-red-700"}`}>
-                          {practiced != null ? `${practiced}` : "—"}
-                        </span>
-                        <span className={`text-[7px] mt-0.5 ${ok ? "text-emerald-500" : "text-red-400"}`}>meses (rótulo)</span>
-                        <span className={`text-[8px] font-bold mt-1 ${ok ? "text-emerald-700" : "text-red-600"}`}>
-                          {practiced != null ? (ok ? "✓ APROVADO" : "⚠ EXCEDE") : "—"}
-                        </span>
-                      </div>
+                      {(() => {
+                        const noBox = selShelf == null;
+                        const boxCls = noBox
+                          ? "border-slate-300 bg-slate-50 print:bg-slate-50"
+                          : ok ? "border-emerald-400 bg-emerald-50 print:bg-emerald-50"
+                               : "border-red-400 bg-red-50 print:bg-red-50";
+                        const lblCls = noBox ? "text-slate-400" : ok ? "text-emerald-600" : "text-red-500";
+                        const valCls = noBox ? "text-slate-500" : ok ? "text-emerald-800" : "text-red-700";
+                        const subCls = noBox ? "text-slate-400" : ok ? "text-emerald-500" : "text-red-400";
+                        const statusCls = noBox ? "text-slate-400 italic" : ok ? "text-emerald-700" : "text-red-600";
+                        const statusLabel = noBox
+                          ? "Selecione cenário"
+                          : practiced != null ? (ok ? "✓ APROVADO" : "⚠ EXCEDE") : "—";
+                        return (
+                          <div className={`flex flex-col items-center rounded border px-3 py-2 min-w-[100px] ${boxCls}`}
+                            style={{ width: "110px" }}>
+                            <span className={`text-[7px] font-bold uppercase tracking-wide mb-0.5 ${lblCls}`}>Validade Praticada</span>
+                            <span className={`text-[13px] font-bold font-mono leading-tight ${valCls}`}>
+                              {practiced != null ? `${practiced}` : "—"}
+                            </span>
+                            <span className={`text-[7px] mt-0.5 ${subCls}`}>meses (rótulo)</span>
+                            <span className={`text-[8px] font-bold mt-1 ${statusCls}`}>{statusLabel}</span>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                   </div>
