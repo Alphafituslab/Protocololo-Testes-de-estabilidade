@@ -103,18 +103,22 @@ const PERMISSION_GROUPS = [
   {
     label: "Protocolos",
     perms: [
-      { key: "protocols:view",     label: "Visualizar" },
-      { key: "protocols:create",   label: "Criar" },
-      { key: "protocols:edit",     label: "Editar" },
-      { key: "protocols:delete",   label: "Excluir" },
-      { key: "protocols:finalize", label: "Finalizar / Aprovar" },
+      { key: "protocols:view",      label: "Visualizar" },
+      { key: "protocols:create",    label: "Criar" },
+      { key: "protocols:edit",      label: "Editar" },
+      { key: "protocols:delete",    label: "Excluir" },
+      { key: "protocols:finalize",  label: "Finalizar / Aprovar" },
+      { key: "protocols:duplicate", label: "Duplicar protocolo" },
+      { key: "protocols:export",    label: "Exportar / Imprimir" },
     ],
   },
   {
     label: "Lotes e Resultados",
     perms: [
-      { key: "lots:manage",      label: "Gerenciar lotes" },
+      { key: "lots:manage",      label: "Gerenciar lotes (criar, editar, excluir)" },
+      { key: "lots:edit_number", label: "Editar número do lote" },
       { key: "results:enter",    label: "Lançar resultados" },
+      { key: "results:edit",     label: "Editar resultados existentes" },
       { key: "results:delete",   label: "Excluir resultados" },
     ],
   },
@@ -126,11 +130,54 @@ const PERMISSION_GROUPS = [
     ],
   },
   {
+    label: "Cinética",
+    perms: [
+      { key: "kinetics:view", label: "Visualizar aba Cinética" },
+      { key: "kinetics:edit", label: "Editar configurações da Cinética" },
+    ],
+  },
+  {
+    label: "Metodologia",
+    perms: [
+      { key: "methodology:view", label: "Visualizar aba Metodologia" },
+      { key: "methodology:edit", label: "Editar metodologia do protocolo" },
+    ],
+  },
+  {
+    label: "Certificado e Relatório",
+    perms: [
+      { key: "certificate:view", label: "Visualizar certificado de análise" },
+      { key: "certificate:edit", label: "Editar campos do certificado" },
+      { key: "report:view",      label: "Visualizar relatório ANVISA" },
+    ],
+  },
+  {
+    label: "ANVISA",
+    perms: [
+      { key: "anvisa:manage", label: "Gerenciar notificações ANVISA" },
+    ],
+  },
+  {
+    label: "Documentos e Referências",
+    perms: [
+      { key: "documents:manage",  label: "Gerenciar documentos do protocolo" },
+      { key: "references:manage", label: "Gerenciar referências bibliográficas" },
+    ],
+  },
+  {
+    label: "Histórico e Versões",
+    perms: [
+      { key: "audit:view",    label: "Visualizar histórico de alterações" },
+      { key: "versions:view", label: "Visualizar versões do protocolo" },
+    ],
+  },
+  {
     label: "Sistema",
     perms: [
       { key: "catalog:manage",     label: "Catálogo (tipos de produto, cápsula, etc.)" },
       { key: "attachments:manage", label: "Gerenciar anexos" },
       { key: "settings:manage",    label: "Configurações do sistema" },
+      { key: "user:manage",        label: "Gerenciar usuários e acesso ao portal do cliente" },
     ],
   },
 ];

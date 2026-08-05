@@ -5,39 +5,91 @@ import type { RequestHandler } from "express";
 // ── Permission constants ──────────────────────────────────────────────────────
 
 export const PERM = {
-  PROTOCOLS_VIEW:     "protocols:view",
-  PROTOCOLS_CREATE:   "protocols:create",
-  PROTOCOLS_EDIT:     "protocols:edit",
-  PROTOCOLS_DELETE:   "protocols:delete",
-  PROTOCOLS_FINALIZE: "protocols:finalize",
-  LOTS_MANAGE:        "lots:manage",
-  RESULTS_ENTER:      "results:enter",
-  RESULTS_DELETE:     "results:delete",
-  SIGNATURES_SIGN:    "signatures:sign",
-  SIGNATURES_DELETE:  "signatures:delete",
-  CATALOG_MANAGE:     "catalog:manage",
-  ATTACHMENTS_MANAGE: "attachments:manage",
-  SETTINGS_MANAGE:    "settings:manage",
-  USER_MANAGE:        "user:manage",
+  // ── Protocolos ──────────────────────────────────────────────────────────────
+  PROTOCOLS_VIEW:      "protocols:view",
+  PROTOCOLS_CREATE:    "protocols:create",
+  PROTOCOLS_EDIT:      "protocols:edit",
+  PROTOCOLS_DELETE:    "protocols:delete",
+  PROTOCOLS_FINALIZE:  "protocols:finalize",
+  PROTOCOLS_DUPLICATE: "protocols:duplicate",
+  PROTOCOLS_EXPORT:    "protocols:export",
+  // ── Lotes e Resultados ──────────────────────────────────────────────────────
+  LOTS_MANAGE:         "lots:manage",
+  LOTS_EDIT_NUMBER:    "lots:edit_number",
+  RESULTS_ENTER:       "results:enter",
+  RESULTS_EDIT:        "results:edit",
+  RESULTS_DELETE:      "results:delete",
+  // ── Assinaturas ─────────────────────────────────────────────────────────────
+  SIGNATURES_SIGN:     "signatures:sign",
+  SIGNATURES_DELETE:   "signatures:delete",
+  // ── Cinética ────────────────────────────────────────────────────────────────
+  KINETICS_VIEW:       "kinetics:view",
+  KINETICS_EDIT:       "kinetics:edit",
+  // ── Metodologia ─────────────────────────────────────────────────────────────
+  METHODOLOGY_VIEW:    "methodology:view",
+  METHODOLOGY_EDIT:    "methodology:edit",
+  // ── Certificado e Relatório ─────────────────────────────────────────────────
+  CERTIFICATE_VIEW:    "certificate:view",
+  CERTIFICATE_EDIT:    "certificate:edit",
+  REPORT_VIEW:         "report:view",
+  // ── ANVISA ──────────────────────────────────────────────────────────────────
+  ANVISA_MANAGE:       "anvisa:manage",
+  // ── Documentos e Referências ────────────────────────────────────────────────
+  DOCUMENTS_MANAGE:    "documents:manage",
+  REFERENCES_MANAGE:   "references:manage",
+  // ── Histórico e Versões ─────────────────────────────────────────────────────
+  AUDIT_VIEW:          "audit:view",
+  VERSIONS_VIEW:       "versions:view",
+  // ── Sistema ─────────────────────────────────────────────────────────────────
+  CATALOG_MANAGE:      "catalog:manage",
+  ATTACHMENTS_MANAGE:  "attachments:manage",
+  SETTINGS_MANAGE:     "settings:manage",
+  USER_MANAGE:         "user:manage",
 } as const;
 
 export type PermKey = typeof PERM[keyof typeof PERM];
 
 export const PERM_LABELS: Record<PermKey, string> = {
-  "protocols:view":     "Visualizar protocolos",
-  "protocols:create":   "Criar protocolos",
-  "protocols:edit":     "Editar protocolos",
-  "protocols:delete":   "Excluir protocolos",
-  "protocols:finalize": "Finalizar / aprovar protocolos",
-  "lots:manage":        "Gerenciar lotes (criar, editar, excluir)",
-  "results:enter":      "Lançar resultados de análise",
-  "results:delete":     "Excluir resultados",
-  "signatures:sign":    "Assinar certificados",
-  "signatures:delete":  "Excluir assinaturas",
-  "catalog:manage":     "Gerenciar cadastros (catálogo)",
-  "attachments:manage": "Gerenciar anexos",
-  "settings:manage":    "Configurações do sistema",
-  "user:manage":        "Gerenciar usuários e acesso ao portal do cliente",
+  // Protocolos
+  "protocols:view":      "Visualizar protocolos",
+  "protocols:create":    "Criar protocolos",
+  "protocols:edit":      "Editar protocolos",
+  "protocols:delete":    "Excluir protocolos",
+  "protocols:finalize":  "Finalizar / aprovar protocolos",
+  "protocols:duplicate": "Duplicar protocolo",
+  "protocols:export":    "Exportar / imprimir protocolo",
+  // Lotes e Resultados
+  "lots:manage":         "Gerenciar lotes (criar, editar, excluir)",
+  "lots:edit_number":    "Editar número do lote",
+  "results:enter":       "Lançar resultados de análise",
+  "results:edit":        "Editar resultados existentes",
+  "results:delete":      "Excluir resultados",
+  // Assinaturas
+  "signatures:sign":     "Assinar certificados",
+  "signatures:delete":   "Excluir assinaturas",
+  // Cinética
+  "kinetics:view":       "Visualizar aba Cinética",
+  "kinetics:edit":       "Editar configurações da Cinética",
+  // Metodologia
+  "methodology:view":    "Visualizar aba Metodologia",
+  "methodology:edit":    "Editar metodologia do protocolo",
+  // Certificado e Relatório
+  "certificate:view":    "Visualizar certificado de análise",
+  "certificate:edit":    "Editar campos do certificado",
+  "report:view":         "Visualizar relatório ANVISA",
+  // ANVISA
+  "anvisa:manage":       "Gerenciar notificações ANVISA",
+  // Documentos e Referências
+  "documents:manage":    "Gerenciar documentos do protocolo",
+  "references:manage":   "Gerenciar referências bibliográficas",
+  // Histórico e Versões
+  "audit:view":          "Visualizar histórico de alterações",
+  "versions:view":       "Visualizar versões do protocolo",
+  // Sistema
+  "catalog:manage":      "Gerenciar cadastros (catálogo)",
+  "attachments:manage":  "Gerenciar anexos",
+  "settings:manage":     "Configurações do sistema",
+  "user:manage":         "Gerenciar usuários e acesso ao portal do cliente",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
