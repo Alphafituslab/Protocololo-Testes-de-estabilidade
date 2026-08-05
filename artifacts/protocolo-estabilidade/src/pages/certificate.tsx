@@ -1120,7 +1120,7 @@ export default function CertificatePage() {
               ✓ Salvo no servidor
             </span>
           )}
-          {!certLocked ? (
+          {(auth?.isAdmin || auth?.hasPermission?.("certificate:edit")) && (!certLocked ? (
             <>
               <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 font-medium">
                 ✎ Modo edição — clique em qualquer campo para corrigir
@@ -1133,7 +1133,7 @@ export default function CertificatePage() {
             <Button variant="outline" size="sm" onClick={() => setShowUnlockDialog(true)}>
               <Lock className="h-4 w-4 mr-2" /> Editar (requer senha)
             </Button>
-          )}
+          ))}
           <Button variant="outline" size="sm" onClick={() => setShowSettings(s => !s)}>
             <Settings2 className="h-4 w-4 mr-2" />
             Configurar Impressão

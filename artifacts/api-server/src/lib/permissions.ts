@@ -132,14 +132,43 @@ export function defaultPermissionsForRole(role: string): PermKey[] {
     case "admin":
       return Object.values(p);
     case "responsavel_tecnico":
-      return [p.PROTOCOLS_VIEW, p.PROTOCOLS_CREATE, p.PROTOCOLS_EDIT, p.PROTOCOLS_FINALIZE,
-        p.LOTS_MANAGE, p.RESULTS_ENTER, p.RESULTS_DELETE, p.SIGNATURES_SIGN,
-        p.CATALOG_MANAGE, p.ATTACHMENTS_MANAGE];
+      return [
+        p.PROTOCOLS_VIEW, p.PROTOCOLS_CREATE, p.PROTOCOLS_EDIT, p.PROTOCOLS_FINALIZE,
+        p.PROTOCOLS_DUPLICATE, p.PROTOCOLS_EXPORT,
+        p.LOTS_MANAGE, p.LOTS_EDIT_NUMBER,
+        p.RESULTS_ENTER, p.RESULTS_EDIT, p.RESULTS_DELETE,
+        p.SIGNATURES_SIGN,
+        p.KINETICS_VIEW, p.KINETICS_EDIT,
+        p.METHODOLOGY_VIEW, p.METHODOLOGY_EDIT,
+        p.CERTIFICATE_VIEW, p.CERTIFICATE_EDIT,
+        p.REPORT_VIEW,
+        p.ANVISA_MANAGE,
+        p.DOCUMENTS_MANAGE, p.REFERENCES_MANAGE,
+        p.AUDIT_VIEW, p.VERSIONS_VIEW,
+        p.CATALOG_MANAGE, p.ATTACHMENTS_MANAGE,
+      ];
     case "controle_qualidade":
-      return [p.PROTOCOLS_VIEW, p.PROTOCOLS_CREATE, p.PROTOCOLS_EDIT,
-        p.LOTS_MANAGE, p.RESULTS_ENTER, p.SIGNATURES_SIGN, p.ATTACHMENTS_MANAGE];
+      return [
+        p.PROTOCOLS_VIEW, p.PROTOCOLS_CREATE, p.PROTOCOLS_EDIT,
+        p.LOTS_MANAGE,
+        p.RESULTS_ENTER, p.RESULTS_EDIT,
+        p.SIGNATURES_SIGN,
+        p.KINETICS_VIEW,
+        p.METHODOLOGY_VIEW,
+        p.CERTIFICATE_VIEW,
+        p.REPORT_VIEW,
+        p.AUDIT_VIEW,
+        p.DOCUMENTS_MANAGE,
+        p.ATTACHMENTS_MANAGE,
+      ];
     case "tecnico_lab":
-      return [p.PROTOCOLS_VIEW, p.RESULTS_ENTER, p.SIGNATURES_SIGN, p.ATTACHMENTS_MANAGE];
+      return [
+        p.PROTOCOLS_VIEW,
+        p.RESULTS_ENTER,
+        p.SIGNATURES_SIGN,
+        p.AUDIT_VIEW,
+        p.ATTACHMENTS_MANAGE, p.DOCUMENTS_MANAGE,
+      ];
     case "analyst":
       return [p.PROTOCOLS_VIEW, p.RESULTS_ENTER, p.SIGNATURES_SIGN];
     default:

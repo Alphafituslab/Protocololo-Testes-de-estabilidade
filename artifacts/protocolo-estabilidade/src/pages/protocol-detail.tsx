@@ -467,6 +467,7 @@ function ProtocolInfoTab({ protocol }: { protocol: GetProtocolQueryResult }) {
 function LotsTab({ protocolId }: { protocolId: number }) {
   const { hasPermission } = useAuth();
   const canManageLots = hasPermission("lots:manage");
+  const canEditLotNumber = hasPermission("lots:edit_number");
   const { data: lots = [], isLoading } = useListLots(protocolId, {
     query: { queryKey: getListLotsQueryKey(protocolId) },
   });
@@ -717,7 +718,18 @@ function LotsTab({ protocolId }: { protocolId: number }) {
               <FormField control={form.control} name="lotNumber" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Número do Lote</FormLabel>
-                  <FormControl><Input data-testid="input-lotNumber" placeholder="LP-20241210-639" {...field} /></FormControl>
+                  <FormControl>
+                    <Input
+                      data-testid="input-lotNumber"
+                      placeholder="LP-20241210-639"
+                      {...field}
+                      disabled={!!editLot && !canEditLotNumber}
+                      title={!!editLot && !canEditLotNumber ? "Você não tem permissão para editar o número do lote" : undefined}
+                    />
+                  </FormControl>
+                  {!!editLot && !canEditLotNumber && (
+                    <p className="text-xs text-muted-foreground">Número do lote bloqueado — sem permissão <code>lots:edit_number</code></p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )} />
@@ -8477,6 +8489,22 @@ export default function ProtocolDetail() {
   const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
   const [deletePasswordOpen, setDeletePasswordOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("info");
+  // Reset to "info" if the current tab becomes inaccessible due to permissions
+  const tabPermissions: Record<string, string> = {
+    kinetics: "kinetics:view",
+    metodologia: "methodology:view",
+    historico: "audit:view",
+    documentos: "documents:manage",
+    referencias: "references:manage",
+    versoes: "versions:view",
+    anvisa: "anvisa:manage",
+  };
+  useEffect(() => {
+    const perm = tabPermissions[activeTab];
+    if (perm && !hasPermission(perm as Parameters<typeof hasPermission>[0])) {
+      setActiveTab("info");
+    }
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
   // Lazy tab mounting: each tab only mounts when first visited, then stays mounted.
   // Prevents all heavy tab components from loading simultaneously on page open.
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["info"]));
@@ -8797,31 +8825,32 @@ export default function ProtocolDetail() {
             const hasNC = protocol.results?.some(r => r.status === "nao_conforme") ?? false;
             const isApproved = protocol.status === "aprovado" || protocol.status === "aprovado_com_ressalva" || protocol.status === "reprovado";
             const certBlocked = hasNC && !isApproved;
-            if (certBlocked) {
-              return (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled
-                  title="Certificado bloqueado: existem parâmetros não conformes nos resultados"
-                  className="opacity-50 cursor-not-allowed"
-                >
-                  <Award className="h-4 w-4 mr-1" /> Certificado
-                </Button>
-              );
-            }
             return (
               <>
-                <Link href={`/protocols/${id}/certificate`}>
-                  <Button variant="outline" size="sm" data-testid="button-view-certificate">
+                {hasPermission("certificate:view") && (certBlocked ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled
+                    title="Certificado bloqueado: existem parâmetros não conformes nos resultados"
+                    className="opacity-50 cursor-not-allowed"
+                  >
                     <Award className="h-4 w-4 mr-1" /> Certificado
                   </Button>
-                </Link>
-                <Link href={`/protocols/${id}/report`}>
-                  <Button variant="outline" size="sm">
-                    <FileText className="h-4 w-4 mr-1" /> Relatório ANVISA
-                  </Button>
-                </Link>
+                ) : (
+                  <Link href={`/protocols/${id}/certificate`}>
+                    <Button variant="outline" size="sm" data-testid="button-view-certificate">
+                      <Award className="h-4 w-4 mr-1" /> Certificado
+                    </Button>
+                  </Link>
+                ))}
+                {hasPermission("report:view") && !certBlocked && (
+                  <Link href={`/protocols/${id}/report`}>
+                    <Button variant="outline" size="sm">
+                      <FileText className="h-4 w-4 mr-1" /> Relatório ANVISA
+                    </Button>
+                  </Link>
+                )}
               </>
             );
           })()}
@@ -8910,13 +8939,13 @@ export default function ProtocolDetail() {
           <TabsTrigger value="info" data-testid="tab-info">Informações</TabsTrigger>
           <TabsTrigger value="lots" data-testid="tab-lots">Lotes</TabsTrigger>
           <TabsTrigger value="results" data-testid="tab-results">Resultado das Análises</TabsTrigger>
-          <TabsTrigger value="kinetics" data-testid="tab-kinetics">Cinética</TabsTrigger>
-          <TabsTrigger value="metodologia" data-testid="tab-metodologia">Metodologia</TabsTrigger>
-          <TabsTrigger value="historico" data-testid="tab-historico"><History className="h-3.5 w-3.5 mr-1" />Histórico</TabsTrigger>
-          <TabsTrigger value="documentos" data-testid="tab-documentos"><Paperclip className="h-3.5 w-3.5 mr-1" />Documentos</TabsTrigger>
-          <TabsTrigger value="referencias" data-testid="tab-referencias"><BookOpen className="h-3.5 w-3.5 mr-1" />Referências</TabsTrigger>
-          <TabsTrigger value="versoes" data-testid="tab-versoes"><SaveAll className="h-3.5 w-3.5 mr-1" />Versões</TabsTrigger>
-          <TabsTrigger value="anvisa" data-testid="tab-anvisa"><ShieldCheck className="h-3.5 w-3.5 mr-1" />ANVISA</TabsTrigger>
+          {hasPermission("kinetics:view") && <TabsTrigger value="kinetics" data-testid="tab-kinetics">Cinética</TabsTrigger>}
+          {hasPermission("methodology:view") && <TabsTrigger value="metodologia" data-testid="tab-metodologia">Metodologia</TabsTrigger>}
+          {hasPermission("audit:view") && <TabsTrigger value="historico" data-testid="tab-historico"><History className="h-3.5 w-3.5 mr-1" />Histórico</TabsTrigger>}
+          {hasPermission("documents:manage") && <TabsTrigger value="documentos" data-testid="tab-documentos"><Paperclip className="h-3.5 w-3.5 mr-1" />Documentos</TabsTrigger>}
+          {hasPermission("references:manage") && <TabsTrigger value="referencias" data-testid="tab-referencias"><BookOpen className="h-3.5 w-3.5 mr-1" />Referências</TabsTrigger>}
+          {hasPermission("versions:view") && <TabsTrigger value="versoes" data-testid="tab-versoes"><SaveAll className="h-3.5 w-3.5 mr-1" />Versões</TabsTrigger>}
+          {hasPermission("anvisa:manage") && <TabsTrigger value="anvisa" data-testid="tab-anvisa"><ShieldCheck className="h-3.5 w-3.5 mr-1" />ANVISA</TabsTrigger>}
         </TabsList>
         <TabsContent value="info">
           <Card>
@@ -8952,7 +8981,7 @@ export default function ProtocolDetail() {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="kinetics">
+        {hasPermission("kinetics:view") && <TabsContent value="kinetics">
           <Card>
             <CardContent className="pt-6">
               {mounted("kinetics") && <KineticsTab
@@ -8970,15 +8999,15 @@ export default function ProtocolDetail() {
               />}
             </CardContent>
           </Card>
-        </TabsContent>
-        <TabsContent value="metodologia">
+        </TabsContent>}
+        {hasPermission("methodology:view") && <TabsContent value="metodologia">
           <Card>
             <CardContent className="pt-6">
               {mounted("metodologia") && <MethodologiaTab protocolId={numId} initialCustomParamsJson={protocol.customParamsJson} protocolStatus={protocol.status} />}
             </CardContent>
           </Card>
-        </TabsContent>
-        <TabsContent value="historico">
+        </TabsContent>}
+        {hasPermission("audit:view") && <TabsContent value="historico">
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -8989,14 +9018,14 @@ export default function ProtocolDetail() {
               {mounted("historico") && <AuditTrail protocolId={numId} />}
             </CardContent>
           </Card>
-        </TabsContent>
-        <TabsContent value="documentos">
+        </TabsContent>}
+        {hasPermission("documents:manage") && <TabsContent value="documentos">
           {mounted("documentos") && <DocumentosTab protocolId={numId} />}
-        </TabsContent>
-        <TabsContent value="referencias">
+        </TabsContent>}
+        {hasPermission("references:manage") && <TabsContent value="referencias">
           {mounted("referencias") && <ReferencesTab protocolId={numId} />}
-        </TabsContent>
-        <TabsContent value="versoes">
+        </TabsContent>}
+        {hasPermission("versions:view") && <TabsContent value="versoes">
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -9007,8 +9036,8 @@ export default function ProtocolDetail() {
               {mounted("versoes") && <VersionsTab protocolId={numId} />}
             </CardContent>
           </Card>
-        </TabsContent>
-        <TabsContent value="anvisa">
+        </TabsContent>}
+        {hasPermission("anvisa:manage") && <TabsContent value="anvisa">
           {mounted("anvisa") && <AnvisaTab protocolId={numId} protocolInfo={{
             companyName: protocol.companyName,
             cnpj: protocol.cnpj,
@@ -9018,7 +9047,7 @@ export default function ProtocolDetail() {
             approvedBy: protocol.approvedBy ?? null,
             certNumber: protocol.certNumber ?? "",
           }} />}
-        </TabsContent>
+        </TabsContent>}
       </Tabs>
     </div>
   );

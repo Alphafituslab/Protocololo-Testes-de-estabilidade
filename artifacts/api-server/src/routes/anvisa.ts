@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { anvisaNotifications } from "@workspace/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
+import { PERM, requirePermission } from "../lib/permissions";
 
 const router = Router();
 
@@ -49,7 +50,7 @@ router.get("/protocols/:id/anvisa", requireAuth, async (req, res) => {
 });
 
 // ── POST /protocols/:id/anvisa ────────────────────────────────────────────────
-router.post("/protocols/:id/anvisa", requireAuth, async (req, res) => {
+router.post("/protocols/:id/anvisa", requireAuth, requirePermission(PERM.ANVISA_MANAGE), async (req, res) => {
   const protocolId = Number(req.params.id);
   if (!protocolId) return res.status(400).json({ error: "id inválido" });
 
@@ -91,7 +92,7 @@ router.post("/protocols/:id/anvisa", requireAuth, async (req, res) => {
 });
 
 // ── PUT /protocols/:id/anvisa/:notifId ────────────────────────────────────────
-router.put("/protocols/:id/anvisa/:notifId", requireAuth, async (req, res) => {
+router.put("/protocols/:id/anvisa/:notifId", requireAuth, requirePermission(PERM.ANVISA_MANAGE), async (req, res) => {
   const notifId = Number(req.params.notifId);
   if (!notifId) return res.status(400).json({ error: "notifId inválido" });
 
@@ -109,7 +110,7 @@ router.put("/protocols/:id/anvisa/:notifId", requireAuth, async (req, res) => {
 });
 
 // ── DELETE /protocols/:id/anvisa/:notifId ─────────────────────────────────────
-router.delete("/protocols/:id/anvisa/:notifId", requireAuth, async (req, res) => {
+router.delete("/protocols/:id/anvisa/:notifId", requireAuth, requirePermission(PERM.ANVISA_MANAGE), async (req, res) => {
   const notifId = Number(req.params.notifId);
   if (!notifId) return res.status(400).json({ error: "notifId inválido" });
 
@@ -118,7 +119,7 @@ router.delete("/protocols/:id/anvisa/:notifId", requireAuth, async (req, res) =>
 });
 
 // ── POST /protocols/:id/anvisa/:notifId/sign ──────────────────────────────────
-router.post("/protocols/:id/anvisa/:notifId/sign", requireAuth, async (req, res) => {
+router.post("/protocols/:id/anvisa/:notifId/sign", requireAuth, requirePermission(PERM.ANVISA_MANAGE), async (req, res) => {
   const notifId = Number(req.params.notifId);
   if (!notifId) return res.status(400).json({ error: "notifId inválido" });
 
@@ -141,7 +142,7 @@ router.post("/protocols/:id/anvisa/:notifId/sign", requireAuth, async (req, res)
 });
 
 // ── DELETE /protocols/:id/anvisa/:notifId/sign ────────────────────────────────
-router.delete("/protocols/:id/anvisa/:notifId/sign", requireAuth, async (req, res) => {
+router.delete("/protocols/:id/anvisa/:notifId/sign", requireAuth, requirePermission(PERM.ANVISA_MANAGE), async (req, res) => {
   const notifId = Number(req.params.notifId);
   if (!notifId) return res.status(400).json({ error: "notifId inválido" });
 

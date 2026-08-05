@@ -2,10 +2,11 @@ import { Router, type IRouter } from "express";
 import { db, auditLogsTable, protocolsTable } from "@workspace/db";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
+import { PERM, requirePermission } from "../lib/permissions";
 
 const router: IRouter = Router();
 
-router.get("/audit-logs", requireAuth, async (req, res): Promise<void> => {
+router.get("/audit-logs", requireAuth, requirePermission(PERM.AUDIT_VIEW), async (req, res): Promise<void> => {
   const protocolId = req.query["protocolId"] ? parseInt(req.query["protocolId"] as string) : undefined;
   const limit = Math.min(parseInt((req.query["limit"] as string) || "200"), 500);
 

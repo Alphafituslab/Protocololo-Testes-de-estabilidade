@@ -8,12 +8,13 @@ import {
   protocolSnapshotsTable,
 } from "@workspace/db";
 import { requireAuth } from "../lib/session";
+import { PERM, requirePermission } from "../lib/permissions";
 import { buildSnapshotData } from "../lib/snapshot-helper";
 
 const router: IRouter = Router();
 
 /** List snapshots for a protocol (lightweight — no snapshotData payload). */
-router.get("/protocols/:id/snapshots", requireAuth, async (req, res): Promise<void> => {
+router.get("/protocols/:id/snapshots", requireAuth, requirePermission(PERM.VERSIONS_VIEW), async (req, res): Promise<void> => {
   const id = parseInt(String(req.params["id"] ?? ""), 10);
   if (isNaN(id)) { res.status(400).json({ error: "ID inválido." }); return; }
 
@@ -33,7 +34,7 @@ router.get("/protocols/:id/snapshots", requireAuth, async (req, res): Promise<vo
 });
 
 /** Create a manual snapshot. */
-router.post("/protocols/:id/snapshots", requireAuth, async (req, res): Promise<void> => {
+router.post("/protocols/:id/snapshots", requireAuth, requirePermission(PERM.VERSIONS_VIEW), async (req, res): Promise<void> => {
   const id = parseInt(String(req.params["id"] ?? ""), 10);
   if (isNaN(id)) { res.status(400).json({ error: "ID inválido." }); return; }
 
@@ -68,7 +69,7 @@ type SnapshotPayload = {
 };
 
 /** Restore a snapshot. Requires MASTER_PASSWORD in the request body. */
-router.post("/protocols/:id/snapshots/:snapshotId/restore", requireAuth, async (req, res): Promise<void> => {
+router.post("/protocols/:id/snapshots/:snapshotId/restore", requireAuth, requirePermission(PERM.VERSIONS_VIEW), async (req, res): Promise<void> => {
   const id = parseInt(String(req.params["id"] ?? ""), 10);
   const snapshotId = parseInt(String(req.params["snapshotId"] ?? ""), 10);
   if (isNaN(id) || isNaN(snapshotId)) { res.status(400).json({ error: "ID inválido." }); return; }
@@ -145,7 +146,7 @@ router.post("/protocols/:id/snapshots/:snapshotId/restore", requireAuth, async (
 });
 
 /** Delete a snapshot. */
-router.delete("/protocols/:id/snapshots/:snapshotId", requireAuth, async (req, res): Promise<void> => {
+router.delete("/protocols/:id/snapshots/:snapshotId", requireAuth, requirePermission(PERM.VERSIONS_VIEW), async (req, res): Promise<void> => {
   const id = parseInt(String(req.params["id"] ?? ""), 10);
   const snapshotId = parseInt(String(req.params["snapshotId"] ?? ""), 10);
   if (isNaN(id) || isNaN(snapshotId)) { res.status(400).json({ error: "ID inválido." }); return; }

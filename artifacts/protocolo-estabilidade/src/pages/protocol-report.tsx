@@ -327,6 +327,16 @@ export default function ProtocolReportPage() {
       </div>
     );
   }
+  // Access guard: non-admin users require report:view
+  if (!isCliente && auth?.user && !auth.isAdmin && !auth.hasPermission?.("report:view")) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-gray-500">
+        <FileText className="h-10 w-10 text-gray-300" />
+        <p className="text-base font-medium">Sem permissão para visualizar o Relatório ANVISA.</p>
+        <p className="text-sm">Solicite ao administrador a permissão <code className="bg-gray-100 px-1 rounded">report:view</code>.</p>
+      </div>
+    );
+  }
   const isPrint = (key: string) => printSections[key] !== false;
   const toggleSection = (key: string) => {
     setPrintSections(prev => {

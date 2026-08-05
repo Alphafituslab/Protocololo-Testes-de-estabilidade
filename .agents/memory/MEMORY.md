@@ -5,7 +5,7 @@
 - [Certificado — edições persistidas no DB](cert-db-persistence.md) — certEditsJson e certAnalysesOverridesJson salvos no banco via updateProtocol (debounce 1.5s); certLocked padrão=true (v !== "0"); DB é fonte primária, localStorage é cópia de trabalho.
 - [Auth login — padrão correto](auth-login-pattern.md) — login() retorna Promise<AuthUser>; handleLogin usa window.location.replace; role "cliente" redireciona para /client-portal.
 - [Portal do Cliente — arquitetura](client-portal-arch.md) — role "cliente": acesso via /client-portal, sem sidebar, protocolos filtrados por client_protocol_access; login_log registra toda tentativa; accessExpiresAt nullable em users.
-- [Sistema de Permissões Granulares](permissions-system.md) — 13 permissões, admin implícito, lock pós-assinatura; como estender e onde estão os arquivos-chave.
+- [Sistema de Permissões Granulares](permissions-system.md) — 29 permissões ativas (16 novas), guards no frontend e backend; defaultPermissionsForRole atualizado; usuários existentes no DB precisam ter permissões atualizadas manualmente.
 - [Persistência de datas e metodologias](period-dates-methods-persistence.md) — periodDates e paramMethods agora no banco (3 colunas novas); padrão de hidratação localStorage + save debounced 800ms.
 - [Política de dados — nunca apagar](data-deletion-policy.md) — NUNCA apagar nada mesmo com "sim" do usuário; exige aviso PT-BR + confirmação escrita "CONFIRMO APAGAR"; sempre fazer backup antes de destruir.
 - [MethodologiaTab JSX — Fragment obrigatório](metodologia-tab-jsx.md) — return usa `<>` Fragment: Seção 1 (space-y-6) e Seção 2 (border-t) são elementos raiz separados; dialogs globais ficam como terceiro filho do Fragment.

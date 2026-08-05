@@ -3,6 +3,7 @@ import { eq, and } from "drizzle-orm";
 import { db, protocolAttachmentsTable, clientProtocolAccessTable } from "@workspace/db";
 import { z } from "zod/v4";
 import { requireAuth } from "../lib/session";
+import { PERM, requirePermission } from "../lib/permissions";
 import { logAudit } from "../lib/audit";
 
 const router: IRouter = Router();
@@ -55,7 +56,7 @@ router.get("/protocols/:id/attachments", requireAuth, async (req, res): Promise<
   res.json(rows);
 });
 
-router.post("/protocols/:id/attachments", requireAuth, async (req, res): Promise<void> => {
+router.post("/protocols/:id/attachments", requireAuth, requirePermission(PERM.DOCUMENTS_MANAGE), async (req, res): Promise<void> => {
   const params = AttachmentParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = CreateAttachmentBody.safeParse(req.body);
@@ -76,7 +77,7 @@ const UpdateAttachmentBody = z.object({
   description: z.string().optional(),
 });
 
-router.patch("/protocols/:id/attachments/:attachmentId", requireAuth, async (req, res): Promise<void> => {
+router.patch("/protocols/:id/attachments/:attachmentId", requireAuth, requirePermission(PERM.DOCUMENTS_MANAGE), async (req, res): Promise<void> => {
   const params = AttachmentItemParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = UpdateAttachmentBody.safeParse(req.body);
@@ -95,7 +96,7 @@ router.patch("/protocols/:id/attachments/:attachmentId", requireAuth, async (req
   res.json(updated);
 });
 
-router.delete("/protocols/:id/attachments/:attachmentId", requireAuth, async (req, res): Promise<void> => {
+router.delete("/protocols/:id/attachments/:attachmentId", requireAuth, requirePermission(PERM.DOCUMENTS_MANAGE), async (req, res): Promise<void> => {
   const params = AttachmentItemParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const [deleted] = await db
