@@ -475,6 +475,8 @@ function LotsTab({ protocolId }: { protocolId: number }) {
   const [open, setOpen] = useState(false);
   const [editLot, setEditLot] = useState<typeof lots[number] | null>(null);
   const [lastAdded, setLastAdded] = useState<string | null>(null);
+  const [pendingLotValues, setPendingLotValues] = useState<z.infer<typeof lotSchema> | null>(null);
+  const [unlockLotOpen, setUnlockLotOpen] = useState(false);
 
   const form = useForm<z.infer<typeof lotSchema>>({
     resolver: zodResolver(lotSchema),
@@ -527,7 +529,9 @@ function LotsTab({ protocolId }: { protocolId: number }) {
 
   const onSubmit = (values: z.infer<typeof lotSchema>) => {
     if (editLot) {
-      updateLot.mutate({ id: protocolId, lotId: editLot.id, data: values });
+      // Editing: require password confirmation before saving
+      setPendingLotValues(values);
+      setUnlockLotOpen(true);
     } else {
       createLot.mutate({ id: protocolId, data: values });
     }
@@ -831,6 +835,36 @@ function LotsTab({ protocolId }: { protocolId: number }) {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* ── UnlockDialog para confirmar edição de lote ── */}
+      <UnlockDialog
+        open={unlockLotOpen}
+        onOpenChange={(next) => {
+          setUnlockLotOpen(next);
+          if (!next) setPendingLotValues(null);
+        }}
+        title="Confirmar alteração do lote"
+        description={`Informe sua senha para salvar as alterações no lote${editLot ? ` "${editLot.lotNumber}"` : ""}.`}
+        onUnlock={async (password) => {
+          try {
+            const res = await fetch("/api/auth/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ password }),
+            });
+            if (res.ok) return { ok: true };
+            const body = await res.json().catch(() => ({})) as { error?: string };
+            return { ok: false, error: body.error ?? "Senha incorreta." };
+          } catch {
+            return { ok: false, error: "Erro de conexão." };
+          }
+        }}
+        onSuccess={() => {
+          if (!editLot || !pendingLotValues) return;
+          updateLot.mutate({ id: protocolId, lotId: editLot.id, data: pendingLotValues });
+          setPendingLotValues(null);
+        }}
+      />
     </div>
   );
 }
