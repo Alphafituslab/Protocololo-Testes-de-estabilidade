@@ -436,11 +436,14 @@ export default function ProtocolReportPage() {
     const ichThr = parseFloat(kovParam?.ichThreshold ?? "") || 90;
     const baseShelf = -Math.log(ichThr / 100) / k;   // sem overage: parte de 100%
     const ovShelf   = -Math.log(ichThr / t0)  / k;   // com overage: parte de t0%
-    if (!rSelectedBox || rSelectedBox === "standard") return baseShelf;
+    if (rSelectedBox === "standard") return baseShelf;
     if (rSelectedBox === "overage") return ovShelf;
-    if (rSelectedBox === "extrap_std") return baseShelf * REPORT_FA;
     if (rSelectedBox === "extrap_overage") return ovShelf * REPORT_FA;
-    return baseShelf;
+    // Padrão (extrap_std ou nenhuma seleção): validade extrapolada 30°C sem overage.
+    // A validade praticada no rótulo refere-se a condições normais (~30°C), não à
+    // condição acelerada de teste (40°C). Usar 40°C como referência padrão gerava
+    // avaliações incorretas de "⚠ EXCEDE" para produtos com prazo > shelf 40°C.
+    return baseShelf * REPORT_FA;
   };
 
   const rBoxLabel: string | null = !rSelectedBox ? null :
