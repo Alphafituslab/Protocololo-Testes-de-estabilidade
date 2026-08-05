@@ -241,6 +241,7 @@ export default function ProtocolForm() {
             </ToastAction>
           ),
         });
+        setLocation(`/protocols/${id}`);
       },
       onError: (err) => handleApiError(err, "atualizar"),
     },
