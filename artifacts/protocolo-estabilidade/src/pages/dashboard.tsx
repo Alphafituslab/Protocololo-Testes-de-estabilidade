@@ -92,7 +92,7 @@ export default function Dashboard() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [sortOrder, setSortOrder] = useState<"default" | "newest" | "oldest">("default");
+  const [sortOrder, setSortOrder] = useState<"default" | "newest" | "oldest" | "recently_modified">("default");
   const [pendingDelete, setPendingDelete] = useState<{ id: number; name: string } | null>(null);
   const [unlockOpen, setUnlockOpen] = useState(false);
   const { unlock } = useUnlock();
@@ -118,7 +118,7 @@ export default function Dashboard() {
 
   const q = normalize(search);
 
-  const needsAllProtocols = q.length > 0 || statusFilter !== null;
+  const needsAllProtocols = q.length > 0 || statusFilter !== null || sortOrder === "recently_modified";
   const { data: allProtocols = [] } = useListProtocols(undefined, {
     query: { queryKey: ["protocols-all"], enabled: needsAllProtocols },
   });
@@ -138,6 +138,15 @@ export default function Dashboard() {
     } else {
       list = stats?.recentProtocols ?? [];
     }
+    if (sortOrder === "recently_modified") {
+      return [...list].sort((a, b) => {
+        const ta = changedAtMap[String(a.id)] ? new Date(changedAtMap[String(a.id)]).getTime() : 0;
+        const tb = changedAtMap[String(b.id)] ? new Date(changedAtMap[String(b.id)]).getTime() : 0;
+        if (tb !== ta) return tb - ta; // mais recente primeiro
+        // desempate por data de criação
+        return new Date((b as any).createdAt ?? 0).getTime() - new Date((a as any).createdAt ?? 0).getTime();
+      });
+    }
     if (sortOrder === "newest") {
       return [...list].sort((a, b) =>
         new Date((b as any).createdAt ?? 0).getTime() - new Date((a as any).createdAt ?? 0).getTime()
@@ -149,7 +158,7 @@ export default function Dashboard() {
       );
     }
     return list;
-  }, [allProtocols, q, statusFilter, stats?.recentProtocols, sortOrder]);
+  }, [allProtocols, q, statusFilter, stats?.recentProtocols, sortOrder, changedAtMap]);
 
   function handleCardClick(status: string) {
     setStatusFilter(status);
@@ -383,15 +392,26 @@ export default function Dashboard() {
             )}
           </div>
           <button
-            onClick={() => setSortOrder(o => o === "default" ? "newest" : o === "newest" ? "oldest" : "default")}
-            title={sortOrder === "default" ? "Ordem de criação" : sortOrder === "newest" ? "Mais novos primeiro" : "Mais antigos primeiro"}
+            onClick={() => setSortOrder(o =>
+              o === "default" ? "recently_modified" :
+              o === "recently_modified" ? "newest" :
+              o === "newest" ? "oldest" : "default"
+            )}
+            title={
+              sortOrder === "recently_modified" ? "Mais alterados recentemente" :
+              sortOrder === "newest" ? "Mais novos primeiro" :
+              sortOrder === "oldest" ? "Mais antigos primeiro" :
+              "Ordenar"
+            }
             className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-colors whitespace-nowrap shrink-0
               ${sortOrder !== "default"
                 ? "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10"
                 : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-border/80"
               }`}
           >
-            {sortOrder === "newest" ? (
+            {sortOrder === "recently_modified" ? (
+              <><Pencil className="h-3.5 w-3.5" /> Alterados</>
+            ) : sortOrder === "newest" ? (
               <><ArrowDown className="h-3.5 w-3.5" /> Mais novos</>
             ) : sortOrder === "oldest" ? (
               <><ArrowUp className="h-3.5 w-3.5" /> Mais antigos</>
