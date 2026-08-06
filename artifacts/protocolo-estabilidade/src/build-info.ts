@@ -1,2 +1,2 @@
-export const BUILD_NUMBER = 2;
-export const BUILD_DATE = "2026-07-30";
+export const BUILD_NUMBER = 3;
+export const BUILD_DATE = "2026-08-06";
