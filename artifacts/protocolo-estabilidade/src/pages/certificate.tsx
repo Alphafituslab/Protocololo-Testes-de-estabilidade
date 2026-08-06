@@ -804,6 +804,21 @@ export default function CertificatePage() {
   // edits (via cert_overrides), and methodology selections (via param_methods).
   // Priority: cert_overrides.method > param_methods > API default.
   // DB is the authoritative source; localStorage is the working copy.
+  // Auto-scroll to #assinaturas when navigated from the "Ag. Assinatura" badge
+  useEffect(() => {
+    if (window.location.hash !== "#assinaturas") return;
+    const el = document.getElementById("assinaturas");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      // Retry once the certificate has finished rendering
+      const t = setTimeout(() => {
+        document.getElementById("assinaturas")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 800);
+      return () => clearTimeout(t);
+    }
+  }, [cert]);
+
   useEffect(() => {
     if (!cert) return;
 
@@ -2224,7 +2239,7 @@ export default function CertificatePage() {
               })()}
 
               {/* ── ASSINATURAS ─────────────────────────────────────────────── */}
-              <div className="cert-signatures border border-gray-300 rounded-lg overflow-hidden">
+              <div id="assinaturas" className="cert-signatures border border-gray-300 rounded-lg overflow-hidden">
                 <div className="bg-slate-700 px-5 py-1.5">
                   <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-100 flex items-center gap-1.5">
                     <ShieldCheck className="h-3 w-3" /> Assinaturas

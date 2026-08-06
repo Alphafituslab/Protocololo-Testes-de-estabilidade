@@ -484,10 +484,15 @@ export default function Dashboard() {
                           <AuditBadge protocolId={protocol.id} />
                         )}
                         {(protocol as { pendingSignatures?: boolean }).pendingSignatures && (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-300 rounded-full px-2.5 py-0.5">
+                          <a
+                            href={`/protocols/${protocol.id}/certificate#assinaturas`}
+                            onClick={e => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-300 rounded-full px-2.5 py-0.5 hover:bg-amber-100 hover:border-amber-400 transition-colors"
+                            title="Clique para assinar digitalmente"
+                          >
                             <PenLine className="h-3 w-3" />
                             Ag. Assinatura
-                          </span>
+                          </a>
                         )}
                         <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />

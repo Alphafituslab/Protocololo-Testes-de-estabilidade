@@ -354,10 +354,15 @@ export default function ProtocolsList() {
                       <AuditBadge protocolId={protocol.id} changedAt={changedAtMap[String(protocol.id)]} />
                     )}
                     {(protocol as { pendingSignatures?: boolean }).pendingSignatures && (
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-300 rounded-full px-2.5 py-0.5">
+                      <a
+                        href={`/protocols/${protocol.id}/certificate#assinaturas`}
+                        onClick={e => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-300 rounded-full px-2.5 py-0.5 hover:bg-amber-100 hover:border-amber-400 transition-colors"
+                        title="Clique para assinar digitalmente"
+                      >
                         <PenLine className="h-3 w-3" />
                         Aguardando Assinatura
-                      </span>
+                      </a>
                     )}
                     <Badge variant={STATUS_BADGE_VARIANT[protocol.status] ?? "secondary"}>
                       {STATUS_LABELS[protocol.status] ?? protocol.status}
