@@ -2367,12 +2367,23 @@ export default function CertificatePage() {
                   : new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
                 const cnpjDisplay = getEdit("cnpj", cert.cnpj) || cert.cnpj || "";
                 return (
-                  <div className="mt-6 pt-3 border-t border-gray-200 text-center text-[9px] text-gray-400 leading-relaxed">
-                    <span className="font-medium text-gray-500">Documento gerado em</span>
-                    <br />
-                    <span className={lastSig ? "text-green-500 font-medium" : ""}>{lastSigDate}</span>
-                    <br />
-                    <span>— Sistema Protocolo Técnico ANVISA — ALPHAFITUS Laboratório Nutracêutico — CNPJ {cnpjDisplay} —</span>
+                  <div className="mt-6 pt-3 border-t border-gray-200 flex items-center justify-between gap-4">
+                    {/* Spacer (same width as back button) so text stays centred */}
+                    <div className="print:hidden w-44 shrink-0" />
+                    <div className="text-center text-[9px] text-gray-400 leading-relaxed flex-1">
+                      <span className="font-medium text-gray-500">Documento gerado em</span>
+                      <br />
+                      <span className={lastSig ? "text-green-500 font-medium" : ""}>{lastSigDate}</span>
+                      <br />
+                      <span>— Sistema Protocolo Técnico ANVISA — ALPHAFITUS Laboratório Nutracêutico — CNPJ {cnpjDisplay} —</span>
+                    </div>
+                    <a
+                      href="/"
+                      className="print:hidden shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-primary border border-primary/30 rounded-lg px-4 py-2 hover:bg-primary/5 transition-colors w-44 justify-center"
+                      title="Voltar ao Dashboard"
+                    >
+                      ← Retornar a todos os protocolos
+                    </a>
                   </div>
                 );
               })()}
