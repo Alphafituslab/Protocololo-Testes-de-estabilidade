@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/contexts/use-auth";
 import { useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { RefreshCw, Wifi, LogOut, Loader2, WifiOff } from "lucide-react";
+import { RefreshCw, Wifi, LogOut, Loader2, WifiOff, Timer } from "lucide-react";
 import { ROLE_LABELS } from "./users";
 
 interface ActiveSession {
@@ -24,6 +24,7 @@ interface ActiveSession {
   role: string;
   loginAt: string;
   expiresAt: string;
+  lastActivity: string | null;
   sessionCount: number;
 }
 
@@ -53,6 +54,32 @@ function initials(name: string) {
   return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
 }
 
+/** Retorna o tempo inativo em segundos */
+function inactiveSeconds(s: ActiveSession): number {
+  const ref = s.lastActivity ?? s.loginAt;
+  return Math.floor((Date.now() - new Date(ref).getTime()) / 1000);
+}
+
+/** Formata o tempo inativo como "5m 30s", "1h 2m", etc. */
+function formatInactive(secs: number): string {
+  if (secs < 0) return "0s";
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  if (m < 60) return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  return rm > 0 ? `${h}h ${rm}m` : `${h}h`;
+}
+
+/** Cor do cronômetro baseada no tempo inativo */
+function timerColor(secs: number): string {
+  if (secs < 5 * 60)  return "text-green-600 bg-green-50 border-green-200";
+  if (secs < 30 * 60) return "text-amber-600 bg-amber-50 border-amber-200";
+  if (secs < 60 * 60) return "text-orange-600 bg-orange-50 border-orange-200";
+  return "text-red-600 bg-red-50 border-red-200";
+}
+
 export default function ActiveSessionsPage() {
   const { user, isAdmin } = useAuth();
   const [, navigate] = useLocation();
@@ -60,12 +87,16 @@ export default function ActiveSessionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
-  const [tick, setTick] = useState(0); // força re-render a cada 30s para atualizar tempos relativos
+  // Tick a cada segundo para atualizar cronômetros sem buscar dados novamente
+  const [, setTick] = useState(0);
 
   // Confirmação de encerramento
   const [confirmKick, setConfirmKick] = useState<ActiveSession | null>(null);
   const [kicking, setKicking] = useState(false);
   const [kickError, setKickError] = useState<string | null>(null);
+
+  const tokenRef = useRef<string | null>(null);
+  useEffect(() => { tokenRef.current = localStorage.getItem("alphafitus_token"); }, []);
 
   useEffect(() => {
     if (!isAdmin) { navigate("/"); return; }
@@ -114,9 +145,15 @@ export default function ActiveSessionsPage() {
   // Carga inicial + auto-refresh a cada 30s
   useEffect(() => {
     load();
-    const id = setInterval(() => { load(); setTick(t => t + 1); }, 30_000);
+    const id = setInterval(() => load(), 30_000);
     return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Tick a cada 1s para atualizar os cronômetros localmente
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 1_000);
+    return () => clearInterval(id);
   }, []);
 
   if (!isAdmin) return null;
@@ -181,14 +218,16 @@ export default function ActiveSessionsPage() {
       {/* Lista */}
       {!error && sessions.length > 0 && (
         <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
-          {sessions.map((s, idx) => {
+          {sessions.map((s) => {
             const self = isSelf(s.userId);
             const loginedToday = isToday(s.loginAt);
+            const inactSecs = inactiveSeconds(s);
+            const timerCls = timerColor(inactSecs);
 
             return (
               <div
                 key={s.userId}
-                className={`flex items-center gap-4 px-5 py-4 ${idx === 0 ? "" : ""}`}
+                className="flex items-center gap-4 px-5 py-4"
               >
                 {/* Avatar */}
                 <div className="relative shrink-0">
@@ -208,6 +247,16 @@ export default function ActiveSessionsPage() {
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-sm leading-none">{s.displayName}</span>
+
+                    {/* Cronômetro de inatividade — ao lado do nome */}
+                    <span
+                      className={`inline-flex items-center gap-0.5 rounded border px-1.5 py-0.5 text-[10px] font-mono font-semibold ${timerCls}`}
+                      title={`Última ação: ${s.lastActivity ? new Date(s.lastActivity).toLocaleTimeString("pt-BR") : "desconhecido"}`}
+                    >
+                      <Timer className="h-2.5 w-2.5 shrink-0" />
+                      {formatInactive(inactSecs)}
+                    </span>
+
                     {/* Badge ONLINE */}
                     <Badge className="text-[10px] h-4 px-1.5 bg-green-500 hover:bg-green-500 text-white gap-1 shrink-0">
                       <span className="h-1.5 w-1.5 rounded-full bg-white inline-block" />
@@ -263,8 +312,9 @@ export default function ActiveSessionsPage() {
 
       {/* Nota de rodapé */}
       <p className="text-xs text-muted-foreground text-center pb-2">
-        Sessões exibidas são as que possuem token válido (não expirado) no momento desta consulta.
-        A lista é atualizada automaticamente a cada 30 segundos.
+        Usuários inativos há mais de 1 hora são desconectados automaticamente.
+        A lista é atualizada a cada 30 segundos.
+        O cronômetro ao lado do nome mostra o tempo desde a última ação no sistema.
       </p>
 
       {/* Dialog de confirmação de encerramento */}

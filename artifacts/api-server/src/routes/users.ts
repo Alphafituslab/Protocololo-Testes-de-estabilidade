@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, usersTable, sessionsTable } from "@workspace/db";
-import { eq, gt } from "drizzle-orm";
+import { eq, gt, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { requireAuth, requireAdmin } from "../lib/session";
 import { defaultPermissionsForRole } from "../lib/permissions";
@@ -26,6 +26,14 @@ function sanitizeRole(role: string | undefined): string {
 router.get("/users/active-sessions", requireAuth, requireAdmin, async (_req, res): Promise<void> => {
   try {
     const now = new Date();
+
+    // Auto-deslogar sessões inativas há mais de 1 hora
+    await db.execute(sql`
+      DELETE FROM sessions
+      WHERE (last_activity IS NOT NULL AND last_activity < NOW() - INTERVAL '1 hour')
+         OR (last_activity IS NULL     AND created_at    < NOW() - INTERVAL '1 hour')
+    `);
+
     const rows = await db
       .select({
         userId: usersTable.id,
@@ -34,15 +42,16 @@ router.get("/users/active-sessions", requireAuth, requireAdmin, async (_req, res
         role: usersTable.role,
         loginAt: sessionsTable.createdAt,
         expiresAt: sessionsTable.expiresAt,
+        lastActivity: sessionsTable.lastActivity,
       })
       .from(sessionsTable)
       .innerJoin(usersTable, eq(sessionsTable.userId, usersTable.id))
       .where(gt(sessionsTable.expiresAt, now));
 
-    // Agrupa por usuário: mantém a sessão mais recente e conta quantas tem
+    // Agrupa por usuário: mantém a sessão com atividade mais recente e conta quantas tem
     const byUser = new Map<number, {
       userId: number; username: string; displayName: string; role: string;
-      loginAt: Date; expiresAt: Date; sessionCount: number;
+      loginAt: Date; expiresAt: Date; lastActivity: Date | null; sessionCount: number;
     }>();
     for (const r of rows) {
       const existing = byUser.get(r.userId);
@@ -50,15 +59,23 @@ router.get("/users/active-sessions", requireAuth, requireAdmin, async (_req, res
         byUser.set(r.userId, { ...r, sessionCount: 1 });
       } else {
         existing.sessionCount++;
-        if (r.loginAt > existing.loginAt) {
+        // Mantém a sessão com lastActivity mais recente
+        const rActivity = r.lastActivity ?? r.loginAt;
+        const exActivity = existing.lastActivity ?? existing.loginAt;
+        if (rActivity > exActivity) {
           existing.loginAt = r.loginAt;
           existing.expiresAt = r.expiresAt;
+          existing.lastActivity = r.lastActivity;
         }
       }
     }
 
-    // Ordena por loginAt mais recente primeiro
-    const result = [...byUser.values()].sort((a, b) => b.loginAt.getTime() - a.loginAt.getTime());
+    // Ordena por lastActivity mais recente primeiro
+    const result = [...byUser.values()].sort((a, b) => {
+      const ta = (a.lastActivity ?? a.loginAt).getTime();
+      const tb = (b.lastActivity ?? b.loginAt).getTime();
+      return tb - ta;
+    });
     res.json(result);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

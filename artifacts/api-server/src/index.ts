@@ -87,6 +87,9 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  // Migração: adiciona coluna last_activity à tabela sessions (idempotente)
+  db.execute(sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS last_activity TIMESTAMPTZ`)
+    .catch((e) => logger.warn({ err: e }, "migrate sessions.last_activity: skipped"));
   resetSpuriousUpdatedAt().catch((e) => logger.error({ err: e }, "resetSpuriousUpdatedAt error"));
   restoreProtocol3Identification().catch((e) => logger.error({ err: e }, "restoreProtocol3 error"));
   runAllSeeds().catch((e) => logger.error({ err: e }, "Seed error"));

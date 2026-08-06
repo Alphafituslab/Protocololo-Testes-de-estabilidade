@@ -2,6 +2,9 @@ import { db, sessionsTable, usersTable } from "@workspace/db";
 import { eq, and, gt } from "drizzle-orm";
 import type { RequestHandler } from "express";
 
+// In-memory debounce: só escrevemos lastActivity no DB a cada 30s por token
+const activityCache = new Map<string, number>();
+
 export type AuthUser = {
   id: number;
   username: string;
@@ -47,7 +50,19 @@ export const sessionMiddleware: RequestHandler = async (req, _res, next): Promis
         )
         .limit(1);
 
-      if (result[0]) req.authUser = result[0];
+      if (result[0]) {
+        req.authUser = result[0];
+        // Debounce: toca lastActivity no DB no máximo 1x a cada 30s por token
+        const now = Date.now();
+        const last = activityCache.get(token) ?? 0;
+        if (now - last > 30_000) {
+          activityCache.set(token, now);
+          db.update(sessionsTable)
+            .set({ lastActivity: new Date() })
+            .where(eq(sessionsTable.token, token))
+            .catch(() => { /* fire-and-forget */ });
+        }
+      }
     } catch { /* ignore auth errors */ }
   }
 
