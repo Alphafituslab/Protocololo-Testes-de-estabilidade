@@ -10162,11 +10162,20 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
 
   const sq = normSearch(search);
 
-  const available = allRefs.filter(r =>
-    !linkedIds.has(r.id) &&
-    (sq === "" || normSearch(r.titulo).includes(sq) || normSearch(r.autores ?? "").includes(sq)) &&
-    (filterTipos.size === 0 || r.tipoReferencia.split(",").some(t => filterTipos.has(t)))
-  );
+  const available = allRefs.filter(r => {
+    if (filterTipos.size > 0 && !r.tipoReferencia.split(",").some(t => filterTipos.has(t))) return false;
+    if (linkedIds.has(r.id)) return false;
+    if (sq === "") return true;
+    return (
+      normSearch(r.titulo).includes(sq) ||
+      normSearch(r.autores ?? "").includes(sq) ||
+      normSearch(r.fonte ?? "").includes(sq) ||
+      normSearch(r.descricao ?? "").includes(sq) ||
+      normSearch(r.ativoRelacionado ?? "").includes(sq) ||
+      normSearch(r.doi ?? "").includes(sq) ||
+      normSearch(String(r.ano ?? "")).includes(sq)
+    );
+  });
 
   const noResults = available.length === 0;
 
