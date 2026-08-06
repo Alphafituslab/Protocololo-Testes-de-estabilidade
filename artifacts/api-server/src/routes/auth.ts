@@ -4,6 +4,7 @@ import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
 import { requireAuth } from "../lib/session";
+import { defaultPermissionsForRole } from "../lib/permissions";
 
 const router: IRouter = Router();
 
@@ -116,7 +117,9 @@ router.post("/auth/login", async (req, res): Promise<void> => {
       displayName: user.displayName,
       role: user.role,
       hplcAccess: user.hplcAccess,
-      permissions: user.permissions ?? [],
+      permissions: (user.permissions && user.permissions.length > 0)
+        ? user.permissions
+        : defaultPermissionsForRole(user.role) as string[],
       accessExpiresAt: user.accessExpiresAt ?? null,
       registrationNumber: user.registrationNumber ?? null,
     },
