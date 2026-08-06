@@ -261,10 +261,14 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
 
   const avgByParam: Record<string, { sum: number; count: number; criterion: string; resultText: string; status: string; category: string }> = {};
 
+  // Lot condition lookup — matches kinetics.ts priority: longa_duracao > all lots.
+  const lotConditionMap = new Map<number, string | null>(lots.map(l => [l.id, l.studyCondition ?? null]));
+
   // T6-only accumulator for teor_ativo — kinetics tab uses period=6 exclusively,
   // so the certificate must use the same source for ANVISA mg calculation and status.
   // Using a cross-period average inflates the value (T0/T3 are higher than T6).
-  const t6AvgByParam: Record<string, { sum: number; count: number }> = {};
+  const t6AvgByParam:   Record<string, { sum: number; count: number }> = {}; // all lots
+  const t6LtAvgByParam: Record<string, { sum: number; count: number }> = {}; // longa_duracao only
 
   for (const r of allResults) {
     if (!avgByParam[r.parameter]) {
@@ -274,11 +278,17 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       avgByParam[r.parameter].sum += r.numericResult;
       avgByParam[r.parameter].count += 1;
     }
-    // Track T6-only for teor_ativo (same calculation as kinetics.ts)
+    // Track T6-only for teor_ativo — same lot-priority logic as kinetics.ts:
+    // prefer longa_duracao; fall back to all lots when no LT data exists.
     if (r.category === "teor_ativo" && r.period === 6 && r.numericResult != null) {
       if (!t6AvgByParam[r.parameter]) t6AvgByParam[r.parameter] = { sum: 0, count: 0 };
       t6AvgByParam[r.parameter].sum += r.numericResult;
       t6AvgByParam[r.parameter].count += 1;
+      if (lotConditionMap.get(r.lotId) === "longa_duracao") {
+        if (!t6LtAvgByParam[r.parameter]) t6LtAvgByParam[r.parameter] = { sum: 0, count: 0 };
+        t6LtAvgByParam[r.parameter].sum += r.numericResult;
+        t6LtAvgByParam[r.parameter].count += 1;
+      }
     }
     // AR is an explicit operator release — it overrides NC at individual result level too
     if (r.status === "aprovado_com_ressalva") {
@@ -407,10 +417,13 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
         const lim = getAtivoLimit(param);
         if (lim?.declared) {
           const declaredNum = parseFloat(lim.declared);
-          const t6Entry = t6AvgByParam[param];
-          const t6Only = t6Entry && t6Entry.count > 0 ? t6Entry.sum / t6Entry.count : null;
-          // Prefer: kinetics saved T6 > T6-only avg > overall avg (last resort)
-          const basePercent = getKineticsT6(param) ?? t6Only ?? avg;
+          const t6Entry   = t6AvgByParam[param];
+          const t6LtEntry = t6LtAvgByParam[param];
+          // Long-term lots preferred (matches kinetics.ts primaryBucket logic)
+          const t6Lt   = t6LtEntry && t6LtEntry.count > 0 ? t6LtEntry.sum / t6LtEntry.count : null;
+          const t6Only = t6Entry   && t6Entry.count   > 0 ? t6Entry.sum   / t6Entry.count   : null;
+          // Prefer: kinetics saved T6 > LT avg > all-lots avg > overall avg (last resort)
+          const basePercent = getKineticsT6(param) ?? t6Lt ?? t6Only ?? avg;
           if (basePercent !== null && !isNaN(declaredNum) && declaredNum > 0) {
             // Apply overage exactly as the Faixa de Conformidade table does in the frontend.
             // Without overage: actualMg = (T6% / 100) × declared
@@ -494,9 +507,11 @@ router.get("/protocols/:id/certificate", async (req, res): Promise<void> => {
       // For all other categories, show the overall average.
       let resultDisplay = avgPercent ?? data.resultText;
       if (data.category === "teor_ativo" && ativoMgInfo) {
-        const t6Entry = t6AvgByParam[param];
-        const t6Only = t6Entry && t6Entry.count > 0 ? t6Entry.sum / t6Entry.count : null;
-        const t6Pct = getKineticsT6(param) ?? t6Only ?? avg;
+        const t6Entry   = t6AvgByParam[param];
+        const t6LtEntry = t6LtAvgByParam[param];
+        const t6Lt   = t6LtEntry && t6LtEntry.count > 0 ? t6LtEntry.sum / t6LtEntry.count : null;
+        const t6Only = t6Entry   && t6Entry.count   > 0 ? t6Entry.sum   / t6Entry.count   : null;
+        const t6Pct = getKineticsT6(param) ?? t6Lt ?? t6Only ?? avg;
         resultDisplay = t6Pct !== null ? `${t6Pct.toFixed(2)}%` : (avgPercent ?? data.resultText);
       } else if (ativoMgInfo) {
         resultDisplay = avgPercent !== null ? `${avgPercent}%` : data.resultText;
