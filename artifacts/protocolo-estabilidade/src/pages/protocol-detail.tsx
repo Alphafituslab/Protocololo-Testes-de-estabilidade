@@ -10128,6 +10128,10 @@ function ReferencesTab({ protocolId }: { protocolId: number }) {
     return 5;
   };
   const sortedProtocolRefs = [...protocolRefs].sort((a, b) => {
+    // Auto-incluídas sempre primeiro
+    const aa = a.autoInclude ? 0 : 1;
+    const ab = b.autoInclude ? 0 : 1;
+    if (aa !== ab) return aa - ab;
     const ra = refRank(a), rb = refRank(b);
     if (ra !== rb) return ra - rb;
     if (ra === 4) {
