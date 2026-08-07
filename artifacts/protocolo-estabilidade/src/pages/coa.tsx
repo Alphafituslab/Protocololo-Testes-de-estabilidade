@@ -2074,6 +2074,8 @@ function ResultRow({
   const [method, setMethod] = useState(result.method);
   const [status, setStatus] = useState(result.status);
   const [param, setParam] = useState(result.parameter);
+  const [methodOpen, setMethodOpen] = useState(false);
+  const [methodSearch, setMethodSearch] = useState("");
 
   // Sync ONLY when the row identity changes (not on every server refetch).
   // This prevents background refetches from overwriting what the user is typing.
@@ -2141,25 +2143,47 @@ function ResultRow({
         />
       </td>
       <td className="px-2 py-1 min-w-[200px] max-w-[320px]">
-        <Select value={method} onValueChange={handleMethodSelect}>
-          <SelectTrigger className="h-auto min-h-7 text-xs py-1 px-2 items-start">
-            <span className="text-left block leading-snug line-clamp-3 whitespace-normal break-words">
-              {method
-                ? (methodologies.find(m => m.shortName === method)?.citation || method)
-                : <span className="text-muted-foreground/70 italic">Selecionar metodologia…</span>}
-            </span>
-          </SelectTrigger>
-          <SelectContent className="max-h-72 overflow-y-auto">
-            {methodologies.map(m => (
-              <SelectItem key={m.id} value={m.shortName}>
-                <div className="flex flex-col gap-0.5 py-0.5">
-                  <span className="font-medium text-xs">{m.shortName}</span>
-                  {m.citation && <span className="text-muted-foreground text-[10px] leading-snug line-clamp-2 max-w-xs">{m.citation}</span>}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Popover open={methodOpen} onOpenChange={open => { setMethodOpen(open); if (!open) setMethodSearch(""); }}>
+          <PopoverTrigger asChild>
+            <button className="w-full h-auto min-h-7 text-xs py-1 px-2 flex items-start justify-between gap-1 rounded-md border border-input bg-background hover:bg-accent/30 transition-colors focus:outline-none focus:ring-1 focus:ring-ring">
+              <span className="text-left leading-snug line-clamp-3 whitespace-normal break-words flex-1">
+                {method
+                  ? (methodologies.find(m => m.shortName === method)?.citation || method)
+                  : <span className="text-muted-foreground/70 italic">Selecionar metodologia…</span>}
+              </span>
+              <Search className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[340px] p-0" align="start">
+            <Command>
+              <CommandInput
+                placeholder="Buscar metodologia…"
+                value={methodSearch}
+                onValueChange={setMethodSearch}
+                className="text-xs"
+              />
+              <CommandList className="max-h-64">
+                <CommandEmpty className="py-3 text-xs text-center text-muted-foreground">Nenhuma metodologia encontrada.</CommandEmpty>
+                {methodologies
+                  .filter(m => {
+                    const q = methodSearch.toLowerCase();
+                    return !q || m.shortName.toLowerCase().includes(q) || (m.citation || "").toLowerCase().includes(q);
+                  })
+                  .map(m => (
+                    <CommandItem
+                      key={m.id}
+                      value={m.shortName}
+                      onSelect={() => { handleMethodSelect(m.shortName); setMethodOpen(false); setMethodSearch(""); }}
+                      className="flex flex-col items-start gap-0.5 py-2 cursor-pointer"
+                    >
+                      <span className="font-medium text-xs">{m.shortName}</span>
+                      {m.citation && <span className="text-muted-foreground text-[10px] leading-snug line-clamp-2">{m.citation}</span>}
+                    </CommandItem>
+                  ))}
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </td>
       <td className="px-2 py-1">
         <Select value={status} onValueChange={v => { setStatus(v); scheduleSave({ status: v }); }}>
