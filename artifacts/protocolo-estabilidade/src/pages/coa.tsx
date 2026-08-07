@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/use-auth";
@@ -83,6 +83,7 @@ interface LotOption { id: number; lotNumber: string; manufacturingDate: string; 
 interface ProtocolResultItem { id: number; parameter: string; category: string; result: string; status: string; period: number; }
 interface LinkedProtocolDetail { id: number; productName: string; companyName: string; cnpj: string; ie: string | null; address: string | null; cep: string | null; approvedBy: string | null; }
 interface Methodology { id: number; shortName: string; citation: string; category: string | null; parameter: string | null; criteria: string | null; }
+interface BibliographicRefRaw { id: number; titulo: string; autores: string | null; ano: number | null; fonte: string | null; doi: string | null; descricao: string | null; tipoReferencia: string; ativoRelacionado: string | null; }
 
 interface CoaWithResults extends CoaDocument {
   results: CoaResult[];
@@ -552,6 +553,27 @@ function CoaDetail({ id }: { id: number }) {
     queryFn: () => apiFetch("/api/methodologies", token),
   });
 
+  // Fetch bibliographic references to merge into methodology dropdown
+  const { data: biblioRefs = [] } = useQuery<BibliographicRefRaw[]>({
+    queryKey: ["bibliographic-references-coa"],
+    queryFn: () => apiFetch("/api/bibliographic-references", token),
+  });
+
+  // Merged list: methodologies first, then bibliographic references (mapped to same shape).
+  // Used only for the dropdown; auto-fill by parameter still uses `methodologies` alone.
+  const allMethodologies = useMemo<Methodology[]>(() => {
+    const mapped: Methodology[] = biblioRefs.map(ref => ({
+      id: -(ref.id + 100000), // negative to avoid collision with methodology IDs
+      shortName: ref.titulo,
+      citation: [ref.autores, ref.fonte, ref.ano ? String(ref.ano) : null]
+        .filter(Boolean).join(". "),
+      category: ref.tipoReferencia ?? null,
+      parameter: ref.ativoRelacionado ?? null,
+      criteria: null,
+    }));
+    return [...methodologies, ...mapped];
+  }, [methodologies, biblioRefs]);
+
   // Fetch clients with CoA access
   type CoaClientAccess = {
     id: number; clientUserId: number; canPrint: boolean; createdAt: string;
@@ -971,7 +993,7 @@ function CoaDetail({ id }: { id: number }) {
                         key={r.id}
                         result={r}
                         even={i % 2 === 0}
-                        methodologies={methodologies}
+                        methodologies={allMethodologies}
                         onSave={(data) => scheduleResultSave(r.id, data)}
                         onDelete={() => setDeleteResultId(r.id)}
                       />
@@ -1514,7 +1536,7 @@ function CoaDetail({ id }: { id: number }) {
                   <td>{r.spec || "—"}</td>
                   <td style={{ fontWeight: 700 }}>{r.result || "—"}</td>
                   <td className="cell-method">
-                    {methodologies.find(m => m.shortName === r.method)?.citation || r.method || "—"}
+                    {allMethodologies.find(m => m.shortName === r.method)?.citation || r.method || "—"}
                   </td>
                   <td className={`status-${r.status}`}>
                     {r.status === "conforme" ? "✓ Conforme" : r.status === "nao_conforme" ? "✗ Não Conforme" : r.status === "ar" ? "⚠ Aprovado c/ Ressalva" : "Pendente"}
@@ -2155,7 +2177,7 @@ function ResultRow({
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-[340px] p-0" align="start">
-            <Command>
+            <Command shouldFilter={false}>
               <CommandInput
                 placeholder="Buscar metodologia…"
                 value={methodSearch}
