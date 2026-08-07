@@ -9,6 +9,28 @@ import { createAutoSnapshot } from "../lib/snapshot-helper";
 
 const router: IRouter = Router();
 
+function dbErrMessage(err: unknown): string {
+  if (err && typeof err === "object") {
+    const e = err as Record<string, unknown>;
+    // Postgres unique violation
+    if (e["code"] === "23505") {
+      const detail = String(e["detail"] ?? "");
+      if (detail.includes("lot_number") || detail.includes("lot_number")) {
+        return "Já existe um lote com esse número neste protocolo. Escolha outro número de lote.";
+      }
+      return "Registro duplicado. Verifique os dados e tente novamente.";
+    }
+    // Postgres check constraint
+    if (e["code"] === "23514") return "Dados inválidos (violação de regra). Verifique as datas e valores.";
+    // Postgres not-null
+    if (e["code"] === "23502") return "Campo obrigatório ausente.";
+    // Foreign key
+    if (e["code"] === "23503") return "Protocolo não encontrado.";
+    if (e["message"]) return String(e["message"]);
+  }
+  return "Erro interno ao salvar o lote.";
+}
+
 router.get("/protocols/:id/lots", requireAuth, async (req, res): Promise<void> => {
   const params = ListLotsParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
@@ -23,10 +45,14 @@ router.post("/protocols/:id/lots", requireAuth, requirePermission(PERM.LOTS_MANA
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = CreateLotBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-  const [lot] = await db.insert(lotsTable).values({ ...parsed.data, protocolId: params.data.id }).returning();
-  await logAudit(req, "CRIAR_LOTE", "lote", `Lote "${lot.lotNumber}" adicionado`, { entityId: lot.id, protocolId: params.data.id });
-  void createAutoSnapshot(params.data.id, `Auto: após adicionar lote "${lot.lotNumber}"`, req.authUser?.displayName ?? "Sistema");
-  res.status(201).json(lot);
+  try {
+    const [lot] = await db.insert(lotsTable).values({ ...parsed.data, protocolId: params.data.id }).returning();
+    await logAudit(req, "CRIAR_LOTE", "lote", `Lote "${lot.lotNumber}" adicionado`, { entityId: lot.id, protocolId: params.data.id });
+    void createAutoSnapshot(params.data.id, `Auto: após adicionar lote "${lot.lotNumber}"`, req.authUser?.displayName ?? "Sistema");
+    res.status(201).json(lot);
+  } catch (err) {
+    res.status(409).json({ error: dbErrMessage(err) });
+  }
 });
 
 router.put("/protocols/:id/lots/:lotId", requireAuth, requirePermission(PERM.LOTS_MANAGE), async (req, res): Promise<void> => {
@@ -41,10 +67,14 @@ router.put("/protocols/:id/lots/:lotId", requireAuth, requirePermission(PERM.LOT
     res.status(403).json({ error: "Protocolo assinado. Apenas o administrador pode editar lotes." }); return;
   }
 
-  const [lot] = await db.update(lotsTable).set(parsed.data).where(eq(lotsTable.id, params.data.lotId)).returning();
-  if (!lot) { res.status(404).json({ error: "Lot not found" }); return; }
-  await logAudit(req, "ATUALIZAR_LOTE", "lote", `Lote "${lot.lotNumber}" atualizado`, { entityId: lot.id, protocolId: params.data.id });
-  res.json(lot);
+  try {
+    const [lot] = await db.update(lotsTable).set(parsed.data).where(eq(lotsTable.id, params.data.lotId)).returning();
+    if (!lot) { res.status(404).json({ error: "Lot not found" }); return; }
+    await logAudit(req, "ATUALIZAR_LOTE", "lote", `Lote "${lot.lotNumber}" atualizado`, { entityId: lot.id, protocolId: params.data.id });
+    res.json(lot);
+  } catch (err) {
+    res.status(409).json({ error: dbErrMessage(err) });
+  }
 });
 
 router.delete("/protocols/:id/lots/:lotId", requireAuth, requirePermission(PERM.LOTS_MANAGE), async (req, res): Promise<void> => {
@@ -57,15 +87,19 @@ router.delete("/protocols/:id/lots/:lotId", requireAuth, requirePermission(PERM.
     res.status(403).json({ error: "Protocolo assinado. Apenas o administrador pode excluir lotes." }); return;
   }
 
-  const [deleted] = await db
-    .update(lotsTable)
-    .set({ deletedAt: new Date() })
-    .where(and(eq(lotsTable.id, params.data.lotId), isNull(lotsTable.deletedAt)))
-    .returning();
-  if (!deleted) { res.status(404).json({ error: "Lot not found" }); return; }
-  await logAudit(req, "EXCLUIR_LOTE", "lote", `Lote "${deleted.lotNumber}" enviado para a lixeira`, { entityId: deleted.id, protocolId: params.data.id });
-  void createAutoSnapshot(params.data.id, `Auto: antes de excluir lote "${deleted.lotNumber}"`, req.authUser?.displayName ?? "Sistema");
-  res.sendStatus(204);
+  try {
+    const [deleted] = await db
+      .update(lotsTable)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(lotsTable.id, params.data.lotId), isNull(lotsTable.deletedAt)))
+      .returning();
+    if (!deleted) { res.status(404).json({ error: "Lot not found" }); return; }
+    await logAudit(req, "EXCLUIR_LOTE", "lote", `Lote "${deleted.lotNumber}" enviado para a lixeira`, { entityId: deleted.id, protocolId: params.data.id });
+    void createAutoSnapshot(params.data.id, `Auto: antes de excluir lote "${deleted.lotNumber}"`, req.authUser?.displayName ?? "Sistema");
+    res.sendStatus(204);
+  } catch (err) {
+    res.status(500).json({ error: dbErrMessage(err) });
+  }
 });
 
 export default router;
