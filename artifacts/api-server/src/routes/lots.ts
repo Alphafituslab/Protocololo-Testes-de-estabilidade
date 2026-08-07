@@ -6,6 +6,7 @@ import { logAudit } from "../lib/audit";
 import { requireAuth } from "../lib/session";
 import { PERM, requirePermission, isProtocolSigned } from "../lib/permissions";
 import { createAutoSnapshot } from "../lib/snapshot-helper";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -120,6 +121,7 @@ router.post("/protocols/:id/lots", requireAuth, requirePermission(PERM.LOTS_MANA
     void createAutoSnapshot(protocolId, `Auto: após adicionar lote "${lot.lotNumber}"`, req.authUser?.displayName ?? "Sistema");
     res.status(201).json(lot);
   } catch (err) {
+    logger.error({ err, protocolId, lotNumber: parsed.data.lotNumber }, "createLot: DB insert failed");
     res.status(409).json({ error: dbErrMessage(err) });
   }
 });

@@ -324,20 +324,28 @@ export async function emergencyRestoreIfNeeded(): Promise<void> {
  * backup/restore com IDs explícitos que avançam além do last_value da sequence.
  */
 async function fixSequences(): Promise<void> {
-  try {
-    await pool.query(`
-      SELECT setval(
-        'analysis_results_id_seq',
-        GREATEST(
-          COALESCE((SELECT MAX(id) FROM analysis_results), 0) + 1,
-          (SELECT last_value + 1 FROM analysis_results_id_seq)
-        ),
-        false
-      )
-    `);
-    logger.info("analysis_results sequence verified/fixed");
-  } catch (err) {
-    logger.error({ err }, "fixSequences: failed to reset sequence");
+  const tables = [
+    { seq: "analysis_results_id_seq", table: "analysis_results" },
+    { seq: "lots_id_seq",             table: "lots" },
+    { seq: "protocols_id_seq",        table: "protocols" },
+    { seq: "methodologies_id_seq",    table: "methodologies" },
+  ];
+  for (const { seq, table } of tables) {
+    try {
+      await pool.query(`
+        SELECT setval(
+          '${seq}',
+          GREATEST(
+            COALESCE((SELECT MAX(id) FROM ${table}), 0) + 1,
+            (SELECT last_value + 1 FROM ${seq})
+          ),
+          false
+        )
+      `);
+      logger.info(`${seq} verified/fixed`);
+    } catch (err) {
+      logger.error({ err }, `fixSequences: failed for ${seq}`);
+    }
   }
 }
 
