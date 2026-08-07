@@ -486,6 +486,18 @@ function LotsTab({ protocolId }: { protocolId: number }) {
     query: { queryKey: getListDeletedLotsQueryKey(protocolId), enabled: trashOpen },
   });
 
+  // Count analysis results per lot so the dialog can warn before the user confirms permanent deletion
+  const { data: allResults = [] } = useListResults(protocolId, {
+    query: { queryKey: getListResultsQueryKey(protocolId) },
+  });
+  const resultCountByLotId = useMemo(() => {
+    const map: Record<number, number> = {};
+    for (const r of allResults) {
+      map[r.lotId] = (map[r.lotId] ?? 0) + 1;
+    }
+    return map;
+  }, [allResults]);
+
   const restoreLot = useRestoreLot({
     mutation: {
       onSuccess: () => {
@@ -714,8 +726,17 @@ function LotsTab({ protocolId }: { protocolId: number }) {
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      O lote <strong className="font-mono">{lot.lotNumber}</strong> será removido definitivamente do banco de dados. Esta ação não pode ser desfeita.
+                                    <AlertDialogDescription asChild>
+                                      <div className="space-y-2">
+                                        <p>
+                                          O lote <strong className="font-mono">{lot.lotNumber}</strong> será removido definitivamente do banco de dados. Esta ação não pode ser desfeita.
+                                        </p>
+                                        {(resultCountByLotId[lot.id] ?? 0) > 0 && (
+                                          <p className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive font-medium">
+                                            ⚠️ Este lote possui {resultCountByLotId[lot.id]} resultado(s) de análise associado(s). Exclua os resultados primeiro antes de remover o lote permanentemente.
+                                          </p>
+                                        )}
+                                      </div>
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
@@ -723,6 +744,7 @@ function LotsTab({ protocolId }: { protocolId: number }) {
                                     <AlertDialogAction
                                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                       onClick={() => permanentDeleteLot.mutate({ id: protocolId, lotId: lot.id })}
+                                      disabled={(resultCountByLotId[lot.id] ?? 0) > 0}
                                     >
                                       Excluir permanentemente
                                     </AlertDialogAction>
