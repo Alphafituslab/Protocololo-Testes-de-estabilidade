@@ -9,26 +9,30 @@ import { createAutoSnapshot } from "../lib/snapshot-helper";
 
 const router: IRouter = Router();
 
+function pgCode(err: unknown): string | undefined {
+  if (!err || typeof err !== "object") return undefined;
+  const e = err as Record<string, unknown>;
+  // Direct postgres error
+  if (typeof e["code"] === "string" && e["code"].length === 5) return e["code"];
+  // Drizzle wraps the original error in .cause
+  if (e["cause"]) return pgCode(e["cause"]);
+  return undefined;
+}
+
 function dbErrMessage(err: unknown): string {
-  if (err && typeof err === "object") {
-    const e = err as Record<string, unknown>;
-    // Postgres unique violation
-    if (e["code"] === "23505") {
-      const detail = String(e["detail"] ?? "");
-      if (detail.includes("lot_number") || detail.includes("lot_number")) {
-        return "Já existe um lote com esse número neste protocolo. Escolha outro número de lote.";
-      }
-      return "Registro duplicado. Verifique os dados e tente novamente.";
-    }
-    // Postgres check constraint
-    if (e["code"] === "23514") return "Dados inválidos (violação de regra). Verifique as datas e valores.";
-    // Postgres not-null
-    if (e["code"] === "23502") return "Campo obrigatório ausente.";
-    // Foreign key
-    if (e["code"] === "23503") return "Protocolo não encontrado.";
-    if (e["message"]) return String(e["message"]);
+  const code = pgCode(err);
+  if (code === "23505") {
+    return "Já existe um lote com esse número neste protocolo. Escolha outro número de lote.";
   }
-  return "Erro interno ao salvar o lote.";
+  if (code === "23514") return "Dados inválidos (violação de regra). Verifique as datas e valores.";
+  if (code === "23502") return "Campo obrigatório ausente.";
+  if (code === "23503") return "Protocolo não encontrado.";
+  // Fallback: check message text for common patterns
+  const msg = String((err as Record<string, unknown>)?.["message"] ?? "");
+  if (msg.toLowerCase().includes("unique") || msg.toLowerCase().includes("duplicate")) {
+    return "Já existe um lote com esse número neste protocolo. Escolha outro número de lote.";
+  }
+  return "Erro ao salvar o lote. Tente novamente ou contate o administrador.";
 }
 
 router.get("/protocols/:id/lots", requireAuth, async (req, res): Promise<void> => {
