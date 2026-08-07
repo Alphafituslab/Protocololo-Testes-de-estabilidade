@@ -90,6 +90,20 @@ app.listen(port, (err) => {
   // Migração: adiciona coluna last_activity à tabela sessions (idempotente)
   db.execute(sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS last_activity TIMESTAMPTZ`)
     .catch((e) => logger.warn({ err: e }, "migrate sessions.last_activity: skipped"));
+  // Migração: cria tabela tab_error_logs para logs de erros capturados pelo TabErrorBoundary
+  db.execute(sql`
+    CREATE TABLE IF NOT EXISTS tab_error_logs (
+      id           SERIAL PRIMARY KEY,
+      user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      user_display TEXT,
+      protocol_id  INTEGER,
+      tab_name     TEXT,
+      error_message TEXT NOT NULL,
+      error_stack  TEXT,
+      component_stack TEXT,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `).catch((e) => logger.warn({ err: e }, "migrate tab_error_logs: skipped"));
   resetSpuriousUpdatedAt().catch((e) => logger.error({ err: e }, "resetSpuriousUpdatedAt error"));
   restoreProtocol3Identification().catch((e) => logger.error({ err: e }, "restoreProtocol3 error"));
   runAllSeeds().catch((e) => logger.error({ err: e }, "Seed error"));

@@ -28,6 +28,7 @@ import coaRouter from "./coa";
 import anvisaRouter from "./anvisa";
 import companiesRouter from "./companies";
 import anvisaNumberBankRouter from "./anvisa-number-bank";
+import errorLogsRouter from "./error-logs";
 
 const router: IRouter = Router();
 
@@ -64,5 +65,6 @@ router.use(coaRouter);
 router.use(anvisaRouter);
 router.use(companiesRouter);
 router.use(anvisaNumberBankRouter);
+router.use(errorLogsRouter);
 
 export default router;

@@ -27,3 +27,4 @@ export * from "./client_coa_access";
 export * from "./anvisa_notifications";
 export * from "./companies";
 export * from "./anvisa_number_bank";
+export * from "./tab_error_logs";

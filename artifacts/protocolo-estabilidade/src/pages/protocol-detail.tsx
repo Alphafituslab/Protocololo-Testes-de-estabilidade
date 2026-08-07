@@ -117,10 +117,10 @@ function TabFallback() {
 }
 
 class TabErrorBoundary extends React.Component<
-  { children: React.ReactNode; tabName?: string },
+  { children: React.ReactNode; tabName?: string; protocolId?: number | null },
   { hasError: boolean; error: Error | null }
 > {
-  constructor(props: { children: React.ReactNode; tabName?: string }) {
+  constructor(props: { children: React.ReactNode; tabName?: string; protocolId?: number | null }) {
     super(props);
     this.state = { hasError: false, error: null };
   }
@@ -129,6 +129,19 @@ class TabErrorBoundary extends React.Component<
   }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error(`[TabErrorBoundary] Erro na aba "${this.props.tabName ?? "?"}"`, error, info);
+    // POST assíncrono para o servidor — falha silenciosa para não atrapalhar o usuário
+    fetch("/api/error-logs/tab-error", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        protocolId: this.props.protocolId ?? null,
+        tabName: this.props.tabName ?? null,
+        errorMessage: error.message,
+        errorStack: error.stack ?? null,
+        componentStack: info.componentStack ?? null,
+      }),
+    }).catch(() => {/* ignorar falhas de rede */});
   }
   render() {
     if (this.state.hasError) {
@@ -1498,7 +1511,7 @@ export default function ProtocolDetail() {
         <TabsContent value="results">
           <Card>
             <CardContent className="pt-6">
-              {mounted("results") && <TabErrorBoundary tabName="Resultados"><Suspense fallback={<TabFallback />}><ResultsTab
+              {mounted("results") && <TabErrorBoundary tabName="Resultados" protocolId={numId}><Suspense fallback={<TabFallback />}><ResultsTab
                 protocolId={numId}
                 isPowder={/\b(p[oó]|sachê|sachet|powder|granulado)\b/i.test(protocol.productType ?? "")}
                 initialCustomParamsJson={protocol.customParamsJson}
@@ -1518,7 +1531,7 @@ export default function ProtocolDetail() {
         {hasPermission("kinetics:view") && <TabsContent value="kinetics">
           <Card>
             <CardContent className="pt-6">
-              {mounted("kinetics") && <TabErrorBoundary tabName="Cinética"><Suspense fallback={<TabFallback />}><KineticsTab
+              {mounted("kinetics") && <TabErrorBoundary tabName="Cinética" protocolId={numId}><Suspense fallback={<TabFallback />}><KineticsTab
                 protocolId={numId}
                 productName={protocol.productName}
                 initialKineticsNotes={protocol.kineticsNotes}
@@ -1537,7 +1550,7 @@ export default function ProtocolDetail() {
         {hasPermission("methodology:view") && <TabsContent value="metodologia">
           <Card>
             <CardContent className="pt-6">
-              {mounted("metodologia") && <TabErrorBoundary tabName="Metodologia"><Suspense fallback={<TabFallback />}><MethodologiaTab protocolId={numId} initialCustomParamsJson={protocol.customParamsJson} protocolStatus={protocol.status} /></Suspense></TabErrorBoundary>}
+              {mounted("metodologia") && <TabErrorBoundary tabName="Metodologia" protocolId={numId}><Suspense fallback={<TabFallback />}><MethodologiaTab protocolId={numId} initialCustomParamsJson={protocol.customParamsJson} protocolStatus={protocol.status} /></Suspense></TabErrorBoundary>}
             </CardContent>
           </Card>
         </TabsContent>}
@@ -1554,10 +1567,10 @@ export default function ProtocolDetail() {
           </Card>
         </TabsContent>}
         {hasPermission("documents:manage") && <TabsContent value="documentos">
-          {mounted("documentos") && <TabErrorBoundary tabName="Documentos"><Suspense fallback={<TabFallback />}><DocumentosTab protocolId={numId} /></Suspense></TabErrorBoundary>}
+          {mounted("documentos") && <TabErrorBoundary tabName="Documentos" protocolId={numId}><Suspense fallback={<TabFallback />}><DocumentosTab protocolId={numId} /></Suspense></TabErrorBoundary>}
         </TabsContent>}
         {hasPermission("references:manage") && <TabsContent value="referencias">
-          {mounted("referencias") && <TabErrorBoundary tabName="Referências"><Suspense fallback={<TabFallback />}><ReferencesTab protocolId={numId} /></Suspense></TabErrorBoundary>}
+          {mounted("referencias") && <TabErrorBoundary tabName="Referências" protocolId={numId}><Suspense fallback={<TabFallback />}><ReferencesTab protocolId={numId} /></Suspense></TabErrorBoundary>}
         </TabsContent>}
         {hasPermission("versions:view") && <TabsContent value="versoes">
           <Card>
@@ -1567,12 +1580,12 @@ export default function ProtocolDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {mounted("versoes") && <TabErrorBoundary tabName="Versões"><Suspense fallback={<TabFallback />}><VersionsTab protocolId={numId} /></Suspense></TabErrorBoundary>}
+              {mounted("versoes") && <TabErrorBoundary tabName="Versões" protocolId={numId}><Suspense fallback={<TabFallback />}><VersionsTab protocolId={numId} /></Suspense></TabErrorBoundary>}
             </CardContent>
           </Card>
         </TabsContent>}
         {hasPermission("anvisa:manage") && <TabsContent value="anvisa">
-          {mounted("anvisa") && <TabErrorBoundary tabName="ANVISA"><Suspense fallback={<TabFallback />}><AnvisaTab protocolId={numId} protocolInfo={{
+          {mounted("anvisa") && <TabErrorBoundary tabName="ANVISA" protocolId={numId}><Suspense fallback={<TabFallback />}><AnvisaTab protocolId={numId} protocolInfo={{
             companyName: protocol.companyName,
             cnpj: protocol.cnpj,
             productName: protocol.productName,
