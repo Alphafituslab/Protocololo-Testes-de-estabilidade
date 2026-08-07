@@ -124,10 +124,28 @@ class TabErrorBoundary extends React.Component<
     super(props);
     this.state = { hasError: false, error: null };
   }
+  static isStaleChunkError(error: Error): boolean {
+    const msg = error.message ?? "";
+    return (
+      msg.includes("Failed to fetch dynamically imported module") ||
+      msg.includes("Loading chunk") ||
+      msg.includes("Importing a module script failed") ||
+      msg.includes("error loading dynamically imported module")
+    );
+  }
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
   }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
+    // Chunk stale após deploy: recarregar automaticamente (uma vez por sessão para evitar loop)
+    if (TabErrorBoundary.isStaleChunkError(error)) {
+      const reloadKey = "tab_chunk_reload_attempted";
+      if (!sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, "1");
+        window.location.reload();
+        return;
+      }
+    }
     console.error(`[TabErrorBoundary] Erro na aba "${this.props.tabName ?? "?"}"`, error, info);
     // POST assíncrono para o servidor — falha silenciosa para não atrapalhar o usuário
     fetch("/api/error-logs/tab-error", {
@@ -145,19 +163,22 @@ class TabErrorBoundary extends React.Component<
   }
   render() {
     if (this.state.hasError) {
+      const isChunk = TabErrorBoundary.isStaleChunkError(this.state.error!);
       return (
         <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
           <span className="text-destructive font-medium text-sm">
             Erro ao carregar {this.props.tabName ? `a aba "${this.props.tabName}"` : "esta aba"}.
           </span>
           <span className="text-muted-foreground text-xs max-w-sm">
-            {this.state.error?.message ?? "Erro desconhecido"}
+            {isChunk
+              ? "O aplicativo foi atualizado. Recarregue a página para continuar."
+              : (this.state.error?.message ?? "Erro desconhecido")}
           </span>
           <button
             className="text-xs underline text-muted-foreground hover:text-foreground"
-            onClick={() => this.setState({ hasError: false, error: null })}
+            onClick={() => isChunk ? window.location.reload() : this.setState({ hasError: false, error: null })}
           >
-            Tentar novamente
+            {isChunk ? "Recarregar página" : "Tentar novamente"}
           </button>
         </div>
       );
