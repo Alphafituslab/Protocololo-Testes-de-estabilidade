@@ -30,6 +30,7 @@ import type {
   Certificate,
   CreateAttachmentBody,
   CreateLotBody,
+  DeletedLot,
   CreateMethodologyBody,
   CreateProtocolBody,
   DeleteAttachment200,
@@ -1267,6 +1268,242 @@ export function useListLots<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List deleted lots for a protocol (lixeira)
+ */
+export const getListDeletedLotsUrl = (id: number) => {
+  return `/api/protocols/${id}/lots/deleted`;
+};
+
+export const listDeletedLots = async (
+  id: number,
+  options?: RequestInit,
+): Promise<DeletedLot[]> => {
+  return customFetch<DeletedLot[]>(getListDeletedLotsUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDeletedLotsQueryKey = (id: number) => {
+  return [`/api/protocols/${id}/lots/deleted`] as const;
+};
+
+export const getListDeletedLotsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDeletedLots>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDeletedLots>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getListDeletedLotsQueryKey(id);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listDeletedLots>>> = ({
+    signal,
+  }) => listDeletedLots(id, { signal, ...requestOptions });
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof listDeletedLots>>, TError, TData> & {
+    queryKey: QueryKey;
+  };
+};
+
+export type ListDeletedLotsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDeletedLots>>
+>;
+export type ListDeletedLotsQueryError = ErrorType<unknown>;
+
+export function useListDeletedLots<
+  TData = Awaited<ReturnType<typeof listDeletedLots>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDeletedLots>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDeletedLotsQueryOptions(id, options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Restore a soft-deleted lot
+ */
+export const getRestoreLotUrl = (id: number, lotId: number) => {
+  return `/api/protocols/${id}/lots/${lotId}/restore`;
+};
+
+export const restoreLot = async (
+  id: number,
+  lotId: number,
+  options?: RequestInit,
+): Promise<Lot> => {
+  return customFetch<Lot>(getRestoreLotUrl(id, lotId), {
+    ...options,
+    method: "PATCH",
+  });
+};
+
+export const getRestoreLotMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restoreLot>>,
+    TError,
+    { id: number; lotId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof restoreLot>>,
+  TError,
+  { id: number; lotId: number },
+  TContext
+> => {
+  const mutationKey = ["restoreLot"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof restoreLot>>,
+    { id: number; lotId: number }
+  > = (props) => {
+    const { id, lotId } = props ?? {};
+    return restoreLot(id, lotId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RestoreLotMutationResult = NonNullable<
+  Awaited<ReturnType<typeof restoreLot>>
+>;
+export type RestoreLotMutationError = ErrorType<unknown>;
+
+export const useRestoreLot = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restoreLot>>,
+    TError,
+    { id: number; lotId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof restoreLot>>,
+  TError,
+  { id: number; lotId: number },
+  TContext
+> => {
+  return useMutation(getRestoreLotMutationOptions(options));
+};
+
+/**
+ * @summary Permanently delete a soft-deleted lot
+ */
+export const getPermanentDeleteLotUrl = (id: number, lotId: number) => {
+  return `/api/protocols/${id}/lots/${lotId}/permanent`;
+};
+
+export const permanentDeleteLot = async (
+  id: number,
+  lotId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getPermanentDeleteLotUrl(id, lotId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getPermanentDeleteLotMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof permanentDeleteLot>>,
+    TError,
+    { id: number; lotId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof permanentDeleteLot>>,
+  TError,
+  { id: number; lotId: number },
+  TContext
+> => {
+  const mutationKey = ["permanentDeleteLot"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof permanentDeleteLot>>,
+    { id: number; lotId: number }
+  > = (props) => {
+    const { id, lotId } = props ?? {};
+    return permanentDeleteLot(id, lotId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PermanentDeleteLotMutationResult = NonNullable<
+  Awaited<ReturnType<typeof permanentDeleteLot>>
+>;
+export type PermanentDeleteLotMutationError = ErrorType<unknown>;
+
+export const usePermanentDeleteLot = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof permanentDeleteLot>>,
+    TError,
+    { id: number; lotId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof permanentDeleteLot>>,
+  TError,
+  { id: number; lotId: number },
+  TContext
+> => {
+  return useMutation(getPermanentDeleteLotMutationOptions(options));
+};
 
 /**
  * @summary Add a lot to a protocol

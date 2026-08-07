@@ -129,6 +129,10 @@ export interface Lot {
   createdAt: string;
 }
 
+export interface DeletedLot extends Lot {
+  deletedAt: string;
+}
+
 export type AnalysisResultCategory =
   (typeof AnalysisResultCategory)[keyof typeof AnalysisResultCategory];
 

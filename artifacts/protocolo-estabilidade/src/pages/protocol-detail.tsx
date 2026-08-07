@@ -60,6 +60,11 @@ import {
   useDeleteAtivoReference,
   getListAtivoReferencesQueryKey,
   type AtivoReference,
+  useListDeletedLots,
+  useRestoreLot,
+  usePermanentDeleteLot,
+  getListDeletedLotsQueryKey,
+  type DeletedLot,
 } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -73,6 +78,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ArrowLeft, Plus, Pencil, Trash2, FileText, CheckCircle2, XCircle, Loader2, FlaskConical, BarChart3, Award, Lock, Unlock, BookOpen, History, Paperclip, ExternalLink, Upload, Download, X, File, GripVertical, Search, SaveAll, RotateCcw, ShieldAlert, Eye, EyeOff, Bell, ShieldCheck, PenLine, Building2, Database, ChevronDown, ChevronRight, Save } from "lucide-react";
@@ -431,7 +437,48 @@ function LotsTab({ protocolId }: { protocolId: number }) {
         queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getListResultsQueryKey(protocolId) });
         queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
+        queryClient.invalidateQueries({ queryKey: getListDeletedLotsQueryKey(protocolId) });
         toast({ title: "Lote removido" });
+      },
+    },
+  });
+
+  // ── Trash (lixeira) ──────────────────────────────────────────────────────
+  const [trashOpen, setTrashOpen] = useState(false);
+  const { data: deletedLots = [], isLoading: isLoadingDeleted } = useListDeletedLots(protocolId, {
+    query: { queryKey: getListDeletedLotsQueryKey(protocolId), enabled: trashOpen },
+  });
+
+  const restoreLot = useRestoreLot({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListLotsQueryKey(protocolId) });
+        queryClient.invalidateQueries({ queryKey: getListDeletedLotsQueryKey(protocolId) });
+        queryClient.invalidateQueries({ queryKey: getGetKineticsQueryKey(protocolId) });
+        toast({ title: "Lote restaurado", description: "O lote voltou para a lista ativa." });
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { error?: string } }; message?: string })
+          ?.response?.data?.error
+          ?? (err instanceof Error ? err.message : null)
+          ?? "Erro ao restaurar lote.";
+        toast({ title: "Erro ao restaurar", description: msg, variant: "destructive" });
+      },
+    },
+  });
+
+  const permanentDeleteLot = usePermanentDeleteLot({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListDeletedLotsQueryKey(protocolId) });
+        toast({ title: "Lote excluído permanentemente" });
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { error?: string } }; message?: string })
+          ?.response?.data?.error
+          ?? (err instanceof Error ? err.message : null)
+          ?? "Erro ao excluir permanentemente.";
+        toast({ title: "Erro ao excluir", description: msg, variant: "destructive" });
       },
     },
   });
@@ -564,6 +611,99 @@ function LotsTab({ protocolId }: { protocolId: number }) {
           Alimento está sendo testado em embalagem equivalente e sistema de fechamento nos quais será comercializado.
         </p>
       </div>
+
+      {/* ── Lixeira ─────────────────────────────────────────────────────────── */}
+      <Collapsible open={trashOpen} onOpenChange={setTrashOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {trashOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            <Trash2 className="h-3.5 w-3.5" />
+            Lixeira
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="mt-2 rounded-md border border-destructive/20 bg-destructive/5 p-3">
+            {isLoadingDeleted ? (
+              <div className="text-center py-4 text-xs text-muted-foreground">Carregando lixeira...</div>
+            ) : deletedLots.length === 0 ? (
+              <div className="text-center py-4 text-xs text-muted-foreground">Nenhum lote na lixeira.</div>
+            ) : (
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Lotes excluídos ({deletedLots.length})
+                </p>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Número do Lote</TableHead>
+                      <TableHead className="text-xs">Fabricação</TableHead>
+                      <TableHead className="text-xs">Qtd.</TableHead>
+                      <TableHead className="text-xs">Excluído em</TableHead>
+                      <TableHead className="w-24 text-xs"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {deletedLots.map((lot: DeletedLot) => (
+                      <TableRow key={lot.id} className="opacity-70">
+                        <TableCell className="font-mono font-medium text-xs">{lot.lotNumber}</TableCell>
+                        <TableCell className="text-xs">{fmtDate(lot.manufacturingDate)}</TableCell>
+                        <TableCell className="text-xs">{lot.quantity} un.</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {lot.deletedAt ? new Date(lot.deletedAt).toLocaleDateString("pt-BR") : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {canManageLots && (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs text-green-700 hover:text-green-800 hover:bg-green-50"
+                                onClick={() => restoreLot.mutate({ id: protocolId, lotId: lot.id })}
+                                disabled={restoreLot.isPending}
+                              >
+                                <RotateCcw className="h-3 w-3 mr-1" />
+                                Restaurar
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10">
+                                    <Trash2 className="h-3 w-3 mr-1" />
+                                    Excluir
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      O lote <strong className="font-mono">{lot.lotNumber}</strong> será removido definitivamente do banco de dados. Esta ação não pode ser desfeita.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      onClick={() => permanentDeleteLot.mutate({ id: protocolId, lotId: lot.id })}
+                                    >
+                                      Excluir permanentemente
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <Dialog open={open} onOpenChange={(next) => {
         setOpen(next);

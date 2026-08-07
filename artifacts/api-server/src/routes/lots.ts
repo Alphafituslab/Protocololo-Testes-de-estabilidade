@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, and, isNull, ne } from "drizzle-orm";
-import { db, lotsTable, protocolsTable } from "@workspace/db";
+import { eq, and, isNull, isNotNull, ne, count } from "drizzle-orm";
+import { db, lotsTable, protocolsTable, analysisResultsTable } from "@workspace/db";
 import { CreateLotBody, CreateLotParams, UpdateLotParams, DeleteLotParams, ListLotsParams } from "@workspace/api-zod";
 import { logAudit } from "../lib/audit";
 import { requireAuth } from "../lib/session";
@@ -87,6 +87,17 @@ router.get("/protocols/:id/lots", requireAuth, async (req, res): Promise<void> =
   const lots = await db.select().from(lotsTable)
     .where(and(eq(lotsTable.protocolId, params.data.id), isNull(lotsTable.deletedAt)))
     .orderBy(lotsTable.manufacturingDate, lotsTable.lotNumber);
+  res.json(lots);
+});
+
+// ─── GET DELETED (lixeira) ───────────────────────────────────────────────────
+
+router.get("/protocols/:id/lots/deleted", requireAuth, async (req, res): Promise<void> => {
+  const params = ListLotsParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  const lots = await db.select().from(lotsTable)
+    .where(and(eq(lotsTable.protocolId, params.data.id), isNotNull(lotsTable.deletedAt)))
+    .orderBy(lotsTable.deletedAt, lotsTable.lotNumber);
   res.json(lots);
 });
 
@@ -187,6 +198,105 @@ router.delete("/protocols/:id/lots/:lotId", requireAuth, requirePermission(PERM.
     if (!deleted) { res.status(404).json({ error: "Lot not found" }); return; }
     await logAudit(req, "EXCLUIR_LOTE", "lote", `Lote "${deleted.lotNumber}" enviado para a lixeira`, { entityId: deleted.id, protocolId: params.data.id });
     void createAutoSnapshot(params.data.id, `Auto: antes de excluir lote "${deleted.lotNumber}"`, req.authUser?.displayName ?? "Sistema");
+    res.sendStatus(204);
+  } catch (err) {
+    res.status(500).json({ error: dbErrMessage(err) });
+  }
+});
+
+// ─── PATCH RESTORE ───────────────────────────────────────────────────────────
+
+router.patch("/protocols/:id/lots/:lotId/restore", requireAuth, requirePermission(PERM.LOTS_MANAGE), async (req, res): Promise<void> => {
+  const params = DeleteLotParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+
+  // Post-signature lock — same guard as soft-delete and update
+  const signed = await isProtocolSigned(params.data.id);
+  if (signed && req.authUser?.role !== "admin") {
+    res.status(403).json({ error: "Protocolo assinado. Apenas o administrador pode restaurar lotes." }); return;
+  }
+
+  // Find the deleted lot scoped to this protocol (prevents cross-protocol operations)
+  const [target] = await db.select().from(lotsTable)
+    .where(and(
+      eq(lotsTable.id, params.data.lotId),
+      eq(lotsTable.protocolId, params.data.id),
+      isNotNull(lotsTable.deletedAt),
+    ))
+    .limit(1);
+  if (!target) { res.status(404).json({ error: "Lote excluído não encontrado neste protocolo." }); return; }
+
+  // Check if the same lot number already exists (active) in this protocol
+  const withinSame = await findConflictWithinProtocol(params.data.id, target.lotNumber);
+  if (withinSame) {
+    res.status(409).json({ error: `Já existe um lote ativo com o número "${target.lotNumber}" neste protocolo. Exclua-o primeiro para restaurar este.` });
+    return;
+  }
+
+  // Check global uniqueness across other protocols
+  const otherProtocol = await findConflictingProtocol(target.lotNumber, params.data.id);
+  if (otherProtocol) {
+    res.status(409).json({ error: duplicateMessage(target.lotNumber, otherProtocol) });
+    return;
+  }
+
+  try {
+    const [restored] = await db
+      .update(lotsTable)
+      .set({ deletedAt: null })
+      .where(and(eq(lotsTable.id, params.data.lotId), eq(lotsTable.protocolId, params.data.id)))
+      .returning();
+    if (!restored) { res.status(404).json({ error: "Lote não encontrado." }); return; }
+    await logAudit(req, "RESTAURAR_LOTE", "lote", `Lote "${restored.lotNumber}" restaurado da lixeira`, { entityId: restored.id, protocolId: params.data.id });
+    res.json(restored);
+  } catch (err) {
+    res.status(500).json({ error: dbErrMessage(err) });
+  }
+});
+
+// ─── DELETE PERMANENT ─────────────────────────────────────────────────────────
+
+router.delete("/protocols/:id/lots/:lotId/permanent", requireAuth, requirePermission(PERM.LOTS_MANAGE), async (req, res): Promise<void> => {
+  const params = DeleteLotParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+
+  // Post-signature lock
+  const signed = await isProtocolSigned(params.data.id);
+  if (signed && req.authUser?.role !== "admin") {
+    res.status(403).json({ error: "Protocolo assinado. Apenas o administrador pode excluir lotes permanentemente." }); return;
+  }
+
+  // Only allow permanent deletion of already soft-deleted lots scoped to this protocol
+  const [target] = await db.select().from(lotsTable)
+    .where(and(
+      eq(lotsTable.id, params.data.lotId),
+      eq(lotsTable.protocolId, params.data.id),
+      isNotNull(lotsTable.deletedAt),
+    ))
+    .limit(1);
+  if (!target) { res.status(404).json({ error: "Lote excluído não encontrado neste protocolo." }); return; }
+
+  // Count ALL associated analysis results (active AND soft-deleted) — ON DELETE CASCADE would
+  // silently erase both. Block whenever any exist, regardless of their deletedAt state.
+  const [{ resultCount }] = await db
+    .select({ resultCount: count() })
+    .from(analysisResultsTable)
+    .where(and(
+      eq(analysisResultsTable.lotId, params.data.lotId),
+      eq(analysisResultsTable.protocolId, params.data.id),
+    ));
+
+  if (resultCount > 0) {
+    res.status(409).json({
+      error: `Este lote possui ${resultCount} resultado(s) de análise associado(s). Exclua os resultados primeiro antes de remover o lote permanentemente.`,
+      resultCount,
+    });
+    return;
+  }
+
+  try {
+    await db.delete(lotsTable).where(and(eq(lotsTable.id, params.data.lotId), eq(lotsTable.protocolId, params.data.id)));
+    await logAudit(req, "EXCLUIR_PERMANENTE_LOTE", "lote", `Lote "${target.lotNumber}" excluído permanentemente`, { entityId: target.id, protocolId: params.data.id });
     res.sendStatus(204);
   } catch (err) {
     res.status(500).json({ error: dbErrMessage(err) });
