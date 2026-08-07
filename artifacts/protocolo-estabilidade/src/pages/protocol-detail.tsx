@@ -1010,7 +1010,7 @@ export default function ProtocolDetail() {
   const numId = Number(id);
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { hasPermission, token } = useAuth();
+  const { hasPermission, token, user } = useAuth();
   const { unlocked, unlock, lock } = useUnlock();
 
   // Protocolos com alterações não dispensadas — mesma query key do dashboard/lista (cache compartilhado)
@@ -1033,8 +1033,7 @@ export default function ProtocolDetail() {
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
   const [deletePasswordOpen, setDeletePasswordOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("info");
-  // Reset to "info" if the current tab becomes inaccessible due to permissions
+  // Tab permission map — tabs not listed here are always accessible
   const tabPermissions: Record<string, string> = {
     kinetics: "kinetics:view",
     metodologia: "methodology:view",
@@ -1044,16 +1043,40 @@ export default function ProtocolDetail() {
     versoes: "versions:view",
     anvisa: "anvisa:manage",
   };
+  const knownTabs = ["info", "lots", "results", ...Object.keys(tabPermissions)];
+
+  // Initialise from ?tab= URL param; fall back to "info" for unknown values.
+  // Permission validation is deferred to the useEffect below because auth may
+  // not have loaded yet at this point.
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    return tab && knownTabs.includes(tab) ? tab : "info";
+  });
+
+  // Reset to "info" whenever the active tab requires a permission the user
+  // doesn't have. This also fires when auth finishes loading (user changes),
+  // ensuring a ?tab= deep-link to a restricted tab is caught after auth resolves.
+  const userPermissions = user?.permissions;
   useEffect(() => {
     const perm = tabPermissions[activeTab];
     if (perm && !hasPermission(perm as Parameters<typeof hasPermission>[0])) {
       setActiveTab("info");
+      toast({
+        title: "Acesso negado",
+        description: "Você não tem permissão para acessar esta aba.",
+        variant: "destructive",
+      });
     }
-  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTab, userPermissions]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Lazy tab mounting: each tab only mounts when first visited, then stays mounted.
   // Prevents all heavy tab components from loading simultaneously on page open.
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["info"]));
   const handleTabChange = (tab: string) => {
+    // Guard: never navigate to a tab the user lacks permission for
+    const perm = tabPermissions[tab];
+    if (perm && !hasPermission(perm as Parameters<typeof hasPermission>[0])) return;
     setActiveTab(tab);
     setVisitedTabs(prev => { const next = new Set(prev); next.add(tab); return next; });
   };
