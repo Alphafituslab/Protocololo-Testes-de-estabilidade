@@ -168,6 +168,12 @@ router.put("/users/:userId", requireAuth, requireAdmin, async (req, res): Promis
   try {
     const [updated] = await db.update(usersTable).set(updates).where(eq(usersTable.id, userId)).returning(PUBLIC_FIELDS);
     if (!updated) { res.status(404).json({ error: "Usuário não encontrado." }); return; }
+    // Force re-login: delete all sessions of the updated user so the new
+    // permissions, role, or access status take effect immediately on next login.
+    // Skip only when admin is editing their own account (would self-logout).
+    if (req.authUser?.id !== userId) {
+      await db.delete(sessionsTable).where(eq(sessionsTable.userId, userId));
+    }
     res.json(updated);
   } catch { res.status(409).json({ error: "Nome de usuário já existe." }); }
 });

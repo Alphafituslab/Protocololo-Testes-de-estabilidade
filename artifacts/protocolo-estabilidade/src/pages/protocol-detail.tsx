@@ -499,6 +499,13 @@ function LotsTab({ protocolId }: { protocolId: number }) {
           form.setFocus("lotNumber");
         }, 0);
       },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { error?: string } }; message?: string })
+          ?.response?.data?.error
+          ?? (err instanceof Error ? err.message : null)
+          ?? "Erro ao criar lote. Verifique suas permissões.";
+        toast({ title: "Erro ao adicionar lote", description: msg, variant: "destructive" });
+      },
     },
   });
 

@@ -1,6 +1,6 @@
 // @refresh reset
-import { createContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { setAuthTokenGetter } from "@workspace/api-client-react";
+import { createContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { setAuthTokenGetter, setUnauthorizedHandler } from "@workspace/api-client-react";
 
 export type AuthUser = {
   id: number;
@@ -55,6 +55,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setAuthTokenGetter(token ? () => token : null);
+  }, [token]);
+
+  // Register a global 401 handler so that when the server invalidates a
+  // session (e.g. after the admin changes permissions), the next API call
+  // automatically clears local auth state and the user sees the login screen.
+  const logoutRef = useRef<() => void>();
+  useEffect(() => {
+    logoutRef.current = () => {
+      store.remove(TOKEN_KEY);
+      store.remove(USER_KEY);
+      setToken(null);
+      setUser(null);
+      setAuthTokenGetter(null);
+      setUnauthorizedHandler(null);
+      // Small delay so the current fetch can finish before navigation
+      setTimeout(() => { window.location.replace("/"); }, 100);
+    };
+    if (token) {
+      setUnauthorizedHandler(() => logoutRef.current?.());
+    } else {
+      setUnauthorizedHandler(null);
+    }
   }, [token]);
 
   const login = useCallback(async (username: string, password: string): Promise<AuthUser> => {
