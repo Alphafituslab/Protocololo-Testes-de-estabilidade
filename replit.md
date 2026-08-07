@@ -97,6 +97,9 @@ pnpm run typecheck:libs
 
 ## Preferências do Usuário
 
+- **Não enviar sugestões de melhorias espontâneas.** Só propor tarefas ou mudanças quando o usuário pedir diretamente.
+
+
 ### ⚠️ Proteção de Dados — Regra Absoluta
 - **Nunca executar DELETE, DROP ou qualquer operação destrutiva**, mesmo que o usuário diga "sim" ou "pode apagar".
 - Antes de qualquer exclusão, enviar aviso explícito em **português (Brasil)** descrevendo exatamente o que será perdido, quantos registros, e se é reversível.
