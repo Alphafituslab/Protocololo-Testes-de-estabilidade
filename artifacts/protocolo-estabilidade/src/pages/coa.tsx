@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Command, CommandEmpty, CommandInput, CommandItem, CommandList
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList
 } from "@/components/ui/command";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -2186,22 +2186,38 @@ function ResultRow({
               />
               <CommandList className="max-h-64">
                 <CommandEmpty className="py-3 text-xs text-center text-muted-foreground">Nenhuma metodologia encontrada.</CommandEmpty>
-                {methodologies
-                  .filter(m => {
-                    const q = methodSearch.toLowerCase();
-                    return !q || m.shortName.toLowerCase().includes(q) || (m.citation || "").toLowerCase().includes(q);
-                  })
-                  .map(m => (
+                {(() => {
+                  const q = methodSearch.toLowerCase();
+                  const matches = (m: Methodology) =>
+                    !q || m.shortName.toLowerCase().includes(q) || (m.citation || "").toLowerCase().includes(q);
+                  const metods = methodologies.filter(m => m.id >= 0 && matches(m));
+                  const biblio = methodologies.filter(m => m.id < 0 && matches(m));
+                  const renderItem = (m: Methodology) => (
                     <CommandItem
                       key={m.id}
-                      value={m.shortName}
+                      value={String(m.id)}
                       onSelect={() => { handleMethodSelect(m.shortName); setMethodOpen(false); setMethodSearch(""); }}
                       className="flex flex-col items-start gap-0.5 py-2 cursor-pointer"
                     >
                       <span className="font-medium text-xs">{m.shortName}</span>
                       {m.citation && <span className="text-muted-foreground text-[10px] leading-snug line-clamp-2">{m.citation}</span>}
                     </CommandItem>
-                  ))}
+                  );
+                  return (
+                    <>
+                      {metods.length > 0 && (
+                        <CommandGroup heading="Metodologias" className="[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5">
+                          {metods.map(renderItem)}
+                        </CommandGroup>
+                      )}
+                      {biblio.length > 0 && (
+                        <CommandGroup heading="Biblioteca de Referências" className="[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5">
+                          {biblio.map(renderItem)}
+                        </CommandGroup>
+                      )}
+                    </>
+                  );
+                })()}
               </CommandList>
             </Command>
           </PopoverContent>
