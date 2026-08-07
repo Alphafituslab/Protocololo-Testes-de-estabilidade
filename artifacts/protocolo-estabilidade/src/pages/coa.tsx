@@ -18,6 +18,10 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command, CommandEmpty, CommandInput, CommandItem, CommandList
+} from "@/components/ui/command";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -187,6 +191,8 @@ function CoaList() {
   const [fromProtoOpen, setFromProtoOpen] = useState(false);
   const [selProtoId, setSelProtoId] = useState<number | null>(null);
   const [selLotId, setSelLotId] = useState<number | null>(null);
+  const [protoPopoverOpen, setProtoPopoverOpen] = useState(false);
+  const [protoSearch, setProtoSearch] = useState("");
   const [search, setSearch] = useState("");
 
   const { data: docs = [], isLoading } = useQuery<CoaDocument[]>({
@@ -386,19 +392,55 @@ function CoaList() {
           <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
             <div className="space-y-1.5">
               <Label className="text-xs">Protocolo</Label>
-              <Select
-                value={selProtoId ? String(selProtoId) : ""}
-                onValueChange={(v) => { setSelProtoId(Number(v)); setSelLotId(null); }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o protocolo…" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60 overflow-y-auto">
-                  {allProtocols.map(p => (
-                    <SelectItem key={p.id} value={String(p.id)}>{p.productName || `Protocolo #${p.id}`}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={protoPopoverOpen} onOpenChange={setProtoPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={protoPopoverOpen}
+                    className="w-full justify-between font-normal text-sm h-10"
+                  >
+                    <span className={selProtoId ? "text-foreground" : "text-muted-foreground"}>
+                      {selProtoId
+                        ? (allProtocols.find(p => p.id === selProtoId)?.productName || `Protocolo #${selProtoId}`)
+                        : "Selecione o protocolo…"}
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Buscar protocolo…"
+                      value={protoSearch}
+                      onValueChange={setProtoSearch}
+                    />
+                    <CommandList className="max-h-56">
+                      <CommandEmpty>Nenhum protocolo encontrado.</CommandEmpty>
+                      {allProtocols
+                        .filter(p =>
+                          !protoSearch ||
+                          (p.productName || "").toLowerCase().includes(protoSearch.toLowerCase())
+                        )
+                        .map(p => (
+                          <CommandItem
+                            key={p.id}
+                            value={String(p.id)}
+                            onSelect={() => {
+                              setSelProtoId(p.id);
+                              setSelLotId(null);
+                              setProtoSearch("");
+                              setProtoPopoverOpen(false);
+                            }}
+                          >
+                            {p.productName || `Protocolo #${p.id}`}
+                          </CommandItem>
+                        ))
+                      }
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             {selProtoId && (
               <div className="space-y-1.5">
