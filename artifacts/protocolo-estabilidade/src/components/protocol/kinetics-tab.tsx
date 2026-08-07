@@ -466,14 +466,18 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
   useEffect(() => {
     if (!kinetics) return;
 
-    type SavedPartial = Partial<Omit<KineticOverride, "t0" | "t3" | "t6">>;
+    // Include t0/t3/t6 so localStorage-only edits (not yet saved to DB) survive HMR remount.
+    type SavedPartial = Partial<KineticOverride>;
     let savedOverrides: Record<string, SavedPartial> = {};
+    let savedManualFields: Record<string, string[]> = {};
     let savedCustomShelfLife = "";
     let savedCardValidity = "";
+    let hasLocalData = false;
     let dbOverrides: KineticsOverridesDB | null = null;
     try {
       const stored = readLs();
-      if (stored.overrides) savedOverrides = stored.overrides;
+      if (stored.overrides) { savedOverrides = stored.overrides; hasLocalData = true; }
+      if (stored.manualFields) savedManualFields = stored.manualFields;
       if (stored.customShelfLife != null) savedCustomShelfLife = stored.customShelfLife;
       if (typeof stored.cardValidity === "string") savedCardValidity = stored.cardValidity;
     } catch { /* ignore */ }
@@ -499,6 +503,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     const effectiveCardValidity = savedCardValidity || kineticsFallback;
 
     const next: Record<string, KineticOverride> = {};
+    const hydratedManualFields: Record<string, string[]> = {};
     for (const p of kinetics.parameters) {
       const base = buildKineticOverride(p);
       const saved = savedOverrides[p.parameter] ?? {};
@@ -508,11 +513,25 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
       // value (e.g. saved when the default was 80%) override the current system default.
       const ichThreshold = base.ichThreshold;
 
-      // T0/T3/T6: use DB-saved value ONLY when that field was explicitly edited by the user.
-      const anyManualTxT = dbParam?.manualFields?.some(f => ["t0", "t3", "t6"].includes(f)) ?? false;
-      const t0 = (dbParam?.manualFields?.includes("t0") && dbParam.t0) ? dbParam.t0 : base.t0;
-      const t3 = (dbParam?.manualFields?.includes("t3") && dbParam.t3) ? dbParam.t3 : base.t3;
-      const t6 = (dbParam?.manualFields?.includes("t6") && dbParam.t6) ? dbParam.t6 : base.t6;
+      // T0/T3/T6: MERGE DB manual fields with localStorage manual fields so that:
+      //   • Fields saved to DB survive cross-device / page-refresh scenarios.
+      //   • Fields edited locally (not yet saved to DB) survive HMR remount.
+      // Neither layer is given exclusive precedence — the union of both is used.
+      const lsManualFields = savedManualFields[p.parameter] ?? [];
+      const dbManualFields = dbParam?.manualFields ?? [];
+      const effectiveManualFields = Array.from(new Set([...dbManualFields, ...lsManualFields]));
+      const anyManualTxT = effectiveManualFields.some(f => ["t0", "t3", "t6"].includes(f));
+      // Value priority for manually-edited fields: localStorage (unsaved edit) > DB > API base.
+      // This ensures a fresh unsaved edit isn't overwritten by an older DB-saved value on remount.
+      const t0 = effectiveManualFields.includes("t0")
+        ? (saved.t0 || dbParam?.t0 || base.t0)
+        : base.t0;
+      const t3 = effectiveManualFields.includes("t3")
+        ? (saved.t3 || dbParam?.t3 || base.t3)
+        : base.t3;
+      const t6 = effectiveManualFields.includes("t6")
+        ? (saved.t6 || dbParam?.t6 || base.t6)
+        : base.t6;
 
       // Recompute k/deltaLn/shelfLife from user-edited values ONLY when t0/t3/t6 were
       // manually changed. Otherwise use the API's pre-calculated values, which correctly
@@ -529,13 +548,22 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
         specMin: dbParam?.specMin || saved.specMin || base.specMin,
         specMax: dbParam?.specMax || saved.specMax || base.specMax,
       };
+      // Track the merged manual-fields set so setManualFields below reflects both layers.
+      if (effectiveManualFields.length > 0) hydratedManualFields[p.parameter] = effectiveManualFields;
     }
     setOverrides(next);
+    // Hydrate manualFields React state from the merged DB+localStorage set so that:
+    //   1. T-field highlights are correct in the UI after remount.
+    //   2. saveOverridesToDb() writes the full merged manualFields metadata, not stale DB-only data.
+    setManualFields(hydratedManualFields);
     setCustomShelfLife(savedCustomShelfLife);
     // Auto-fill only when user never manually locked the field.
     if (effectiveCardValidity && !validityLockedByUser) {
       setCardValidity(cv => cv || effectiveCardValidity);
     }
+    // Restore dirty flag: if localStorage has unsaved overrides (i.e. changes not yet
+    // committed to DB), mark as dirty so the save button remains visible after HMR remount.
+    if (hasLocalData) setIsDirty(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kinetics, LS_KEY]);
 
@@ -544,9 +572,12 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
     shelf = customShelfLife,
     cv = cardValidity,
     obs = kineticsObs,
+    // Pass manualFields explicitly from the caller when the state update hasn't committed
+    // yet (avoids stale-closure race in applyFieldChange).
+    mf = manualFields,
   ) => {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ overrides: next, customShelfLife: shelf, cardValidity: cv, kineticsObs: obs, selectedShelfBox: selectedShelfBox ?? undefined, validityLockedByUser }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ overrides: next, customShelfLife: shelf, cardValidity: cv, kineticsObs: obs, selectedShelfBox: selectedShelfBox ?? undefined, validityLockedByUser, manualFields: mf }));
     } catch { /* ignore */ }
   };
 
@@ -587,12 +618,16 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
 
   const applyFieldChange = (param: string, field: keyof KineticOverride, val: string) => {
     setIsDirty(true);
+    // Compute the next manualFields eagerly (before setState commits) so persistOverrides
+    // can write the correct value to localStorage in the same microtask — avoiding the
+    // stale-closure race where setManualFields hasn't flushed yet.
+    let nextManualFields = manualFields;
     if (field === "t0" || field === "t3" || field === "t6") {
-      setManualFields((prev) => {
-        const existing = prev[param] ?? [];
-        if (!existing.includes(field)) return { ...prev, [param]: [...existing, field] };
-        return prev;
-      });
+      const existing = manualFields[param] ?? [];
+      if (!existing.includes(field)) {
+        nextManualFields = { ...manualFields, [param]: [...existing, field] };
+      }
+      setManualFields(nextManualFields);
     }
     setOverrides((prev) => {
       const ov = { ...prev[param], [field]: val };
@@ -601,7 +636,7 @@ function KineticsTab({ protocolId, productName, initialKineticsNotes, initialVal
         Object.assign(ov, computed);
       }
       const next = { ...prev, [param]: ov };
-      persistOverrides(next);
+      persistOverrides(next, customShelfLife, cardValidity, kineticsObs, nextManualFields);
       return next;
     });
   };
