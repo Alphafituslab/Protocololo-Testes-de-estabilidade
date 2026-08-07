@@ -363,7 +363,36 @@ export async function purgeDeprecatedMethodologies(): Promise<void> {
   }
 }
 
+/**
+ * Remove qualquer índice UNIQUE em lots(protocol_id, lot_number) que possa ter
+ * sido criado em versões anteriores do schema. A unicidade agora é garantida na
+ * camada de aplicação (respeitando soft-delete e dando mensagens claras).
+ * É idempotente: se o índice não existir, não faz nada.
+ */
+async function dropLotsUniqueConstraintIfExists(): Promise<void> {
+  try {
+    // Busca todos os índices únicos na tabela lots (exceto a PK)
+    const { rows } = await pool.query<{ indexname: string }>(`
+      SELECT i.relname AS indexname
+      FROM pg_index ix
+      JOIN pg_class t ON t.oid = ix.indrelid
+      JOIN pg_class i ON i.oid = ix.indexrelid
+      WHERE t.relname = 'lots'
+        AND ix.indisunique = true
+        AND ix.indisprimary = false
+    `);
+    for (const { indexname } of rows) {
+      await pool.query(`DROP INDEX IF EXISTS "${indexname}"`);
+      logger.info({ indexname }, "dropLotsUniqueConstraintIfExists: índice removido");
+    }
+  } catch (err) {
+    logger.error({ err }, "dropLotsUniqueConstraintIfExists: erro (não crítico)");
+  }
+}
+
 export async function runAllSeeds(): Promise<void> {
+  // Remove constraint único legado da tabela lots (se existir em produção)
+  await dropLotsUniqueConstraintIfExists();
   // Remove entradas legadas antes de semear para não re-inserir nada indesejado
   await purgeDeprecatedMethodologies();
   // Corrige sequence antes de tudo para evitar pkey conflict em produção
